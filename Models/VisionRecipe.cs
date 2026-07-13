@@ -27,6 +27,7 @@ namespace HalconWinFormsDemo.Models
             TcpMode = "Client";
             TcpEncoding = "UTF-8";
             AutoSendResult = true;
+            FlowRunPolicy = new VmFlowRunPolicy();
         }
 
         [DataMember(Order = 1)]
@@ -103,6 +104,9 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 25, EmitDefaultValue = false)]
         public List<RoiLayerRecipeData> RoiLayers { get; set; }
+
+        [DataMember(Order = 26, EmitDefaultValue = false)]
+        public VmFlowRunPolicy FlowRunPolicy { get; set; }
 
     }
 

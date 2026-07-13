@@ -7,6 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -20,7 +21,7 @@ namespace HalconWinFormsDemo
 {
     public partial class MainWindow : Window
     {
-        private const string VersionStamp = "HALCON VM S03 2026-07-13";
+        private const string VersionStamp = "HALCON VM S04 2026-07-13";
 
         private readonly HalconImageService imageService = new HalconImageService();
         private readonly AppLogger logger = new AppLogger();
@@ -64,6 +65,9 @@ namespace HalconWinFormsDemo
         private bool isPanning;
         private System.Drawing.Point lastPanPoint;
         private bool isContinuousRunning;
+        private bool isFlowExecutionActive;
+        private bool isPauseRequested;
+        private bool isStopRequested;
         private bool inspectorUpdating;
         private bool roiBindingUpdating;
 
@@ -73,7 +77,7 @@ namespace HalconWinFormsDemo
 
             playbackTimer.Interval = TimeSpan.FromMilliseconds(650);
             playbackTimer.Tick += PlaybackTimer_Tick;
-            runTimer.Interval = TimeSpan.FromMilliseconds(250);
+            runTimer.Interval = TimeSpan.FromMilliseconds(500);
             runTimer.Tick += RunTimer_Tick;
 
             logger.MessageLogged += Logger_MessageLogged;
@@ -489,6 +493,10 @@ namespace HalconWinFormsDemo
                     InspectorInputSummaryText.Text = "--";
                     InspectorOutputSummaryText.Text = "--";
                     InspectorErrorText.Text = "--";
+                    SelectedResultToolText.Text = "--";
+                    SelectedResultStatusText.Text = "--";
+                    SelectedResultOutputText.Text = "--";
+                    SelectedResultErrorText.Text = "--";
                     RefreshPortPanel(null);
                     RefreshRoiBindingEditor();
                     return;
@@ -503,6 +511,10 @@ namespace HalconWinFormsDemo
                 InspectorInputSummaryText.Text = selected.InputSummary;
                 InspectorOutputSummaryText.Text = selected.OutputSummary;
                 InspectorErrorText.Text = string.IsNullOrWhiteSpace(selected.ErrorMessage) ? "--" : selected.ErrorMessage;
+                SelectedResultToolText.Text = selected.InstanceName + " · " + selected.DisplayType;
+                SelectedResultStatusText.Text = selected.ResultCode + " · " + selected.RunStatus + " · " + selected.ElapsedText;
+                SelectedResultOutputText.Text = string.IsNullOrWhiteSpace(selected.OutputSummary) ? "--" : selected.OutputSummary;
+                SelectedResultErrorText.Text = string.IsNullOrWhiteSpace(selected.ErrorMessage) ? "--" : selected.ErrorMessage;
 
                 switch (selected.Kind)
                 {
@@ -1037,27 +1049,50 @@ namespace HalconWinFormsDemo
             StopPlayback();
         }
 
-        private void RunOnceButton_Click(object sender, RoutedEventArgs e)
+        private async void RunOnceButton_Click(object sender, RoutedEventArgs e)
         {
-            RunInspectionCycle("手动单次");
+            await StartManualFlowRunAsync(VmFlowRunRequestMode.Full, "手动单次");
         }
 
-        private void RunContinuousButton_Click(object sender, RoutedEventArgs e)
+        private async void RunContinuousButton_Click(object sender, RoutedEventArgs e)
         {
-            RunUiAction("连续运行", delegate
+            try
             {
-                EnsureImage();
+                VmFlowRunPolicy policy = ReadFlowRunPolicyFromUi();
+                VmFlowExecutionPlanner.BuildPlan(flowTools, FlowToolList.SelectedItem as VmToolInstance, VmFlowRunRequestMode.Full);
                 StopPlayback();
+                isStopRequested = false;
+                isPauseRequested = false;
                 isContinuousRunning = true;
+                runTimer.Interval = TimeSpan.FromMilliseconds(policy.ContinuousIntervalMilliseconds);
                 runTimer.Start();
-                LogInfo("连续运行已启动。");
+                LogInfo("连续运行已启动，周期间隔 " + policy.ContinuousIntervalMilliseconds.ToString(CultureInfo.InvariantCulture) + " ms。");
                 RefreshUiState();
-            });
+                await RunInspectionRangeAsync(VmFlowRunRequestMode.Full, "连续运行");
+            }
+            catch (Exception ex)
+            {
+                HandleFlowRunException("连续运行", ex);
+            }
         }
 
         private void StopRunButton_Click(object sender, RoutedEventArgs e)
         {
             StopContinuousRun();
+        }
+
+        private void PauseRunButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!isContinuousRunning && !isFlowExecutionActive)
+            {
+                HeaderStatusText.Text = "当前没有可暂停的流程任务。";
+                return;
+            }
+
+            isPauseRequested = !isPauseRequested;
+            HeaderStatusText.Text = isPauseRequested ? "流程将在当前工具完成后暂停。" : "流程已继续。";
+            LogInfo(HeaderStatusText.Text);
+            RefreshUiState();
         }
 
         private void ClearOverlayButton_Click(object sender, RoutedEventArgs e)
@@ -1275,16 +1310,55 @@ namespace HalconWinFormsDemo
             }
         }
 
-        private void RunCurrentToolButton_Click(object sender, RoutedEventArgs e)
+        private async void RunCurrentToolButton_Click(object sender, RoutedEventArgs e)
         {
-            VmToolInstance selected = FlowToolList.SelectedItem as VmToolInstance;
-            if (selected == null)
+            await StartManualFlowRunAsync(VmFlowRunRequestMode.Current, "运行当前");
+        }
+
+        private async void RunToHereButton_Click(object sender, RoutedEventArgs e)
+        {
+            await StartManualFlowRunAsync(VmFlowRunRequestMode.ToHere, "运行到此");
+        }
+
+        private async void RunFromHereButton_Click(object sender, RoutedEventArgs e)
+        {
+            await StartManualFlowRunAsync(VmFlowRunRequestMode.FromHere, "从此运行");
+        }
+
+        private void FlowZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (FlowCanvasScaleTransform == null)
             {
-                HeaderStatusText.Text = "请先选择流程工具。";
                 return;
             }
 
-            RunStandaloneTool(selected, "运行当前");
+            FlowCanvasScaleTransform.ScaleX = e.NewValue;
+            FlowCanvasScaleTransform.ScaleY = e.NewValue;
+        }
+
+        private void FitFlowButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (FlowZoomSlider != null)
+            {
+                FlowZoomSlider.Value = 1.0;
+            }
+
+            if (FlowToolList != null && FlowToolList.SelectedItem != null)
+            {
+                FlowToolList.ScrollIntoView(FlowToolList.SelectedItem);
+            }
+
+            HeaderStatusText.Text = "流程视图已适应窗口。";
+        }
+
+        private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            System.Windows.MessageBox.Show(
+                this,
+                VersionStamp + Environment.NewLine + "VisionMaster 风格工作流，HALCON 视觉内核。",
+                "关于 HALCON VM",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
         }
 
         private void SelectShapeToolButton_Click(object sender, RoutedEventArgs e)
@@ -1988,15 +2062,15 @@ namespace HalconWinFormsDemo
             LoadImage(imageFiles[imageIndex], false);
         }
 
-        private void RunTimer_Tick(object sender, EventArgs e)
+        private async void RunTimer_Tick(object sender, EventArgs e)
         {
-            if (!isContinuousRunning)
+            if (!isContinuousRunning || isPauseRequested || isFlowExecutionActive)
             {
                 return;
             }
 
-            RunInspectionCycle("连续运行");
-            if (imageFiles.Count > 1)
+            await RunInspectionRangeAsync(VmFlowRunRequestMode.Full, "连续运行");
+            if (isContinuousRunning && !isStopRequested && imageFiles.Count > 1)
             {
                 imageIndex = (imageIndex + 1) % imageFiles.Count;
                 LoadImage(imageFiles[imageIndex], false);
@@ -2090,50 +2164,262 @@ namespace HalconWinFormsDemo
             viewport.SetImageSize(width.I, height.I);
         }
 
-        private void RunInspectionCycle(string source)
+        private async Task StartManualFlowRunAsync(VmFlowRunRequestMode mode, string source)
         {
-            RunUiAction(source, delegate
+            try
             {
-                List<VmToolInstance> enabledTools = flowTools.Where(item => item.IsEnabled).ToList();
-                if (enabledTools.Count == 0)
+                if (isContinuousRunning)
                 {
-                    throw new InvalidOperationException("流程中没有启用的工具。请从工具箱添加并启用工具。");
+                    StopContinuousRun();
                 }
 
-                Stopwatch stopwatch = Stopwatch.StartNew();
-                currentMatches.Clear();
-                DisposeToolOverlays();
+                if (isFlowExecutionActive)
+                {
+                    HeaderStatusText.Text = "已有流程正在运行，请先停止或等待完成。";
+                    return;
+                }
+
+                isStopRequested = false;
+                isPauseRequested = false;
+                await RunInspectionRangeAsync(mode, source);
+            }
+            catch (Exception ex)
+            {
+                HandleFlowRunException(source, ex);
+            }
+        }
+
+        private async Task RunInspectionRangeAsync(VmFlowRunRequestMode mode, string source)
+        {
+            if (isFlowExecutionActive)
+            {
+                return;
+            }
+
+            VmToolInstance selected = FlowToolList.SelectedItem as VmToolInstance;
+            VmFlowExecutionPlan plan = VmFlowExecutionPlanner.BuildPlan(flowTools, selected, mode);
+            VmFlowRunPolicy policy = ReadFlowRunPolicyFromUi();
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            List<InspectionRecord> records = new List<InspectionRecord>();
+            string stopReason = string.Empty;
+            string resultCode = "--";
+            bool executionError = false;
+
+            isFlowExecutionActive = true;
+            FlowRunStatusText.Text = "流程运行中";
+            FlowRunRangeText.Text = "范围：" + plan.RangeText;
+            FlowRunResultText.Text = "RUN";
+            FlowRunElapsedText.Text = "--";
+            FlowStopReasonText.Text = "--";
+            FlowCurrentToolText.Text = "准备执行";
+            FlowRuntimeStatusBarText.Text = "流程：" + plan.RangeText;
+            if (RightTabs != null && ModuleResultTab != null)
+            {
+                RightTabs.SelectedItem = ModuleResultTab;
+            }
+            RefreshUiState();
+
+            currentMatches.Clear();
+            DisposeToolOverlays();
+            if (mode == VmFlowRunRequestMode.Full)
+            {
                 foreach (VmToolInstance tool in flowTools)
                 {
                     tool.ClearRuntimeOutputs();
                 }
+            }
 
-                List<InspectionRecord> records = new List<InspectionRecord>();
-                foreach (VmToolInstance tool in enabledTools)
+            try
+            {
+                foreach (VmToolInstance tool in plan.Tools)
                 {
-                    records.Add(ExecuteFlowTool(tool, source));
+                    VmFlowStepDecision beforeDecision = VmFlowRuntimeDecider.EvaluateBeforeStep(
+                        policy,
+                        stopwatch.ElapsedMilliseconds,
+                        isPauseRequested,
+                        isStopRequested);
+                    while (beforeDecision == VmFlowStepDecision.Pause)
+                    {
+                        FlowRunStatusText.Text = "流程已暂停";
+                        FlowCurrentToolText.Text = "等待继续 · 下一步 " + tool.InstanceName;
+                        await Task.Delay(50);
+                        beforeDecision = VmFlowRuntimeDecider.EvaluateBeforeStep(
+                            policy,
+                            stopwatch.ElapsedMilliseconds,
+                            isPauseRequested,
+                            isStopRequested);
+                    }
+
+                    if (beforeDecision == VmFlowStepDecision.UserStop)
+                    {
+                        stopReason = "用户停止";
+                        resultCode = "STOP";
+                        break;
+                    }
+
+                    if (beforeDecision == VmFlowStepDecision.Timeout)
+                    {
+                        stopReason = "流程超时（" + policy.FlowTimeoutMilliseconds.ToString(CultureInfo.InvariantCulture) + " ms）";
+                        resultCode = "TIMEOUT";
+                        break;
+                    }
+
+                    FlowRunStatusText.Text = "流程运行中";
+                    FlowCurrentToolText.Text = tool.SequenceText + " · " + tool.InstanceName;
+                    FlowRuntimeStatusBarText.Text = "流程：运行 " + tool.InstanceName;
+                    await Dispatcher.Yield(DispatcherPriority.Background);
+
+                    InspectionRecord record;
+                    try
+                    {
+                        record = ExecuteFlowTool(tool, source);
+                        records.Add(record);
+                    }
+                    catch (Exception ex)
+                    {
+                        stopReason = tool.InstanceName + " 执行错误：" + ex.Message;
+                        resultCode = "NG";
+                        executionError = true;
+                        AppendAlarm(stopReason);
+                        break;
+                    }
+
+                    VmFlowStepDecision afterDecision = VmFlowRuntimeDecider.EvaluateAfterStep(
+                        policy,
+                        stopwatch.ElapsedMilliseconds,
+                        record.ResultCode,
+                        isStopRequested);
+                    if (afterDecision == VmFlowStepDecision.UserStop)
+                    {
+                        stopReason = "用户停止";
+                        resultCode = "STOP";
+                        break;
+                    }
+
+                    if (afterDecision == VmFlowStepDecision.Timeout)
+                    {
+                        stopReason = "流程超时（" + policy.FlowTimeoutMilliseconds.ToString(CultureInfo.InvariantCulture) + " ms）";
+                        resultCode = "TIMEOUT";
+                        break;
+                    }
+
+                    if (afterDecision == VmFlowStepDecision.NgStop)
+                    {
+                        stopReason = "遇 NG 停止 · " + tool.InstanceName;
+                        resultCode = "NG";
+                        break;
+                    }
+
+                    await Dispatcher.Yield(DispatcherPriority.Background);
+                    if (isStopRequested)
+                    {
+                        stopReason = "用户停止";
+                        resultCode = "STOP";
+                        break;
+                    }
                 }
 
-                bool ok = records.All(record => string.Equals(record.ResultCode, "OK", StringComparison.OrdinalIgnoreCase));
-                string resultCode = ok ? "OK" : "NG";
-                string message = string.Join(" | ", records.Select(item => item.InspectionType + ":" + item.Message));
-                stopwatch.Stop();
+                if (string.IsNullOrWhiteSpace(resultCode))
+                {
+                    resultCode = "--";
+                }
 
-                runtimeStatistics.Record(resultCode, stopwatch.Elapsed.TotalMilliseconds, message);
-                lastResultPayload = BuildJsonResultPayload(resultCode, stopwatch.Elapsed.TotalMilliseconds, records);
-                LastMessageText.Text = "最新外发结果：" + lastResultPayload;
-                HeaderStatusText.Text = string.Format(CultureInfo.InvariantCulture, "检测完成：{0}，耗时 {1:F1} ms", resultCode, stopwatch.Elapsed.TotalMilliseconds);
-                LogInfo(HeaderStatusText.Text);
-                AutoSendResultIfNeeded();
+                if (resultCode == "--")
+                {
+                    bool allOk = records.Count == plan.Tools.Count && records.All(record => string.Equals(record.ResultCode, "OK", StringComparison.OrdinalIgnoreCase));
+                    resultCode = allOk ? "OK" : "NG";
+                    stopReason = allOk ? "范围执行完成" : "范围执行完成（包含 NG）";
+                }
+
+                if (records.Count > 0)
+                {
+                    string message = string.Join(" | ", records.Select(item => item.InspectionType + ":" + item.Message));
+                    if (mode == VmFlowRunRequestMode.Full)
+                    {
+                        runtimeStatistics.Record(resultCode, stopwatch.Elapsed.TotalMilliseconds, message);
+                    }
+
+                    lastResultPayload = BuildJsonResultPayload(resultCode, stopwatch.Elapsed.TotalMilliseconds, records);
+                    LastMessageText.Text = "最新外发结果：" + lastResultPayload;
+                    if (mode == VmFlowRunRequestMode.Full && resultCode != "STOP" && resultCode != "TIMEOUT")
+                    {
+                        AutoSendResultIfNeeded();
+                    }
+                }
+
+                if (isContinuousRunning && (executionError || (resultCode == "NG" && policy.StopOnNg) || resultCode == "TIMEOUT"))
+                {
+                    isContinuousRunning = false;
+                    runTimer.Stop();
+                }
+
+                HeaderStatusText.Text = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0}：{1}，范围 {2}，耗时 {3:F1} ms",
+                    source,
+                    resultCode,
+                    plan.RangeText,
+                    stopwatch.Elapsed.TotalMilliseconds);
+                LogInfo(HeaderStatusText.Text + "，停止原因：" + stopReason);
+            }
+            finally
+            {
+                stopwatch.Stop();
+                isFlowExecutionActive = false;
+                FlowRunStatusText.Text = resultCode == "OK" ? "流程完成" : (resultCode == "STOP" ? "流程已停止" : "流程结束");
+                FlowRunResultText.Text = resultCode;
+                FlowRunElapsedText.Text = stopwatch.Elapsed.TotalMilliseconds.ToString("F1", CultureInfo.InvariantCulture) + " ms";
+                FlowStopReasonText.Text = string.IsNullOrWhiteSpace(stopReason) ? "--" : stopReason;
+                FlowCurrentToolText.Text = "--";
+                FlowRuntimeStatusBarText.Text = "流程：" + resultCode + " · " + stopwatch.Elapsed.TotalMilliseconds.ToString("F1", CultureInfo.InvariantCulture) + " ms";
                 RefreshUiState();
                 ScheduleRefreshDisplay();
-            });
+            }
+        }
+
+        private VmFlowRunPolicy ReadFlowRunPolicyFromUi()
+        {
+            int interval;
+            if (!int.TryParse(ContinuousIntervalTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out interval) || interval < 50 || interval > 60000)
+            {
+                throw new InvalidOperationException("连续运行间隔必须是 50-60000 ms 的整数。");
+            }
+
+            int timeout;
+            if (!int.TryParse(FlowTimeoutTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out timeout) || timeout < 0 || timeout > 3600000 || timeout > 0 && timeout < 50)
+            {
+                throw new InvalidOperationException("流程超时必须为 0（关闭）或 50-3600000 ms 的整数。");
+            }
+
+            return new VmFlowRunPolicy
+            {
+                ContinuousIntervalMilliseconds = interval,
+                FlowTimeoutMilliseconds = timeout,
+                StopOnNg = StopOnNgCheckBox.IsChecked == true
+            };
+        }
+
+        private void HandleFlowRunException(string actionName, Exception ex)
+        {
+            HeaderStatusText.Text = actionName + "失败：" + ex.Message;
+            LogInfo(HeaderStatusText.Text);
+            AppendAlarm(HeaderStatusText.Text);
+            FlowRunStatusText.Text = "运行失败";
+            FlowRunResultText.Text = "NG";
+            FlowStopReasonText.Text = ex.Message;
+            System.Windows.MessageBox.Show(this, ex.Message, actionName, MessageBoxButton.OK, MessageBoxImage.Warning);
+            RefreshUiState();
         }
 
         private void RunStandaloneTool(VmToolInstance tool, string source)
         {
             RunUiAction(source, delegate
             {
+                if (isContinuousRunning || isFlowExecutionActive)
+                {
+                    throw new InvalidOperationException("流程正在运行，请先停止或等待完成。");
+                }
+
                 if (tool == null)
                 {
                     throw new InvalidOperationException("请先选择流程工具。");
@@ -2667,6 +2953,7 @@ namespace HalconWinFormsDemo
             bool canSend = tcpService.CanSend;
             bool clientMode = TcpClientModeRadio.IsChecked == true;
             bool hasEnabledTools = flowTools.Any(item => item.IsEnabled);
+            bool flowBusy = isContinuousRunning || isFlowExecutionActive;
 
             foreach (VmToolInstance tool in flowTools)
             {
@@ -2676,26 +2963,31 @@ namespace HalconWinFormsDemo
 
             PreviousImageButton.IsEnabled = imageFiles.Count > 1 && imageIndex > 0 && !playbackTimer.IsEnabled;
             NextImageButton.IsEnabled = imageFiles.Count > 1 && imageIndex < imageFiles.Count - 1 && !playbackTimer.IsEnabled;
-            PlayButton.IsEnabled = imageFiles.Count > 1 && !playbackTimer.IsEnabled && !isContinuousRunning;
+            PlayButton.IsEnabled = imageFiles.Count > 1 && !playbackTimer.IsEnabled && !flowBusy;
             StopPlayButton.IsEnabled = playbackTimer.IsEnabled;
-            RunOnceButton.IsEnabled = hasImage && hasEnabledTools && !isContinuousRunning;
-            RunContinuousButton.IsEnabled = hasImage && hasEnabledTools && !isContinuousRunning;
-            StopRunButton.IsEnabled = isContinuousRunning;
+            RunOnceButton.IsEnabled = hasEnabledTools && !flowBusy;
+            RunContinuousButton.IsEnabled = hasEnabledTools && !flowBusy;
+            PauseRunButton.IsEnabled = flowBusy;
+            PauseRunButton.Content = isPauseRequested ? "▶ 继续" : "Ⅱ 暂停";
+            StopRunButton.IsEnabled = flowBusy;
+            ContinuousIntervalTextBox.IsEnabled = !flowBusy;
+            FlowTimeoutTextBox.IsEnabled = !flowBusy;
+            StopOnNgCheckBox.IsEnabled = !flowBusy;
             ClearOverlayButton.IsEnabled = hasImage;
             SaveScreenshotButton.IsEnabled = hasImage;
 
-            RectangleRoiButton.IsEnabled = hasImage && !isContinuousRunning;
-            CircleRoiButton.IsEnabled = hasImage && !isContinuousRunning;
-            PolygonRoiButton.IsEnabled = hasImage && !isContinuousRunning;
+            RectangleRoiButton.IsEnabled = hasImage && !flowBusy;
+            CircleRoiButton.IsEnabled = hasImage && !flowBusy;
+            PolygonRoiButton.IsEnabled = hasImage && !flowBusy;
             ClearRoiButton.IsEnabled = RoiLayerList != null && RoiLayerList.SelectedItem != null;
             ClearAllRoiLayersButton.IsEnabled = hasRoiLayers;
             ConfirmRoiButton.IsEnabled = hasPendingRoi;
             FitImageButton.IsEnabled = hasImage;
-            TemplateSettingsButton.IsEnabled = hasImage && hasRoi && !isContinuousRunning;
+            TemplateSettingsButton.IsEnabled = hasImage && hasRoi && !flowBusy;
             SaveTemplateButton.IsEnabled = hasTemplate;
-            LoadTemplateButton.IsEnabled = !isContinuousRunning;
+            LoadTemplateButton.IsEnabled = !flowBusy;
             VmToolInstance shapeTool = flowTools.FirstOrDefault(item => item.Kind == VmToolKind.ShapeMatch);
-            RunMatchButton.IsEnabled = hasImage && hasTemplate && shapeTool != null && GetBoundRoiLayers(shapeTool).Count > 0 && !isContinuousRunning;
+            RunMatchButton.IsEnabled = hasImage && hasTemplate && shapeTool != null && GetBoundRoiLayers(shapeTool).Count > 0 && !flowBusy;
 
             TcpConnectButton.Visibility = clientMode ? Visibility.Visible : Visibility.Collapsed;
             TcpDisconnectButton.Visibility = clientMode ? Visibility.Visible : Visibility.Collapsed;
@@ -2731,7 +3023,11 @@ namespace HalconWinFormsDemo
             TemplateStatusText.Text = hasTemplate ? "模板：已训练/加载，" + currentTemplateItem.Name : "模板：未训练";
             MatchResultText.Text = currentMatches.Count == 0 ? MatchResultText.Text : MatchResultText.Text;
 
-            ModeStatusText.Text = isContinuousRunning ? "模式：连续运行" : (playbackTimer.IsEnabled ? "模式：图片播放" : "模式：手动调试");
+            ModeStatusText.Text = isPauseRequested
+                ? "模式：流程暂停"
+                : (isContinuousRunning
+                    ? "模式：连续运行"
+                    : (isFlowExecutionActive ? "模式：单次运行" : (playbackTimer.IsEnabled ? "模式：图片播放" : "模式：手动调试")));
             RunModeText.Text = ModeStatusText.Text;
             ImageStatusText.Text = hasImage ? string.Format("图像：{0}x{1}", viewport.ImageWidth, viewport.ImageHeight) : "图像：--";
             ZoomStatusText.Text = hasImage ? viewport.ZoomText.Replace("Zoom", "缩放") : "缩放：--";
@@ -2848,14 +3144,17 @@ namespace HalconWinFormsDemo
 
         private void StopContinuousRun()
         {
-            if (!isContinuousRunning && !runTimer.IsEnabled)
+            if (!isContinuousRunning && !runTimer.IsEnabled && !isFlowExecutionActive)
             {
+                HeaderStatusText.Text = "当前没有运行中的流程。";
                 return;
             }
 
+            isStopRequested = true;
+            isPauseRequested = false;
             isContinuousRunning = false;
             runTimer.Stop();
-            LogInfo("连续运行已停止。");
+            LogInfo(isFlowExecutionActive ? "已请求停止，将在当前工具完成后生效。" : "连续运行已停止。");
             RefreshUiState();
         }
 
@@ -2906,6 +3205,11 @@ namespace HalconWinFormsDemo
             TcpPortTextBox.Text = recipe.TcpPort <= 0 ? "9000" : recipe.TcpPort.ToString(CultureInfo.InvariantCulture);
             SetTcpEncoding(recipe.TcpEncoding);
             AutoSendMatchResultCheckBox.IsChecked = recipe.AutoSendResult;
+            VmFlowRunPolicy flowPolicy = (recipe.FlowRunPolicy ?? new VmFlowRunPolicy()).Normalize();
+            ContinuousIntervalTextBox.Text = flowPolicy.ContinuousIntervalMilliseconds.ToString(CultureInfo.InvariantCulture);
+            FlowTimeoutTextBox.Text = flowPolicy.FlowTimeoutMilliseconds.ToString(CultureInfo.InvariantCulture);
+            StopOnNgCheckBox.IsChecked = flowPolicy.StopOnNg;
+            runTimer.Interval = TimeSpan.FromMilliseconds(flowPolicy.ContinuousIntervalMilliseconds);
 
             LoadRoiLayersFromRecipe(recipe);
 
@@ -2961,7 +3265,8 @@ namespace HalconWinFormsDemo
                 TcpEncoding = GetTcpEncodingText(),
                 AutoSendResult = AutoSendMatchResultCheckBox.IsChecked == true,
                 ToolFlow = CaptureFlowRecipe(),
-                RoiLayers = CaptureRoiLayers()
+                RoiLayers = CaptureRoiLayers(),
+                FlowRunPolicy = ReadFlowRunPolicyFromUi()
             };
         }
 
@@ -3322,11 +3627,11 @@ namespace HalconWinFormsDemo
                 BottomPanelRow.Height = new GridLength(state.BottomPanelHeight);
             }
 
-            if (state.RightPanelWidth >= 240)
+            if (state.RightPanelWidth >= 390)
             {
                 double maximumWidth = RootGrid.ActualWidth > 0
-                    ? Math.Min(420, Math.Max(310, RootGrid.ActualWidth * 0.32))
-                    : 420;
+                    ? Math.Min(680, Math.Max(390, RootGrid.ActualWidth * 0.42))
+                    : 520;
                 RightPanelColumn.Width = new GridLength(Math.Min(state.RightPanelWidth, maximumWidth));
             }
 

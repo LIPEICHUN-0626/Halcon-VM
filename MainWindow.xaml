@@ -5,6 +5,7 @@
         Title="HALCON VM 工业视觉平台"
         MinWidth="1120"
         MinHeight="700"
+        WindowState="Maximized"
         WindowStartupLocation="CenterScreen"
         Loaded="Window_Loaded"
         Closing="Window_Closing"
@@ -46,6 +47,14 @@
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Margin" Value="10,8" />
         </Style>
+        <DrawingBrush x:Key="FlowGridBrush" TileMode="Tile" Viewport="0,0,24,24" ViewportUnits="Absolute" Viewbox="0,0,24,24" ViewboxUnits="Absolute">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#F7F9FC" Geometry="M0,0 H24 V24 H0 Z" />
+                    <GeometryDrawing Brush="#DDE4EE" Geometry="M23,23 H25 V25 H23 Z" />
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
     </Window.Resources>
 
     <Grid x:Name="RootGrid" Background="#E9EEF5">
@@ -57,13 +66,42 @@
             <RowDefinition Height="28" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="0,0,0,1" Padding="10,7">
+        <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-                <DockPanel Grid.Row="0" LastChildFill="True" Margin="2,0,2,5">
+                <Menu Grid.Row="0" Background="#F8FAFC" BorderBrush="#D7DEE8" BorderThickness="0,0,0,1" Padding="4,1">
+                    <MenuItem Header="文件">
+                        <MenuItem Header="新建配方" Click="NewRecipeButton_Click" />
+                        <MenuItem Header="打开配方" Click="LoadRecipeButton_Click" />
+                        <MenuItem Header="保存配方" Click="SaveRecipeButton_Click" />
+                        <Separator />
+                        <MenuItem Header="打开图片" Click="OpenImageButton_Click" />
+                        <MenuItem Header="批量图片" Click="OpenFolderButton_Click" />
+                    </MenuItem>
+                    <MenuItem Header="运行">
+                        <MenuItem Header="运行全流程" Click="RunOnceButton_Click" />
+                        <MenuItem Header="运行当前" Click="RunCurrentToolButton_Click" />
+                        <MenuItem Header="运行到此" Click="RunToHereButton_Click" />
+                        <MenuItem Header="从此运行" Click="RunFromHereButton_Click" />
+                        <Separator />
+                        <MenuItem Header="连续运行" Click="RunContinuousButton_Click" />
+                        <MenuItem Header="暂停 / 继续" Click="PauseRunButton_Click" />
+                        <MenuItem Header="停止" Click="StopRunButton_Click" />
+                    </MenuItem>
+                    <MenuItem Header="视图">
+                        <MenuItem Header="流程适应窗口" Click="FitFlowButton_Click" />
+                        <MenuItem Header="图像适应窗口" Click="FitImageButton_Click" />
+                        <MenuItem Header="项目自检" Click="DiagnosticsButton_Click" />
+                    </MenuItem>
+                    <MenuItem Header="帮助">
+                        <MenuItem Header="关于 HALCON VM" Click="AboutMenuItem_Click" />
+                    </MenuItem>
+                </Menu>
+                <DockPanel Grid.Row="1" LastChildFill="True" Margin="12,6,12,4">
                     <UniformGrid DockPanel.Dock="Right" Columns="4" Width="330" VerticalAlignment="Center">
                         <Border Style="{StaticResource MetricCard}">
                             <StackPanel><TextBlock Text="OK" Foreground="#64748B" /><TextBlock x:Name="MetricOkText" Text="0" FontSize="17" FontWeight="Bold" Foreground="#15803D" /></StackPanel>
@@ -83,7 +121,7 @@
                         <TextBlock x:Name="RecipeNameText" Text="配方：未加载" Foreground="#64748B" Margin="0,2,0,0" />
                     </StackPanel>
                 </DockPanel>
-                <WrapPanel Grid.Row="1" VerticalAlignment="Center">
+                <WrapPanel Grid.Row="2" Margin="8,0,8,6" VerticalAlignment="Center">
                     <Button x:Name="NewRecipeButton" Content="新建" Click="NewRecipeButton_Click" />
                     <Button x:Name="LoadRecipeButton" Content="打开配方" Click="LoadRecipeButton_Click" />
                     <Button x:Name="SaveRecipeButton" Content="保存" Click="SaveRecipeButton_Click" />
@@ -95,7 +133,13 @@
                     <Separator Width="7" Opacity="0" />
                     <Button x:Name="RunOnceButton" Content="▶ 单次运行" FontWeight="Bold" Foreground="#0F766E" Click="RunOnceButton_Click" />
                     <Button x:Name="RunContinuousButton" Content="连续运行" Click="RunContinuousButton_Click" />
+                    <Button x:Name="PauseRunButton" Content="Ⅱ 暂停" Click="PauseRunButton_Click" />
                     <Button x:Name="StopRunButton" Content="■ 停止" Click="StopRunButton_Click" />
+                    <TextBlock Text="间隔(ms)" Margin="8,0,2,0" VerticalAlignment="Center" Foreground="#475569" />
+                    <TextBox x:Name="ContinuousIntervalTextBox" Width="62" Text="500" ToolTip="连续运行相邻周期的间隔，50-60000 ms" />
+                    <TextBlock Text="超时(ms)" Margin="6,0,2,0" VerticalAlignment="Center" Foreground="#475569" />
+                    <TextBox x:Name="FlowTimeoutTextBox" Width="68" Text="0" ToolTip="单次流程总超时；0 表示关闭" />
+                    <CheckBox x:Name="StopOnNgCheckBox" Content="遇 NG 停止" Margin="7,0" VerticalAlignment="Center" />
                     <Button x:Name="PlayButton" Content="图片播放" Click="PlayButton_Click" />
                     <Button x:Name="StopPlayButton" Content="停止播放" Click="StopPlayButton_Click" />
                     <Button x:Name="ClearOverlayButton" Content="清除叠加" Click="ClearOverlayButton_Click" />
@@ -106,18 +150,21 @@
         </Border>
 
         <Grid Grid.Row="1" Margin="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="3*" MinHeight="250" />
+                <RowDefinition Height="5" />
+                <RowDefinition Height="2*" MinHeight="210" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="200" MinWidth="170" />
+                <ColumnDefinition Width="210" MinWidth="180" />
                 <ColumnDefinition Width="5" />
-                <ColumnDefinition Width="250" MinWidth="220" />
+                <ColumnDefinition Width="*" MinWidth="360" />
                 <ColumnDefinition Width="5" />
-                <ColumnDefinition Width="*" MinWidth="280" />
-                <ColumnDefinition Width="5" />
-                <ColumnDefinition x:Name="RightPanelColumn" Width="340" MinWidth="310" />
+                <ColumnDefinition x:Name="RightPanelColumn" Width="520" MinWidth="390" />
             </Grid.ColumnDefinitions>
 
             <!-- VM-style toolbox -->
-            <Border Grid.Column="0" Background="#182235" BorderBrush="#334155" BorderThickness="1" CornerRadius="4">
+            <Border Grid.Column="0" Grid.RowSpan="3" Background="#182235" BorderBrush="#334155" BorderThickness="1" CornerRadius="4">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -144,10 +191,10 @@
                 </Grid>
             </Border>
 
-            <GridSplitter Grid.Column="1" Width="5" Background="#CBD5E1" HorizontalAlignment="Stretch" />
+            <GridSplitter Grid.Column="1" Grid.RowSpan="3" Width="5" Background="#CBD5E1" HorizontalAlignment="Stretch" />
 
             <!-- Visible execution order -->
-            <Border Grid.Column="2" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4">
+            <Border Grid.Column="2" Grid.RowSpan="3" Background="{StaticResource FlowGridBrush}" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -155,47 +202,83 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Border Background="#263449" Padding="10,8">
-                        <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <Border Background="#263449" Padding="8,5">
+                        <DockPanel LastChildFill="True">
+                            <Border DockPanel.Dock="Left" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1,1,1,0" CornerRadius="3,3,0,0" Padding="12,5" Margin="0,3,8,0">
+                                <TextBlock Text="流程1" Foreground="#0F172A" FontWeight="SemiBold" />
+                            </Border>
+                            <TextBlock DockPanel.Dock="Right" Text="确定性顺序执行" Foreground="#93C5FD" VerticalAlignment="Center" Margin="10,0" />
                             <StackPanel>
-                                <TextBlock Text="流程工具" Foreground="#FFFFFF" FontSize="15" FontWeight="SemiBold" />
+                                <TextBlock Text="流程编辑器" Foreground="#FFFFFF" FontSize="15" FontWeight="SemiBold" />
                                 <TextBlock x:Name="RunModeText" Text="模式：手动调试" Foreground="#A7F3D0" FontSize="11" />
                             </StackPanel>
-                            <TextBlock Grid.Column="1" Text="顺序执行" Foreground="#93C5FD" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </Border>
+                    <Border Grid.Row="1" Background="#EEF2F7" Padding="6,4" BorderBrush="#D7DEE8" BorderThickness="0,0,0,1">
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <WrapPanel>
+                                <Button Content="▶ 当前" MinWidth="66" Click="RunCurrentToolButton_Click" />
+                                <Button Content="运行到此" MinWidth="72" Click="RunToHereButton_Click" />
+                                <Button Content="从此运行" MinWidth="72" Click="RunFromHereButton_Click" />
+                                <Button Content="▶ 全流程" MinWidth="76" FontWeight="SemiBold" Foreground="#0F766E" Click="RunOnceButton_Click" />
+                                <Separator Width="6" Opacity="0" />
+                                <TextBlock Text="缩放" Margin="4,0" VerticalAlignment="Center" Foreground="#475569" />
+                                <Slider x:Name="FlowZoomSlider" Width="100" Minimum="0.65" Maximum="1.35" Value="1" TickFrequency="0.05" ValueChanged="FlowZoomSlider_ValueChanged" VerticalAlignment="Center" />
+                                <Button Content="适应" MinWidth="54" Click="FitFlowButton_Click" />
+                            </WrapPanel>
+                            <DockPanel Grid.Row="1" Margin="3,2,3,0">
+                                <TextBlock x:Name="ImageIndexText" DockPanel.Dock="Right" Text="队列：0/0" FontSize="10" Foreground="#64748B" />
+                                <TextBlock x:Name="CurrentFileText" Text="当前文件：--" FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                            </DockPanel>
                         </Grid>
                     </Border>
-                    <Border Grid.Row="1" Background="#EEF2F7" Padding="8,5" BorderBrush="#D7DEE8" BorderThickness="0,0,0,1">
-                        <StackPanel>
-                            <TextBlock x:Name="ImageIndexText" Text="队列：0/0" FontSize="11" />
-                            <TextBlock x:Name="CurrentFileText" Text="当前文件：--" FontSize="11" Foreground="#64748B" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
-                        </StackPanel>
-                    </Border>
-                    <ListBox x:Name="FlowToolList" Grid.Row="2" Margin="4" Background="#F8FAFC" BorderThickness="0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FlowToolList_SelectionChanged">
+                    <ListBox x:Name="FlowToolList" Grid.Row="2" Margin="4" Padding="18,10" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FlowToolList_SelectionChanged">
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="运行当前" Click="RunCurrentToolButton_Click" />
+                                <MenuItem Header="运行到此" Click="RunToHereButton_Click" />
+                                <MenuItem Header="从此运行" Click="RunFromHereButton_Click" />
+                                <Separator />
+                                <MenuItem Header="运行全流程" Click="RunOnceButton_Click" />
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
+                        <ListBox.LayoutTransform>
+                            <ScaleTransform x:Name="FlowCanvasScaleTransform" ScaleX="1" ScaleY="1" />
+                        </ListBox.LayoutTransform>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border x:Name="ToolCard" Margin="2" Padding="7" CornerRadius="3" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1">
-                                    <Grid>
-                                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                        <Border Width="25" Height="25" CornerRadius="13" Background="#E0F2FE" Margin="0,0,6,0">
-                                            <TextBlock Text="{Binding SequenceText}" Foreground="#0369A1" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                        <CheckBox Grid.Column="1" IsChecked="{Binding IsEnabled}" VerticalAlignment="Center" Margin="0,0,6,0" ToolTip="启用/禁用" Checked="FlowToolEnabledCheckBox_Changed" Unchecked="FlowToolEnabledCheckBox_Changed" />
-                                        <TextBlock Grid.Column="2" Text="{Binding InstanceName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Grid.Column="3" Text="{Binding ResultCode}" FontWeight="Bold" Foreground="#475569" />
-                                        <TextBlock Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Text="{Binding DisplayType}" FontSize="11" Foreground="#64748B" TextTrimming="CharacterEllipsis" />
-                                        <StackPanel Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,3,0,0">
-                                            <TextBlock Text="{Binding ConfigurationStatus}" FontSize="10" Foreground="#0369A1" Margin="0,0,8,0" />
-                                            <TextBlock Text="{Binding RunStatus}" FontSize="10" Foreground="#475569" Margin="0,0,8,0" />
-                                            <TextBlock Text="{Binding ElapsedText}" FontSize="10" Foreground="#64748B" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Row="3" Grid.Column="2" Grid.ColumnSpan="2" Text="{Binding ConnectionSummary}" FontSize="10" Foreground="#7C3AED" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" ToolTip="{Binding ConnectionStatus}" />
+                                <Grid>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="22" /></Grid.RowDefinitions>
+                                    <Border x:Name="ToolCard" Margin="2" Padding="9" CornerRadius="4" Background="#FFFFFF" BorderBrush="#AAB6C5" BorderThickness="1">
+                                        <Grid>
+                                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <Border Width="28" Height="28" CornerRadius="14" Background="#E0F2FE" Margin="0,0,7,0">
+                                                <TextBlock Text="{Binding SequenceText}" Foreground="#0369A1" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <CheckBox Grid.Column="1" IsChecked="{Binding IsEnabled}" VerticalAlignment="Center" Margin="0,0,7,0" ToolTip="启用/禁用" Checked="FlowToolEnabledCheckBox_Changed" Unchecked="FlowToolEnabledCheckBox_Changed" />
+                                            <TextBlock Grid.Column="2" Text="{Binding InstanceName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <Border Grid.Column="3" Background="#E2E8F0" CornerRadius="8" Padding="7,2"><TextBlock Text="{Binding ResultCode}" FontWeight="Bold" Foreground="#475569" /></Border>
+                                            <TextBlock Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Text="{Binding DisplayType}" FontSize="11" Foreground="#64748B" TextTrimming="CharacterEllipsis" />
+                                            <StackPanel Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,3,0,0">
+                                                <TextBlock Text="{Binding ConfigurationStatus}" FontSize="10" Foreground="#0369A1" Margin="0,0,8,0" />
+                                                <TextBlock Text="{Binding RunStatus}" FontSize="10" Foreground="#475569" Margin="0,0,8,0" />
+                                                <TextBlock Text="{Binding ElapsedText}" FontSize="10" Foreground="#64748B" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Row="3" Grid.Column="2" Grid.ColumnSpan="2" Text="{Binding ConnectionSummary}" FontSize="10" Foreground="#7C3AED" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" ToolTip="{Binding ConnectionStatus}" />
+                                        </Grid>
+                                    </Border>
+                                    <Grid Grid.Row="1" HorizontalAlignment="Center" Width="28">
+                                        <Rectangle Width="2" Fill="#64748B" HorizontalAlignment="Center" />
+                                        <Polygon Points="9,14 19,14 14,20" Fill="#64748B" VerticalAlignment="Bottom" />
                                     </Grid>
-                                </Border>
+                                </Grid>
                                 <DataTemplate.Triggers>
                                     <DataTrigger Binding="{Binding ResultCode}" Value="OK"><Setter TargetName="ToolCard" Property="BorderBrush" Value="#22C55E" /></DataTrigger>
                                     <DataTrigger Binding="{Binding ResultCode}" Value="NG"><Setter TargetName="ToolCard" Property="BorderBrush" Value="#EF4444" /></DataTrigger>
+                                    <DataTrigger Binding="{Binding RunStatus}" Value="运行中"><Setter TargetName="ToolCard" Property="BorderBrush" Value="#F59E0B" /><Setter TargetName="ToolCard" Property="BorderThickness" Value="2" /></DataTrigger>
+                                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter TargetName="ToolCard" Property="Background" Value="#EFF6FF" /><Setter TargetName="ToolCard" Property="BorderBrush" Value="#2563EB" /><Setter TargetName="ToolCard" Property="BorderThickness" Value="2" /></DataTrigger>
                                 </DataTemplate.Triggers>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -208,18 +291,19 @@
                             <Button Content="删除" MinWidth="48" Click="DeleteToolButton_Click" />
                             <Button Content="重命名" MinWidth="48" Click="RenameToolButton_Click" />
                         </UniformGrid>
-                        <UniformGrid Grid.Row="1" Columns="2">
-                            <Button Content="运行当前" FontWeight="SemiBold" Click="RunCurrentToolButton_Click" />
+                        <UniformGrid Grid.Row="1" Columns="3">
+                            <Button Content="运行到此" FontWeight="SemiBold" Click="RunToHereButton_Click" />
+                            <Button Content="从此运行" FontWeight="SemiBold" Click="RunFromHereButton_Click" />
                             <Button Content="运行全流程" FontWeight="SemiBold" Foreground="#0F766E" Click="RunOnceButton_Click" />
                         </UniformGrid>
                     </Grid>
                 </Grid>
             </Border>
 
-            <GridSplitter Grid.Column="3" Width="5" Background="#CBD5E1" HorizontalAlignment="Stretch" />
+            <GridSplitter Grid.Column="3" Grid.RowSpan="3" Width="5" Background="#CBD5E1" HorizontalAlignment="Stretch" />
 
-            <!-- Central HALCON image workspace -->
-            <Border Grid.Column="4" Background="#0B1220" BorderBrush="#334155" BorderThickness="1" CornerRadius="4">
+            <!-- Right-top HALCON image workspace -->
+            <Border Grid.Column="4" Grid.Row="0" Background="#0B1220" BorderBrush="#334155" BorderThickness="1" CornerRadius="4">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -293,10 +377,54 @@
                 </Grid>
             </Border>
 
-            <GridSplitter Grid.Column="5" Width="5" Background="#CBD5E1" HorizontalAlignment="Stretch" />
+            <GridSplitter Grid.Column="4" Grid.Row="1" Height="5" Background="#CBD5E1" HorizontalAlignment="Stretch" />
 
             <!-- Selected tool inspector and retained device/project entries -->
-            <TabControl Grid.Column="6" x:Name="RightTabs" SelectionChanged="RightTabs_SelectionChanged">
+            <TabControl Grid.Column="4" Grid.Row="2" x:Name="RightTabs" SelectionChanged="RightTabs_SelectionChanged">
+                <TabItem x:Name="ModuleResultTab" Header="模块结果">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="9">
+                            <Border Background="#263449" CornerRadius="3" Padding="10" Margin="0,0,0,8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock x:Name="FlowRunStatusText" Text="流程待命" Foreground="#FFFFFF" FontSize="15" FontWeight="SemiBold" />
+                                        <TextBlock x:Name="FlowRunRangeText" Text="范围：--" Foreground="#BFDBFE" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Background="#0F766E" CornerRadius="12" Padding="10,4" VerticalAlignment="Center">
+                                        <TextBlock x:Name="FlowRunResultText" Text="--" Foreground="White" FontWeight="Bold" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+                            <GroupBox Header="本次流程运行">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="76" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <TextBlock Text="总耗时" /><TextBlock x:Name="FlowRunElapsedText" Grid.Column="1" Text="--" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Row="1" Text="停止原因" /><TextBlock x:Name="FlowStopReasonText" Grid.Row="1" Grid.Column="1" Text="--" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="2" Text="当前工具" /><TextBlock x:Name="FlowCurrentToolText" Grid.Row="2" Grid.Column="1" Text="--" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="3" Text="安全边界" /><TextBlock Grid.Row="3" Grid.Column="1" Text="暂停、停止和超时在工具步骤之间生效" Foreground="#64748B" TextWrapping="Wrap" />
+                                </Grid>
+                            </GroupBox>
+                            <GroupBox Header="选中模块结果">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="76" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <TextBlock Text="模块" /><TextBlock x:Name="SelectedResultToolText" Grid.Column="1" Text="--" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Row="1" Text="状态" /><TextBlock x:Name="SelectedResultStatusText" Grid.Row="1" Grid.Column="1" Text="--" />
+                                    <TextBlock Grid.Row="2" Text="输出" /><TextBlock x:Name="SelectedResultOutputText" Grid.Row="2" Grid.Column="1" Text="--" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="3" Text="错误" /><TextBlock x:Name="SelectedResultErrorText" Grid.Row="3" Grid.Column="1" Text="--" Foreground="#B91C1C" TextWrapping="Wrap" />
+                                </Grid>
+                            </GroupBox>
+                            <UniformGrid Columns="4">
+                                <Button Content="当前" Click="RunCurrentToolButton_Click" />
+                                <Button Content="到此" Click="RunToHereButton_Click" />
+                                <Button Content="从此" Click="RunFromHereButton_Click" />
+                                <Button Content="全流程" Foreground="#0F766E" FontWeight="SemiBold" Click="RunOnceButton_Click" />
+                            </UniformGrid>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
                 <TabItem Header="参数" ToolTip="参数 Inspector">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="9">
@@ -673,6 +801,7 @@
 
         <StatusBar Grid.Row="4" Background="#FFFFFF" BorderBrush="#D6DCE5" BorderThickness="0,1,0,0">
             <StatusBarItem><TextBlock x:Name="ModeStatusText" Text="模式：手动调试" /></StatusBarItem><Separator />
+            <StatusBarItem><TextBlock x:Name="FlowRuntimeStatusBarText" Text="流程：待命" /></StatusBarItem><Separator />
             <StatusBarItem><TextBlock x:Name="ImageStatusText" Text="图像：--" /></StatusBarItem><Separator />
             <StatusBarItem><TextBlock x:Name="ZoomStatusText" Text="缩放：--" /></StatusBarItem><Separator />
             <StatusBarItem><TextBlock x:Name="MouseStatusText" Text="坐标：--" /></StatusBarItem><Separator />
