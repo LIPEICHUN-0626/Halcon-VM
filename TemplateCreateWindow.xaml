@@ -1,0 +1,128 @@
+<Window x:Class="HalconWinFormsDemo.TemplateCreateWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wfi="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
+        Title="模板匹配设置"
+        Width="1080"
+        Height="720"
+        MinWidth="920"
+        MinHeight="620"
+        WindowStartupLocation="CenterOwner"
+        Loaded="Window_Loaded"
+        Closing="Window_Closing">
+    <Grid Background="#F3F5F8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#D6DCE5" BorderThickness="0,0,0,1" Padding="10">
+            <DockPanel>
+                <TextBlock Text="1 选择模板区域 → 2 确认区域 → 3 保存并训练"
+                           FontWeight="Bold"
+                           FontSize="16"
+                           VerticalAlignment="Center" />
+                <TextBlock x:Name="StatusText"
+                           DockPanel.Dock="Right"
+                           Foreground="#4B5563"
+                           VerticalAlignment="Center"
+                           Text="请选择模板区域" />
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="560" />
+                <ColumnDefinition Width="360" MinWidth="340" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Margin="10" Background="#111827" BorderBrush="#CBD5E1" BorderThickness="1">
+                <Grid>
+                    <wfi:WindowsFormsHost x:Name="HalconHost" />
+                    <Border VerticalAlignment="Top" HorizontalAlignment="Left" Background="#AA111827" Padding="8,4" Margin="8">
+                        <TextBlock x:Name="ImageStatusText" Foreground="#F9FAFB" Text="模板图像区" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="4,10,10,10">
+                    <GroupBox Header="模板区域">
+                        <StackPanel>
+                            <Button x:Name="UseCurrentRoiButton" Content="使用当前ROI" Click="UseCurrentRoiButton_Click" />
+                            <WrapPanel>
+                                <Button x:Name="RectangleButton" Content="矩形" Click="RectangleButton_Click" />
+                                <Button x:Name="CircleButton" Content="圆形" Click="CircleButton_Click" />
+                                <Button x:Name="PolygonButton" Content="多边形" Click="PolygonButton_Click" />
+                                <Button x:Name="ClearButton" Content="清除" Click="ClearButton_Click" />
+                            </WrapPanel>
+                            <TextBlock x:Name="RegionText" Text="区域：未选择" Margin="4,6,4,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </GroupBox>
+
+                    <GroupBox Header="常用参数">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="106" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="模板名称" VerticalAlignment="Center" />
+                            <TextBox x:Name="TemplateNameTextBox" Grid.Column="1" Text="模板_001" />
+                            <TextBlock Grid.Row="1" Text="最小分数" VerticalAlignment="Center" />
+                            <TextBox x:Name="MinScoreTextBox" Grid.Row="1" Grid.Column="1" Text="0.60" />
+                            <TextBlock Grid.Row="2" Text="匹配数量" VerticalAlignment="Center" />
+                            <TextBox x:Name="MaxMatchesTextBox" Grid.Row="2" Grid.Column="1" Text="1" />
+                            <CheckBox x:Name="LimitToRoiCheckBox" Grid.Row="3" Grid.ColumnSpan="2" Content="执行匹配时限定当前ROI" Margin="4" />
+                        </Grid>
+                    </GroupBox>
+
+                    <Expander Header="高级参数" IsExpanded="False" Margin="6">
+                        <Grid Margin="4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="106" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="角度起点" VerticalAlignment="Center" />
+                            <TextBox x:Name="AngleStartTextBox" Grid.Column="1" Text="-180" />
+                            <TextBlock Grid.Row="1" Text="角度范围" VerticalAlignment="Center" />
+                            <TextBox x:Name="AngleExtentTextBox" Grid.Row="1" Grid.Column="1" Text="360" />
+                            <TextBlock Grid.Row="2" Text="最大重叠" VerticalAlignment="Center" />
+                            <TextBox x:Name="MaxOverlapTextBox" Grid.Row="2" Grid.Column="1" Text="0.5" />
+                            <TextBlock Grid.Row="3" Text="贪婪度" VerticalAlignment="Center" />
+                            <TextBox x:Name="GreedinessTextBox" Grid.Row="3" Grid.Column="1" Text="0.9" />
+                            <TextBlock Grid.Row="4" Text="金字塔层" VerticalAlignment="Center" />
+                            <TextBox x:Name="NumLevelsTextBox" Grid.Row="4" Grid.Column="1" Text="auto" />
+                            <Button Grid.Row="5" Grid.ColumnSpan="2" Content="恢复默认参数" Click="ResetOptionsButton_Click" />
+                        </Grid>
+                    </Expander>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#D6DCE5" BorderThickness="0,1,0,0" Padding="10">
+            <DockPanel LastChildFill="False">
+                <TextBlock x:Name="BottomHintText" Text="请先选择模板区域。" VerticalAlignment="Center" Foreground="#4B5563" />
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button x:Name="ConfirmRegionButton" Content="确认区域" MinWidth="120" FontWeight="Bold" Click="ConfirmRegionButton_Click" />
+                    <Button x:Name="SaveTrainButton" Content="保存并训练" MinWidth="140" FontWeight="Bold" Click="SaveTrainButton_Click" />
+                    <Button Content="取消" MinWidth="120" Click="CancelButton_Click" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>
