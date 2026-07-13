@@ -1,0 +1,20 @@
+{
+  "Name": "LegacyRecipeV1",
+  "EnableShapeMatch": true,
+  "EnableBlob": true,
+  "EnableGrayStat": false,
+  "EnableEdgeMeasure": false,
+  "EnableHDevelop": false,
+  "BlobMinGray": 90,
+  "BlobMaxGray": 245,
+  "BlobMinArea": 120,
+  "GrayMin": 10,
+  "GrayMax": 240,
+  "EdgeThreshold": 35,
+  "ProcedureName": "RunInspection",
+  "TcpMode": "Client",
+  "TcpIp": "127.0.0.1",
+  "TcpPort": 9000,
+  "TcpEncoding": "UTF-8",
+  "AutoSendResult": false
+}

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
@@ -36,6 +37,8 @@ namespace HalconWinFormsDemo
         private readonly HDevInspectionService hdevService = new HDevInspectionService();
         private readonly DispatcherTimer playbackTimer = new DispatcherTimer();
         private readonly DispatcherTimer runTimer = new DispatcherTimer();
+        private readonly ObservableCollection<VmToolInstance> flowTools = new ObservableCollection<VmToolInstance>();
+        private readonly List<VmToolCatalogItem> toolCatalog = new List<VmToolCatalogItem>();
 
         private Forms.Integration.WindowsFormsHost host;
         private HWindowControl imageWindow;
@@ -57,6 +60,7 @@ namespace HalconWinFormsDemo
         private bool isPanning;
         private System.Drawing.Point lastPanPoint;
         private bool isContinuousRunning;
+        private bool inspectorUpdating;
 
         public MainWindow()
         {
@@ -73,7 +77,286 @@ namespace HalconWinFormsDemo
             tcpService.ErrorOccurred += TcpService_ErrorOccurred;
             resultStore.Changed += ResultStore_Changed;
 
+            InitializeVmWorkspace();
             uiReady = true;
+        }
+
+        private void InitializeVmWorkspace()
+        {
+            flowTools.CollectionChanged += delegate { RefreshFlowSequence(); };
+            toolCatalog.AddRange(new[]
+            {
+                CreateCatalogItem(VmToolKind.ShapeMatch),
+                CreateCatalogItem(VmToolKind.Blob),
+                CreateCatalogItem(VmToolKind.GrayStat),
+                CreateCatalogItem(VmToolKind.EdgeMeasure),
+                CreateCatalogItem(VmToolKind.HDevelop)
+            });
+            ToolCatalogList.ItemsSource = toolCatalog;
+            FlowToolList.ItemsSource = flowTools;
+            ApplyFlowFromRecipe(new VisionRecipe());
+        }
+
+        private void RefreshFlowSequence()
+        {
+            for (int index = 0; index < flowTools.Count; index++)
+            {
+                flowTools[index].Sequence = index + 1;
+            }
+        }
+
+        private void FlowToolEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!uiReady)
+            {
+                return;
+            }
+
+            CheckBox checkBox = sender as CheckBox;
+            VmToolInstance tool = checkBox == null ? null : checkBox.DataContext as VmToolInstance;
+            if (tool == null)
+            {
+                return;
+            }
+
+            tool.IsEnabled = checkBox.IsChecked == true;
+            RefreshUiState();
+        }
+
+        private static VmToolCatalogItem CreateCatalogItem(VmToolKind kind)
+        {
+            return new VmToolCatalogItem
+            {
+                Kind = kind,
+                Name = ToolMetadata.GetDisplayName(kind),
+                Category = ToolMetadata.GetCategory(kind),
+                Description = ToolMetadata.GetDescription(kind)
+            };
+        }
+
+        private VmToolInstance CreateFlowTool(VmToolKind kind, string name, bool isEnabled, string toolId)
+        {
+            return new VmToolInstance
+            {
+                ToolId = string.IsNullOrWhiteSpace(toolId) ? Guid.NewGuid().ToString("N") : toolId,
+                Kind = kind,
+                InstanceName = string.IsNullOrWhiteSpace(name) ? CreateUniqueToolName(kind) : name,
+                IsEnabled = isEnabled,
+                InputSummary = DefaultInputSummary(kind),
+                OutputSummary = "尚未运行"
+            };
+        }
+
+        private string CreateUniqueToolName(VmToolKind kind)
+        {
+            string baseName = ToolMetadata.GetDisplayName(kind);
+            int index = 1;
+            string candidate = baseName;
+            while (flowTools.Any(item => string.Equals(item.InstanceName, candidate, StringComparison.OrdinalIgnoreCase)))
+            {
+                index++;
+                candidate = baseName + "_" + index.ToString("00", CultureInfo.InvariantCulture);
+            }
+
+            return candidate;
+        }
+
+        private static string DefaultInputSummary(VmToolKind kind)
+        {
+            switch (kind)
+            {
+                case VmToolKind.ShapeMatch:
+                    return "Image + SearchROI + ShapeModel";
+                case VmToolKind.Blob:
+                case VmToolKind.GrayStat:
+                case VmToolKind.EdgeMeasure:
+                    return "Image + 可选 ROI";
+                case VmToolKind.HDevelop:
+                    return "Image + ROI";
+                default:
+                    return "--";
+            }
+        }
+
+        private void ApplyFlowFromRecipe(VisionRecipe recipe)
+        {
+            flowTools.Clear();
+
+            if (recipe != null && recipe.ToolFlow != null && recipe.ToolFlow.Count > 0)
+            {
+                foreach (ToolFlowRecipeItem recipeItem in recipe.ToolFlow)
+                {
+                    VmToolKind kind;
+                    if (recipeItem == null || !Enum.TryParse(recipeItem.ToolType, true, out kind))
+                    {
+                        continue;
+                    }
+
+                    if (flowTools.Any(item => item.Kind == kind))
+                    {
+                        continue;
+                    }
+
+                    flowTools.Add(CreateFlowTool(kind, recipeItem.InstanceName, recipeItem.IsEnabled, recipeItem.ToolId));
+                }
+            }
+
+            if (flowTools.Count == 0)
+            {
+                VisionRecipe legacy = recipe ?? new VisionRecipe();
+                if (legacy.EnableShapeMatch)
+                {
+                    flowTools.Add(CreateFlowTool(VmToolKind.ShapeMatch, null, true, null));
+                }
+                if (legacy.EnableBlob)
+                {
+                    flowTools.Add(CreateFlowTool(VmToolKind.Blob, null, true, null));
+                }
+                if (legacy.EnableGrayStat)
+                {
+                    flowTools.Add(CreateFlowTool(VmToolKind.GrayStat, null, true, null));
+                }
+                if (legacy.EnableEdgeMeasure)
+                {
+                    flowTools.Add(CreateFlowTool(VmToolKind.EdgeMeasure, null, true, null));
+                }
+                if (legacy.EnableHDevelop)
+                {
+                    flowTools.Add(CreateFlowTool(VmToolKind.HDevelop, null, true, null));
+                }
+            }
+
+            SyncLegacyToolChecksFromFlow();
+            if (FlowToolList != null && flowTools.Count > 0)
+            {
+                FlowToolList.SelectedIndex = 0;
+            }
+
+            RefreshInspector();
+        }
+
+        private List<ToolFlowRecipeItem> CaptureFlowRecipe()
+        {
+            return flowTools.Select(item => new ToolFlowRecipeItem
+            {
+                ToolId = item.ToolId,
+                ToolType = item.Kind.ToString(),
+                InstanceName = item.InstanceName,
+                IsEnabled = item.IsEnabled
+            }).ToList();
+        }
+
+        private bool HasEnabledTool(VmToolKind kind)
+        {
+            return flowTools.Any(item => item.Kind == kind && item.IsEnabled);
+        }
+
+        private void SyncLegacyToolChecksFromFlow()
+        {
+            if (EnableShapeToolCheckBox == null)
+            {
+                return;
+            }
+
+            EnableShapeToolCheckBox.IsChecked = HasEnabledTool(VmToolKind.ShapeMatch);
+            EnableBlobToolCheckBox.IsChecked = HasEnabledTool(VmToolKind.Blob);
+            EnableGrayToolCheckBox.IsChecked = HasEnabledTool(VmToolKind.GrayStat);
+            EnableEdgeToolCheckBox.IsChecked = HasEnabledTool(VmToolKind.EdgeMeasure);
+            EnableHDevToolCheckBox.IsChecked = HasEnabledTool(VmToolKind.HDevelop);
+        }
+
+        private void RefreshInspector()
+        {
+            if (FlowToolList == null || InspectorToolTitleText == null)
+            {
+                return;
+            }
+
+            inspectorUpdating = true;
+            try
+            {
+                ShapeInspectorPanel.Visibility = Visibility.Collapsed;
+                BlobInspectorPanel.Visibility = Visibility.Collapsed;
+                GrayInspectorPanel.Visibility = Visibility.Collapsed;
+                EdgeInspectorPanel.Visibility = Visibility.Collapsed;
+                HDevInspectorPanel.Visibility = Visibility.Collapsed;
+
+                VmToolInstance selected = FlowToolList.SelectedItem as VmToolInstance;
+                bool hasSelection = selected != null;
+                InspectorEmptyText.Visibility = hasSelection ? Visibility.Collapsed : Visibility.Visible;
+                ToolInstanceNameTextBox.IsEnabled = hasSelection;
+                SelectedToolEnabledCheckBox.IsEnabled = hasSelection;
+
+                if (!hasSelection)
+                {
+                    InspectorToolTitleText.Text = "请选择流程工具";
+                    InspectorToolTypeText.Text = "从左侧工具箱添加，或在流程中选择实例";
+                    ToolInstanceNameTextBox.Text = string.Empty;
+                    SelectedToolEnabledCheckBox.IsChecked = false;
+                    SelectedToolStatusText.Text = "--";
+                    InspectorInputSummaryText.Text = "--";
+                    InspectorOutputSummaryText.Text = "--";
+                    InspectorErrorText.Text = "--";
+                    return;
+                }
+
+                RefreshToolConfigurationStatus(selected);
+                InspectorToolTitleText.Text = selected.InstanceName;
+                InspectorToolTypeText.Text = selected.Category + " / " + selected.DisplayType;
+                ToolInstanceNameTextBox.Text = selected.InstanceName;
+                SelectedToolEnabledCheckBox.IsChecked = selected.IsEnabled;
+                SelectedToolStatusText.Text = selected.ConfigurationStatus + " · " + selected.RunStatus + " · " + selected.ElapsedText;
+                InspectorInputSummaryText.Text = selected.InputSummary;
+                InspectorOutputSummaryText.Text = selected.OutputSummary;
+                InspectorErrorText.Text = string.IsNullOrWhiteSpace(selected.ErrorMessage) ? "--" : selected.ErrorMessage;
+
+                switch (selected.Kind)
+                {
+                    case VmToolKind.ShapeMatch:
+                        ShapeInspectorPanel.Visibility = Visibility.Visible;
+                        break;
+                    case VmToolKind.Blob:
+                        BlobInspectorPanel.Visibility = Visibility.Visible;
+                        break;
+                    case VmToolKind.GrayStat:
+                        GrayInspectorPanel.Visibility = Visibility.Visible;
+                        break;
+                    case VmToolKind.EdgeMeasure:
+                        EdgeInspectorPanel.Visibility = Visibility.Visible;
+                        break;
+                    case VmToolKind.HDevelop:
+                        HDevInspectorPanel.Visibility = Visibility.Visible;
+                        break;
+                }
+            }
+            finally
+            {
+                inspectorUpdating = false;
+            }
+        }
+
+        private void RefreshToolConfigurationStatus(VmToolInstance tool)
+        {
+            if (!tool.IsEnabled)
+            {
+                tool.ConfigurationStatus = "已停用";
+                return;
+            }
+
+            switch (tool.Kind)
+            {
+                case VmToolKind.ShapeMatch:
+                    tool.ConfigurationStatus = currentTemplateItem == null || !currentTemplateItem.HasModel
+                        ? "待配置模板"
+                        : (currentRoi == null ? "待配置 ROI" : "就绪");
+                    break;
+                case VmToolKind.HDevelop:
+                    tool.ConfigurationStatus = string.IsNullOrWhiteSpace(HDevPathTextBox.Text) ? "待选择程序" : "就绪";
+                    break;
+                default:
+                    tool.ConfigurationStatus = currentImage == null ? "等待图像" : "就绪";
+                    break;
+            }
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -321,6 +604,196 @@ namespace HalconWinFormsDemo
             RunStartupDiagnostics(true);
         }
 
+        private void ToolSearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (ToolCatalogList == null)
+            {
+                return;
+            }
+
+            string query = ToolSearchTextBox.Text == null ? string.Empty : ToolSearchTextBox.Text.Trim().ToLowerInvariant();
+            ToolCatalogList.ItemsSource = string.IsNullOrWhiteSpace(query)
+                ? toolCatalog
+                : toolCatalog.Where(item => item.SearchText.Contains(query)).ToList();
+        }
+
+        private void ToolCatalogList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            AddSelectedCatalogTool();
+        }
+
+        private void AddToolButton_Click(object sender, RoutedEventArgs e)
+        {
+            AddSelectedCatalogTool();
+        }
+
+        private void AddSelectedCatalogTool()
+        {
+            VmToolCatalogItem catalogItem = ToolCatalogList.SelectedItem as VmToolCatalogItem;
+            if (catalogItem == null)
+            {
+                HeaderStatusText.Text = "请先在工具箱选择工具。";
+                return;
+            }
+
+            VmToolInstance existing = flowTools.FirstOrDefault(item => item.Kind == catalogItem.Kind);
+            if (existing != null)
+            {
+                FlowToolList.SelectedItem = existing;
+                FlowToolList.ScrollIntoView(existing);
+                HeaderStatusText.Text = "当前版本每类工具保留一个实例，已定位到现有工具。";
+                return;
+            }
+
+            VmToolInstance instance = CreateFlowTool(catalogItem.Kind, null, true, null);
+            flowTools.Add(instance);
+            FlowToolList.SelectedItem = instance;
+            FlowToolList.ScrollIntoView(instance);
+            LogInfo("已从工具箱添加：" + instance.InstanceName);
+            RefreshUiState();
+        }
+
+        private void FlowToolList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            RefreshInspector();
+        }
+
+        private void MoveToolUpButton_Click(object sender, RoutedEventArgs e)
+        {
+            MoveSelectedTool(-1);
+        }
+
+        private void MoveToolDownButton_Click(object sender, RoutedEventArgs e)
+        {
+            MoveSelectedTool(1);
+        }
+
+        private void MoveSelectedTool(int direction)
+        {
+            VmToolInstance selected = FlowToolList.SelectedItem as VmToolInstance;
+            if (selected == null)
+            {
+                return;
+            }
+
+            int oldIndex = flowTools.IndexOf(selected);
+            int newIndex = oldIndex + direction;
+            if (newIndex < 0 || newIndex >= flowTools.Count)
+            {
+                return;
+            }
+
+            flowTools.Move(oldIndex, newIndex);
+            FlowToolList.SelectedItem = selected;
+            LogInfo("流程顺序已调整：" + selected.InstanceName + " -> " + (newIndex + 1));
+        }
+
+        private void DeleteToolButton_Click(object sender, RoutedEventArgs e)
+        {
+            VmToolInstance selected = FlowToolList.SelectedItem as VmToolInstance;
+            if (selected == null)
+            {
+                return;
+            }
+
+            int index = flowTools.IndexOf(selected);
+            flowTools.Remove(selected);
+            if (flowTools.Count > 0)
+            {
+                FlowToolList.SelectedIndex = Math.Min(index, flowTools.Count - 1);
+            }
+            else
+            {
+                RefreshInspector();
+            }
+
+            LogInfo("已从流程删除：" + selected.InstanceName);
+            RefreshUiState();
+        }
+
+        private void RenameToolButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (FlowToolList.SelectedItem == null)
+            {
+                return;
+            }
+
+            ToolInstanceNameTextBox.Focus();
+            ToolInstanceNameTextBox.SelectAll();
+            HeaderStatusText.Text = "在 Inspector 中输入实例名称，离开输入框后生效。";
+        }
+
+        private void ToolInstanceNameTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (inspectorUpdating)
+            {
+                return;
+            }
+
+            VmToolInstance selected = FlowToolList.SelectedItem as VmToolInstance;
+            if (selected == null)
+            {
+                return;
+            }
+
+            string name = ToolInstanceNameTextBox.Text == null ? string.Empty : ToolInstanceNameTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                ToolInstanceNameTextBox.Text = selected.InstanceName;
+                return;
+            }
+
+            if (flowTools.Any(item => item != selected && string.Equals(item.InstanceName, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                HeaderStatusText.Text = "工具实例名称不能重复。";
+                ToolInstanceNameTextBox.Text = selected.InstanceName;
+                return;
+            }
+
+            selected.InstanceName = name;
+            LogInfo("工具实例已重命名：" + name);
+        }
+
+        private void SelectedToolEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (inspectorUpdating)
+            {
+                return;
+            }
+
+            VmToolInstance selected = FlowToolList.SelectedItem as VmToolInstance;
+            if (selected != null)
+            {
+                selected.IsEnabled = SelectedToolEnabledCheckBox.IsChecked == true;
+                RefreshUiState();
+            }
+        }
+
+        private void RunCurrentToolButton_Click(object sender, RoutedEventArgs e)
+        {
+            VmToolInstance selected = FlowToolList.SelectedItem as VmToolInstance;
+            if (selected == null)
+            {
+                HeaderStatusText.Text = "请先选择流程工具。";
+                return;
+            }
+
+            RunStandaloneTool(selected, "运行当前");
+        }
+
+        private void SelectShapeToolButton_Click(object sender, RoutedEventArgs e)
+        {
+            VmToolInstance shapeTool = flowTools.FirstOrDefault(item => item.Kind == VmToolKind.ShapeMatch);
+            if (shapeTool == null)
+            {
+                shapeTool = CreateFlowTool(VmToolKind.ShapeMatch, null, true, null);
+                flowTools.Insert(0, shapeTool);
+            }
+
+            FlowToolList.SelectedItem = shapeTool;
+            RightTabs.SelectedIndex = 0;
+        }
+
         private void RectangleRoiButton_Click(object sender, RoutedEventArgs e)
         {
             SetRoiTool(VisionTool.RectangleRoi, "矩形 ROI：按住左键拖拽绘制，松开后点击确认。");
@@ -493,7 +966,15 @@ namespace HalconWinFormsDemo
 
         private void RunMatchButton_Click(object sender, RoutedEventArgs e)
         {
-            RunShapeMatchTool("手动匹配", true);
+            VmToolInstance shapeTool = flowTools.FirstOrDefault(item => item.Kind == VmToolKind.ShapeMatch);
+            if (shapeTool == null)
+            {
+                shapeTool = CreateFlowTool(VmToolKind.ShapeMatch, null, true, null);
+                flowTools.Insert(0, shapeTool);
+            }
+
+            FlowToolList.SelectedItem = shapeTool;
+            RunStandaloneTool(shapeTool, "模板匹配独立运行");
         }
 
         private void OverlayOptionChanged(object sender, RoutedEventArgs e)
@@ -940,40 +1421,20 @@ namespace HalconWinFormsDemo
         {
             RunUiAction(source, delegate
             {
-                EnsureImage();
+                List<VmToolInstance> enabledTools = flowTools.Where(item => item.IsEnabled).ToList();
+                if (enabledTools.Count == 0)
+                {
+                    throw new InvalidOperationException("流程中没有启用的工具。请从工具箱添加并启用工具。");
+                }
+
                 Stopwatch stopwatch = Stopwatch.StartNew();
                 currentMatches.Clear();
                 DisposeToolOverlays();
 
                 List<InspectionRecord> records = new List<InspectionRecord>();
-                if (EnableShapeToolCheckBox.IsChecked == true)
+                foreach (VmToolInstance tool in enabledTools)
                 {
-                    records.Add(RunShapeMatchTool(source, false));
-                }
-
-                if (EnableBlobToolCheckBox.IsChecked == true)
-                {
-                    records.Add(RunBlobTool());
-                }
-
-                if (EnableGrayToolCheckBox.IsChecked == true)
-                {
-                    records.Add(RunGrayStatTool());
-                }
-
-                if (EnableEdgeToolCheckBox.IsChecked == true)
-                {
-                    records.Add(RunEdgeMeasureTool());
-                }
-
-                if (EnableHDevToolCheckBox.IsChecked == true)
-                {
-                    records.Add(RunHDevTool());
-                }
-
-                if (records.Count == 0)
-                {
-                    throw new InvalidOperationException("请至少启用一个检测工具。");
+                    records.Add(ExecuteFlowTool(tool, source));
                 }
 
                 bool ok = records.All(record => string.Equals(record.ResultCode, "OK", StringComparison.OrdinalIgnoreCase));
@@ -990,6 +1451,96 @@ namespace HalconWinFormsDemo
                 RefreshUiState();
                 ScheduleRefreshDisplay();
             });
+        }
+
+        private void RunStandaloneTool(VmToolInstance tool, string source)
+        {
+            RunUiAction(source, delegate
+            {
+                if (tool == null)
+                {
+                    throw new InvalidOperationException("请先选择流程工具。");
+                }
+
+                InspectionRecord record = ExecuteFlowTool(tool, source);
+                lastResultPayload = BuildJsonResultPayload(record.ResultCode, tool.ElapsedMilliseconds, new[] { record });
+                LastMessageText.Text = "最新外发结果：" + lastResultPayload;
+                HeaderStatusText.Text = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0}：{1}，耗时 {2:F1} ms",
+                    tool.InstanceName,
+                    record.ResultCode,
+                    tool.ElapsedMilliseconds);
+                RefreshUiState();
+                ScheduleRefreshDisplay();
+            });
+        }
+
+        private InspectionRecord ExecuteFlowTool(VmToolInstance tool, string source)
+        {
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            tool.RunStatus = "运行中";
+            tool.ResultCode = "--";
+            tool.ErrorMessage = string.Empty;
+            try
+            {
+                InspectionRecord record;
+                switch (tool.Kind)
+                {
+                    case VmToolKind.ShapeMatch:
+                        EnsureImage();
+                        record = RunShapeMatchTool(source, false);
+                        tool.InputSummary = "Image + SearchROI + ShapeModel";
+                        tool.OutputSummary = currentMatches.Count == 0
+                            ? "Matches=0"
+                            : string.Format(CultureInfo.InvariantCulture, "Matches={0}, Best={1:F3}", currentMatches.Count, currentMatches.Max(item => item.Score));
+                        break;
+                    case VmToolKind.Blob:
+                        EnsureImage();
+                        record = RunBlobTool();
+                        tool.InputSummary = currentRoi == null ? "Image" : "Image + ROI";
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.GrayStat:
+                        EnsureImage();
+                        record = RunGrayStatTool();
+                        tool.InputSummary = currentRoi == null ? "Image" : "Image + ROI";
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.EdgeMeasure:
+                        EnsureImage();
+                        record = RunEdgeMeasureTool();
+                        tool.InputSummary = currentRoi == null ? "Image" : "Image + ROI";
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.HDevelop:
+                        EnsureImage();
+                        record = RunHDevTool();
+                        tool.InputSummary = "Image + ROI + HDevelop";
+                        tool.OutputSummary = record.Message;
+                        break;
+                    default:
+                        throw new NotSupportedException("不支持的工具类型：" + tool.Kind);
+                }
+
+                tool.ResultCode = record.ResultCode;
+                tool.RunStatus = string.Equals(record.ResultCode, "OK", StringComparison.OrdinalIgnoreCase) ? "完成" : "异常";
+                return record;
+            }
+            catch (Exception ex)
+            {
+                tool.ResultCode = "NG";
+                tool.RunStatus = "失败";
+                tool.ErrorMessage = ex.Message;
+                tool.OutputSummary = "失败：" + ex.Message;
+                throw;
+            }
+            finally
+            {
+                stopwatch.Stop();
+                tool.ElapsedMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
+                RefreshInspector();
+            }
         }
 
         private InspectionRecord RunShapeMatchTool(string source, bool throwOnDisabled)
@@ -1283,13 +1834,20 @@ namespace HalconWinFormsDemo
             bool tcpRunning = tcpService.IsRunning;
             bool canSend = tcpService.CanSend;
             bool clientMode = TcpClientModeRadio.IsChecked == true;
+            bool hasEnabledTools = flowTools.Any(item => item.IsEnabled);
+
+            foreach (VmToolInstance tool in flowTools)
+            {
+                RefreshToolConfigurationStatus(tool);
+            }
+            SyncLegacyToolChecksFromFlow();
 
             PreviousImageButton.IsEnabled = imageFiles.Count > 1 && imageIndex > 0 && !playbackTimer.IsEnabled;
             NextImageButton.IsEnabled = imageFiles.Count > 1 && imageIndex < imageFiles.Count - 1 && !playbackTimer.IsEnabled;
             PlayButton.IsEnabled = imageFiles.Count > 1 && !playbackTimer.IsEnabled && !isContinuousRunning;
             StopPlayButton.IsEnabled = playbackTimer.IsEnabled;
-            RunOnceButton.IsEnabled = hasImage && !isContinuousRunning;
-            RunContinuousButton.IsEnabled = hasImage && !isContinuousRunning;
+            RunOnceButton.IsEnabled = hasImage && hasEnabledTools && !isContinuousRunning;
+            RunContinuousButton.IsEnabled = hasImage && hasEnabledTools && !isContinuousRunning;
             StopRunButton.IsEnabled = isContinuousRunning;
             ClearOverlayButton.IsEnabled = hasImage;
             SaveScreenshotButton.IsEnabled = hasImage;
@@ -1349,6 +1907,7 @@ namespace HalconWinFormsDemo
 
             RecipeNameText.Text = "配方：" + (string.IsNullOrWhiteSpace(RecipeNameEditTextBox.Text) ? "未命名" : RecipeNameEditTextBox.Text);
             RecipePathText.Text = "路径：" + (string.IsNullOrWhiteSpace(currentRecipePath) ? "--" : currentRecipePath);
+            RefreshInspector();
         }
 
         private void SetRoiTool(VisionTool tool, string hint)
@@ -1478,7 +2037,7 @@ namespace HalconWinFormsDemo
 
             if (showTab)
             {
-                RightTabs.SelectedIndex = 3;
+                RightTabs.SelectedItem = ProjectDiagnosticsTab;
                 HeaderStatusText.Text = items.Any(item => item.Status == "NG") ? "自检完成，存在异常项。" : "自检完成，全部通过。";
             }
         }
@@ -1493,11 +2052,6 @@ namespace HalconWinFormsDemo
             }
 
             RecipeNameEditTextBox.Text = string.IsNullOrWhiteSpace(recipe.Name) ? "DefaultRecipe" : recipe.Name;
-            EnableShapeToolCheckBox.IsChecked = recipe.EnableShapeMatch;
-            EnableBlobToolCheckBox.IsChecked = recipe.EnableBlob;
-            EnableGrayToolCheckBox.IsChecked = recipe.EnableGrayStat;
-            EnableEdgeToolCheckBox.IsChecked = recipe.EnableEdgeMeasure;
-            EnableHDevToolCheckBox.IsChecked = recipe.EnableHDevelop;
             BlobMinGrayTextBox.Text = recipe.BlobMinGray.ToString(CultureInfo.InvariantCulture);
             BlobMaxGrayTextBox.Text = recipe.BlobMaxGray.ToString(CultureInfo.InvariantCulture);
             BlobMinAreaTextBox.Text = recipe.BlobMinArea.ToString(CultureInfo.InvariantCulture);
@@ -1516,6 +2070,8 @@ namespace HalconWinFormsDemo
             DisposeCurrentRoi();
             currentRoi = FromRecipeRoi(recipe.SearchRoi);
 
+            ReplaceTemplate(null);
+
             if (!string.IsNullOrWhiteSpace(recipe.TemplatePath) && File.Exists(recipe.TemplatePath))
             {
                 TemplateItem item = new TemplateItem { Name = Path.GetFileNameWithoutExtension(recipe.TemplatePath) };
@@ -1532,6 +2088,8 @@ namespace HalconWinFormsDemo
                 ReplaceTemplate(item);
             }
 
+            ApplyFlowFromRecipe(recipe);
+
             RefreshUiState();
             ScheduleRefreshDisplay();
         }
@@ -1545,11 +2103,11 @@ namespace HalconWinFormsDemo
                 SearchRoi = ToRecipeRoi(currentRoi),
                 TemplatePath = currentTemplateItem == null ? string.Empty : currentTemplateItem.TemplatePath,
                 TemplateOptions = ToRecipeOptions(currentTemplateItem == null ? null : currentTemplateItem.Options),
-                EnableShapeMatch = EnableShapeToolCheckBox.IsChecked == true,
-                EnableBlob = EnableBlobToolCheckBox.IsChecked == true,
-                EnableGrayStat = EnableGrayToolCheckBox.IsChecked == true,
-                EnableEdgeMeasure = EnableEdgeToolCheckBox.IsChecked == true,
-                EnableHDevelop = EnableHDevToolCheckBox.IsChecked == true,
+                EnableShapeMatch = HasEnabledTool(VmToolKind.ShapeMatch),
+                EnableBlob = HasEnabledTool(VmToolKind.Blob),
+                EnableGrayStat = HasEnabledTool(VmToolKind.GrayStat),
+                EnableEdgeMeasure = HasEnabledTool(VmToolKind.EdgeMeasure),
+                EnableHDevelop = HasEnabledTool(VmToolKind.HDevelop),
                 BlobMinGray = ReadDoubleOrDefault(BlobMinGrayTextBox, 80),
                 BlobMaxGray = ReadDoubleOrDefault(BlobMaxGrayTextBox, 255),
                 BlobMinArea = ReadDoubleOrDefault(BlobMinAreaTextBox, 50),
@@ -1562,7 +2120,8 @@ namespace HalconWinFormsDemo
                 TcpIp = TcpIpTextBox.Text,
                 TcpPort = ReadTcpPortOrDefault(9000),
                 TcpEncoding = GetTcpEncodingText(),
-                AutoSendResult = AutoSendMatchResultCheckBox.IsChecked == true
+                AutoSendResult = AutoSendMatchResultCheckBox.IsChecked == true,
+                ToolFlow = CaptureFlowRecipe()
             };
         }
 
@@ -1633,9 +2192,12 @@ namespace HalconWinFormsDemo
                 BottomPanelRow.Height = new GridLength(state.BottomPanelHeight);
             }
 
-            if (state.RightPanelWidth >= 380)
+            if (state.RightPanelWidth >= 240)
             {
-                RightPanelColumn.Width = new GridLength(state.RightPanelWidth);
+                double maximumWidth = RootGrid.ActualWidth > 0
+                    ? Math.Min(420, Math.Max(310, RootGrid.ActualWidth * 0.32))
+                    : 420;
+                RightPanelColumn.Width = new GridLength(Math.Min(state.RightPanelWidth, maximumWidth));
             }
 
             if (!string.IsNullOrWhiteSpace(state.LastRecipePath) && File.Exists(state.LastRecipePath))

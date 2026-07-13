@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.Serialization;
 
 namespace HalconWinFormsDemo.Models
@@ -96,6 +97,26 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 23)]
         public bool AutoSendResult { get; set; }
+
+        [DataMember(Order = 24, EmitDefaultValue = false)]
+        public List<ToolFlowRecipeItem> ToolFlow { get; set; }
+
+    }
+
+    [DataContract]
+    public sealed class ToolFlowRecipeItem
+    {
+        [DataMember(Order = 1)]
+        public string ToolId { get; set; }
+
+        [DataMember(Order = 2)]
+        public string ToolType { get; set; }
+
+        [DataMember(Order = 3)]
+        public string InstanceName { get; set; }
+
+        [DataMember(Order = 4)]
+        public bool IsEnabled { get; set; }
     }
 
     [DataContract]
