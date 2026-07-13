@@ -176,7 +176,7 @@
                             <DataTemplate>
                                 <Border x:Name="ToolCard" Margin="2" Padding="7" CornerRadius="3" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1">
                                     <Grid>
-                                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                         <Border Width="25" Height="25" CornerRadius="13" Background="#E0F2FE" Margin="0,0,6,0">
                                             <TextBlock Text="{Binding SequenceText}" Foreground="#0369A1" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -190,6 +190,7 @@
                                             <TextBlock Text="{Binding RunStatus}" FontSize="10" Foreground="#475569" Margin="0,0,8,0" />
                                             <TextBlock Text="{Binding ElapsedText}" FontSize="10" Foreground="#64748B" />
                                         </StackPanel>
+                                        <TextBlock Grid.Row="3" Grid.Column="2" Grid.ColumnSpan="2" Text="{Binding ConnectionSummary}" FontSize="10" Foreground="#7C3AED" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" ToolTip="{Binding ConnectionStatus}" />
                                     </Grid>
                                 </Border>
                                 <DataTemplate.Triggers>
@@ -319,6 +320,38 @@
                                 </GroupBox>
                             </StackPanel>
 
+                            <StackPanel x:Name="NumericJudgeInspectorPanel" Visibility="Collapsed">
+                                <GroupBox Header="上游数值订阅">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="82" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                        <TextBlock Text="上游工具" VerticalAlignment="Center" />
+                                        <ComboBox x:Name="NumericSourceToolComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="ToolId" SelectionChanged="NumericSourceToolComboBox_SelectionChanged" />
+                                        <TextBlock Grid.Row="1" Text="数值端口" VerticalAlignment="Center" />
+                                        <ComboBox x:Name="NumericSourcePortComboBox" Grid.Row="1" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="PortName" SelectionChanged="NumericSourcePortComboBox_SelectionChanged" />
+                                    </Grid>
+                                </GroupBox>
+                                <GroupBox Header="判定规则">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="82" /><ColumnDefinition Width="*" /><ColumnDefinition Width="72" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                        <TextBlock Text="比较方式" VerticalAlignment="Center" />
+                                        <ComboBox x:Name="NumericOperatorComboBox" Grid.Column="1" Grid.ColumnSpan="3" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="NumericOperatorComboBox_SelectionChanged" />
+                                        <TextBlock Grid.Row="1" Text="下限/目标" VerticalAlignment="Center" />
+                                        <TextBox x:Name="NumericLowerLimitTextBox" Grid.Row="1" Grid.Column="1" Text="0" LostFocus="NumericJudgeParameter_LostFocus" />
+                                        <TextBlock Grid.Row="1" Grid.Column="2" Text="上限" VerticalAlignment="Center" />
+                                        <TextBox x:Name="NumericUpperLimitTextBox" Grid.Row="1" Grid.Column="3" Text="100" LostFocus="NumericJudgeParameter_LostFocus" />
+                                        <TextBlock Grid.Row="2" Text="相等容差" VerticalAlignment="Center" />
+                                        <TextBox x:Name="NumericToleranceTextBox" Grid.Row="2" Grid.Column="1" Text="0.001" LostFocus="NumericJudgeParameter_LostFocus" />
+                                    </Grid>
+                                </GroupBox>
+                                <TextBlock x:Name="NumericConfigValidationText" Text="请选择上游工具和端口。" TextWrapping="Wrap" Margin="4,0,4,6" Foreground="#B91C1C" />
+                                <UniformGrid Columns="2">
+                                    <Button Content="查看 I/O 端口" Click="OpenIoPanelButton_Click" />
+                                    <Button Content="独立运行判定" FontWeight="SemiBold" Foreground="#0F766E" Click="NumericJudgeRunButton_Click" />
+                                </UniformGrid>
+                            </StackPanel>
+
                             <StackPanel Visibility="Collapsed">
                                 <CheckBox x:Name="EnableShapeToolCheckBox" /><CheckBox x:Name="EnableBlobToolCheckBox" /><CheckBox x:Name="EnableGrayToolCheckBox" /><CheckBox x:Name="EnableEdgeToolCheckBox" /><CheckBox x:Name="EnableHDevToolCheckBox" />
                             </StackPanel>
@@ -327,17 +360,95 @@
                 </TabItem>
 
                 <TabItem Header="I/O" ToolTip="输入/输出">
-                    <Grid Margin="9">
-                        <GroupBox Header="当前工具摘要">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="65" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                <TextBlock Text="输入" /><TextBlock x:Name="InspectorInputSummaryText" Grid.Column="1" Text="--" TextWrapping="Wrap" />
-                                <TextBlock Grid.Row="1" Text="输出" /><TextBlock x:Name="InspectorOutputSummaryText" Grid.Row="1" Grid.Column="1" Text="--" TextWrapping="Wrap" />
-                                <TextBlock Grid.Row="2" Text="错误" /><TextBlock x:Name="InspectorErrorText" Grid.Row="2" Grid.Column="1" Text="--" TextWrapping="Wrap" Foreground="#B91C1C" />
-                            </Grid>
-                        </GroupBox>
-                    </Grid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="9">
+                            <Border Background="#263449" CornerRadius="3" Padding="10" Margin="0,0,0,8">
+                                <StackPanel>
+                                    <TextBlock x:Name="IoToolTitleText" Text="未选择流程工具" Foreground="#FFFFFF" FontSize="15" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="IoConnectionStatusText" Text="请在流程区选择工具实例。" Foreground="#C4B5FD" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                </StackPanel>
+                            </Border>
+                            <UniformGrid Columns="3" Margin="0,0,0,8">
+                                <Button x:Name="IoOpenParametersButton" Content="参数" Click="IoOpenParametersButton_Click" />
+                                <Button x:Name="IoRunCurrentButton" Content="运行当前" FontWeight="SemiBold" Click="IoRunCurrentButton_Click" />
+                                <Button Content="刷新值" Click="IoRefreshButton_Click" />
+                            </UniformGrid>
+
+                            <GroupBox Header="输入端口 IN">
+                                <ItemsControl x:Name="InputPortsItemsControl">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="PortCard" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="7" Margin="0,0,0,5">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="38" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                    <Border x:Name="PortBadge" Width="30" Height="30" CornerRadius="15" Background="#FEE2E2" VerticalAlignment="Top">
+                                                        <TextBlock Text="IN" FontSize="9" FontWeight="Bold" Foreground="#B91C1C" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1">
+                                                        <TextBlock FontWeight="SemiBold"><Run Text="{Binding DisplayName}" /><Run Text="  (" /><Run Text="{Binding PortName}" /><Run Text=")" /></TextBlock>
+                                                        <TextBlock Text="{Binding Source, StringFormat=来源：{0}}" FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding CurrentValue, StringFormat=当前：{0}}" FontSize="10" Foreground="#334155" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                                        <Border Background="#EDE9FE" CornerRadius="8" Padding="6,2"><TextBlock Text="{Binding DataType}" FontSize="9" Foreground="#6D28D9" /></Border>
+                                                        <TextBlock Text="{Binding Status}" FontSize="9" Foreground="#B45309" HorizontalAlignment="Right" Margin="0,4,0,0" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                    <Setter TargetName="PortCard" Property="BorderBrush" Value="#86EFAC" />
+                                                    <Setter TargetName="PortBadge" Property="Background" Value="#DCFCE7" />
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </GroupBox>
+
+                            <GroupBox Header="输出端口 OUT">
+                                <ItemsControl x:Name="OutputPortsItemsControl">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="PortCard" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="7" Margin="0,0,0,5">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="38" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                    <Border x:Name="PortBadge" Width="30" Height="30" CornerRadius="15" Background="#E0E7FF" VerticalAlignment="Top">
+                                                        <TextBlock Text="OUT" FontSize="8" FontWeight="Bold" Foreground="#4338CA" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1">
+                                                        <TextBlock FontWeight="SemiBold"><Run Text="{Binding DisplayName}" /><Run Text="  (" /><Run Text="{Binding PortName}" /><Run Text=")" /></TextBlock>
+                                                        <TextBlock Text="{Binding Source}" FontSize="10" Foreground="#64748B" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding CurrentValue, StringFormat=当前：{0}}" FontSize="10" Foreground="#334155" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                                                        <Border Background="#EDE9FE" CornerRadius="8" Padding="6,2"><TextBlock Text="{Binding DataType}" FontSize="9" Foreground="#6D28D9" /></Border>
+                                                        <TextBlock Text="{Binding Status}" FontSize="9" Foreground="#475569" HorizontalAlignment="Right" Margin="0,4,0,0" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                    <Setter TargetName="PortCard" Property="BorderBrush" Value="#86EFAC" />
+                                                    <Setter TargetName="PortBadge" Property="Background" Value="#DCFCE7" />
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </GroupBox>
+
+                            <GroupBox Header="本次运行摘要">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="52" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <TextBlock Text="输入" /><TextBlock x:Name="InspectorInputSummaryText" Grid.Column="1" Text="--" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="1" Text="输出" /><TextBlock x:Name="InspectorOutputSummaryText" Grid.Row="1" Grid.Column="1" Text="--" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="2" Text="错误" /><TextBlock x:Name="InspectorErrorText" Grid.Row="2" Grid.Column="1" Text="--" TextWrapping="Wrap" Foreground="#B91C1C" />
+                                </Grid>
+                            </GroupBox>
+                        </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
 
                 <TabItem Header="图像/ROI">

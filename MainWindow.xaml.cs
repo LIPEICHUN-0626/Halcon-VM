@@ -20,7 +20,7 @@ namespace HalconWinFormsDemo
 {
     public partial class MainWindow : Window
     {
-        private const string VersionStamp = "WPF Product Station 2026-06-29";
+        private const string VersionStamp = "HALCON VM S02 2026-07-13";
 
         private readonly HalconImageService imageService = new HalconImageService();
         private readonly AppLogger logger = new AppLogger();
@@ -38,6 +38,8 @@ namespace HalconWinFormsDemo
         private readonly DispatcherTimer playbackTimer = new DispatcherTimer();
         private readonly DispatcherTimer runTimer = new DispatcherTimer();
         private readonly ObservableCollection<VmToolInstance> flowTools = new ObservableCollection<VmToolInstance>();
+        private readonly ObservableCollection<VmPortDisplayItem> inputPortRows = new ObservableCollection<VmPortDisplayItem>();
+        private readonly ObservableCollection<VmPortDisplayItem> outputPortRows = new ObservableCollection<VmPortDisplayItem>();
         private readonly List<VmToolCatalogItem> toolCatalog = new List<VmToolCatalogItem>();
 
         private Forms.Integration.WindowsFormsHost host;
@@ -90,10 +92,14 @@ namespace HalconWinFormsDemo
                 CreateCatalogItem(VmToolKind.Blob),
                 CreateCatalogItem(VmToolKind.GrayStat),
                 CreateCatalogItem(VmToolKind.EdgeMeasure),
-                CreateCatalogItem(VmToolKind.HDevelop)
+                CreateCatalogItem(VmToolKind.HDevelop),
+                CreateCatalogItem(VmToolKind.NumericJudge)
             });
             ToolCatalogList.ItemsSource = toolCatalog;
             FlowToolList.ItemsSource = flowTools;
+            InputPortsItemsControl.ItemsSource = inputPortRows;
+            OutputPortsItemsControl.ItemsSource = outputPortRows;
+            NumericOperatorComboBox.ItemsSource = NumericJudgeOperatorOption.CreateAll();
             ApplyFlowFromRecipe(new VisionRecipe());
         }
 
@@ -136,7 +142,7 @@ namespace HalconWinFormsDemo
 
         private VmToolInstance CreateFlowTool(VmToolKind kind, string name, bool isEnabled, string toolId)
         {
-            return new VmToolInstance
+            VmToolInstance instance = new VmToolInstance
             {
                 ToolId = string.IsNullOrWhiteSpace(toolId) ? Guid.NewGuid().ToString("N") : toolId,
                 Kind = kind,
@@ -145,6 +151,19 @@ namespace HalconWinFormsDemo
                 InputSummary = DefaultInputSummary(kind),
                 OutputSummary = "尚未运行"
             };
+
+            if (kind == VmToolKind.NumericJudge)
+            {
+                instance.ConnectionStatus = "未连接";
+                instance.ConnectionSummary = "Value ← 请选择上游数值端口";
+            }
+            else
+            {
+                instance.ConnectionStatus = "系统输入";
+                instance.ConnectionSummary = DefaultInputSummary(kind);
+            }
+
+            return instance;
         }
 
         private string CreateUniqueToolName(VmToolKind kind)
@@ -173,6 +192,8 @@ namespace HalconWinFormsDemo
                     return "Image + 可选 ROI";
                 case VmToolKind.HDevelop:
                     return "Image + ROI";
+                case VmToolKind.NumericJudge:
+                    return "Value ← 未连接";
                 default:
                     return "--";
             }
@@ -197,8 +218,15 @@ namespace HalconWinFormsDemo
                         continue;
                     }
 
-                    flowTools.Add(CreateFlowTool(kind, recipeItem.InstanceName, recipeItem.IsEnabled, recipeItem.ToolId));
+                    VmToolInstance instance = CreateFlowTool(kind, recipeItem.InstanceName, recipeItem.IsEnabled, recipeItem.ToolId);
+                    ApplyToolRecipeData(instance, recipeItem);
+                    flowTools.Add(instance);
                 }
+            }
+
+            foreach (VmToolInstance numericTool in flowTools.Where(item => item.Kind == VmToolKind.NumericJudge && string.IsNullOrWhiteSpace(item.InputToolId)))
+            {
+                AutoBindNumericJudge(numericTool);
             }
 
             if (flowTools.Count == 0)
@@ -242,8 +270,149 @@ namespace HalconWinFormsDemo
                 ToolId = item.ToolId,
                 ToolType = item.Kind.ToString(),
                 InstanceName = item.InstanceName,
-                IsEnabled = item.IsEnabled
+                IsEnabled = item.IsEnabled,
+                NumericJudge = item.Kind == VmToolKind.NumericJudge
+                    ? new NumericJudgeRecipeData
+                    {
+                        InputToolId = item.InputToolId,
+                        InputPortName = item.InputPortName,
+                        Operator = item.NumericOperator,
+                        LowerLimit = item.NumericLowerLimit,
+                        UpperLimit = item.NumericUpperLimit,
+                        Tolerance = item.NumericTolerance
+                    }
+                    : null
             }).ToList();
+        }
+
+        private static void ApplyToolRecipeData(VmToolInstance tool, ToolFlowRecipeItem recipeItem)
+        {
+            if (tool == null || recipeItem == null || tool.Kind != VmToolKind.NumericJudge || recipeItem.NumericJudge == null)
+            {
+                return;
+            }
+
+            NumericJudgeRecipeData data = recipeItem.NumericJudge;
+            tool.InputToolId = data.InputToolId;
+            tool.InputPortName = data.InputPortName;
+            tool.NumericOperator = NumericJudgeOperatorOption.IsSupported(data.Operator)
+                ? data.Operator
+                : NumericJudgeOperatorOption.BetweenInclusive;
+            tool.NumericLowerLimit = data.LowerLimit;
+            tool.NumericUpperLimit = data.UpperLimit;
+            tool.NumericTolerance = data.Tolerance < 0 ? 0.001 : data.Tolerance;
+        }
+
+        private void AutoBindNumericJudge(VmToolInstance judgeTool)
+        {
+            if (judgeTool == null || judgeTool.Kind != VmToolKind.NumericJudge)
+            {
+                return;
+            }
+
+            int judgeIndex = flowTools.IndexOf(judgeTool);
+            IEnumerable<VmToolInstance> candidates = judgeIndex < 0
+                ? flowTools.AsEnumerable().Reverse()
+                : flowTools.Take(judgeIndex).Reverse();
+            VmToolInstance source = candidates.FirstOrDefault(item => ToolMetadata.GetNumericOutputPorts(item.Kind).Count > 0);
+            if (source == null)
+            {
+                return;
+            }
+
+            VmPortDefinition port = ToolMetadata.GetNumericOutputPorts(source.Kind).FirstOrDefault();
+            if (port == null)
+            {
+                return;
+            }
+
+            judgeTool.InputToolId = source.ToolId;
+            judgeTool.InputPortName = port.PortName;
+        }
+
+        private VmToolInstance GetInputSourceTool(VmToolInstance tool)
+        {
+            return tool == null || string.IsNullOrWhiteSpace(tool.InputToolId)
+                ? null
+                : flowTools.FirstOrDefault(item => string.Equals(item.ToolId, tool.InputToolId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private string GetNumericJudgeConfigurationError(VmToolInstance tool)
+        {
+            if (tool == null || tool.Kind != VmToolKind.NumericJudge)
+            {
+                return "不是数值判定工具。";
+            }
+
+            VmToolInstance source = GetInputSourceTool(tool);
+            if (source == null)
+            {
+                return "未选择上游工具。";
+            }
+
+            int sourceIndex = flowTools.IndexOf(source);
+            int judgeIndex = flowTools.IndexOf(tool);
+            if (sourceIndex < 0 || judgeIndex < 0 || sourceIndex >= judgeIndex)
+            {
+                return "上游工具必须位于数值判定之前。";
+            }
+
+            if (!source.IsEnabled)
+            {
+                return "上游工具已停用。";
+            }
+
+            VmPortDefinition port = ToolMetadata.GetNumericOutputPorts(source.Kind)
+                .FirstOrDefault(item => string.Equals(item.PortName, tool.InputPortName, StringComparison.OrdinalIgnoreCase));
+            if (port == null)
+            {
+                return "所选上游端口不存在或不是数值类型。";
+            }
+
+            if (!NumericJudgeOperatorOption.IsSupported(tool.NumericOperator))
+            {
+                return "比较方式无效。";
+            }
+
+            if (double.IsNaN(tool.NumericLowerLimit) || double.IsInfinity(tool.NumericLowerLimit) ||
+                double.IsNaN(tool.NumericUpperLimit) || double.IsInfinity(tool.NumericUpperLimit))
+            {
+                return "阈值必须是有限数值。";
+            }
+
+            if ((tool.NumericOperator == NumericJudgeOperatorOption.BetweenInclusive ||
+                 tool.NumericOperator == NumericJudgeOperatorOption.OutsideInclusive) &&
+                tool.NumericLowerLimit > tool.NumericUpperLimit)
+            {
+                return "区间下限不能大于上限。";
+            }
+
+            if (double.IsNaN(tool.NumericTolerance) || double.IsInfinity(tool.NumericTolerance) || tool.NumericTolerance < 0)
+            {
+                return "相等容差必须大于或等于 0。";
+            }
+
+            return string.Empty;
+        }
+
+        private void RefreshNumericJudgeConnectionStatus(VmToolInstance tool)
+        {
+            VmToolInstance source = GetInputSourceTool(tool);
+            string sourceName = source == null ? "未选择" : source.InstanceName;
+            string portName = string.IsNullOrWhiteSpace(tool.InputPortName) ? "未选择" : tool.InputPortName;
+            string error = GetNumericJudgeConfigurationError(tool);
+            tool.ConnectionSummary = sourceName + "." + portName + " → Value";
+            tool.InputSummary = "Value ← " + sourceName + "." + portName;
+            if (string.IsNullOrWhiteSpace(error))
+            {
+                tool.ConnectionStatus = source.TryGetNumericOutput(tool.InputPortName, out _) ? "已连接 · 有值" : "已连接 · 等待运行";
+                tool.ConfigurationStatus = "就绪";
+            }
+            else
+            {
+                tool.ConnectionStatus = "连接异常";
+                tool.ConfigurationStatus = error;
+            }
         }
 
         private bool HasEnabledTool(VmToolKind kind)
@@ -280,6 +449,7 @@ namespace HalconWinFormsDemo
                 GrayInspectorPanel.Visibility = Visibility.Collapsed;
                 EdgeInspectorPanel.Visibility = Visibility.Collapsed;
                 HDevInspectorPanel.Visibility = Visibility.Collapsed;
+                NumericJudgeInspectorPanel.Visibility = Visibility.Collapsed;
 
                 VmToolInstance selected = FlowToolList.SelectedItem as VmToolInstance;
                 bool hasSelection = selected != null;
@@ -297,6 +467,7 @@ namespace HalconWinFormsDemo
                     InspectorInputSummaryText.Text = "--";
                     InspectorOutputSummaryText.Text = "--";
                     InspectorErrorText.Text = "--";
+                    RefreshPortPanel(null);
                     return;
                 }
 
@@ -327,7 +498,13 @@ namespace HalconWinFormsDemo
                     case VmToolKind.HDevelop:
                         HDevInspectorPanel.Visibility = Visibility.Visible;
                         break;
+                    case VmToolKind.NumericJudge:
+                        NumericJudgeInspectorPanel.Visibility = Visibility.Visible;
+                        RefreshNumericJudgeEditor(selected);
+                        break;
                 }
+
+                RefreshPortPanel(selected);
             }
             finally
             {
@@ -340,23 +517,305 @@ namespace HalconWinFormsDemo
             if (!tool.IsEnabled)
             {
                 tool.ConfigurationStatus = "已停用";
+                tool.ConnectionStatus = "已停用";
                 return;
             }
 
             switch (tool.Kind)
             {
+                case VmToolKind.NumericJudge:
+                    RefreshNumericJudgeConnectionStatus(tool);
+                    break;
                 case VmToolKind.ShapeMatch:
                     tool.ConfigurationStatus = currentTemplateItem == null || !currentTemplateItem.HasModel
                         ? "待配置模板"
                         : (currentRoi == null ? "待配置 ROI" : "就绪");
+                    tool.ConnectionStatus = tool.ConfigurationStatus == "就绪" ? "系统输入 · 已就绪" : "系统输入 · 待配置";
+                    tool.ConnectionSummary = "系统.Image + SearchROI + ShapeModel";
                     break;
                 case VmToolKind.HDevelop:
                     tool.ConfigurationStatus = string.IsNullOrWhiteSpace(HDevPathTextBox.Text) ? "待选择程序" : "就绪";
+                    tool.ConnectionStatus = tool.ConfigurationStatus == "就绪" ? "系统输入 · 已就绪" : "系统输入 · 待配置";
+                    tool.ConnectionSummary = "系统.Image + ROI + Program";
                     break;
                 default:
                     tool.ConfigurationStatus = currentImage == null ? "等待图像" : "就绪";
+                    tool.ConnectionStatus = currentImage == null ? "系统输入 · 等待图像" : "系统输入 · 已就绪";
+                    tool.ConnectionSummary = currentRoi == null ? "系统.Image" : "系统.Image + ROI";
                     break;
             }
+        }
+
+        private void RefreshNumericJudgeEditor(VmToolInstance tool)
+        {
+            int judgeIndex = flowTools.IndexOf(tool);
+            List<VmSourceToolOption> sourceOptions = flowTools
+                .Take(Math.Max(0, judgeIndex))
+                .Where(item => ToolMetadata.GetNumericOutputPorts(item.Kind).Count > 0)
+                .Select(item => new VmSourceToolOption
+                {
+                    ToolId = item.ToolId,
+                    DisplayText = item.SequenceText + "  " + item.InstanceName
+                })
+                .ToList();
+            NumericSourceToolComboBox.ItemsSource = sourceOptions;
+            NumericSourceToolComboBox.SelectedValue = tool.InputToolId;
+
+            VmToolInstance source = GetInputSourceTool(tool);
+            List<VmSourcePortOption> portOptions = source == null
+                ? new List<VmSourcePortOption>()
+                : ToolMetadata.GetNumericOutputPorts(source.Kind)
+                    .Select(item => new VmSourcePortOption
+                    {
+                        PortName = item.PortName,
+                        DisplayText = item.DisplayName + "  (" + item.PortName + ")",
+                        DataType = item.DataType
+                    })
+                    .ToList();
+            NumericSourcePortComboBox.ItemsSource = portOptions;
+            NumericSourcePortComboBox.SelectedValue = tool.InputPortName;
+            NumericOperatorComboBox.SelectedValue = tool.NumericOperator;
+            NumericLowerLimitTextBox.Text = tool.NumericLowerLimit.ToString("0.###", CultureInfo.InvariantCulture);
+            NumericUpperLimitTextBox.Text = tool.NumericUpperLimit.ToString("0.###", CultureInfo.InvariantCulture);
+            NumericToleranceTextBox.Text = tool.NumericTolerance.ToString("0.###", CultureInfo.InvariantCulture);
+
+            string error = GetNumericJudgeConfigurationError(tool);
+            NumericConfigValidationText.Text = string.IsNullOrWhiteSpace(error)
+                ? "连接有效。运行全流程时将读取上游本周期数值；独立运行使用上游最近一次结果。"
+                : "配置异常：" + error;
+            NumericConfigValidationText.Foreground = string.IsNullOrWhiteSpace(error)
+                ? System.Windows.Media.Brushes.SeaGreen
+                : System.Windows.Media.Brushes.Firebrick;
+        }
+
+        private void RefreshPortPanel(VmToolInstance tool)
+        {
+            inputPortRows.Clear();
+            outputPortRows.Clear();
+
+            if (tool == null)
+            {
+                IoToolTitleText.Text = "未选择流程工具";
+                IoConnectionStatusText.Text = "请在流程区选择工具实例。";
+                IoRunCurrentButton.IsEnabled = false;
+                IoOpenParametersButton.IsEnabled = false;
+                return;
+            }
+
+            IoToolTitleText.Text = tool.SequenceText + "  " + tool.InstanceName;
+            IoConnectionStatusText.Text = tool.ConnectionStatus + " · " + tool.ConnectionSummary;
+            IoRunCurrentButton.IsEnabled = tool.IsEnabled;
+            IoOpenParametersButton.IsEnabled = true;
+
+            foreach (VmPortDefinition port in ToolMetadata.GetInputPorts(tool.Kind))
+            {
+                inputPortRows.Add(BuildInputPortRow(tool, port));
+            }
+
+            foreach (VmPortDefinition port in ToolMetadata.GetOutputPorts(tool.Kind))
+            {
+                object raw;
+                bool hasValue = tool.TryGetOutputValue(port.PortName, out raw);
+                outputPortRows.Add(new VmPortDisplayItem
+                {
+                    Direction = "OUT",
+                    PortName = port.PortName,
+                    DisplayName = port.DisplayName,
+                    DataType = port.DataType,
+                    Source = tool.InstanceName + "." + port.PortName,
+                    CurrentValue = hasValue ? tool.GetFormattedOutput(port.PortName) : "--",
+                    Status = hasValue ? "有值" : "尚未运行",
+                    IsConnected = hasValue
+                });
+            }
+        }
+
+        private VmPortDisplayItem BuildInputPortRow(VmToolInstance tool, VmPortDefinition port)
+        {
+            string source = "系统." + port.PortName;
+            string currentValue = "--";
+            string status = "未连接";
+            bool connected = false;
+
+            if (tool.Kind == VmToolKind.NumericJudge && port.PortName == "Value")
+            {
+                VmToolInstance sourceTool = GetInputSourceTool(tool);
+                source = sourceTool == null
+                    ? "未选择"
+                    : sourceTool.InstanceName + "." + (tool.InputPortName ?? "未选择");
+                double numericValue;
+                connected = string.IsNullOrWhiteSpace(GetNumericJudgeConfigurationError(tool));
+                if (sourceTool != null && sourceTool.TryGetNumericOutput(tool.InputPortName, out numericValue))
+                {
+                    currentValue = numericValue.ToString("0.###", CultureInfo.InvariantCulture);
+                    status = connected ? "已连接 · 有值" : "连接异常 · 有历史值";
+                }
+                else
+                {
+                    status = connected ? "已连接 · 等待运行" : "连接异常";
+                }
+            }
+            else if (port.PortName == "Image")
+            {
+                connected = currentImage != null;
+                currentValue = connected
+                    ? string.Format(CultureInfo.InvariantCulture, "{0}×{1}", viewport.ImageWidth, viewport.ImageHeight)
+                    : "--";
+                status = connected ? "已连接" : "等待图像";
+            }
+            else if (port.PortName == "SearchROI" || port.PortName == "ROI")
+            {
+                connected = currentRoi != null || port.IsOptional;
+                currentValue = currentRoi == null ? "--" : currentRoi.DisplayText;
+                status = currentRoi != null ? "已连接" : (port.IsOptional ? "可选 · 未连接" : "等待 ROI");
+            }
+            else if (port.PortName == "ShapeModel")
+            {
+                connected = currentTemplateItem != null && currentTemplateItem.HasModel;
+                currentValue = connected ? currentTemplateItem.Name : "--";
+                status = connected ? "已连接" : "等待模板";
+            }
+            else if (port.PortName == "Program")
+            {
+                connected = !string.IsNullOrWhiteSpace(HDevPathTextBox.Text);
+                currentValue = connected ? Path.GetFileName(HDevPathTextBox.Text) : "--";
+                status = connected ? "已连接" : "等待程序";
+            }
+
+            return new VmPortDisplayItem
+            {
+                Direction = "IN",
+                PortName = port.PortName,
+                DisplayName = port.DisplayName,
+                DataType = port.DataType,
+                Source = source,
+                CurrentValue = currentValue,
+                Status = status,
+                IsConnected = connected
+            };
+        }
+
+        private void NumericSourceToolComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (inspectorUpdating)
+            {
+                return;
+            }
+
+            VmToolInstance tool = FlowToolList.SelectedItem as VmToolInstance;
+            if (tool == null || tool.Kind != VmToolKind.NumericJudge)
+            {
+                return;
+            }
+
+            tool.InputToolId = NumericSourceToolComboBox.SelectedValue as string;
+            VmToolInstance source = GetInputSourceTool(tool);
+            VmPortDefinition firstPort = source == null ? null : ToolMetadata.GetNumericOutputPorts(source.Kind).FirstOrDefault();
+            tool.InputPortName = firstPort == null ? null : firstPort.PortName;
+            RefreshUiState();
+        }
+
+        private void NumericSourcePortComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (inspectorUpdating)
+            {
+                return;
+            }
+
+            VmToolInstance tool = FlowToolList.SelectedItem as VmToolInstance;
+            if (tool != null && tool.Kind == VmToolKind.NumericJudge)
+            {
+                tool.InputPortName = NumericSourcePortComboBox.SelectedValue as string;
+                RefreshUiState();
+            }
+        }
+
+        private void NumericOperatorComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (inspectorUpdating)
+            {
+                return;
+            }
+
+            VmToolInstance tool = FlowToolList.SelectedItem as VmToolInstance;
+            if (tool != null && tool.Kind == VmToolKind.NumericJudge)
+            {
+                tool.NumericOperator = NumericOperatorComboBox.SelectedValue as string;
+                RefreshUiState();
+            }
+        }
+
+        private void NumericJudgeParameter_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (inspectorUpdating)
+            {
+                return;
+            }
+
+            VmToolInstance tool = FlowToolList.SelectedItem as VmToolInstance;
+            if (tool == null || tool.Kind != VmToolKind.NumericJudge)
+            {
+                return;
+            }
+
+            double lower;
+            double upper;
+            double tolerance;
+            if (!TryParseUiDouble(NumericLowerLimitTextBox.Text, out lower) ||
+                !TryParseUiDouble(NumericUpperLimitTextBox.Text, out upper) ||
+                !TryParseUiDouble(NumericToleranceTextBox.Text, out tolerance))
+            {
+                NumericConfigValidationText.Text = "配置异常：阈值和容差必须是有效数值。";
+                NumericConfigValidationText.Foreground = System.Windows.Media.Brushes.Firebrick;
+                tool.ConfigurationStatus = "阈值格式错误";
+                return;
+            }
+
+            tool.NumericLowerLimit = lower;
+            tool.NumericUpperLimit = upper;
+            tool.NumericTolerance = tolerance;
+            RefreshUiState();
+        }
+
+        private static bool TryParseUiDouble(string text, out double value)
+        {
+            return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+                   double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+        }
+
+        private void NumericJudgeRunButton_Click(object sender, RoutedEventArgs e)
+        {
+            VmToolInstance tool = FlowToolList.SelectedItem as VmToolInstance;
+            if (tool != null && tool.Kind == VmToolKind.NumericJudge)
+            {
+                RunStandaloneTool(tool, "数值判定独立运行");
+            }
+        }
+
+        private void OpenIoPanelButton_Click(object sender, RoutedEventArgs e)
+        {
+            RightTabs.SelectedIndex = 1;
+            RefreshInspector();
+        }
+
+        private void IoOpenParametersButton_Click(object sender, RoutedEventArgs e)
+        {
+            RightTabs.SelectedIndex = 0;
+            RefreshInspector();
+        }
+
+        private void IoRunCurrentButton_Click(object sender, RoutedEventArgs e)
+        {
+            VmToolInstance tool = FlowToolList.SelectedItem as VmToolInstance;
+            if (tool != null)
+            {
+                RunStandaloneTool(tool, "I/O 面板运行当前");
+            }
+        }
+
+        private void IoRefreshButton_Click(object sender, RoutedEventArgs e)
+        {
+            RefreshInspector();
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -647,6 +1106,10 @@ namespace HalconWinFormsDemo
 
             VmToolInstance instance = CreateFlowTool(catalogItem.Kind, null, true, null);
             flowTools.Add(instance);
+            if (instance.Kind == VmToolKind.NumericJudge)
+            {
+                AutoBindNumericJudge(instance);
+            }
             FlowToolList.SelectedItem = instance;
             FlowToolList.ScrollIntoView(instance);
             LogInfo("已从工具箱添加：" + instance.InstanceName);
@@ -686,6 +1149,7 @@ namespace HalconWinFormsDemo
             flowTools.Move(oldIndex, newIndex);
             FlowToolList.SelectedItem = selected;
             LogInfo("流程顺序已调整：" + selected.InstanceName + " -> " + (newIndex + 1));
+            RefreshUiState();
         }
 
         private void DeleteToolButton_Click(object sender, RoutedEventArgs e)
@@ -752,6 +1216,7 @@ namespace HalconWinFormsDemo
 
             selected.InstanceName = name;
             LogInfo("工具实例已重命名：" + name);
+            RefreshUiState();
         }
 
         private void SelectedToolEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -1430,6 +1895,10 @@ namespace HalconWinFormsDemo
                 Stopwatch stopwatch = Stopwatch.StartNew();
                 currentMatches.Clear();
                 DisposeToolOverlays();
+                foreach (VmToolInstance tool in flowTools)
+                {
+                    tool.ClearRuntimeOutputs();
+                }
 
                 List<InspectionRecord> records = new List<InspectionRecord>();
                 foreach (VmToolInstance tool in enabledTools)
@@ -1479,6 +1948,7 @@ namespace HalconWinFormsDemo
         private InspectionRecord ExecuteFlowTool(VmToolInstance tool, string source)
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
+            tool.ClearRuntimeOutputs();
             tool.RunStatus = "运行中";
             tool.ResultCode = "--";
             tool.ErrorMessage = string.Empty;
@@ -1519,10 +1989,19 @@ namespace HalconWinFormsDemo
                         tool.InputSummary = "Image + ROI + HDevelop";
                         tool.OutputSummary = record.Message;
                         break;
+                    case VmToolKind.NumericJudge:
+                        record = RunNumericJudgeTool(tool);
+                        tool.OutputSummary = string.Format(
+                            CultureInfo.InvariantCulture,
+                            "Value={0:0.###}, Result={1}",
+                            record.Score,
+                            record.ResultCode);
+                        break;
                     default:
                         throw new NotSupportedException("不支持的工具类型：" + tool.Kind);
                 }
 
+                PublishToolOutputs(tool, record);
                 tool.ResultCode = record.ResultCode;
                 tool.RunStatus = string.Equals(record.ResultCode, "OK", StringComparison.OrdinalIgnoreCase) ? "完成" : "异常";
                 return record;
@@ -1540,6 +2019,124 @@ namespace HalconWinFormsDemo
                 stopwatch.Stop();
                 tool.ElapsedMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
                 RefreshInspector();
+            }
+        }
+
+        private InspectionRecord RunNumericJudgeTool(VmToolInstance tool)
+        {
+            string configurationError = GetNumericJudgeConfigurationError(tool);
+            if (!string.IsNullOrWhiteSpace(configurationError))
+            {
+                throw new InvalidOperationException(configurationError);
+            }
+
+            VmToolInstance sourceTool = GetInputSourceTool(tool);
+            double value;
+            if (sourceTool == null || !sourceTool.TryGetNumericOutput(tool.InputPortName, out value))
+            {
+                throw new InvalidOperationException("上游端口尚无有效数值。请先运行上游工具，或按顺序运行全流程。");
+            }
+
+            bool passed = EvaluateNumericJudge(tool, value);
+            string operatorText = NumericJudgeOperatorOption.GetDisplayText(tool.NumericOperator);
+            string limits = GetNumericJudgeLimitText(tool);
+            string message = string.Format(
+                CultureInfo.InvariantCulture,
+                "{0}.{1}={2:0.###}，规则={3} {4}，判定={5}",
+                sourceTool.InstanceName,
+                tool.InputPortName,
+                value,
+                operatorText,
+                limits,
+                passed ? "OK" : "NG");
+
+            tool.InputSummary = sourceTool.InstanceName + "." + tool.InputPortName + " = " + value.ToString("0.###", CultureInfo.InvariantCulture);
+            InspectionRecord record = CreateRecord("NumericJudge", passed ? "OK" : "NG", value, message);
+            resultStore.Add(record);
+            LogInfo("数值判定完成：" + message);
+            return record;
+        }
+
+        private static bool EvaluateNumericJudge(VmToolInstance tool, double value)
+        {
+            switch (tool.NumericOperator)
+            {
+                case NumericJudgeOperatorOption.BetweenInclusive:
+                    return value >= tool.NumericLowerLimit && value <= tool.NumericUpperLimit;
+                case NumericJudgeOperatorOption.OutsideInclusive:
+                    return value <= tool.NumericLowerLimit || value >= tool.NumericUpperLimit;
+                case NumericJudgeOperatorOption.GreaterOrEqual:
+                    return value >= tool.NumericLowerLimit;
+                case NumericJudgeOperatorOption.LessOrEqual:
+                    return value <= tool.NumericUpperLimit;
+                case NumericJudgeOperatorOption.Equal:
+                    return Math.Abs(value - tool.NumericLowerLimit) <= tool.NumericTolerance;
+                case NumericJudgeOperatorOption.NotEqual:
+                    return Math.Abs(value - tool.NumericLowerLimit) > tool.NumericTolerance;
+                default:
+                    throw new InvalidOperationException("不支持的数值比较方式：" + tool.NumericOperator);
+            }
+        }
+
+        private static string GetNumericJudgeLimitText(VmToolInstance tool)
+        {
+            if (tool.NumericOperator == NumericJudgeOperatorOption.BetweenInclusive ||
+                tool.NumericOperator == NumericJudgeOperatorOption.OutsideInclusive)
+            {
+                return string.Format(CultureInfo.InvariantCulture, "[{0:0.###}, {1:0.###}]", tool.NumericLowerLimit, tool.NumericUpperLimit);
+            }
+
+            if (tool.NumericOperator == NumericJudgeOperatorOption.LessOrEqual)
+            {
+                return tool.NumericUpperLimit.ToString("0.###", CultureInfo.InvariantCulture);
+            }
+
+            if (tool.NumericOperator == NumericJudgeOperatorOption.Equal ||
+                tool.NumericOperator == NumericJudgeOperatorOption.NotEqual)
+            {
+                return string.Format(CultureInfo.InvariantCulture, "目标={0:0.###}, 容差={1:0.###}", tool.NumericLowerLimit, tool.NumericTolerance);
+            }
+
+            return tool.NumericLowerLimit.ToString("0.###", CultureInfo.InvariantCulture);
+        }
+
+        private void PublishToolOutputs(VmToolInstance tool, InspectionRecord record)
+        {
+            tool.SetOutputValue("ResultCode", record.ResultCode);
+            switch (tool.Kind)
+            {
+                case VmToolKind.ShapeMatch:
+                    tool.SetOutputValue("Score", record.Score);
+                    tool.SetOutputValue("MatchCount", currentMatches.Count);
+                    if (record.MatchRow.HasValue)
+                    {
+                        tool.SetOutputValue("Row", record.MatchRow.Value);
+                    }
+                    if (record.MatchColumn.HasValue)
+                    {
+                        tool.SetOutputValue("Column", record.MatchColumn.Value);
+                    }
+                    if (record.MatchAngle.HasValue)
+                    {
+                        tool.SetOutputValue("Angle", record.MatchAngle.Value);
+                    }
+                    break;
+                case VmToolKind.Blob:
+                    tool.SetOutputValue("Area", record.Score);
+                    break;
+                case VmToolKind.GrayStat:
+                    tool.SetOutputValue("Mean", record.Score);
+                    break;
+                case VmToolKind.EdgeMeasure:
+                    tool.SetOutputValue("Length", record.Score);
+                    break;
+                case VmToolKind.HDevelop:
+                    tool.SetOutputValue("Score", record.Score);
+                    break;
+                case VmToolKind.NumericJudge:
+                    tool.SetOutputValue("Value", record.Score);
+                    tool.SetOutputValue("Passed", string.Equals(record.ResultCode, "OK", StringComparison.OrdinalIgnoreCase));
+                    break;
             }
         }
 

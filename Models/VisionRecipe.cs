@@ -117,6 +117,31 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 4)]
         public bool IsEnabled { get; set; }
+
+        [DataMember(Order = 5, EmitDefaultValue = false)]
+        public NumericJudgeRecipeData NumericJudge { get; set; }
+    }
+
+    [DataContract]
+    public sealed class NumericJudgeRecipeData
+    {
+        [DataMember(Order = 1)]
+        public string InputToolId { get; set; }
+
+        [DataMember(Order = 2)]
+        public string InputPortName { get; set; }
+
+        [DataMember(Order = 3)]
+        public string Operator { get; set; }
+
+        [DataMember(Order = 4)]
+        public double LowerLimit { get; set; }
+
+        [DataMember(Order = 5)]
+        public double UpperLimit { get; set; }
+
+        [DataMember(Order = 6)]
+        public double Tolerance { get; set; }
     }
 
     [DataContract]

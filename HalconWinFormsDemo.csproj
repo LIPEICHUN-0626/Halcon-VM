@@ -88,6 +88,7 @@
     <Compile Include="Models\TemplateItem.cs" />
     <Compile Include="Models\TemplateMatchOptions.cs" />
     <Compile Include="Models\VisionRecipe.cs" />
+    <Compile Include="Models\VmPortModels.cs" />
     <Compile Include="Models\VmToolModels.cs" />
     <Compile Include="Services\AppLogger.cs" />
     <Compile Include="Services\CsvExportService.cs" />

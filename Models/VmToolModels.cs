@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
+using System.Linq;
 
 namespace HalconWinFormsDemo.Models
 {
@@ -9,7 +12,8 @@ namespace HalconWinFormsDemo.Models
         Blob,
         GrayStat,
         EdgeMeasure,
-        HDevelop
+        HDevelop,
+        NumericJudge
     }
 
     public sealed class VmToolCatalogItem
@@ -40,6 +44,15 @@ namespace HalconWinFormsDemo.Models
         private string outputSummary;
         private string errorMessage;
         private int sequence;
+        private string inputToolId;
+        private string inputPortName;
+        private string numericOperator;
+        private double numericLowerLimit;
+        private double numericUpperLimit;
+        private double numericTolerance;
+        private string connectionStatus;
+        private string connectionSummary;
+        private readonly Dictionary<string, object> runtimeOutputs = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
         public VmToolInstance()
         {
@@ -51,6 +64,12 @@ namespace HalconWinFormsDemo.Models
             InputSummary = "--";
             OutputSummary = "--";
             ErrorMessage = string.Empty;
+            NumericOperator = NumericJudgeOperatorOption.BetweenInclusive;
+            NumericLowerLimit = 0;
+            NumericUpperLimit = 100;
+            NumericTolerance = 0.001;
+            ConnectionStatus = "未检查";
+            ConnectionSummary = "--";
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -196,6 +215,153 @@ namespace HalconWinFormsDemo.Models
             }
         }
 
+        public string InputToolId
+        {
+            get { return inputToolId; }
+            set
+            {
+                inputToolId = value;
+                OnPropertyChanged("InputToolId");
+            }
+        }
+
+        public string InputPortName
+        {
+            get { return inputPortName; }
+            set
+            {
+                inputPortName = value;
+                OnPropertyChanged("InputPortName");
+            }
+        }
+
+        public string NumericOperator
+        {
+            get { return numericOperator; }
+            set
+            {
+                numericOperator = value;
+                OnPropertyChanged("NumericOperator");
+            }
+        }
+
+        public double NumericLowerLimit
+        {
+            get { return numericLowerLimit; }
+            set
+            {
+                numericLowerLimit = value;
+                OnPropertyChanged("NumericLowerLimit");
+            }
+        }
+
+        public double NumericUpperLimit
+        {
+            get { return numericUpperLimit; }
+            set
+            {
+                numericUpperLimit = value;
+                OnPropertyChanged("NumericUpperLimit");
+            }
+        }
+
+        public double NumericTolerance
+        {
+            get { return numericTolerance; }
+            set
+            {
+                numericTolerance = value;
+                OnPropertyChanged("NumericTolerance");
+            }
+        }
+
+        public string ConnectionStatus
+        {
+            get { return connectionStatus; }
+            set
+            {
+                connectionStatus = value;
+                OnPropertyChanged("ConnectionStatus");
+            }
+        }
+
+        public string ConnectionSummary
+        {
+            get { return connectionSummary; }
+            set
+            {
+                connectionSummary = value;
+                OnPropertyChanged("ConnectionSummary");
+            }
+        }
+
+        public void ClearRuntimeOutputs()
+        {
+            runtimeOutputs.Clear();
+        }
+
+        public void SetOutputValue(string portName, object value)
+        {
+            if (string.IsNullOrWhiteSpace(portName))
+            {
+                return;
+            }
+
+            runtimeOutputs[portName] = value;
+        }
+
+        public bool TryGetOutputValue(string portName, out object value)
+        {
+            return runtimeOutputs.TryGetValue(portName ?? string.Empty, out value);
+        }
+
+        public bool TryGetNumericOutput(string portName, out double value)
+        {
+            value = 0;
+            object raw;
+            if (!TryGetOutputValue(portName, out raw) || raw == null)
+            {
+                return false;
+            }
+
+            if (raw is double)
+            {
+                value = (double)raw;
+                return !double.IsNaN(value) && !double.IsInfinity(value);
+            }
+
+            try
+            {
+                value = Convert.ToDouble(raw, CultureInfo.InvariantCulture);
+                return !double.IsNaN(value) && !double.IsInfinity(value);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public string GetFormattedOutput(string portName)
+        {
+            object value;
+            if (!TryGetOutputValue(portName, out value) || value == null)
+            {
+                return "--";
+            }
+
+            if (value is double)
+            {
+                return ((double)value).ToString("0.###", CultureInfo.InvariantCulture);
+            }
+
+            if (value is bool)
+            {
+                return (bool)value ? "True" : "False";
+            }
+
+            return Convert.ToString(value, CultureInfo.InvariantCulture);
+        }
+
         private void OnPropertyChanged(string propertyName)
         {
             PropertyChangedEventHandler handler = PropertyChanged;
@@ -222,6 +388,8 @@ namespace HalconWinFormsDemo.Models
                     return "边缘测量";
                 case VmToolKind.HDevelop:
                     return "HDevelop 扩展";
+                case VmToolKind.NumericJudge:
+                    return "数值判定";
                 default:
                     return kind.ToString();
             }
@@ -240,6 +408,8 @@ namespace HalconWinFormsDemo.Models
                     return "测量";
                 case VmToolKind.HDevelop:
                     return "脚本";
+                case VmToolKind.NumericJudge:
+                    return "逻辑/计算";
                 default:
                     return "其他";
             }
@@ -259,9 +429,110 @@ namespace HalconWinFormsDemo.Models
                     return "提取亚像素边缘并统计轮廓长度。";
                 case VmToolKind.HDevelop:
                     return "调用约定输入输出的 HDevelop 过程。";
+                case VmToolKind.NumericJudge:
+                    return "订阅上游数值输出，按阈值和比较方式生成工业 OK/NG 判定。";
                 default:
                     return string.Empty;
             }
+        }
+
+        public static IList<VmPortDefinition> GetInputPorts(VmToolKind kind)
+        {
+            switch (kind)
+            {
+                case VmToolKind.ShapeMatch:
+                    return new[]
+                    {
+                        Port("Image", "图像", "Image", false),
+                        Port("SearchROI", "搜索 ROI", "Region", false),
+                        Port("ShapeModel", "形状模板", "ShapeModel", false)
+                    };
+                case VmToolKind.Blob:
+                case VmToolKind.GrayStat:
+                case VmToolKind.EdgeMeasure:
+                    return new[]
+                    {
+                        Port("Image", "图像", "Image", false),
+                        Port("ROI", "ROI", "Region", true)
+                    };
+                case VmToolKind.HDevelop:
+                    return new[]
+                    {
+                        Port("Image", "图像", "Image", false),
+                        Port("ROI", "ROI", "Region", true),
+                        Port("Program", "HDevelop 程序", "File", false)
+                    };
+                case VmToolKind.NumericJudge:
+                    return new[] { Port("Value", "待判定数值", "Number", false) };
+                default:
+                    return new VmPortDefinition[0];
+            }
+        }
+
+        public static IList<VmPortDefinition> GetOutputPorts(VmToolKind kind)
+        {
+            switch (kind)
+            {
+                case VmToolKind.ShapeMatch:
+                    return new[]
+                    {
+                        Port("Score", "最高匹配分数", "Number", false),
+                        Port("MatchCount", "匹配数量", "Number", false),
+                        Port("Row", "中心 Row", "Number", false),
+                        Port("Column", "中心 Column", "Number", false),
+                        Port("Angle", "角度", "Number", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.Blob:
+                    return new[]
+                    {
+                        Port("Area", "区域总面积", "Number", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.GrayStat:
+                    return new[]
+                    {
+                        Port("Mean", "灰度均值", "Number", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.EdgeMeasure:
+                    return new[]
+                    {
+                        Port("Length", "边缘总长度", "Number", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.HDevelop:
+                    return new[]
+                    {
+                        Port("Score", "过程数值", "Number", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.NumericJudge:
+                    return new[]
+                    {
+                        Port("Value", "输入数值", "Number", false),
+                        Port("Passed", "判定通过", "Boolean", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                default:
+                    return new VmPortDefinition[0];
+            }
+        }
+
+        public static IList<VmPortDefinition> GetNumericOutputPorts(VmToolKind kind)
+        {
+            return GetOutputPorts(kind).Where(item => item.DataType == "Number").ToList();
+        }
+
+        private static VmPortDefinition Port(string name, string displayName, string dataType, bool optional)
+        {
+            return new VmPortDefinition
+            {
+                PortName = name,
+                DisplayName = displayName,
+                DataType = dataType,
+                IsOptional = optional
+            };
         }
     }
 }
