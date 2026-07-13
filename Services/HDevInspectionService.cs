@@ -12,6 +12,11 @@ namespace HalconWinFormsDemo.Services
 
         public HDevInspectionResult RunInspection(string programPath, string procedureName, HImage image, RoiData roi)
         {
+            return RunInspection(programPath, procedureName, image, roi == null ? null : roi.Region);
+        }
+
+        public HDevInspectionResult RunInspection(string programPath, string procedureName, HImage image, HRegion roiRegion)
+        {
             if (string.IsNullOrWhiteSpace(programPath))
             {
                 throw new ArgumentException("请选择 HDevelop 程序文件。", "programPath");
@@ -27,7 +32,7 @@ namespace HalconWinFormsDemo.Services
                 throw new InvalidOperationException("当前没有图片。");
             }
 
-            if (roi == null)
+            if (roiRegion == null)
             {
                 throw new InvalidOperationException("请先设置 ROI。");
             }
@@ -57,7 +62,7 @@ namespace HalconWinFormsDemo.Services
 
                 call = procedure.CreateCall();
                 call.SetInputIconicParamObject("Image", image);
-                call.SetInputIconicParamObject("ROI", roi.Region);
+                call.SetInputIconicParamObject("ROI", roiRegion);
                 call.Execute();
 
                 string resultCode = ReadControlString(call, "ResultCode", "UNKNOWN");

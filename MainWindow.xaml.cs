@@ -20,7 +20,7 @@ namespace HalconWinFormsDemo
 {
     public partial class MainWindow : Window
     {
-        private const string VersionStamp = "HALCON VM S02 2026-07-13";
+        private const string VersionStamp = "HALCON VM S03 2026-07-13";
 
         private readonly HalconImageService imageService = new HalconImageService();
         private readonly AppLogger logger = new AppLogger();
@@ -40,6 +40,8 @@ namespace HalconWinFormsDemo
         private readonly ObservableCollection<VmToolInstance> flowTools = new ObservableCollection<VmToolInstance>();
         private readonly ObservableCollection<VmPortDisplayItem> inputPortRows = new ObservableCollection<VmPortDisplayItem>();
         private readonly ObservableCollection<VmPortDisplayItem> outputPortRows = new ObservableCollection<VmPortDisplayItem>();
+        private readonly ObservableCollection<VmRoiLayer> roiLayers = new ObservableCollection<VmRoiLayer>();
+        private readonly ObservableCollection<VmRoiBindingItem> roiBindingRows = new ObservableCollection<VmRoiBindingItem>();
         private readonly List<VmToolCatalogItem> toolCatalog = new List<VmToolCatalogItem>();
 
         private Forms.Integration.WindowsFormsHost host;
@@ -63,6 +65,7 @@ namespace HalconWinFormsDemo
         private System.Drawing.Point lastPanPoint;
         private bool isContinuousRunning;
         private bool inspectorUpdating;
+        private bool roiBindingUpdating;
 
         public MainWindow()
         {
@@ -99,6 +102,8 @@ namespace HalconWinFormsDemo
             FlowToolList.ItemsSource = flowTools;
             InputPortsItemsControl.ItemsSource = inputPortRows;
             OutputPortsItemsControl.ItemsSource = outputPortRows;
+            RoiLayerList.ItemsSource = roiLayers;
+            RoiBindingItemsControl.ItemsSource = roiBindingRows;
             NumericOperatorComboBox.ItemsSource = NumericJudgeOperatorOption.CreateAll();
             ApplyFlowFromRecipe(new VisionRecipe());
         }
@@ -222,6 +227,11 @@ namespace HalconWinFormsDemo
                     ApplyToolRecipeData(instance, recipeItem);
                     flowTools.Add(instance);
                 }
+
+                if (!recipe.ToolFlow.Any(item => item != null && item.RoiIds != null))
+                {
+                    BindLegacyRoiToFlowTools();
+                }
             }
 
             foreach (VmToolInstance numericTool in flowTools.Where(item => item.Kind == VmToolKind.NumericJudge && string.IsNullOrWhiteSpace(item.InputToolId)))
@@ -252,9 +262,13 @@ namespace HalconWinFormsDemo
                 {
                     flowTools.Add(CreateFlowTool(VmToolKind.HDevelop, null, true, null));
                 }
+
+
+                BindLegacyRoiToFlowTools();
             }
 
             SyncLegacyToolChecksFromFlow();
+            RefreshRoiLayerBindingSummaries();
             if (FlowToolList != null && flowTools.Count > 0)
             {
                 FlowToolList.SelectedIndex = 0;
@@ -271,6 +285,7 @@ namespace HalconWinFormsDemo
                 ToolType = item.Kind.ToString(),
                 InstanceName = item.InstanceName,
                 IsEnabled = item.IsEnabled,
+                RoiIds = item.BoundRoiIds.ToList(),
                 NumericJudge = item.Kind == VmToolKind.NumericJudge
                     ? new NumericJudgeRecipeData
                     {
@@ -287,7 +302,14 @@ namespace HalconWinFormsDemo
 
         private static void ApplyToolRecipeData(VmToolInstance tool, ToolFlowRecipeItem recipeItem)
         {
-            if (tool == null || recipeItem == null || tool.Kind != VmToolKind.NumericJudge || recipeItem.NumericJudge == null)
+            if (tool == null || recipeItem == null)
+            {
+                return;
+            }
+
+            tool.ReplaceRoiBindings(recipeItem.RoiIds);
+
+            if (tool.Kind != VmToolKind.NumericJudge || recipeItem.NumericJudge == null)
             {
                 return;
             }
@@ -468,6 +490,7 @@ namespace HalconWinFormsDemo
                     InspectorOutputSummaryText.Text = "--";
                     InspectorErrorText.Text = "--";
                     RefreshPortPanel(null);
+                    RefreshRoiBindingEditor();
                     return;
                 }
 
@@ -505,6 +528,7 @@ namespace HalconWinFormsDemo
                 }
 
                 RefreshPortPanel(selected);
+                RefreshRoiBindingEditor();
             }
             finally
             {
@@ -529,19 +553,21 @@ namespace HalconWinFormsDemo
                 case VmToolKind.ShapeMatch:
                     tool.ConfigurationStatus = currentTemplateItem == null || !currentTemplateItem.HasModel
                         ? "待配置模板"
-                        : (currentRoi == null ? "待配置 ROI" : "就绪");
+                        : (GetBoundRoiLayers(tool).Count == 0 ? "待绑定 ROI" : "就绪");
                     tool.ConnectionStatus = tool.ConfigurationStatus == "就绪" ? "系统输入 · 已就绪" : "系统输入 · 待配置";
-                    tool.ConnectionSummary = "系统.Image + SearchROI + ShapeModel";
+                    tool.ConnectionSummary = "系统.Image + " + GetRoiBindingSummary(tool) + " + ShapeModel";
                     break;
                 case VmToolKind.HDevelop:
-                    tool.ConfigurationStatus = string.IsNullOrWhiteSpace(HDevPathTextBox.Text) ? "待选择程序" : "就绪";
+                    tool.ConfigurationStatus = string.IsNullOrWhiteSpace(HDevPathTextBox.Text)
+                        ? "待选择程序"
+                        : (GetBoundRoiLayers(tool).Count == 0 ? "待绑定 ROI" : "就绪");
                     tool.ConnectionStatus = tool.ConfigurationStatus == "就绪" ? "系统输入 · 已就绪" : "系统输入 · 待配置";
-                    tool.ConnectionSummary = "系统.Image + ROI + Program";
+                    tool.ConnectionSummary = "系统.Image + " + GetRoiBindingSummary(tool) + " + Program";
                     break;
                 default:
                     tool.ConfigurationStatus = currentImage == null ? "等待图像" : "就绪";
                     tool.ConnectionStatus = currentImage == null ? "系统输入 · 等待图像" : "系统输入 · 已就绪";
-                    tool.ConnectionSummary = currentRoi == null ? "系统.Image" : "系统.Image + ROI";
+                    tool.ConnectionSummary = "系统.Image + " + GetRoiBindingSummary(tool);
                     break;
             }
         }
@@ -665,9 +691,15 @@ namespace HalconWinFormsDemo
             }
             else if (port.PortName == "SearchROI" || port.PortName == "ROI")
             {
-                connected = currentRoi != null || port.IsOptional;
-                currentValue = currentRoi == null ? "--" : currentRoi.DisplayText;
-                status = currentRoi != null ? "已连接" : (port.IsOptional ? "可选 · 未连接" : "等待 ROI");
+                List<VmRoiLayer> boundLayers = GetBoundRoiLayers(tool);
+                connected = boundLayers.Count > 0 || port.IsOptional;
+                source = boundLayers.Count == 0 ? "未绑定" : string.Join(" + ", boundLayers.Select(item => item.Name));
+                currentValue = boundLayers.Count == 0
+                    ? "--"
+                    : "Region ×" + boundLayers.Count.ToString(CultureInfo.InvariantCulture);
+                status = boundLayers.Count > 0
+                    ? "已连接 · 合并 " + boundLayers.Count.ToString(CultureInfo.InvariantCulture) + " 个区域"
+                    : (port.IsOptional ? "可选 · 全图运行" : "等待 ROI 绑定");
             }
             else if (port.PortName == "ShapeModel")
             {
@@ -853,6 +885,7 @@ namespace HalconWinFormsDemo
             DisposeToolOverlays();
             DisposeCurrentImage();
             DisposeCurrentRoi();
+            DisposeRoiLayers();
             ClearPendingRoi();
 
             if (currentTemplateItem != null)
@@ -1106,6 +1139,11 @@ namespace HalconWinFormsDemo
 
             VmToolInstance instance = CreateFlowTool(catalogItem.Kind, null, true, null);
             flowTools.Add(instance);
+            VmRoiLayer selectedLayer = RoiLayerList == null ? null : RoiLayerList.SelectedItem as VmRoiLayer;
+            if (selectedLayer != null && ToolMetadata.SupportsRoi(instance.Kind))
+            {
+                instance.BindRoi(selectedLayer.RoiId);
+            }
             if (instance.Kind == VmToolKind.NumericJudge)
             {
                 AutoBindNumericJudge(instance);
@@ -1113,6 +1151,7 @@ namespace HalconWinFormsDemo
             FlowToolList.SelectedItem = instance;
             FlowToolList.ScrollIntoView(instance);
             LogInfo("已从工具箱添加：" + instance.InstanceName);
+            RefreshRoiLayerBindingSummaries();
             RefreshUiState();
         }
 
@@ -1172,6 +1211,7 @@ namespace HalconWinFormsDemo
             }
 
             LogInfo("已从流程删除：" + selected.InstanceName);
+            RefreshRoiLayerBindingSummaries();
             RefreshUiState();
         }
 
@@ -1216,6 +1256,7 @@ namespace HalconWinFormsDemo
 
             selected.InstanceName = name;
             LogInfo("工具实例已重命名：" + name);
+            RefreshRoiLayerBindingSummaries();
             RefreshUiState();
         }
 
@@ -1294,17 +1335,16 @@ namespace HalconWinFormsDemo
                     throw new InvalidOperationException("请先在图像上绘制 ROI。");
                 }
 
-                if (currentRoi != null)
-                {
-                    currentRoi.Dispose();
-                }
-
-                currentRoi = pendingRoi.Clone();
+                VmToolInstance selectedTool = FlowToolList.SelectedItem as VmToolInstance;
+                VmRoiLayer layer = AddRoiLayer(pendingRoi, null, selectedTool);
                 ClearPendingRoi();
+                roiEditor.Tool = VisionTool.Select;
                 currentMatches.Clear();
                 DisposeToolOverlays();
-                HeaderStatusText.Text = "ROI 已确认，可以训练模板或运行检测。";
-                LogInfo("ROI 已确认：" + currentRoi.DisplayText);
+                HeaderStatusText.Text = selectedTool != null && ToolMetadata.SupportsRoi(selectedTool.Kind)
+                    ? "ROI 已新增并绑定到 " + selectedTool.InstanceName
+                    : "ROI 已新增；可在右侧选择要绑定的视觉工具。";
+                LogInfo("ROI 图层已新增：" + layer.Name + "，" + layer.GeometryText + "，" + layer.BindingSummary);
                 RefreshUiState();
                 ScheduleRefreshDisplay();
             });
@@ -1312,14 +1352,182 @@ namespace HalconWinFormsDemo
 
         private void ClearRoiButton_Click(object sender, RoutedEventArgs e)
         {
-            DisposeCurrentRoi();
+            VmRoiLayer selected = RoiLayerList.SelectedItem as VmRoiLayer;
+            if (selected == null)
+            {
+                HeaderStatusText.Text = "请先选择要删除的 ROI 图层。";
+                return;
+            }
+
+            int index = roiLayers.IndexOf(selected);
+            foreach (VmToolInstance tool in flowTools)
+            {
+                tool.UnbindRoi(selected.RoiId);
+            }
+            roiLayers.Remove(selected);
+            selected.Dispose();
+            RefreshRoiLayerSequence();
+            VmRoiLayer next = roiLayers.Count == 0 ? null : roiLayers[Math.Min(index, roiLayers.Count - 1)];
+            RoiLayerList.SelectedItem = next;
+            SelectRoiLayer(next);
             ClearPendingRoi();
             currentMatches.Clear();
             roiEditor.Cancel();
-            HeaderStatusText.Text = "ROI 已清除";
-            LogInfo("ROI 已清除。");
+            HeaderStatusText.Text = "ROI 图层已删除：" + selected.Name;
+            LogInfo(HeaderStatusText.Text);
+            RefreshRoiLayerBindingSummaries();
             RefreshUiState();
             ScheduleRefreshDisplay();
+        }
+
+        private void ClearAllRoiLayersButton_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (VmToolInstance tool in flowTools)
+            {
+                tool.ReplaceRoiBindings(null);
+            }
+
+            DisposeCurrentRoi();
+            DisposeRoiLayers();
+            ClearPendingRoi();
+            currentMatches.Clear();
+            roiEditor.Cancel();
+            RefreshRoiLayerSequence();
+            RefreshRoiLayerBindingSummaries();
+            HeaderStatusText.Text = "全部 ROI 图层已清空。";
+            LogInfo(HeaderStatusText.Text);
+            RefreshUiState();
+            ScheduleRefreshDisplay();
+        }
+
+        private void CancelRoiDrawingButton_Click(object sender, RoutedEventArgs e)
+        {
+            ClearPendingRoi();
+            roiEditor.Cancel();
+            roiEditor.Tool = VisionTool.Select;
+            HeaderStatusText.Text = "ROI 绘制已取消。";
+            RefreshUiState();
+            ScheduleRefreshDisplay();
+        }
+
+        private void SelectImageToolButton_Click(object sender, RoutedEventArgs e)
+        {
+            ClearPendingRoi();
+            roiEditor.Cancel();
+            roiEditor.Tool = VisionTool.Select;
+            HeaderStatusText.Text = "选择模式：滚轮缩放，右键拖动平移。";
+            RefreshUiState();
+            ScheduleRefreshDisplay();
+        }
+
+        private void PanImageToolButton_Click(object sender, RoutedEventArgs e)
+        {
+            ClearPendingRoi();
+            roiEditor.Cancel();
+            roiEditor.Tool = VisionTool.Pan;
+            HeaderStatusText.Text = "平移模式：在图像上按住右键拖动。";
+            RefreshUiState();
+        }
+
+        private void ImageOriginalSizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            EnsureImage();
+            viewport.OriginalSize(imageWindow);
+            HeaderStatusText.Text = "图像已切换到 1:1 显示。";
+            ScheduleRefreshDisplay();
+            RefreshUiState();
+        }
+
+        private void ToggleRoiLayerPanelButton_Click(object sender, RoutedEventArgs e)
+        {
+            bool show = RoiLayerPanel.Visibility != Visibility.Visible;
+            RoiLayerPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            RoiLayerPanelColumn.Width = show ? new GridLength(220) : new GridLength(0);
+            ToggleRoiLayerPanelButton.Content = show ? "隐藏图层" : "显示图层";
+            ScheduleRefreshDisplay();
+        }
+
+        private void RoiLayerList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            SelectRoiLayer(RoiLayerList.SelectedItem as VmRoiLayer);
+            RefreshRoiBindingEditor();
+            RefreshUiState();
+            ScheduleRefreshDisplay();
+        }
+
+        private void RoiLayerVisibilityCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            CheckBox checkBox = sender as CheckBox;
+            VmRoiLayer layer = checkBox == null ? null : checkBox.DataContext as VmRoiLayer;
+            if (layer != null)
+            {
+                layer.IsVisible = checkBox.IsChecked == true;
+                ScheduleRefreshDisplay();
+            }
+        }
+
+        private void RoiLayerEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            CheckBox checkBox = sender as CheckBox;
+            VmRoiLayer layer = checkBox == null ? null : checkBox.DataContext as VmRoiLayer;
+            if (layer != null)
+            {
+                layer.IsEnabled = checkBox.IsChecked == true;
+                RefreshRoiLayerBindingSummaries();
+                RefreshUiState();
+                ScheduleRefreshDisplay();
+            }
+        }
+
+        private void RoiBindingCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (roiBindingUpdating)
+            {
+                return;
+            }
+
+            CheckBox checkBox = sender as CheckBox;
+            VmRoiBindingItem row = checkBox == null ? null : checkBox.DataContext as VmRoiBindingItem;
+            VmToolInstance tool = FlowToolList.SelectedItem as VmToolInstance;
+            if (row == null || tool == null || !ToolMetadata.SupportsRoi(tool.Kind))
+            {
+                return;
+            }
+
+            if (checkBox.IsChecked == true)
+            {
+                tool.BindRoi(row.RoiId);
+            }
+            else
+            {
+                tool.UnbindRoi(row.RoiId);
+            }
+
+            RefreshRoiLayerBindingSummaries();
+            RefreshUiState();
+            ScheduleRefreshDisplay();
+        }
+
+        private void SelectedRoiLayerNameTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            VmRoiLayer layer = RoiLayerList.SelectedItem as VmRoiLayer;
+            if (layer == null)
+            {
+                return;
+            }
+
+            string name = SelectedRoiLayerNameTextBox.Text == null ? string.Empty : SelectedRoiLayerNameTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(name) || roiLayers.Any(item => item != layer && string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                SelectedRoiLayerNameTextBox.Text = layer.Name;
+                HeaderStatusText.Text = "ROI 图层名称不能为空或重复。";
+                return;
+            }
+
+            layer.Name = name;
+            RoiSelectedLayerText.Text = layer.SequenceText + "  " + layer.Name + " · " + layer.ShapeText;
+            RefreshRoiLayerBindingSummaries();
+            RefreshUiState();
         }
 
         private void FitImageButton_Click(object sender, RoutedEventArgs e)
@@ -1959,34 +2167,34 @@ namespace HalconWinFormsDemo
                 {
                     case VmToolKind.ShapeMatch:
                         EnsureImage();
-                        record = RunShapeMatchTool(source, false);
-                        tool.InputSummary = "Image + SearchROI + ShapeModel";
+                        record = RunShapeMatchTool(tool, source);
+                        tool.InputSummary = "Image + " + GetRoiBindingSummary(tool) + " + ShapeModel";
                         tool.OutputSummary = currentMatches.Count == 0
                             ? "Matches=0"
                             : string.Format(CultureInfo.InvariantCulture, "Matches={0}, Best={1:F3}", currentMatches.Count, currentMatches.Max(item => item.Score));
                         break;
                     case VmToolKind.Blob:
                         EnsureImage();
-                        record = RunBlobTool();
-                        tool.InputSummary = currentRoi == null ? "Image" : "Image + ROI";
+                        record = RunBlobTool(tool);
+                        tool.InputSummary = "Image + " + GetRoiBindingSummary(tool);
                         tool.OutputSummary = record.Message;
                         break;
                     case VmToolKind.GrayStat:
                         EnsureImage();
-                        record = RunGrayStatTool();
-                        tool.InputSummary = currentRoi == null ? "Image" : "Image + ROI";
+                        record = RunGrayStatTool(tool);
+                        tool.InputSummary = "Image + " + GetRoiBindingSummary(tool);
                         tool.OutputSummary = record.Message;
                         break;
                     case VmToolKind.EdgeMeasure:
                         EnsureImage();
-                        record = RunEdgeMeasureTool();
-                        tool.InputSummary = currentRoi == null ? "Image" : "Image + ROI";
+                        record = RunEdgeMeasureTool(tool);
+                        tool.InputSummary = "Image + " + GetRoiBindingSummary(tool);
                         tool.OutputSummary = record.Message;
                         break;
                     case VmToolKind.HDevelop:
                         EnsureImage();
-                        record = RunHDevTool();
-                        tool.InputSummary = "Image + ROI + HDevelop";
+                        record = RunHDevTool(tool);
+                        tool.InputSummary = "Image + " + GetRoiBindingSummary(tool) + " + HDevelop";
                         tool.OutputSummary = record.Message;
                         break;
                     case VmToolKind.NumericJudge:
@@ -2051,7 +2259,7 @@ namespace HalconWinFormsDemo
                 passed ? "OK" : "NG");
 
             tool.InputSummary = sourceTool.InstanceName + "." + tool.InputPortName + " = " + value.ToString("0.###", CultureInfo.InvariantCulture);
-            InspectionRecord record = CreateRecord("NumericJudge", passed ? "OK" : "NG", value, message);
+            InspectionRecord record = CreateRecord("NumericJudge", passed ? "OK" : "NG", value, message, tool);
             resultStore.Add(record);
             LogInfo("数值判定完成：" + message);
             return record;
@@ -2140,35 +2348,29 @@ namespace HalconWinFormsDemo
             }
         }
 
-        private InspectionRecord RunShapeMatchTool(string source, bool throwOnDisabled)
+        private InspectionRecord RunShapeMatchTool(VmToolInstance tool, string source)
         {
-            if (throwOnDisabled)
-            {
-                return RunUiActionWithResult("模板匹配", delegate { return ExecuteShapeMatch(source); });
-            }
-
-            return ExecuteShapeMatch(source);
+            return ExecuteShapeMatch(tool, source);
         }
 
-        private InspectionRecord ExecuteShapeMatch(string source)
+        private InspectionRecord ExecuteShapeMatch(VmToolInstance tool, string source)
         {
             EnsureImage();
-            if (currentRoi == null)
-            {
-                throw new InvalidOperationException("请先确认搜索 ROI。");
-            }
-
             if (currentTemplateItem == null || !currentTemplateItem.HasModel)
             {
                 throw new InvalidOperationException("请先训练或加载模板。");
             }
 
-            List<ShapeMatchResult> matches = currentTemplateItem.Service.Match(currentImage, currentRoi, currentTemplateItem.Options);
+            List<ShapeMatchResult> matches;
+            using (HRegion roiRegion = CreateBoundRoiRegion(tool, true))
+            {
+                matches = currentTemplateItem.Service.Match(currentImage, roiRegion, currentTemplateItem.Options);
+            }
             currentMatches.Clear();
             currentMatches.AddRange(matches);
 
             ShapeMatchResult best = matches.OrderByDescending(item => item.Score).FirstOrDefault();
-            InspectionRecord record = CreateRecord("ShapeModel", best == null ? "NG" : "OK", best == null ? 0 : best.Score, matches.Count == 0 ? "未匹配到目标" : "匹配数量：" + matches.Count);
+            InspectionRecord record = CreateRecord("ShapeModel", best == null ? "NG" : "OK", best == null ? 0 : best.Score, matches.Count == 0 ? "未匹配到目标" : "匹配数量：" + matches.Count, tool);
             if (best != null)
             {
                 record.MatchRow = best.Row;
@@ -2187,7 +2389,7 @@ namespace HalconWinFormsDemo
             return record;
         }
 
-        private InspectionRecord RunBlobTool()
+        private InspectionRecord RunBlobTool(VmToolInstance tool)
         {
             double minGray = ReadDouble(BlobMinGrayTextBox, "Blob灰度下限");
             double maxGray = ReadDouble(BlobMaxGrayTextBox, "Blob灰度上限");
@@ -2198,14 +2400,16 @@ namespace HalconWinFormsDemo
             HObject connectedRegion = null;
             HObject selectedRegion = null;
             HImage gray = null;
+            HRegion roiRegion = null;
             try
             {
                 gray = CreateGrayImage(currentImage);
                 HOperatorSet.Threshold(gray, out thresholdRegion, minGray, maxGray);
                 HObject sourceRegion = thresholdRegion;
-                if (currentRoi != null)
+                roiRegion = CreateBoundRoiRegion(tool, false);
+                if (roiRegion != null)
                 {
-                    HOperatorSet.Intersection(thresholdRegion, currentRoi.Region, out clippedRegion);
+                    HOperatorSet.Intersection(thresholdRegion, roiRegion, out clippedRegion);
                     sourceRegion = clippedRegion;
                 }
 
@@ -2221,7 +2425,10 @@ namespace HalconWinFormsDemo
                 ReplaceToolOverlayRegion(selectedRegion);
                 selectedRegion = null;
 
-                InspectionRecord record = CreateRecord("Blob", count > 0 ? "OK" : "NG", totalArea, count > 0 ? "Blob数量：" + count : "未找到满足面积的 Blob");
+                string message = count > 0
+                    ? "Blob数量：" + count + "，ROI=" + GetBoundRoiLayers(tool).Count.ToString(CultureInfo.InvariantCulture)
+                    : "未找到满足面积的 Blob";
+                InspectionRecord record = CreateRecord("Blob", count > 0 ? "OK" : "NG", totalArea, message, tool);
                 resultStore.Add(record);
                 LogInfo(string.Format(CultureInfo.InvariantCulture, "Blob完成：数量 {0}，面积 {1:F1}", count, totalArea));
                 return record;
@@ -2232,6 +2439,10 @@ namespace HalconWinFormsDemo
                 DisposeObject(connectedRegion);
                 DisposeObject(clippedRegion);
                 DisposeObject(thresholdRegion);
+                if (roiRegion != null)
+                {
+                    roiRegion.Dispose();
+                }
                 if (gray != null)
                 {
                     gray.Dispose();
@@ -2239,32 +2450,32 @@ namespace HalconWinFormsDemo
             }
         }
 
-        private InspectionRecord RunGrayStatTool()
+        private InspectionRecord RunGrayStatTool(VmToolInstance tool)
         {
             double min = ReadDouble(GrayMinTextBox, "灰度下限");
             double max = ReadDouble(GrayMaxTextBox, "灰度上限");
             HImage gray = null;
+            HRegion region = null;
             try
             {
                 gray = CreateGrayImage(currentImage);
                 HTuple mean;
                 HTuple deviation;
-                HRegion region = currentRoi == null ? new HRegion(0.0, 0.0, (double)viewport.ImageHeight - 1.0, (double)viewport.ImageWidth - 1.0) : currentRoi.Region;
+                region = CreateBoundRoiRegion(tool, false) ?? new HRegion(0.0, 0.0, (double)viewport.ImageHeight - 1.0, (double)viewport.ImageWidth - 1.0);
                 HOperatorSet.Intensity(region, gray, out mean, out deviation);
                 double value = mean.D;
                 bool ok = value >= min && value <= max;
-                InspectionRecord record = CreateRecord("GrayStat", ok ? "OK" : "NG", value, string.Format(CultureInfo.InvariantCulture, "Mean={0:F2}, Dev={1:F2}", value, deviation.D));
+                InspectionRecord record = CreateRecord("GrayStat", ok ? "OK" : "NG", value, string.Format(CultureInfo.InvariantCulture, "Mean={0:F2}, Dev={1:F2}, ROI={2}", value, deviation.D, GetBoundRoiLayers(tool).Count), tool);
                 resultStore.Add(record);
                 LogInfo("灰度统计完成：" + record.Message);
-                if (currentRoi == null)
-                {
-                    region.Dispose();
-                }
-
                 return record;
             }
             finally
             {
+                if (region != null)
+                {
+                    region.Dispose();
+                }
                 if (gray != null)
                 {
                     gray.Dispose();
@@ -2272,19 +2483,21 @@ namespace HalconWinFormsDemo
             }
         }
 
-        private InspectionRecord RunEdgeMeasureTool()
+        private InspectionRecord RunEdgeMeasureTool(VmToolInstance tool)
         {
             double threshold = ReadDouble(EdgeThresholdTextBox, "边缘阈值");
             HImage gray = null;
             HObject reduced = null;
             HObject edges = null;
+            HRegion roiRegion = null;
             try
             {
                 gray = CreateGrayImage(currentImage);
                 HObject edgeInput = gray;
-                if (currentRoi != null)
+                roiRegion = CreateBoundRoiRegion(tool, false);
+                if (roiRegion != null)
                 {
-                    HOperatorSet.ReduceDomain(gray, currentRoi.Region, out reduced);
+                    HOperatorSet.ReduceDomain(gray, roiRegion, out reduced);
                     edgeInput = reduced;
                 }
 
@@ -2295,7 +2508,7 @@ namespace HalconWinFormsDemo
                 ReplaceToolOverlayContours(edges);
                 edges = null;
 
-                InspectionRecord record = CreateRecord("EdgeMeasure", totalLength > 0 ? "OK" : "NG", totalLength, string.Format(CultureInfo.InvariantCulture, "边缘总长度={0:F1}", totalLength));
+                InspectionRecord record = CreateRecord("EdgeMeasure", totalLength > 0 ? "OK" : "NG", totalLength, string.Format(CultureInfo.InvariantCulture, "边缘总长度={0:F1}, ROI={1}", totalLength, GetBoundRoiLayers(tool).Count), tool);
                 resultStore.Add(record);
                 LogInfo("边缘测量完成：" + record.Message);
                 return record;
@@ -2304,6 +2517,10 @@ namespace HalconWinFormsDemo
             {
                 DisposeObject(edges);
                 DisposeObject(reduced);
+                if (roiRegion != null)
+                {
+                    roiRegion.Dispose();
+                }
                 if (gray != null)
                 {
                     gray.Dispose();
@@ -2311,12 +2528,16 @@ namespace HalconWinFormsDemo
             }
         }
 
-        private InspectionRecord RunHDevTool()
+        private InspectionRecord RunHDevTool(VmToolInstance tool)
         {
             string path = HDevPathTextBox.Text == null ? string.Empty : HDevPathTextBox.Text.Trim();
             string procedure = string.IsNullOrWhiteSpace(HDevProcedureTextBox.Text) ? "RunInspection" : HDevProcedureTextBox.Text.Trim();
-            HDevInspectionResult result = hdevService.RunInspection(path, procedure, currentImage, currentRoi);
-            InspectionRecord record = CreateRecord("HDevelop", string.IsNullOrWhiteSpace(result.ResultCode) ? "OK" : result.ResultCode, result.Score, result.Message);
+            HDevInspectionResult result;
+            using (HRegion roiRegion = CreateBoundRoiRegion(tool, true))
+            {
+                result = hdevService.RunInspection(path, procedure, currentImage, roiRegion);
+            }
+            InspectionRecord record = CreateRecord("HDevelop", string.IsNullOrWhiteSpace(result.ResultCode) ? "OK" : result.ResultCode, result.Score, result.Message, tool);
             resultStore.Add(record);
             LogInfo("HDevelop 执行完成：" + record.Message);
             return record;
@@ -2324,12 +2545,18 @@ namespace HalconWinFormsDemo
 
         private InspectionRecord CreateRecord(string type, string resultCode, double score, string message)
         {
+            return CreateRecord(type, resultCode, score, message, null);
+        }
+
+        private InspectionRecord CreateRecord(string type, string resultCode, double score, string message, VmToolInstance tool)
+        {
+            RoiData recordRoi = tool == null ? currentRoi : GetPrimaryBoundRoi(tool);
             return new InspectionRecord
             {
                 Timestamp = DateTime.Now,
                 ImageSource = string.IsNullOrWhiteSpace(currentImagePath) ? "Camera/Memory" : Path.GetFileName(currentImagePath),
                 InspectionType = type,
-                Roi = currentRoi == null ? null : currentRoi.Clone(),
+                Roi = recordRoi == null ? null : recordRoi.Clone(),
                 ResultCode = resultCode,
                 Score = score,
                 Message = message,
@@ -2370,6 +2597,13 @@ namespace HalconWinFormsDemo
             viewport.Apply(imageWindow.HalconWindow);
             currentImage.DispImage(imageWindow.HalconWindow);
 
+            VmRoiLayer selectedLayer = RoiLayerList == null ? null : RoiLayerList.SelectedItem as VmRoiLayer;
+            foreach (VmRoiLayer layer in roiLayers.Where(item => item.IsVisible && item.Geometry != null))
+            {
+                string color = layer == selectedLayer ? "green" : (layer.IsEnabled ? "cyan" : "gray");
+                overlayRenderer.DrawRoiLayer(imageWindow.HalconWindow, layer.Geometry, color, layer == selectedLayer ? 3 : 2);
+            }
+
             if (toolOverlayRegion != null)
             {
                 imageWindow.HalconWindow.SetColor("yellow");
@@ -2386,11 +2620,11 @@ namespace HalconWinFormsDemo
             }
 
             RoiData templateRoi = currentTemplateItem == null ? null : currentTemplateItem.TemplateRoi;
-            RoiData confirmedBoundary = currentMatches.Count == 0 ? (currentRoi ?? templateRoi) : templateRoi;
+            RoiData confirmedBoundary = templateRoi;
             ShapeTemplateService service = currentTemplateItem == null ? null : currentTemplateItem.Service;
             overlayRenderer.Draw(
                 imageWindow.HalconWindow,
-                currentRoi,
+                null,
                 confirmedBoundary,
                 pendingRoi ?? roiEditor.PreviewRoi,
                 null,
@@ -2426,6 +2660,7 @@ namespace HalconWinFormsDemo
 
             bool hasImage = currentImage != null;
             bool hasRoi = currentRoi != null;
+            bool hasRoiLayers = roiLayers.Count > 0;
             bool hasPendingRoi = pendingRoi != null || roiEditor.IsPolygonDrawing || roiEditor.PreviewRoi != null;
             bool hasTemplate = currentTemplateItem != null && currentTemplateItem.HasModel;
             bool tcpRunning = tcpService.IsRunning;
@@ -2452,13 +2687,15 @@ namespace HalconWinFormsDemo
             RectangleRoiButton.IsEnabled = hasImage && !isContinuousRunning;
             CircleRoiButton.IsEnabled = hasImage && !isContinuousRunning;
             PolygonRoiButton.IsEnabled = hasImage && !isContinuousRunning;
-            ClearRoiButton.IsEnabled = hasRoi || hasPendingRoi;
+            ClearRoiButton.IsEnabled = RoiLayerList != null && RoiLayerList.SelectedItem != null;
+            ClearAllRoiLayersButton.IsEnabled = hasRoiLayers;
             ConfirmRoiButton.IsEnabled = hasPendingRoi;
             FitImageButton.IsEnabled = hasImage;
             TemplateSettingsButton.IsEnabled = hasImage && hasRoi && !isContinuousRunning;
             SaveTemplateButton.IsEnabled = hasTemplate;
             LoadTemplateButton.IsEnabled = !isContinuousRunning;
-            RunMatchButton.IsEnabled = hasImage && hasRoi && hasTemplate && !isContinuousRunning;
+            VmToolInstance shapeTool = flowTools.FirstOrDefault(item => item.Kind == VmToolKind.ShapeMatch);
+            RunMatchButton.IsEnabled = hasImage && hasTemplate && shapeTool != null && GetBoundRoiLayers(shapeTool).Count > 0 && !isContinuousRunning;
 
             TcpConnectButton.Visibility = clientMode ? Visibility.Visible : Visibility.Collapsed;
             TcpDisconnectButton.Visibility = clientMode ? Visibility.Visible : Visibility.Collapsed;
@@ -2485,7 +2722,12 @@ namespace HalconWinFormsDemo
                 ? string.Format("{0}  {1}x{2}", string.IsNullOrWhiteSpace(currentImagePath) ? "图像" : Path.GetFileName(currentImagePath), viewport.ImageWidth, viewport.ImageHeight)
                 : "图像区：拖拽图片或打开文件夹开始";
 
-            RoiStatusText.Text = hasPendingRoi ? "ROI：待确认" : (hasRoi ? "ROI：已确认，" + currentRoi.DisplayText : "ROI：未设置");
+            VmRoiLayer selectedRoiLayer = RoiLayerList == null ? null : RoiLayerList.SelectedItem as VmRoiLayer;
+            RoiStatusText.Text = hasPendingRoi
+                ? "ROI：正在绘制，等待确认"
+                : (selectedRoiLayer == null
+                    ? "ROI：0 个图层"
+                    : "ROI：共 " + roiLayers.Count.ToString(CultureInfo.InvariantCulture) + " 个，当前 " + selectedRoiLayer.Name + " · " + selectedRoiLayer.BindingSummary);
             TemplateStatusText.Text = hasTemplate ? "模板：已训练/加载，" + currentTemplateItem.Name : "模板：未训练";
             MatchResultText.Text = currentMatches.Count == 0 ? MatchResultText.Text : MatchResultText.Text;
 
@@ -2493,7 +2735,8 @@ namespace HalconWinFormsDemo
             RunModeText.Text = ModeStatusText.Text;
             ImageStatusText.Text = hasImage ? string.Format("图像：{0}x{1}", viewport.ImageWidth, viewport.ImageHeight) : "图像：--";
             ZoomStatusText.Text = hasImage ? viewport.ZoomText.Replace("Zoom", "缩放") : "缩放：--";
-            RoiStatusBarText.Text = hasRoi ? "ROI：" + currentRoi.ShapeType : "ROI：未设置";
+            RoiStatusBarText.Text = hasRoiLayers ? "ROI：" + roiLayers.Count.ToString(CultureInfo.InvariantCulture) + " 图层" : "ROI：未设置";
+            RoiLayerCountText.Text = roiLayers.Count.ToString(CultureInfo.InvariantCulture);
             TemplateStatusBarText.Text = hasTemplate ? "模板：" + currentTemplateItem.Name : "模板：未训练";
             TcpStatusBarText.Text = canSend ? "TCP：可发送" : "TCP：未连接";
 
@@ -2664,8 +2907,7 @@ namespace HalconWinFormsDemo
             SetTcpEncoding(recipe.TcpEncoding);
             AutoSendMatchResultCheckBox.IsChecked = recipe.AutoSendResult;
 
-            DisposeCurrentRoi();
-            currentRoi = FromRecipeRoi(recipe.SearchRoi);
+            LoadRoiLayersFromRecipe(recipe);
 
             ReplaceTemplate(null);
 
@@ -2697,7 +2939,7 @@ namespace HalconWinFormsDemo
             {
                 Name = string.IsNullOrWhiteSpace(RecipeNameEditTextBox.Text) ? "DefaultRecipe" : RecipeNameEditTextBox.Text.Trim(),
                 LastImageDirectory = string.IsNullOrWhiteSpace(currentImagePath) ? string.Empty : Path.GetDirectoryName(currentImagePath),
-                SearchRoi = ToRecipeRoi(currentRoi),
+                SearchRoi = ToRecipeRoi(GetLegacySearchRoi()),
                 TemplatePath = currentTemplateItem == null ? string.Empty : currentTemplateItem.TemplatePath,
                 TemplateOptions = ToRecipeOptions(currentTemplateItem == null ? null : currentTemplateItem.Options),
                 EnableShapeMatch = HasEnabledTool(VmToolKind.ShapeMatch),
@@ -2718,8 +2960,299 @@ namespace HalconWinFormsDemo
                 TcpPort = ReadTcpPortOrDefault(9000),
                 TcpEncoding = GetTcpEncodingText(),
                 AutoSendResult = AutoSendMatchResultCheckBox.IsChecked == true,
-                ToolFlow = CaptureFlowRecipe()
+                ToolFlow = CaptureFlowRecipe(),
+                RoiLayers = CaptureRoiLayers()
             };
+        }
+
+        private void LoadRoiLayersFromRecipe(VisionRecipe recipe)
+        {
+            DisposeCurrentRoi();
+            DisposeRoiLayers();
+
+            if (recipe != null && recipe.RoiLayers != null)
+            {
+                foreach (RoiLayerRecipeData item in recipe.RoiLayers)
+                {
+                    RoiData geometry = item == null ? null : FromRecipeRoi(item.Geometry);
+                    if (geometry == null)
+                    {
+                        continue;
+                    }
+
+                    roiLayers.Add(new VmRoiLayer
+                    {
+                        RoiId = string.IsNullOrWhiteSpace(item.RoiId) ? Guid.NewGuid().ToString("N") : item.RoiId,
+                        Name = string.IsNullOrWhiteSpace(item.Name) ? CreateUniqueRoiName() : item.Name,
+                        IsEnabled = item.IsEnabled,
+                        IsVisible = item.IsVisible,
+                        Geometry = geometry
+                    });
+                }
+            }
+
+            if (roiLayers.Count == 0 && recipe != null && recipe.SearchRoi != null)
+            {
+                RoiData legacyGeometry = FromRecipeRoi(recipe.SearchRoi);
+                if (legacyGeometry != null)
+                {
+                    roiLayers.Add(new VmRoiLayer
+                    {
+                        RoiId = "legacy-search-roi",
+                        Name = "搜索 ROI 01",
+                        IsEnabled = true,
+                        IsVisible = true,
+                        Geometry = legacyGeometry
+                    });
+                }
+            }
+
+            RefreshRoiLayerSequence();
+            VmRoiLayer first = roiLayers.FirstOrDefault();
+            if (RoiLayerList != null)
+            {
+                RoiLayerList.SelectedItem = first;
+            }
+            SelectRoiLayer(first);
+            RefreshRoiLayerBindingSummaries();
+        }
+
+        private List<RoiLayerRecipeData> CaptureRoiLayers()
+        {
+            return roiLayers
+                .Where(item => item != null && item.Geometry != null)
+                .Select(item => new RoiLayerRecipeData
+                {
+                    RoiId = item.RoiId,
+                    Name = item.Name,
+                    IsEnabled = item.IsEnabled,
+                    IsVisible = item.IsVisible,
+                    Geometry = ToRecipeRoi(item.Geometry)
+                })
+                .ToList();
+        }
+
+        private RoiData GetLegacySearchRoi()
+        {
+            VmRoiLayer layer = roiLayers.FirstOrDefault(item => item.IsEnabled && item.Geometry != null) ?? roiLayers.FirstOrDefault(item => item.Geometry != null);
+            return layer == null ? currentRoi : layer.Geometry;
+        }
+
+        private void DisposeRoiLayers()
+        {
+            foreach (VmRoiLayer layer in roiLayers.ToList())
+            {
+                layer.Dispose();
+            }
+
+            roiLayers.Clear();
+            roiBindingRows.Clear();
+        }
+
+        private void RefreshRoiLayerSequence()
+        {
+            for (int index = 0; index < roiLayers.Count; index++)
+            {
+                roiLayers[index].Sequence = index + 1;
+            }
+
+            if (RoiLayerCountText != null)
+            {
+                RoiLayerCountText.Text = roiLayers.Count.ToString(CultureInfo.InvariantCulture);
+            }
+        }
+
+        private string CreateUniqueRoiName()
+        {
+            int index = 1;
+            string candidate;
+            do
+            {
+                candidate = "ROI " + index.ToString("00", CultureInfo.InvariantCulture);
+                index++;
+            }
+            while (roiLayers.Any(item => string.Equals(item.Name, candidate, StringComparison.OrdinalIgnoreCase)));
+
+            return candidate;
+        }
+
+        private VmRoiLayer AddRoiLayer(RoiData geometry, string name, VmToolInstance bindTool)
+        {
+            if (geometry == null)
+            {
+                throw new ArgumentNullException("geometry");
+            }
+
+            VmRoiLayer layer = new VmRoiLayer
+            {
+                RoiId = Guid.NewGuid().ToString("N"),
+                Name = string.IsNullOrWhiteSpace(name) ? CreateUniqueRoiName() : name,
+                Geometry = geometry.Clone(),
+                IsEnabled = true,
+                IsVisible = true
+            };
+            roiLayers.Add(layer);
+            RefreshRoiLayerSequence();
+
+            if (bindTool != null && ToolMetadata.SupportsRoi(bindTool.Kind))
+            {
+                bindTool.BindRoi(layer.RoiId);
+            }
+
+            if (RoiLayerList != null)
+            {
+                RoiLayerList.SelectedItem = layer;
+                RoiLayerList.ScrollIntoView(layer);
+            }
+            SelectRoiLayer(layer);
+            RefreshRoiLayerBindingSummaries();
+            return layer;
+        }
+
+        private void SelectRoiLayer(VmRoiLayer layer)
+        {
+            DisposeCurrentRoi();
+            currentRoi = layer == null || layer.Geometry == null ? null : layer.Geometry.Clone();
+            if (SelectedRoiLayerNameTextBox != null)
+            {
+                SelectedRoiLayerNameTextBox.IsEnabled = layer != null;
+                SelectedRoiLayerNameTextBox.Text = layer == null ? string.Empty : layer.Name;
+                RoiSelectedLayerText.Text = layer == null
+                    ? "未选择 ROI 图层"
+                    : layer.SequenceText + "  " + layer.Name + " · " + layer.ShapeText;
+            }
+        }
+
+        private void BindLegacyRoiToFlowTools()
+        {
+            VmRoiLayer layer = roiLayers.FirstOrDefault(item => item.IsEnabled && item.Geometry != null) ?? roiLayers.FirstOrDefault(item => item.Geometry != null);
+            if (layer == null)
+            {
+                return;
+            }
+
+            foreach (VmToolInstance tool in flowTools.Where(item => ToolMetadata.SupportsRoi(item.Kind) && item.BoundRoiIds.Count == 0))
+            {
+                tool.BindRoi(layer.RoiId);
+            }
+
+            RefreshRoiLayerBindingSummaries();
+        }
+
+        private List<VmRoiLayer> GetBoundRoiLayers(VmToolInstance tool)
+        {
+            if (tool == null || !ToolMetadata.SupportsRoi(tool.Kind))
+            {
+                return new List<VmRoiLayer>();
+            }
+
+            return roiLayers
+                .Where(layer => layer.IsEnabled && layer.Geometry != null && tool.IsRoiBound(layer.RoiId))
+                .ToList();
+        }
+
+        private RoiData GetPrimaryBoundRoi(VmToolInstance tool)
+        {
+            VmRoiLayer layer = GetBoundRoiLayers(tool).FirstOrDefault();
+            return layer == null ? null : layer.Geometry;
+        }
+
+        private HRegion CreateBoundRoiRegion(VmToolInstance tool, bool required)
+        {
+            List<VmRoiLayer> layers = GetBoundRoiLayers(tool);
+            if (layers.Count == 0)
+            {
+                if (required)
+                {
+                    throw new InvalidOperationException(tool.InstanceName + " 尚未绑定已启用的 ROI。请在图像/ROI 页勾选至少一个图层。");
+                }
+
+                return null;
+            }
+
+            HObject combined = null;
+            try
+            {
+                HOperatorSet.CopyObj(layers[0].Geometry.Region, out combined, 1, -1);
+                for (int index = 1; index < layers.Count; index++)
+                {
+                    HObject merged;
+                    HOperatorSet.Union2(combined, layers[index].Geometry.Region, out merged);
+                    combined.Dispose();
+                    combined = merged;
+                }
+
+                HRegion result = new HRegion(combined);
+                combined = null;
+                return result;
+            }
+            finally
+            {
+                DisposeObject(combined);
+            }
+        }
+
+        private string GetRoiBindingSummary(VmToolInstance tool)
+        {
+            if (tool == null || !ToolMetadata.SupportsRoi(tool.Kind))
+            {
+                return "不使用 ROI";
+            }
+
+            List<VmRoiLayer> bound = GetBoundRoiLayers(tool);
+            return bound.Count == 0
+                ? (ToolMetadata.RequiresRoi(tool.Kind) ? "ROI 未绑定" : "全图运行 · ROI 可选")
+                : "ROI ×" + bound.Count.ToString(CultureInfo.InvariantCulture) + " · " + string.Join(", ", bound.Select(item => item.Name));
+        }
+
+        private void RefreshRoiLayerBindingSummaries()
+        {
+            foreach (VmRoiLayer layer in roiLayers)
+            {
+                List<string> names = flowTools
+                    .Where(tool => tool.IsRoiBound(layer.RoiId))
+                    .Select(tool => tool.InstanceName)
+                    .ToList();
+                layer.BindingSummary = names.Count == 0 ? "未绑定工具" : string.Join(", ", names);
+            }
+
+            RefreshRoiBindingEditor();
+        }
+
+        private void RefreshRoiBindingEditor()
+        {
+            if (RoiBindingItemsControl == null || FlowToolList == null)
+            {
+                return;
+            }
+
+            VmToolInstance tool = FlowToolList.SelectedItem as VmToolInstance;
+            bool canBind = tool != null && ToolMetadata.SupportsRoi(tool.Kind);
+            roiBindingUpdating = true;
+            try
+            {
+                roiBindingRows.Clear();
+                foreach (VmRoiLayer layer in roiLayers)
+                {
+                    roiBindingRows.Add(new VmRoiBindingItem
+                    {
+                        Layer = layer,
+                        IsBound = canBind && tool.IsRoiBound(layer.RoiId)
+                    });
+                }
+            }
+            finally
+            {
+                roiBindingUpdating = false;
+            }
+
+            RoiBindingItemsControl.IsEnabled = canBind;
+            RoiBindingToolText.Text = canBind
+                ? tool.SequenceText + "  " + tool.InstanceName
+                : (tool == null ? "请先选择流程中的视觉工具" : tool.InstanceName + " 不使用 ROI");
+            RoiBindingsStatusText.Text = canBind
+                ? GetRoiBindingSummary(tool) + "。运行时合并所有已启用且已绑定的区域。"
+                : "数值与非视觉工具没有 ROI 输入。";
         }
 
         private static RoiRecipeData ToRecipeRoi(RoiData roi)

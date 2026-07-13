@@ -102,6 +102,11 @@ namespace HalconWinFormsDemo.Services
 
         public List<ShapeMatchResult> Match(HImage image, RoiData searchRoi, TemplateMatchOptions options)
         {
+            return Match(image, searchRoi == null ? null : searchRoi.Region, options);
+        }
+
+        public List<ShapeMatchResult> Match(HImage image, HRegion searchRegion, TemplateMatchOptions options)
+        {
             EnsureModel();
             if (image == null)
             {
@@ -114,9 +119,9 @@ namespace HalconWinFormsDemo.Services
 
             try
             {
-                if (resolvedOptions.LimitToSearchRoi && searchRoi != null)
+                if (resolvedOptions.LimitToSearchRoi && searchRegion != null)
                 {
-                    HOperatorSet.ReduceDomain(image, searchRoi.Region, out reduced);
+                    HOperatorSet.ReduceDomain(image, searchRegion, out reduced);
                     matchImage = reduced;
                 }
 

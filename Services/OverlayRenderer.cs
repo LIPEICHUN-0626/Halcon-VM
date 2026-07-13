@@ -7,6 +7,11 @@ namespace HalconWinFormsDemo.Services
 {
     public sealed class OverlayRenderer
     {
+        public void DrawRoiLayer(HWindow window, RoiData roi, string color, double width)
+        {
+            DrawRoi(window, roi, color, width);
+        }
+
         public void Draw(
             HWindow window,
             RoiData searchRoi,

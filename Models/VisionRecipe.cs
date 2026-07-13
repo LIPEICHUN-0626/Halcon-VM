@@ -101,6 +101,9 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 24, EmitDefaultValue = false)]
         public List<ToolFlowRecipeItem> ToolFlow { get; set; }
 
+        [DataMember(Order = 25, EmitDefaultValue = false)]
+        public List<RoiLayerRecipeData> RoiLayers { get; set; }
+
     }
 
     [DataContract]
@@ -120,6 +123,9 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 5, EmitDefaultValue = false)]
         public NumericJudgeRecipeData NumericJudge { get; set; }
+
+        [DataMember(Order = 6, EmitDefaultValue = false)]
+        public List<string> RoiIds { get; set; }
     }
 
     [DataContract]
@@ -176,6 +182,25 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 10)]
         public double[] PolygonColumns { get; set; }
+    }
+
+    [DataContract]
+    public sealed class RoiLayerRecipeData
+    {
+        [DataMember(Order = 1)]
+        public string RoiId { get; set; }
+
+        [DataMember(Order = 2)]
+        public string Name { get; set; }
+
+        [DataMember(Order = 3)]
+        public bool IsEnabled { get; set; }
+
+        [DataMember(Order = 4)]
+        public bool IsVisible { get; set; }
+
+        [DataMember(Order = 5)]
+        public RoiRecipeData Geometry { get; set; }
     }
 
     [DataContract]

@@ -73,6 +73,24 @@ namespace HalconWinFormsDemo.Services
             column2 = imageWidth - 1;
         }
 
+        public void OriginalSize(Control control)
+        {
+            if (!HasImage || control == null || control.Width <= 0 || control.Height <= 0)
+            {
+                return;
+            }
+
+            double visibleColumns = Math.Min(imageWidth, Math.Max(2, control.Width));
+            double visibleRows = Math.Min(imageHeight, Math.Max(2, control.Height));
+            double centerColumn = imageWidth / 2.0;
+            double centerRow = imageHeight / 2.0;
+            column1 = centerColumn - visibleColumns / 2.0;
+            column2 = column1 + visibleColumns - 1.0;
+            row1 = centerRow - visibleRows / 2.0;
+            row2 = row1 + visibleRows - 1.0;
+            ClampPart();
+        }
+
         public void Apply(HWindow window)
         {
             if (!HasImage)

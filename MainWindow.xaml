@@ -221,12 +221,74 @@
             <!-- Central HALCON image workspace -->
             <Border Grid.Column="4" Background="#0B1220" BorderBrush="#334155" BorderThickness="1" CornerRadius="4">
                 <Grid>
-                    <wfi:WindowsFormsHost x:Name="HalconHost" Margin="1" />
-                    <Border HorizontalAlignment="Left" VerticalAlignment="Top" Background="#C0111827" CornerRadius="3" Padding="8,4" Margin="9">
-                        <TextBlock x:Name="OverlayStatusText" Foreground="#E5E7EB" Text="图像区：拖拽图片或打开文件夹开始" />
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Border Background="#182235" BorderBrush="#334155" BorderThickness="0,0,0,1" Padding="4">
+                        <WrapPanel VerticalAlignment="Center">
+                            <Button Content="选择" MinWidth="50" Click="SelectImageToolButton_Click" ToolTip="退出绘制，恢复选择模式" />
+                            <Button Content="平移" MinWidth="50" Click="PanImageToolButton_Click" ToolTip="按住右键拖动图像" />
+                            <Separator Width="5" Opacity="0" />
+                            <Button Content="矩形" MinWidth="50" Click="RectangleRoiButton_Click" />
+                            <Button Content="圆形" MinWidth="50" Click="CircleRoiButton_Click" />
+                            <Button Content="多边形" MinWidth="58" Click="PolygonRoiButton_Click" />
+                            <Button Content="✓ 确认" MinWidth="58" FontWeight="SemiBold" Foreground="#34D399" Click="ConfirmRoiButton_Click" />
+                            <Button Content="取消" MinWidth="50" Click="CancelRoiDrawingButton_Click" />
+                            <Separator Width="5" Opacity="0" />
+                            <Button Content="适应" MinWidth="50" Click="FitImageButton_Click" />
+                            <Button Content="1:1" MinWidth="50" Click="ImageOriginalSizeButton_Click" />
+                            <Button x:Name="ToggleRoiLayerPanelButton" Content="隐藏图层" MinWidth="68" Click="ToggleRoiLayerPanelButton_Click" />
+                        </WrapPanel>
                     </Border>
-                    <Border HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="#C0111827" CornerRadius="3" Padding="8,4" Margin="9">
-                        <TextBlock x:Name="HeaderStatusText" Foreground="#E5E7EB" Text="就绪" />
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition x:Name="RoiLayerPanelColumn" Width="220" />
+                        </Grid.ColumnDefinitions>
+                        <wfi:WindowsFormsHost x:Name="HalconHost" Margin="1" />
+                        <Border x:Name="RoiLayerPanel" Grid.Column="1" Background="#111827" BorderBrush="#334155" BorderThickness="1,0,0,0" Padding="6">
+                            <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <DockPanel Margin="2,2,2,6">
+                                    <Border DockPanel.Dock="Right" Background="#0F766E" CornerRadius="8" Padding="7,2"><TextBlock x:Name="RoiLayerCountText" Text="0" Foreground="White" FontSize="10" /></Border>
+                                    <TextBlock Text="ROI 图层" Foreground="#F8FAFC" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <ListBox x:Name="RoiLayerList" Grid.Row="1" Background="#111827" BorderThickness="0" Foreground="#E2E8F0" HorizontalContentAlignment="Stretch" SelectionChanged="RoiLayerList_SelectionChanged">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="RoiLayerCard" Background="#182235" BorderBrush="#334155" BorderThickness="1" CornerRadius="3" Padding="6" Margin="1,1,1,4">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                    <Border Width="24" Height="24" CornerRadius="12" Background="#164E63" Margin="0,0,6,0"><TextBlock Text="{Binding SequenceText}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#A5F3FC" FontSize="9" FontWeight="Bold" /></Border>
+                                                    <StackPanel Grid.Column="1">
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding ShapeText}" Foreground="#67E8F9" FontSize="10" />
+                                                        <TextBlock Text="{Binding BindingSummary}" Foreground="#A78BFA" FontSize="10" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2">
+                                                        <CheckBox IsChecked="{Binding IsVisible}" ToolTip="显示/隐藏" Content="眼" Foreground="#CBD5E1" Checked="RoiLayerVisibilityCheckBox_Changed" Unchecked="RoiLayerVisibilityCheckBox_Changed" />
+                                                        <CheckBox IsChecked="{Binding IsEnabled}" ToolTip="参与/退出运行" Content="用" Foreground="#CBD5E1" Checked="RoiLayerEnabledCheckBox_Changed" Unchecked="RoiLayerEnabledCheckBox_Changed" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsEnabled}" Value="False"><Setter TargetName="RoiLayerCard" Property="Opacity" Value="0.55" /></DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBlock Grid.Row="2" Text="选中图层后在右侧“图像/ROI”绑定工具" Foreground="#94A3B8" FontSize="10" TextWrapping="Wrap" Margin="2,6,2,2" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+                    <Border Grid.Row="2" Background="#182235" BorderBrush="#334155" BorderThickness="0,1,0,0" Padding="7,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock x:Name="OverlayStatusText" Foreground="#CBD5E1" Text="图像区：拖拽图片或打开文件夹开始" TextTrimming="CharacterEllipsis" />
+                            <TextBlock x:Name="HeaderStatusText" Grid.Column="1" Foreground="#A7F3D0" Text="就绪" Margin="12,0,0,0" TextTrimming="CharacterEllipsis" />
+                        </Grid>
                     </Border>
                 </Grid>
             </Border>
@@ -454,24 +516,62 @@
                 <TabItem Header="图像/ROI">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="9">
-                            <GroupBox Header="ROI 工具">
+                            <GroupBox Header="绘制与视图">
                                 <StackPanel>
                                     <WrapPanel>
-                                        <Button x:Name="RectangleRoiButton" Content="矩形ROI" Click="RectangleRoiButton_Click" />
-                                        <Button x:Name="CircleRoiButton" Content="圆形ROI" Click="CircleRoiButton_Click" />
-                                        <Button x:Name="PolygonRoiButton" Content="多边形ROI" Click="PolygonRoiButton_Click" />
-                                        <Button x:Name="ConfirmRoiButton" Content="确认ROI" FontWeight="Bold" Click="ConfirmRoiButton_Click" />
-                                        <Button x:Name="ClearRoiButton" Content="清除ROI" Click="ClearRoiButton_Click" />
+                                        <Button x:Name="RectangleRoiButton" Content="矩形" Click="RectangleRoiButton_Click" />
+                                        <Button x:Name="CircleRoiButton" Content="圆形" Click="CircleRoiButton_Click" />
+                                        <Button x:Name="PolygonRoiButton" Content="多边形" Click="PolygonRoiButton_Click" />
+                                        <Button x:Name="ConfirmRoiButton" Content="确认并新增" FontWeight="Bold" Click="ConfirmRoiButton_Click" />
+                                        <Button Content="取消绘制" Click="CancelRoiDrawingButton_Click" />
                                         <Button x:Name="FitImageButton" Content="适应窗口" Click="FitImageButton_Click" />
                                     </WrapPanel>
                                     <TextBlock x:Name="RoiStatusText" Text="ROI：未设置" TextWrapping="Wrap" Margin="4" />
-                                    <TextBlock Text="左键绘制；滚轮缩放；右键平移；双击适应。多边形左键加点，双击结束。" Foreground="#64748B" TextWrapping="Wrap" Margin="4" />
+                                    <TextBlock Text="每次确认都会新增一个图层，并自动绑定到当前选中的视觉工具。滚轮缩放、右键平移。" Foreground="#64748B" TextWrapping="Wrap" Margin="4" />
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="选中 ROI 图层">
+                                <StackPanel>
+                                    <TextBlock x:Name="RoiSelectedLayerText" Text="未选择 ROI 图层" FontWeight="SemiBold" Foreground="#334155" Margin="4" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="62" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <TextBlock Text="名称" VerticalAlignment="Center" />
+                                        <TextBox x:Name="SelectedRoiLayerNameTextBox" Grid.Column="1" IsEnabled="False" LostFocus="SelectedRoiLayerNameTextBox_LostFocus" />
+                                    </Grid>
+                                    <UniformGrid Columns="2">
+                                        <Button x:Name="ClearRoiButton" Content="删除选中" Click="ClearRoiButton_Click" />
+                                        <Button x:Name="ClearAllRoiLayersButton" Content="清空全部" Click="ClearAllRoiLayersButton_Click" />
+                                    </UniformGrid>
+                                </StackPanel>
+                            </GroupBox>
+                            <GroupBox Header="绑定到当前工具">
+                                <StackPanel>
+                                    <TextBlock x:Name="RoiBindingToolText" Text="请先选择流程中的视觉工具" FontWeight="SemiBold" Foreground="#475569" TextWrapping="Wrap" Margin="4" />
+                                    <ItemsControl x:Name="RoiBindingItemsControl">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="6" Margin="0,0,0,5">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                        <CheckBox IsChecked="{Binding IsBound}" VerticalAlignment="Center" Margin="2,0,8,0" Checked="RoiBindingCheckBox_Changed" Unchecked="RoiBindingCheckBox_Changed" />
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                                            <TextBlock Text="{Binding ShapeText}" Foreground="#64748B" FontSize="10" />
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="2" Text="{Binding StateText}" Foreground="#0F766E" FontSize="10" VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock x:Name="RoiBindingsStatusText" Text="绑定后，运行时会合并所有已启用 ROI。" Foreground="#64748B" TextWrapping="Wrap" Margin="4" />
+                                    <Button Content="运行当前工具验证 ROI" FontWeight="SemiBold" Foreground="#0F766E" Click="RunCurrentToolButton_Click" />
                                 </StackPanel>
                             </GroupBox>
                             <GroupBox Header="模板快捷入口">
                                 <StackPanel>
                                     <Button Content="选择 Shape 工具并打开参数" Click="SelectShapeToolButton_Click" />
-                                    <TextBlock Text="主要模板参数已归入 Shape 工具 Inspector；ROI 编辑保留在图像页。" Foreground="#64748B" TextWrapping="Wrap" Margin="4" />
+                                    <TextBlock Text="主要模板参数保留在 Shape Inspector；搜索区域由该工具绑定的 ROI 图层提供。" Foreground="#64748B" TextWrapping="Wrap" Margin="4" />
                                 </StackPanel>
                             </GroupBox>
                         </StackPanel>

@@ -52,6 +52,7 @@ namespace HalconWinFormsDemo.Models
         private double numericTolerance;
         private string connectionStatus;
         private string connectionSummary;
+        private readonly List<string> boundRoiIds = new List<string>();
         private readonly Dictionary<string, object> runtimeOutputs = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
         public VmToolInstance()
@@ -295,6 +296,53 @@ namespace HalconWinFormsDemo.Models
             }
         }
 
+        public IList<string> BoundRoiIds
+        {
+            get { return boundRoiIds; }
+        }
+
+        public bool IsRoiBound(string roiId)
+        {
+            return !string.IsNullOrWhiteSpace(roiId) && boundRoiIds.Any(item => string.Equals(item, roiId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public void BindRoi(string roiId)
+        {
+            if (string.IsNullOrWhiteSpace(roiId) || IsRoiBound(roiId))
+            {
+                return;
+            }
+
+            boundRoiIds.Add(roiId);
+            OnPropertyChanged("BoundRoiIds");
+        }
+
+        public void UnbindRoi(string roiId)
+        {
+            string existing = boundRoiIds.FirstOrDefault(item => string.Equals(item, roiId, StringComparison.OrdinalIgnoreCase));
+            if (existing == null)
+            {
+                return;
+            }
+
+            boundRoiIds.Remove(existing);
+            OnPropertyChanged("BoundRoiIds");
+        }
+
+        public void ReplaceRoiBindings(IEnumerable<string> roiIds)
+        {
+            boundRoiIds.Clear();
+            if (roiIds != null)
+            {
+                foreach (string roiId in roiIds.Where(item => !string.IsNullOrWhiteSpace(item)).Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    boundRoiIds.Add(roiId);
+                }
+            }
+
+            OnPropertyChanged("BoundRoiIds");
+        }
+
         public void ClearRuntimeOutputs()
         {
             runtimeOutputs.Clear();
@@ -459,7 +507,7 @@ namespace HalconWinFormsDemo.Models
                     return new[]
                     {
                         Port("Image", "图像", "Image", false),
-                        Port("ROI", "ROI", "Region", true),
+                        Port("ROI", "ROI", "Region", false),
                         Port("Program", "HDevelop 程序", "File", false)
                     };
                 case VmToolKind.NumericJudge:
@@ -522,6 +570,20 @@ namespace HalconWinFormsDemo.Models
         public static IList<VmPortDefinition> GetNumericOutputPorts(VmToolKind kind)
         {
             return GetOutputPorts(kind).Where(item => item.DataType == "Number").ToList();
+        }
+
+        public static bool SupportsRoi(VmToolKind kind)
+        {
+            return kind == VmToolKind.ShapeMatch ||
+                   kind == VmToolKind.Blob ||
+                   kind == VmToolKind.GrayStat ||
+                   kind == VmToolKind.EdgeMeasure ||
+                   kind == VmToolKind.HDevelop;
+        }
+
+        public static bool RequiresRoi(VmToolKind kind)
+        {
+            return kind == VmToolKind.ShapeMatch || kind == VmToolKind.HDevelop;
         }
 
         private static VmPortDefinition Port(string name, string displayName, string dataType, bool optional)
