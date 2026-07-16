@@ -73,6 +73,9 @@
     <Compile Include="TemplateCreateWindow.xaml.cs">
       <DependentUpon>TemplateCreateWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="ToolConfigurationWindow.xaml.cs">
+      <DependentUpon>ToolConfigurationWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -92,6 +95,7 @@
     <Compile Include="Models\VmRoiModels.cs" />
     <Compile Include="Models\VmFlowExecutionModels.cs" />
     <Compile Include="Models\VmToolModels.cs" />
+    <Compile Include="Models\VmToolParameterModels.cs" />
     <Compile Include="Services\AppLogger.cs" />
     <Compile Include="Services\CsvExportService.cs" />
     <Compile Include="Services\HalconImageService.cs" />
@@ -114,6 +118,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="TemplateCreateWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="ToolConfigurationWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

@@ -222,13 +222,12 @@ namespace HalconWinFormsDemo
                         continue;
                     }
 
-                    if (flowTools.Any(item => item.Kind == kind))
-                    {
-                        continue;
-                    }
-
                     VmToolInstance instance = CreateFlowTool(kind, recipeItem.InstanceName, recipeItem.IsEnabled, recipeItem.ToolId);
                     ApplyToolRecipeData(instance, recipeItem);
+                    if (recipeItem.Parameters == null)
+                    {
+                        ApplyLegacyToolParameters(instance, recipe);
+                    }
                     flowTools.Add(instance);
                 }
 
@@ -252,15 +251,21 @@ namespace HalconWinFormsDemo
                 }
                 if (legacy.EnableBlob)
                 {
-                    flowTools.Add(CreateFlowTool(VmToolKind.Blob, null, true, null));
+                    VmToolInstance tool = CreateFlowTool(VmToolKind.Blob, null, true, null);
+                    ApplyLegacyToolParameters(tool, legacy);
+                    flowTools.Add(tool);
                 }
                 if (legacy.EnableGrayStat)
                 {
-                    flowTools.Add(CreateFlowTool(VmToolKind.GrayStat, null, true, null));
+                    VmToolInstance tool = CreateFlowTool(VmToolKind.GrayStat, null, true, null);
+                    ApplyLegacyToolParameters(tool, legacy);
+                    flowTools.Add(tool);
                 }
                 if (legacy.EnableEdgeMeasure)
                 {
-                    flowTools.Add(CreateFlowTool(VmToolKind.EdgeMeasure, null, true, null));
+                    VmToolInstance tool = CreateFlowTool(VmToolKind.EdgeMeasure, null, true, null);
+                    ApplyLegacyToolParameters(tool, legacy);
+                    flowTools.Add(tool);
                 }
                 if (legacy.EnableHDevelop)
                 {
@@ -290,6 +295,7 @@ namespace HalconWinFormsDemo
                 InstanceName = item.InstanceName,
                 IsEnabled = item.IsEnabled,
                 RoiIds = item.BoundRoiIds.ToList(),
+                Parameters = item.Parameters == null ? null : item.Parameters.Clone(),
                 NumericJudge = item.Kind == VmToolKind.NumericJudge
                     ? new NumericJudgeRecipeData
                     {
@@ -312,6 +318,7 @@ namespace HalconWinFormsDemo
             }
 
             tool.ReplaceRoiBindings(recipeItem.RoiIds);
+            tool.Parameters = recipeItem.Parameters == null ? (tool.Parameters ?? new VmToolParameterData()) : recipeItem.Parameters.Clone();
 
             if (tool.Kind != VmToolKind.NumericJudge || recipeItem.NumericJudge == null)
             {
@@ -327,6 +334,23 @@ namespace HalconWinFormsDemo
             tool.NumericLowerLimit = data.LowerLimit;
             tool.NumericUpperLimit = data.UpperLimit;
             tool.NumericTolerance = data.Tolerance < 0 ? 0.001 : data.Tolerance;
+        }
+
+        private static void ApplyLegacyToolParameters(VmToolInstance tool, VisionRecipe recipe)
+        {
+            if (tool == null || recipe == null)
+            {
+                return;
+            }
+
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            parameters.BlobMinGray = recipe.BlobMinGray;
+            parameters.BlobMaxGray = recipe.BlobMaxGray;
+            parameters.BlobMinArea = recipe.BlobMinArea;
+            parameters.GrayMin = recipe.GrayMin;
+            parameters.GrayMax = recipe.GrayMax;
+            parameters.EdgeThreshold = recipe.EdgeThreshold;
+            tool.Parameters = parameters;
         }
 
         private void AutoBindNumericJudge(VmToolInstance judgeTool)
@@ -395,30 +419,11 @@ namespace HalconWinFormsDemo
                 return "所选上游端口不存在或不是数值类型。";
             }
 
-            if (!NumericJudgeOperatorOption.IsSupported(tool.NumericOperator))
-            {
-                return "比较方式无效。";
-            }
-
-            if (double.IsNaN(tool.NumericLowerLimit) || double.IsInfinity(tool.NumericLowerLimit) ||
-                double.IsNaN(tool.NumericUpperLimit) || double.IsInfinity(tool.NumericUpperLimit))
-            {
-                return "阈值必须是有限数值。";
-            }
-
-            if ((tool.NumericOperator == NumericJudgeOperatorOption.BetweenInclusive ||
-                 tool.NumericOperator == NumericJudgeOperatorOption.OutsideInclusive) &&
-                tool.NumericLowerLimit > tool.NumericUpperLimit)
-            {
-                return "区间下限不能大于上限。";
-            }
-
-            if (double.IsNaN(tool.NumericTolerance) || double.IsInfinity(tool.NumericTolerance) || tool.NumericTolerance < 0)
-            {
-                return "相等容差必须大于或等于 0。";
-            }
-
-            return string.Empty;
+            return VmNumericJudgeParameterValidator.Validate(
+                tool.NumericOperator,
+                tool.NumericLowerLimit,
+                tool.NumericUpperLimit,
+                tool.NumericTolerance);
         }
 
         private void RefreshNumericJudgeConnectionStatus(VmToolInstance tool)
@@ -515,6 +520,13 @@ namespace HalconWinFormsDemo
                 SelectedResultStatusText.Text = selected.ResultCode + " · " + selected.RunStatus + " · " + selected.ElapsedText;
                 SelectedResultOutputText.Text = string.IsNullOrWhiteSpace(selected.OutputSummary) ? "--" : selected.OutputSummary;
                 SelectedResultErrorText.Text = string.IsNullOrWhiteSpace(selected.ErrorMessage) ? "--" : selected.ErrorMessage;
+                VmToolParameterData selectedParameters = selected.Parameters ?? new VmToolParameterData();
+                BlobMinGrayTextBox.Text = selectedParameters.BlobMinGray.ToString("0.###", CultureInfo.InvariantCulture);
+                BlobMaxGrayTextBox.Text = selectedParameters.BlobMaxGray.ToString("0.###", CultureInfo.InvariantCulture);
+                BlobMinAreaTextBox.Text = selectedParameters.BlobMinArea.ToString("0.###", CultureInfo.InvariantCulture);
+                GrayMinTextBox.Text = selectedParameters.GrayMin.ToString("0.###", CultureInfo.InvariantCulture);
+                GrayMaxTextBox.Text = selectedParameters.GrayMax.ToString("0.###", CultureInfo.InvariantCulture);
+                EdgeThresholdTextBox.Text = selectedParameters.EdgeThreshold.ToString("0.###", CultureInfo.InvariantCulture);
 
                 switch (selected.Kind)
                 {
@@ -554,6 +566,16 @@ namespace HalconWinFormsDemo
             {
                 tool.ConfigurationStatus = "已停用";
                 tool.ConnectionStatus = "已停用";
+                return;
+            }
+
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            string parameterError = parameters.Validate(tool.Kind);
+            if (!string.IsNullOrWhiteSpace(parameterError))
+            {
+                tool.ConfigurationStatus = "参数异常";
+                tool.ConnectionStatus = parameterError;
+                tool.ConnectionSummary = "系统.Image + " + GetRoiBindingSummary(tool);
                 return;
             }
 
@@ -827,6 +849,56 @@ namespace HalconWinFormsDemo
                    double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
         }
 
+        private void ToolParameter_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (inspectorUpdating)
+            {
+                return;
+            }
+
+            VmToolInstance tool = FlowToolList.SelectedItem as VmToolInstance;
+            if (tool == null)
+            {
+                return;
+            }
+
+            VmToolParameterData parameters = tool.Parameters == null ? new VmToolParameterData() : tool.Parameters.Clone();
+            double value;
+            if (tool.Kind == VmToolKind.Blob)
+            {
+                if (!TryParseUiDouble(BlobMinGrayTextBox.Text, out value)) { HeaderStatusText.Text = "Blob 灰度下限必须是数值。"; return; }
+                parameters.BlobMinGray = value;
+                if (!TryParseUiDouble(BlobMaxGrayTextBox.Text, out value)) { HeaderStatusText.Text = "Blob 灰度上限必须是数值。"; return; }
+                parameters.BlobMaxGray = value;
+                if (!TryParseUiDouble(BlobMinAreaTextBox.Text, out value)) { HeaderStatusText.Text = "Blob 最小面积必须是数值。"; return; }
+                parameters.BlobMinArea = value;
+            }
+            else if (tool.Kind == VmToolKind.GrayStat)
+            {
+                if (!TryParseUiDouble(GrayMinTextBox.Text, out value)) { HeaderStatusText.Text = "灰度下限必须是数值。"; return; }
+                parameters.GrayMin = value;
+                if (!TryParseUiDouble(GrayMaxTextBox.Text, out value)) { HeaderStatusText.Text = "灰度上限必须是数值。"; return; }
+                parameters.GrayMax = value;
+            }
+            else if (tool.Kind == VmToolKind.EdgeMeasure)
+            {
+                if (!TryParseUiDouble(EdgeThresholdTextBox.Text, out value)) { HeaderStatusText.Text = "边缘阈值必须是数值。"; return; }
+                parameters.EdgeThreshold = value;
+            }
+
+            string error = parameters.Validate(tool.Kind);
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                HeaderStatusText.Text = error;
+                tool.ConfigurationStatus = "参数异常";
+                return;
+            }
+
+            tool.Parameters = parameters;
+            HeaderStatusText.Text = tool.InstanceName + " 参数已应用。";
+            RefreshUiState();
+        }
+
         private void NumericJudgeRunButton_Click(object sender, RoutedEventArgs e)
         {
             VmToolInstance tool = FlowToolList.SelectedItem as VmToolInstance;
@@ -838,13 +910,13 @@ namespace HalconWinFormsDemo
 
         private void OpenIoPanelButton_Click(object sender, RoutedEventArgs e)
         {
-            RightTabs.SelectedIndex = 1;
+            RightTabs.SelectedItem = IoTab;
             RefreshInspector();
         }
 
         private void IoOpenParametersButton_Click(object sender, RoutedEventArgs e)
         {
-            RightTabs.SelectedIndex = 0;
+            RightTabs.SelectedItem = ParametersTab;
             RefreshInspector();
         }
 
@@ -1163,15 +1235,6 @@ namespace HalconWinFormsDemo
                 return;
             }
 
-            VmToolInstance existing = flowTools.FirstOrDefault(item => item.Kind == catalogItem.Kind);
-            if (existing != null)
-            {
-                FlowToolList.SelectedItem = existing;
-                FlowToolList.ScrollIntoView(existing);
-                HeaderStatusText.Text = "当前版本每类工具保留一个实例，已定位到现有工具。";
-                return;
-            }
-
             VmToolInstance instance = CreateFlowTool(catalogItem.Kind, null, true, null);
             flowTools.Add(instance);
             VmRoiLayer selectedLayer = RoiLayerList == null ? null : RoiLayerList.SelectedItem as VmRoiLayer;
@@ -1193,6 +1256,40 @@ namespace HalconWinFormsDemo
         private void FlowToolList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             RefreshInspector();
+        }
+
+        private void FlowToolList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            OpenSelectedToolConfiguration();
+        }
+
+        private void ConfigureToolButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenSelectedToolConfiguration();
+        }
+
+        private void OpenSelectedToolConfiguration()
+        {
+            VmToolInstance selected = FlowToolList.SelectedItem as VmToolInstance;
+            if (selected == null)
+            {
+                HeaderStatusText.Text = "请先选择流程工具。";
+                return;
+            }
+
+            ToolConfigurationWindow window = new ToolConfigurationWindow(
+                selected,
+                delegate(VmToolInstance tool) { RunStandaloneTool(tool, "模块配置试运行"); },
+                delegate(string name) { return GetToolInstanceNameError(selected, name); })
+            {
+                Owner = this
+            };
+            window.ShowDialog();
+            if (window.WasApplied)
+            {
+                LogInfo("模块配置已应用：" + selected.InstanceName);
+                RefreshUiState();
+            }
         }
 
         private void MoveToolUpButton_Click(object sender, RoutedEventArgs e)
@@ -1276,15 +1373,10 @@ namespace HalconWinFormsDemo
             }
 
             string name = ToolInstanceNameTextBox.Text == null ? string.Empty : ToolInstanceNameTextBox.Text.Trim();
-            if (string.IsNullOrWhiteSpace(name))
+            string nameError = GetToolInstanceNameError(selected, name);
+            if (!string.IsNullOrWhiteSpace(nameError))
             {
-                ToolInstanceNameTextBox.Text = selected.InstanceName;
-                return;
-            }
-
-            if (flowTools.Any(item => item != selected && string.Equals(item.InstanceName, name, StringComparison.OrdinalIgnoreCase)))
-            {
-                HeaderStatusText.Text = "工具实例名称不能重复。";
+                HeaderStatusText.Text = nameError;
                 ToolInstanceNameTextBox.Text = selected.InstanceName;
                 return;
             }
@@ -1293,6 +1385,18 @@ namespace HalconWinFormsDemo
             LogInfo("工具实例已重命名：" + name);
             RefreshRoiLayerBindingSummaries();
             RefreshUiState();
+        }
+
+        private string GetToolInstanceNameError(VmToolInstance current, string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return "实例名称不能为空。";
+            }
+
+            return flowTools.Any(item => item != current && string.Equals(item.InstanceName, name, StringComparison.OrdinalIgnoreCase))
+                ? "工具实例名称不能重复。"
+                : string.Empty;
         }
 
         private void SelectedToolEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -1371,7 +1475,7 @@ namespace HalconWinFormsDemo
             }
 
             FlowToolList.SelectedItem = shapeTool;
-            RightTabs.SelectedIndex = 0;
+            RightTabs.SelectedItem = ParametersTab;
         }
 
         private void RectangleRoiButton_Click(object sender, RoutedEventArgs e)
@@ -2677,9 +2781,15 @@ namespace HalconWinFormsDemo
 
         private InspectionRecord RunBlobTool(VmToolInstance tool)
         {
-            double minGray = ReadDouble(BlobMinGrayTextBox, "Blob灰度下限");
-            double maxGray = ReadDouble(BlobMaxGrayTextBox, "Blob灰度上限");
-            double minArea = ReadDouble(BlobMinAreaTextBox, "Blob最小面积");
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            string parameterError = parameters.Validate(VmToolKind.Blob);
+            if (!string.IsNullOrWhiteSpace(parameterError))
+            {
+                throw new InvalidOperationException(parameterError);
+            }
+            double minGray = parameters.BlobMinGray;
+            double maxGray = parameters.BlobMaxGray;
+            double minArea = parameters.BlobMinArea;
 
             HObject thresholdRegion = null;
             HObject clippedRegion = null;
@@ -2738,8 +2848,14 @@ namespace HalconWinFormsDemo
 
         private InspectionRecord RunGrayStatTool(VmToolInstance tool)
         {
-            double min = ReadDouble(GrayMinTextBox, "灰度下限");
-            double max = ReadDouble(GrayMaxTextBox, "灰度上限");
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            string parameterError = parameters.Validate(VmToolKind.GrayStat);
+            if (!string.IsNullOrWhiteSpace(parameterError))
+            {
+                throw new InvalidOperationException(parameterError);
+            }
+            double min = parameters.GrayMin;
+            double max = parameters.GrayMax;
             HImage gray = null;
             HRegion region = null;
             try
@@ -2771,7 +2887,13 @@ namespace HalconWinFormsDemo
 
         private InspectionRecord RunEdgeMeasureTool(VmToolInstance tool)
         {
-            double threshold = ReadDouble(EdgeThresholdTextBox, "边缘阈值");
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            string parameterError = parameters.Validate(VmToolKind.EdgeMeasure);
+            if (!string.IsNullOrWhiteSpace(parameterError))
+            {
+                throw new InvalidOperationException(parameterError);
+            }
+            double threshold = parameters.EdgeThreshold;
             HImage gray = null;
             HObject reduced = null;
             HObject edges = null;
@@ -3239,6 +3361,9 @@ namespace HalconWinFormsDemo
 
         private VisionRecipe CaptureRecipe()
         {
+            VmToolParameterData blobParameters = GetParametersForLegacyField(VmToolKind.Blob);
+            VmToolParameterData grayParameters = GetParametersForLegacyField(VmToolKind.GrayStat);
+            VmToolParameterData edgeParameters = GetParametersForLegacyField(VmToolKind.EdgeMeasure);
             return new VisionRecipe
             {
                 Name = string.IsNullOrWhiteSpace(RecipeNameEditTextBox.Text) ? "DefaultRecipe" : RecipeNameEditTextBox.Text.Trim(),
@@ -3251,12 +3376,12 @@ namespace HalconWinFormsDemo
                 EnableGrayStat = HasEnabledTool(VmToolKind.GrayStat),
                 EnableEdgeMeasure = HasEnabledTool(VmToolKind.EdgeMeasure),
                 EnableHDevelop = HasEnabledTool(VmToolKind.HDevelop),
-                BlobMinGray = ReadDoubleOrDefault(BlobMinGrayTextBox, 80),
-                BlobMaxGray = ReadDoubleOrDefault(BlobMaxGrayTextBox, 255),
-                BlobMinArea = ReadDoubleOrDefault(BlobMinAreaTextBox, 50),
-                GrayMin = ReadDoubleOrDefault(GrayMinTextBox, 0),
-                GrayMax = ReadDoubleOrDefault(GrayMaxTextBox, 255),
-                EdgeThreshold = ReadDoubleOrDefault(EdgeThresholdTextBox, 30),
+                BlobMinGray = blobParameters.BlobMinGray,
+                BlobMaxGray = blobParameters.BlobMaxGray,
+                BlobMinArea = blobParameters.BlobMinArea,
+                GrayMin = grayParameters.GrayMin,
+                GrayMax = grayParameters.GrayMax,
+                EdgeThreshold = edgeParameters.EdgeThreshold,
                 HDevelopPath = HDevPathTextBox.Text,
                 ProcedureName = HDevProcedureTextBox.Text,
                 TcpMode = TcpServerModeRadio.IsChecked == true ? "Server" : "Client",
@@ -3268,6 +3393,12 @@ namespace HalconWinFormsDemo
                 RoiLayers = CaptureRoiLayers(),
                 FlowRunPolicy = ReadFlowRunPolicyFromUi()
             };
+        }
+
+        private VmToolParameterData GetParametersForLegacyField(VmToolKind kind)
+        {
+            VmToolInstance tool = flowTools.FirstOrDefault(item => item.Kind == kind && item.Parameters != null);
+            return tool == null ? new VmToolParameterData() : tool.Parameters;
         }
 
         private void LoadRoiLayersFromRecipe(VisionRecipe recipe)

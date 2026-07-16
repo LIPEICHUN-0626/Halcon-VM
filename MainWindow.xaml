@@ -233,9 +233,11 @@
                             </DockPanel>
                         </Grid>
                     </Border>
-                    <ListBox x:Name="FlowToolList" Grid.Row="2" Margin="4" Padding="18,10" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FlowToolList_SelectionChanged">
+                    <ListBox x:Name="FlowToolList" Grid.Row="2" Margin="4" Padding="18,10" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FlowToolList_SelectionChanged" MouseDoubleClick="FlowToolList_MouseDoubleClick">
                         <ListBox.ContextMenu>
                             <ContextMenu>
+                                <MenuItem Header="配置模块" FontWeight="SemiBold" Click="ConfigureToolButton_Click" />
+                                <Separator />
                                 <MenuItem Header="运行当前" Click="RunCurrentToolButton_Click" />
                                 <MenuItem Header="运行到此" Click="RunToHereButton_Click" />
                                 <MenuItem Header="从此运行" Click="RunFromHereButton_Click" />
@@ -285,7 +287,8 @@
                     </ListBox>
                     <Grid Grid.Row="3" Margin="5">
                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                        <UniformGrid Columns="4">
+                        <UniformGrid Columns="5">
+                            <Button Content="配置" MinWidth="48" Click="ConfigureToolButton_Click" />
                             <Button Content="上移" MinWidth="48" Click="MoveToolUpButton_Click" />
                             <Button Content="下移" MinWidth="48" Click="MoveToolDownButton_Click" />
                             <Button Content="删除" MinWidth="48" Click="DeleteToolButton_Click" />
@@ -425,7 +428,7 @@
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
-                <TabItem Header="参数" ToolTip="参数 Inspector">
+                <TabItem x:Name="ParametersTab" Header="参数" ToolTip="参数 Inspector">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="9">
                             <Border Background="#263449" CornerRadius="3" Padding="10" Margin="0,0,0,10">
@@ -434,6 +437,7 @@
                                     <TextBlock x:Name="InspectorToolTypeText" Text="从左侧工具箱添加，或在流程中选择实例" Foreground="#CBD5E1" Margin="0,3,0,0" />
                                 </StackPanel>
                             </Border>
+                            <Button Content="打开统一模块配置" FontWeight="SemiBold" Foreground="#0F766E" Margin="0,0,0,8" Click="ConfigureToolButton_Click" />
 
                             <GroupBox Header="实例">
                                 <Grid>
@@ -473,9 +477,9 @@
                                     <Grid>
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="82" /><ColumnDefinition Width="*" /><ColumnDefinition Width="82" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                        <TextBlock Text="灰度下限" VerticalAlignment="Center" /><TextBox x:Name="BlobMinGrayTextBox" Grid.Column="1" Text="80" />
-                                        <TextBlock Grid.Column="2" Text="灰度上限" VerticalAlignment="Center" /><TextBox x:Name="BlobMaxGrayTextBox" Grid.Column="3" Text="255" />
-                                        <TextBlock Grid.Row="1" Text="最小面积" VerticalAlignment="Center" /><TextBox x:Name="BlobMinAreaTextBox" Grid.Row="1" Grid.Column="1" Text="50" />
+                                        <TextBlock Text="灰度下限" VerticalAlignment="Center" /><TextBox x:Name="BlobMinGrayTextBox" Grid.Column="1" Text="80" LostFocus="ToolParameter_LostFocus" />
+                                        <TextBlock Grid.Column="2" Text="灰度上限" VerticalAlignment="Center" /><TextBox x:Name="BlobMaxGrayTextBox" Grid.Column="3" Text="255" LostFocus="ToolParameter_LostFocus" />
+                                        <TextBlock Grid.Row="1" Text="最小面积" VerticalAlignment="Center" /><TextBox x:Name="BlobMinAreaTextBox" Grid.Row="1" Grid.Column="1" Text="50" LostFocus="ToolParameter_LostFocus" />
                                     </Grid>
                                 </GroupBox>
                             </StackPanel>
@@ -484,8 +488,8 @@
                                 <GroupBox Header="灰度统计参数">
                                     <Grid>
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="82" /><ColumnDefinition Width="*" /><ColumnDefinition Width="82" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                        <TextBlock Text="灰度下限" VerticalAlignment="Center" /><TextBox x:Name="GrayMinTextBox" Grid.Column="1" Text="0" />
-                                        <TextBlock Grid.Column="2" Text="灰度上限" VerticalAlignment="Center" /><TextBox x:Name="GrayMaxTextBox" Grid.Column="3" Text="255" />
+                                        <TextBlock Text="灰度下限" VerticalAlignment="Center" /><TextBox x:Name="GrayMinTextBox" Grid.Column="1" Text="0" LostFocus="ToolParameter_LostFocus" />
+                                        <TextBlock Grid.Column="2" Text="灰度上限" VerticalAlignment="Center" /><TextBox x:Name="GrayMaxTextBox" Grid.Column="3" Text="255" LostFocus="ToolParameter_LostFocus" />
                                     </Grid>
                                 </GroupBox>
                             </StackPanel>
@@ -494,7 +498,7 @@
                                 <GroupBox Header="边缘测量参数">
                                     <Grid>
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="82" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                        <TextBlock Text="边缘阈值" VerticalAlignment="Center" /><TextBox x:Name="EdgeThresholdTextBox" Grid.Column="1" Text="30" />
+                                        <TextBlock Text="边缘阈值" VerticalAlignment="Center" /><TextBox x:Name="EdgeThresholdTextBox" Grid.Column="1" Text="30" LostFocus="ToolParameter_LostFocus" />
                                     </Grid>
                                 </GroupBox>
                             </StackPanel>
@@ -549,7 +553,7 @@
                     </ScrollViewer>
                 </TabItem>
 
-                <TabItem Header="I/O" ToolTip="输入/输出">
+                <TabItem x:Name="IoTab" Header="I/O" ToolTip="输入/输出">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="9">
                             <Border Background="#263449" CornerRadius="3" Padding="10" Margin="0,0,0,8">
@@ -641,7 +645,7 @@
                     </ScrollViewer>
                 </TabItem>
 
-                <TabItem Header="图像/ROI">
+                <TabItem x:Name="RoiTab" Header="图像/ROI">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="9">
                             <GroupBox Header="绘制与视图">

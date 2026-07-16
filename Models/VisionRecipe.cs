@@ -130,6 +130,9 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 6, EmitDefaultValue = false)]
         public List<string> RoiIds { get; set; }
+
+        [DataMember(Order = 7, EmitDefaultValue = false)]
+        public VmToolParameterData Parameters { get; set; }
     }
 
     [DataContract]

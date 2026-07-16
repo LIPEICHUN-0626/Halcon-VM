@@ -1,0 +1,37 @@
+<Window x:Class="HalconWinFormsDemo.ToolConfigurationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="模块配置" Width="820" Height="610" MinWidth="720" MinHeight="520"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResizeWithGrip">
+    <Grid Background="#EEF2F7">
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <Border Background="#263449" Padding="16,12">
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <StackPanel><TextBlock x:Name="ModuleTitleText" Foreground="White" FontSize="19" FontWeight="SemiBold" /><TextBlock x:Name="ModuleTypeText" Foreground="#BFDBFE" Margin="0,3,0,0" /></StackPanel>
+                <Border Grid.Column="1" Background="#0F766E" CornerRadius="12" Padding="12,5" VerticalAlignment="Center"><TextBlock x:Name="ModuleStateText" Foreground="White" FontWeight="Bold" /></Border>
+            </Grid>
+        </Border>
+        <TabControl Grid.Row="1" Margin="12">
+            <TabItem Header="基本参数">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="16">
+                    <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="110" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="实例名称" VerticalAlignment="Center" /><TextBox x:Name="InstanceNameTextBox" Grid.Column="1" MinHeight="28" /></Grid>
+                    <StackPanel x:Name="BlobPanel"><GroupBox Header="Blob 参数"><Grid Margin="8"><Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions><TextBlock Text="灰度下限" VerticalAlignment="Center" /><TextBox x:Name="BlobMinTextBox" Grid.Column="1" /><TextBlock Grid.Column="2" Text="灰度上限" VerticalAlignment="Center" /><TextBox x:Name="BlobMaxTextBox" Grid.Column="3" /><TextBlock Grid.Row="1" Text="最小面积" VerticalAlignment="Center" /><TextBox x:Name="BlobAreaTextBox" Grid.Row="1" Grid.Column="1" /></Grid></GroupBox></StackPanel>
+                    <StackPanel x:Name="GrayPanel"><GroupBox Header="灰度统计参数"><Grid Margin="8"><Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="判定下限" VerticalAlignment="Center" /><TextBox x:Name="GrayMinTextBox" Grid.Column="1" /><TextBlock Grid.Column="2" Text="判定上限" VerticalAlignment="Center" /><TextBox x:Name="GrayMaxTextBox" Grid.Column="3" /></Grid></GroupBox></StackPanel>
+                    <StackPanel x:Name="EdgePanel"><GroupBox Header="边缘测量参数"><Grid Margin="8"><Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="边缘阈值" VerticalAlignment="Center" /><TextBox x:Name="EdgeThresholdTextBox" Grid.Column="1" /></Grid></GroupBox></StackPanel>
+                    <StackPanel x:Name="NumericPanel"><GroupBox Header="数值判定参数"><Grid Margin="8"><Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions><TextBlock Text="比较方式" VerticalAlignment="Center" /><ComboBox x:Name="NumericOperatorComboBox" Grid.Column="1" Grid.ColumnSpan="3" DisplayMemberPath="DisplayText" SelectedValuePath="Key" /><TextBlock Grid.Row="1" Text="下限/目标" VerticalAlignment="Center" /><TextBox x:Name="NumericLowerTextBox" Grid.Row="1" Grid.Column="1" /><TextBlock Grid.Row="1" Grid.Column="2" Text="上限" VerticalAlignment="Center" /><TextBox x:Name="NumericUpperTextBox" Grid.Row="1" Grid.Column="3" /><TextBlock Grid.Row="2" Text="相等容差" VerticalAlignment="Center" /><TextBox x:Name="NumericToleranceTextBox" Grid.Row="2" Grid.Column="1" /></Grid></GroupBox></StackPanel>
+                    <Border x:Name="CompatibilityPanel" Background="#FFF7ED" BorderBrush="#FDBA74" BorderThickness="1" CornerRadius="4" Padding="12"><TextBlock Text="此模块本轮使用兼容配置入口；完整参数仍从主窗口现有配置页进入。" TextWrapping="Wrap" /></Border>
+                    <TextBlock x:Name="ValidationText" Foreground="#B91C1C" TextWrapping="Wrap" Margin="4,10,4,0" />
+                </StackPanel></ScrollViewer>
+            </TabItem>
+            <TabItem Header="运行参数"><StackPanel Margin="18"><CheckBox x:Name="EnabledCheckBox" Content="启用此模块" /><TextBlock Text="本模块遵循流程级单次、连续、暂停/停止、超时和遇 NG 停止策略。" Margin="0,14,0,0" TextWrapping="Wrap" Foreground="#475569" /></StackPanel></TabItem>
+            <TabItem Header="输入"><StackPanel Margin="18"><TextBlock Text="输入连接" FontWeight="SemiBold" /><TextBlock x:Name="InputText" Margin="0,8,0,0" TextWrapping="Wrap" /><TextBlock Text="完整端口订阅仍可从主窗口 I/O 页进入。" Margin="0,14,0,0" Foreground="#64748B" /></StackPanel></TabItem>
+            <TabItem Header="ROI / 模板"><StackPanel Margin="18"><TextBlock Text="当前绑定" FontWeight="SemiBold" /><TextBlock x:Name="RoiText" Margin="0,8,0,0" TextWrapping="Wrap" /><TextBlock Text="ROI 图层的绘制、显隐、启停和绑定继续在右上图像区及“图像/ROI”页完成。" Margin="0,14,0,0" Foreground="#64748B" TextWrapping="Wrap" /></StackPanel></TabItem>
+            <TabItem Header="结果显示"><StackPanel Margin="18"><TextBlock Text="最近一次结果" FontWeight="SemiBold" /><TextBlock x:Name="ResultText" Margin="0,8,0,0" TextWrapping="Wrap" /><TextBlock x:Name="ErrorText" Margin="0,8,0,0" Foreground="#B91C1C" TextWrapping="Wrap" /></StackPanel></TabItem>
+            <TabItem Header="帮助"><StackPanel Margin="18"><TextBlock x:Name="HelpText" TextWrapping="Wrap" /><TextBlock Text="参数应用到当前实例，不会修改同类型的其他模块。取消不会写入尚未应用的草稿。" Margin="0,14,0,0" Foreground="#0F766E" TextWrapping="Wrap" /></StackPanel></TabItem>
+        </TabControl>
+        <Border Grid.Row="2" Background="White" BorderBrush="#CBD5E1" BorderThickness="0,1,0,0" Padding="10">
+            <DockPanel><Button x:Name="TrialRunButton" DockPanel.Dock="Left" Content="▶ 试运行" MinWidth="100" Click="TrialRunButton_Click" /><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="应用" MinWidth="82" Click="ApplyButton_Click" /><Button Content="确定" MinWidth="82" IsDefault="True" Click="OkButton_Click" /><Button Content="取消" MinWidth="82" IsCancel="True" /></StackPanel><TextBlock x:Name="FooterText" VerticalAlignment="Center" Foreground="#64748B" Margin="12,0" /></DockPanel>
+        </Border>
+    </Grid>
+</Window>

@@ -71,11 +71,14 @@ namespace HalconWinFormsDemo.Models
             NumericTolerance = 0.001;
             ConnectionStatus = "未检查";
             ConnectionSummary = "--";
+            Parameters = new VmToolParameterData();
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
         public string ToolId { get; set; }
+
+        public VmToolParameterData Parameters { get; set; }
 
         public int Sequence
         {
