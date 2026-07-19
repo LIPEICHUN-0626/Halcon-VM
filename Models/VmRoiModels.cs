@@ -8,7 +8,11 @@ namespace HalconWinFormsDemo.Models
         private string name;
         private bool isEnabled;
         private bool isVisible;
+        private bool isLocked;
+        private RoiData geometry;
         private string bindingSummary;
+        private string contextResultCode;
+        private string contextResultText;
         private int sequence;
 
         public VmRoiLayer()
@@ -18,6 +22,8 @@ namespace HalconWinFormsDemo.Models
             IsEnabled = true;
             IsVisible = true;
             BindingSummary = "未绑定工具";
+            ContextResultCode = "--";
+            ContextResultText = "当前工具未运行";
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -92,11 +98,46 @@ namespace HalconWinFormsDemo.Models
             }
         }
 
-        public RoiData Geometry { get; set; }
+        public bool IsLocked
+        {
+            get { return isLocked; }
+            set
+            {
+                if (isLocked == value)
+                {
+                    return;
+                }
+
+                isLocked = value;
+                OnPropertyChanged("IsLocked");
+                OnPropertyChanged("LockText");
+                OnPropertyChanged("StateText");
+            }
+        }
+
+        public string LockText
+        {
+            get { return IsLocked ? "已锁定" : "可编辑"; }
+        }
+
+        public RoiData Geometry
+        {
+            get { return geometry; }
+            set
+            {
+                if (ReferenceEquals(geometry, value))
+                {
+                    return;
+                }
+
+                geometry = value;
+                NotifyGeometryChanged();
+            }
+        }
 
         public string ShapeText
         {
-            get { return Geometry == null ? "--" : Geometry.ShapeType.ToString(); }
+            get { return Geometry == null ? "--" : Geometry.ShapeDisplayText; }
         }
 
         public string GeometryText
@@ -106,7 +147,7 @@ namespace HalconWinFormsDemo.Models
 
         public string StateText
         {
-            get { return IsEnabled ? "参与运行" : "已停用"; }
+            get { return (IsEnabled ? "参与运行" : "已停用") + " · " + LockText; }
         }
 
         public string BindingSummary
@@ -119,13 +160,68 @@ namespace HalconWinFormsDemo.Models
             }
         }
 
+        public string ContextResultCode
+        {
+            get { return contextResultCode; }
+            set
+            {
+                string resolved = string.IsNullOrWhiteSpace(value) ? "--" : value;
+                if (contextResultCode == resolved)
+                {
+                    return;
+                }
+
+                contextResultCode = resolved;
+                OnPropertyChanged("ContextResultCode");
+            }
+        }
+
+        public string ContextResultText
+        {
+            get { return contextResultText; }
+            set
+            {
+                string resolved = string.IsNullOrWhiteSpace(value) ? "当前工具未运行" : value;
+                if (contextResultText == resolved)
+                {
+                    return;
+                }
+
+                contextResultText = resolved;
+                OnPropertyChanged("ContextResultText");
+            }
+        }
+
         public void Dispose()
         {
-            if (Geometry != null)
+            if (geometry != null)
             {
-                Geometry.Dispose();
-                Geometry = null;
+                geometry.Dispose();
+                geometry = null;
             }
+        }
+
+        public void ReplaceGeometry(RoiData replacement)
+        {
+            if (replacement == null)
+            {
+                throw new ArgumentNullException("replacement");
+            }
+
+            RoiData previous = geometry;
+            geometry = replacement;
+            if (previous != null)
+            {
+                previous.Dispose();
+            }
+            NotifyGeometryChanged();
+        }
+
+        private void NotifyGeometryChanged()
+        {
+            OnPropertyChanged("Geometry");
+            OnPropertyChanged("ShapeText");
+            OnPropertyChanged("GeometryText");
         }
 
         private void OnPropertyChanged(string propertyName)
@@ -163,7 +259,26 @@ namespace HalconWinFormsDemo.Models
 
         public string StateText
         {
-            get { return Layer == null ? "--" : Layer.StateText; }
+            get { return Layer == null ? "--" : Layer.StateText + " · " + (Layer.IsVisible ? "可见" : "隐藏"); }
+        }
+
+        public string SequenceText
+        {
+            get { return Layer == null ? "--" : Layer.SequenceText; }
+        }
+
+        public string RoiIdText
+        {
+            get
+            {
+                string value = RoiId;
+                return value.Length <= 8 ? value : value.Substring(0, 8);
+            }
+        }
+
+        public string GeometryText
+        {
+            get { return Layer == null ? "--" : Layer.GeometryText; }
         }
 
         public bool IsBound
@@ -183,6 +298,42 @@ namespace HalconWinFormsDemo.Models
                     handler(this, new PropertyChangedEventArgs("IsBound"));
                 }
             }
+        }
+    }
+
+    public sealed class VmRoiRunResult
+    {
+        public string RoiId { get; set; }
+
+        public string RoiName { get; set; }
+
+        public string ShapeText { get; set; }
+
+        public string ResultCode { get; set; }
+
+        public string ValueName { get; set; }
+
+        public double Value { get; set; }
+
+        public string Message { get; set; }
+
+        public string ErrorMessage { get; set; }
+
+        public double ElapsedMilliseconds { get; set; }
+
+        public string ValueText
+        {
+            get { return ValueName + "=" + Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture); }
+        }
+
+        public string ElapsedText
+        {
+            get { return ElapsedMilliseconds.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " ms"; }
+        }
+
+        public string DisplayMessage
+        {
+            get { return string.IsNullOrWhiteSpace(ErrorMessage) ? Message : ErrorMessage; }
         }
     }
 }

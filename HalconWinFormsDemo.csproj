@@ -85,6 +85,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="Models\InspectionRecord.cs" />
     <Compile Include="Models\RoiData.cs" />
+    <Compile Include="Models\RecipeWorkspaceModels.cs" />
     <Compile Include="Models\RuntimeStatistics.cs" />
     <Compile Include="Models\ShapeMatchResult.cs" />
     <Compile Include="Models\TemplateDefinition.cs" />

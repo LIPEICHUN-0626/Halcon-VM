@@ -10,8 +10,18 @@ namespace HalconWinFormsDemo.Services
         private readonly string logDirectory;
 
         public AppLogger()
+            : this(AppDomain.CurrentDomain.BaseDirectory)
         {
-            logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+        }
+
+        public AppLogger(string baseDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(baseDirectory))
+            {
+                throw new ArgumentException("日志基础目录不能为空。", "baseDirectory");
+            }
+
+            logDirectory = Path.Combine(Path.GetFullPath(baseDirectory), "logs");
             Directory.CreateDirectory(logDirectory);
         }
 

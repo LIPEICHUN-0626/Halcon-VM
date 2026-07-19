@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
@@ -13,11 +14,23 @@ namespace HalconWinFormsDemo.Models
         GrayStat,
         EdgeMeasure,
         HDevelop,
-        NumericJudge
+        NumericJudge,
+        ImageSource,
+        ImageChannel,
+        ImageFilter,
+        ImageThreshold,
+        RegionMorphology,
+        RegionFeatureFilter,
+        RegionSetOperation
     }
 
-    public sealed class VmToolCatalogItem
+    public sealed class VmToolCatalogItem : INotifyPropertyChanged
     {
+        private bool isFavorite;
+        private int recentRank = int.MaxValue;
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
         public VmToolKind Kind { get; set; }
 
         public string Name { get; set; }
@@ -26,13 +39,70 @@ namespace HalconWinFormsDemo.Models
 
         public string Description { get; set; }
 
+        public bool IsFavorite
+        {
+            get { return isFavorite; }
+            set
+            {
+                if (isFavorite == value)
+                {
+                    return;
+                }
+
+                isFavorite = value;
+                OnPropertyChanged("IsFavorite");
+                OnPropertyChanged("FavoriteGlyph");
+                OnPropertyChanged("FavoriteHint");
+            }
+        }
+
+        public string FavoriteGlyph
+        {
+            get { return IsFavorite ? "★" : "☆"; }
+        }
+
+        public string FavoriteHint
+        {
+            get { return IsFavorite ? "取消收藏" : "收藏工具"; }
+        }
+
+        public int RecentRank
+        {
+            get { return recentRank; }
+            set
+            {
+                if (recentRank == value)
+                {
+                    return;
+                }
+
+                recentRank = value;
+                OnPropertyChanged("RecentRank");
+                OnPropertyChanged("RecentText");
+            }
+        }
+
+        public string RecentText
+        {
+            get { return RecentRank == int.MaxValue ? string.Empty : "最近 " + (RecentRank + 1).ToString(CultureInfo.InvariantCulture); }
+        }
+
         public string SearchText
         {
             get { return (Category + " " + Name + " " + Description).ToLowerInvariant(); }
         }
+
+        private void OnPropertyChanged(string propertyName)
+        {
+            PropertyChangedEventHandler handler = PropertyChanged;
+            if (handler != null)
+            {
+                handler(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }
     }
 
-    public sealed class VmToolInstance : INotifyPropertyChanged
+    public sealed class VmToolInstance : INotifyPropertyChanged, IDisposable
     {
         private string instanceName;
         private bool isEnabled;
@@ -52,8 +122,14 @@ namespace HalconWinFormsDemo.Models
         private double numericTolerance;
         private string connectionStatus;
         private string connectionSummary;
+        private string dependencyState;
+        private string dependencySummary;
         private readonly List<string> boundRoiIds = new List<string>();
+        private readonly List<VmToolInputBindingData> inputBindings = new List<VmToolInputBindingData>();
         private readonly Dictionary<string, object> runtimeOutputs = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        private readonly ObservableCollection<VmRoiRunResult> roiResults = new ObservableCollection<VmRoiRunResult>();
+        private readonly ObservableCollection<VmFlowPortChip> flowInputPorts = new ObservableCollection<VmFlowPortChip>();
+        private readonly ObservableCollection<VmFlowPortChip> flowOutputPorts = new ObservableCollection<VmFlowPortChip>();
 
         public VmToolInstance()
         {
@@ -71,6 +147,8 @@ namespace HalconWinFormsDemo.Models
             NumericTolerance = 0.001;
             ConnectionStatus = "未检查";
             ConnectionSummary = "--";
+            DependencyState = "Neutral";
+            DependencySummary = "选择模块后显示直接依赖";
             Parameters = new VmToolParameterData();
         }
 
@@ -299,9 +377,121 @@ namespace HalconWinFormsDemo.Models
             }
         }
 
+        public string DependencyState
+        {
+            get { return dependencyState; }
+            set
+            {
+                if (dependencyState == value)
+                {
+                    return;
+                }
+
+                dependencyState = value;
+                OnPropertyChanged("DependencyState");
+            }
+        }
+
+        public string DependencySummary
+        {
+            get { return dependencySummary; }
+            set
+            {
+                if (dependencySummary == value)
+                {
+                    return;
+                }
+
+                dependencySummary = value;
+                OnPropertyChanged("DependencySummary");
+            }
+        }
+
+        public ObservableCollection<VmFlowPortChip> FlowInputPorts
+        {
+            get { return flowInputPorts; }
+        }
+
+        public ObservableCollection<VmFlowPortChip> FlowOutputPorts
+        {
+            get { return flowOutputPorts; }
+        }
+
         public IList<string> BoundRoiIds
         {
             get { return boundRoiIds; }
+        }
+
+        public ObservableCollection<VmRoiRunResult> RoiResults
+        {
+            get { return roiResults; }
+        }
+
+        public IList<VmToolInputBindingData> InputBindings
+        {
+            get { return inputBindings; }
+        }
+
+        public VmToolInputBindingData GetInputBinding(string targetPortName)
+        {
+            return inputBindings.FirstOrDefault(item => string.Equals(item.TargetPortName, targetPortName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public void SetInputBinding(string targetPortName, string sourceToolId, string sourcePortName)
+        {
+            RemoveInputBinding(targetPortName);
+            if (string.IsNullOrWhiteSpace(targetPortName) || string.IsNullOrWhiteSpace(sourceToolId) || string.IsNullOrWhiteSpace(sourcePortName))
+            {
+                return;
+            }
+
+            inputBindings.Add(new VmToolInputBindingData
+            {
+                TargetPortName = targetPortName.Trim(),
+                SourceToolId = sourceToolId.Trim(),
+                SourcePortName = sourcePortName.Trim()
+            });
+            OnPropertyChanged("InputBindings");
+        }
+
+        public void RemoveInputBinding(string targetPortName)
+        {
+            VmToolInputBindingData existing = GetInputBinding(targetPortName);
+            if (existing == null)
+            {
+                return;
+            }
+
+            inputBindings.Remove(existing);
+            OnPropertyChanged("InputBindings");
+        }
+
+        public void ReplaceInputBindings(IEnumerable<VmToolInputBindingData> bindings)
+        {
+            List<VmToolInputBindingData> replacements = bindings == null
+                ? new List<VmToolInputBindingData>()
+                : bindings.Where(item => item != null && !string.IsNullOrWhiteSpace(item.TargetPortName)).Select(item => item.Clone()).ToList();
+            inputBindings.Clear();
+            foreach (VmToolInputBindingData binding in replacements)
+            {
+                SetInputBinding(binding.TargetPortName, binding.SourceToolId, binding.SourcePortName);
+            }
+
+            OnPropertyChanged("InputBindings");
+        }
+
+        public void ReplaceRoiResults(IEnumerable<VmRoiRunResult> results)
+        {
+            roiResults.Clear();
+            if (results != null)
+            {
+                foreach (VmRoiRunResult result in results)
+                {
+                    roiResults.Add(result);
+                }
+            }
+
+            OnPropertyChanged("RoiResults");
         }
 
         public bool IsRoiBound(string roiId)
@@ -348,7 +538,12 @@ namespace HalconWinFormsDemo.Models
 
         public void ClearRuntimeOutputs()
         {
+            foreach (IDisposable disposable in runtimeOutputs.Values.OfType<IDisposable>().Distinct().ToList())
+            {
+                disposable.Dispose();
+            }
             runtimeOutputs.Clear();
+            roiResults.Clear();
         }
 
         public void SetOutputValue(string portName, object value)
@@ -356,6 +551,16 @@ namespace HalconWinFormsDemo.Models
             if (string.IsNullOrWhiteSpace(portName))
             {
                 return;
+            }
+
+            object existing;
+            if (runtimeOutputs.TryGetValue(portName, out existing) && !ReferenceEquals(existing, value))
+            {
+                IDisposable disposable = existing as IDisposable;
+                if (disposable != null)
+                {
+                    disposable.Dispose();
+                }
             }
 
             runtimeOutputs[portName] = value;
@@ -410,7 +615,30 @@ namespace HalconWinFormsDemo.Models
                 return (bool)value ? "True" : "False";
             }
 
+            VmRegionSnapshot regionSnapshot = value as VmRegionSnapshot;
+            if (regionSnapshot != null)
+            {
+                return regionSnapshot.DisplayText;
+            }
+
+            VmImageSnapshot imageSnapshot = value as VmImageSnapshot;
+            if (imageSnapshot != null)
+            {
+                return imageSnapshot.DisplayText;
+            }
+
+            IEnumerable<VmRoiRunResult> roiResultItems = value as IEnumerable<VmRoiRunResult>;
+            if (roiResultItems != null)
+            {
+                return "逐 ROI 结果 ×" + roiResultItems.Count().ToString(CultureInfo.InvariantCulture);
+            }
+
             return Convert.ToString(value, CultureInfo.InvariantCulture);
+        }
+
+        public void Dispose()
+        {
+            ClearRuntimeOutputs();
         }
 
         private void OnPropertyChanged(string propertyName)
@@ -429,6 +657,20 @@ namespace HalconWinFormsDemo.Models
         {
             switch (kind)
             {
+                case VmToolKind.ImageSource:
+                    return "本地图像源";
+                case VmToolKind.ImageChannel:
+                    return "图像通道";
+                case VmToolKind.ImageFilter:
+                    return "图像滤波";
+                case VmToolKind.ImageThreshold:
+                    return "阈值分割";
+                case VmToolKind.RegionMorphology:
+                    return "Region 形态学";
+                case VmToolKind.RegionFeatureFilter:
+                    return "Region 特征筛选";
+                case VmToolKind.RegionSetOperation:
+                    return "Region 集合运算";
                 case VmToolKind.ShapeMatch:
                     return "Shape Model 模板匹配";
                 case VmToolKind.Blob:
@@ -450,10 +692,18 @@ namespace HalconWinFormsDemo.Models
         {
             switch (kind)
             {
+                case VmToolKind.ImageSource:
+                    return "采集/输入";
                 case VmToolKind.ShapeMatch:
                     return "定位";
                 case VmToolKind.Blob:
                 case VmToolKind.GrayStat:
+                case VmToolKind.ImageChannel:
+                case VmToolKind.ImageFilter:
+                case VmToolKind.ImageThreshold:
+                case VmToolKind.RegionMorphology:
+                case VmToolKind.RegionFeatureFilter:
+                case VmToolKind.RegionSetOperation:
                     return "图像处理";
                 case VmToolKind.EdgeMeasure:
                     return "测量";
@@ -470,6 +720,20 @@ namespace HalconWinFormsDemo.Models
         {
             switch (kind)
             {
+                case VmToolKind.ImageSource:
+                    return "读取本地图像并输出带来源、SN 和尺寸的安全 Image 快照。";
+                case VmToolKind.ImageChannel:
+                    return "使用 HALCON 保持原图、转换灰度或提取指定图像通道，并继续输出安全 Image 快照。";
+                case VmToolKind.ImageFilter:
+                    return "使用 HALCON 均值或中值滤波抑制随机噪声，并继续输出安全 Image 快照。";
+                case VmToolKind.ImageThreshold:
+                    return "将输入图像按明确的灰度上下限执行 HALCON 阈值分割，输出可订阅的安全 Region 快照。";
+                case VmToolKind.RegionMorphology:
+                    return "订阅上游 Region，使用 HALCON 圆形开闭、膨胀或腐蚀处理区域并输出可继续订阅的安全 Region 快照。";
+                case VmToolKind.RegionFeatureFilter:
+                    return "订阅上游 Region，使用 HALCON 按面积、宽度、高度或圆度筛选连通区域并输出安全 Region 快照。";
+                case VmToolKind.RegionSetOperation:
+                    return "订阅两路不同的上游 Region，使用 HALCON 执行并集、交集、差集或对称差，并输出可继续订阅的安全 Region 快照。";
                 case VmToolKind.ShapeMatch:
                     return "HALCON Shape Model 定位目标并输出中心、角度和分数。";
                 case VmToolKind.Blob:
@@ -491,6 +755,21 @@ namespace HalconWinFormsDemo.Models
         {
             switch (kind)
             {
+                case VmToolKind.ImageSource:
+                    return new VmPortDefinition[0];
+                case VmToolKind.ImageChannel:
+                case VmToolKind.ImageFilter:
+                case VmToolKind.ImageThreshold:
+                    return new[] { Port("Image", "输入图像", "Image", false) };
+                case VmToolKind.RegionMorphology:
+                case VmToolKind.RegionFeatureFilter:
+                    return new[] { Port("Region", "输入区域", "Region", false) };
+                case VmToolKind.RegionSetOperation:
+                    return new[]
+                    {
+                        Port("RegionA", "区域 A", "Region", false),
+                        Port("RegionB", "区域 B", "Region", false)
+                    };
                 case VmToolKind.ShapeMatch:
                     return new[]
                     {
@@ -524,6 +803,75 @@ namespace HalconWinFormsDemo.Models
         {
             switch (kind)
             {
+                case VmToolKind.ImageSource:
+                    return new[]
+                    {
+                        Port("Image", "本地图像", "Image", false),
+                        Port("SN", "图像序列号", "String", false),
+                        Port("Path", "图像路径", "String", false),
+                        Port("Width", "图像宽度", "Number", false),
+                        Port("Height", "图像高度", "Number", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.ImageChannel:
+                    return new[]
+                    {
+                        Port("Image", "输出图像", "Image", false),
+                        Port("InputChannels", "输入通道数", "Number", false),
+                        Port("OutputChannels", "输出通道数", "Number", false),
+                        Port("Width", "图像宽度", "Number", false),
+                        Port("Height", "图像高度", "Number", false),
+                        Port("Mode", "处理模式", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.ImageFilter:
+                    return new[]
+                    {
+                        Port("Image", "滤波图像", "Image", false),
+                        Port("Width", "图像宽度", "Number", false),
+                        Port("Height", "图像高度", "Number", false),
+                        Port("Channels", "图像通道数", "Number", false),
+                        Port("Mode", "滤波模式", "String", false),
+                        Port("Kernel", "滤波模板", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.ImageThreshold:
+                    return new[]
+                    {
+                        Port("Region", "分割区域", "Region", false),
+                        Port("Area", "区域总面积", "Number", false),
+                        Port("RegionCount", "连通区域数", "Number", false),
+                        Port("Threshold", "阈值摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.RegionMorphology:
+                    return new[]
+                    {
+                        Port("Region", "形态学区域", "Region", false),
+                        Port("Area", "区域总面积", "Number", false),
+                        Port("RegionCount", "连通区域数", "Number", false),
+                        Port("Operation", "操作摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.RegionFeatureFilter:
+                    return new[]
+                    {
+                        Port("Region", "筛选区域", "Region", false),
+                        Port("Area", "区域总面积", "Number", false),
+                        Port("RegionCount", "区域数量", "Number", false),
+                        Port("Feature", "筛选特征", "String", false),
+                        Port("Range", "筛选范围", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.RegionSetOperation:
+                    return new[]
+                    {
+                        Port("Region", "集合运算区域", "Region", false),
+                        Port("Area", "区域总面积", "Number", false),
+                        Port("RegionCount", "区域数量", "Number", false),
+                        Port("Operation", "集合操作", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
                 case VmToolKind.ShapeMatch:
                     return new[]
                     {
@@ -538,18 +886,22 @@ namespace HalconWinFormsDemo.Models
                     return new[]
                     {
                         Port("Area", "区域总面积", "Number", false),
+                        Port("SelectedRegion", "Blob 选中区域", "Region", true),
+                        Port("RoiResults", "逐 ROI 结果", "RoiResult[]", true),
                         Port("ResultCode", "结果码", "String", false)
                     };
                 case VmToolKind.GrayStat:
                     return new[]
                     {
                         Port("Mean", "灰度均值", "Number", false),
+                        Port("RoiResults", "逐 ROI 结果", "RoiResult[]", true),
                         Port("ResultCode", "结果码", "String", false)
                     };
                 case VmToolKind.EdgeMeasure:
                     return new[]
                     {
                         Port("Length", "边缘总长度", "Number", false),
+                        Port("RoiResults", "逐 ROI 结果", "RoiResult[]", true),
                         Port("ResultCode", "结果码", "String", false)
                     };
                 case VmToolKind.HDevelop:

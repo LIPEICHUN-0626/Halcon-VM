@@ -75,9 +75,10 @@
                 </Grid.RowDefinitions>
                 <Menu Grid.Row="0" Background="#F8FAFC" BorderBrush="#D7DEE8" BorderThickness="0,0,0,1" Padding="4,1">
                     <MenuItem Header="文件">
-                        <MenuItem Header="新建配方" Click="NewRecipeButton_Click" />
-                        <MenuItem Header="打开配方" Click="LoadRecipeButton_Click" />
-                        <MenuItem Header="保存配方" Click="SaveRecipeButton_Click" />
+                        <MenuItem Header="新建方案" Click="NewRecipeButton_Click" />
+                        <MenuItem Header="打开方案" Click="LoadRecipeButton_Click" />
+                        <MenuItem Header="保存方案" Click="SaveRecipeButton_Click" />
+                        <MenuItem Header="方案另存为" Click="SaveRecipeAsButton_Click" />
                         <Separator />
                         <MenuItem Header="打开图片" Click="OpenImageButton_Click" />
                         <MenuItem Header="批量图片" Click="OpenFolderButton_Click" />
@@ -116,15 +117,21 @@
                             <StackPanel><TextBlock Text="节拍" Foreground="#64748B" /><TextBlock x:Name="MetricCycleText" Text="--" FontSize="17" FontWeight="Bold" Foreground="#111827" /></StackPanel>
                         </Border>
                     </UniformGrid>
-                    <StackPanel>
-                        <TextBlock Text="HALCON VM 工业视觉平台" FontSize="18" FontWeight="SemiBold" Foreground="#0F172A" />
-                        <TextBlock x:Name="RecipeNameText" Text="配方：未加载" Foreground="#64748B" Margin="0,2,0,0" />
+                    <StackPanel Orientation="Horizontal">
+                        <StackPanel>
+                            <TextBlock Text="HALCON VM 工业视觉平台" FontSize="18" FontWeight="SemiBold" Foreground="#0F172A" />
+                            <TextBlock x:Name="RecipeNameText" Text="方案：未加载" Foreground="#64748B" Margin="0,2,0,0" />
+                        </StackPanel>
+                        <Border x:Name="RecipeStateBadge" Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="10" Padding="9,3" Margin="12,4,0,4" VerticalAlignment="Center">
+                            <TextBlock x:Name="RecipeStateBadgeText" Text="新方案" Foreground="#92400E" FontWeight="SemiBold" />
+                        </Border>
                     </StackPanel>
                 </DockPanel>
                 <WrapPanel Grid.Row="2" Margin="8,0,8,6" VerticalAlignment="Center">
                     <Button x:Name="NewRecipeButton" Content="新建" Click="NewRecipeButton_Click" />
-                    <Button x:Name="LoadRecipeButton" Content="打开配方" Click="LoadRecipeButton_Click" />
+                    <Button x:Name="LoadRecipeButton" Content="打开方案" Click="LoadRecipeButton_Click" />
                     <Button x:Name="SaveRecipeButton" Content="保存" Click="SaveRecipeButton_Click" />
+                    <Button x:Name="SaveRecipeAsButton" Content="另存为" Click="SaveRecipeAsButton_Click" />
                     <Separator Width="7" Opacity="0" />
                     <Button x:Name="OpenImageButton" Content="打开图片" Click="OpenImageButton_Click" />
                     <Button x:Name="OpenFolderButton" Content="批量图片" Click="OpenFolderButton_Click" />
@@ -135,11 +142,13 @@
                     <Button x:Name="RunContinuousButton" Content="连续运行" Click="RunContinuousButton_Click" />
                     <Button x:Name="PauseRunButton" Content="Ⅱ 暂停" Click="PauseRunButton_Click" />
                     <Button x:Name="StopRunButton" Content="■ 停止" Click="StopRunButton_Click" />
-                    <TextBlock Text="间隔(ms)" Margin="8,0,2,0" VerticalAlignment="Center" Foreground="#475569" />
-                    <TextBox x:Name="ContinuousIntervalTextBox" Width="62" Text="500" ToolTip="连续运行相邻周期的间隔，50-60000 ms" />
-                    <TextBlock Text="超时(ms)" Margin="6,0,2,0" VerticalAlignment="Center" Foreground="#475569" />
-                    <TextBox x:Name="FlowTimeoutTextBox" Width="68" Text="0" ToolTip="单次流程总超时；0 表示关闭" />
-                    <CheckBox x:Name="StopOnNgCheckBox" Content="遇 NG 停止" Margin="7,0" VerticalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="间隔(ms)" Margin="8,0,2,0" VerticalAlignment="Center" Foreground="#475569" />
+                        <TextBox x:Name="ContinuousIntervalTextBox" Width="62" Text="500" ToolTip="连续运行相邻周期的间隔，50-60000 ms" />
+                        <TextBlock Text="超时(ms)" Margin="6,0,2,0" VerticalAlignment="Center" Foreground="#475569" />
+                        <TextBox x:Name="FlowTimeoutTextBox" Width="68" Text="0" ToolTip="单次流程总超时；0 表示关闭" />
+                        <CheckBox x:Name="StopOnNgCheckBox" Content="遇 NG 停止" Margin="7,0" VerticalAlignment="Center" />
+                    </StackPanel>
                     <Button x:Name="PlayButton" Content="图片播放" Click="PlayButton_Click" />
                     <Button x:Name="StopPlayButton" Content="停止播放" Click="StopPlayButton_Click" />
                     <Button x:Name="ClearOverlayButton" Content="清除叠加" Click="ClearOverlayButton_Click" />
@@ -149,11 +158,11 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" Margin="8">
+        <Grid x:Name="MainWorkspaceGrid" Grid.Row="1" Margin="8">
             <Grid.RowDefinitions>
-                <RowDefinition Height="3*" MinHeight="250" />
+                <RowDefinition x:Name="ImageWorkspaceRow" Height="3*" MinHeight="280" />
                 <RowDefinition Height="5" />
-                <RowDefinition Height="2*" MinHeight="210" />
+                <RowDefinition x:Name="RightConfigurationRow" Height="2*" MinHeight="210" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="210" MinWidth="180" />
@@ -169,25 +178,67 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <TextBlock Text="工具箱" Style="{StaticResource PanelHeader}" />
                     <TextBox x:Name="ToolSearchTextBox" Grid.Row="1" Margin="8,0,8,8" TextChanged="ToolSearchTextBox_TextChanged" ToolTip="搜索工具名称、分类或说明" />
-                    <ListBox x:Name="ToolCatalogList" Grid.Row="2" Margin="6,0" Background="#111827" BorderThickness="0" Foreground="#E2E8F0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="ToolCatalogList_MouseDoubleClick">
+                    <UniformGrid Grid.Row="2" Columns="3" Margin="6,0,6,6">
+                        <Button x:Name="ToolCatalogAllButton" Content="全部" MinWidth="0" MinHeight="25" Padding="3,1" Click="ToolCatalogModeButton_Click" Tag="All" />
+                        <Button x:Name="ToolCatalogFavoriteButton" Content="★ 收藏" MinWidth="0" MinHeight="25" Padding="3,1" Click="ToolCatalogModeButton_Click" Tag="Favorite" />
+                        <Button x:Name="ToolCatalogRecentButton" Content="最近" MinWidth="0" MinHeight="25" Padding="3,1" Click="ToolCatalogModeButton_Click" Tag="Recent" />
+                    </UniformGrid>
+                    <Grid Grid.Row="3" Margin="6,0">
+                        <ListBox x:Name="ToolCatalogList" Background="#111827" BorderThickness="0" Foreground="#E2E8F0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="ToolCatalogList_MouseDoubleClick" PreviewMouseLeftButtonDown="ToolCatalogList_PreviewMouseLeftButtonDown" PreviewMouseMove="ToolCatalogList_PreviewMouseMove">
+                            <ListBox.GroupStyle>
+                                <GroupStyle>
+                                    <GroupStyle.ContainerStyle>
+                                        <Style TargetType="{x:Type GroupItem}">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="{x:Type GroupItem}">
+                                                        <Expander IsExpanded="True" Background="#111827" Foreground="#E2E8F0">
+                                                            <Expander.Header>
+                                                                <DockPanel Margin="3,5,3,3">
+                                                                    <TextBlock DockPanel.Dock="Right" Text="{Binding ItemCount, StringFormat={}({0})}" Foreground="#64748B" FontSize="10" />
+                                                                    <TextBlock Text="{Binding Name}" Foreground="#38BDF8" FontWeight="SemiBold" />
+                                                                </DockPanel>
+                                                            </Expander.Header>
+                                                            <ItemsPresenter />
+                                                        </Expander>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </GroupStyle.ContainerStyle>
+                                </GroupStyle>
+                            </ListBox.GroupStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border Padding="8,7" Margin="1" BorderBrush="#334155" BorderThickness="0,0,0,1">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                                        <TextBlock Text="{Binding Category}" Foreground="#38BDF8" FontSize="11" Margin="0,2,0,0" />
-                                        <TextBlock Text="{Binding Description}" Foreground="#94A3B8" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0" />
-                                    </StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                <TextBlock Text="{Binding Category}" Foreground="#38BDF8" FontSize="11" />
+                                                <TextBlock Text="{Binding RecentText}" Foreground="#A7F3D0" FontSize="10" Margin="8,0,0,0" />
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Description}" Foreground="#94A3B8" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                            <TextBlock Text="拖入流程可指定线性插入位置" Foreground="#64748B" FontSize="10" Margin="0,3,0,0" />
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="{Binding FavoriteGlyph}" ToolTip="{Binding FavoriteHint}" Tag="{Binding}" MinWidth="28" Width="28" MinHeight="26" Height="26" Padding="0" Margin="4,0,0,0" VerticalAlignment="Top" Foreground="#FBBF24" Background="Transparent" BorderBrush="#475569" Click="ToolCatalogFavoriteButton_Click" />
+                                    </Grid>
                                 </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
-                    </ListBox>
-                    <Button x:Name="AddToolButton" Grid.Row="3" Content="＋ 添加到流程" Margin="8" FontWeight="SemiBold" Click="AddToolButton_Click" />
+                        </ListBox>
+                        <TextBlock x:Name="ToolCatalogEmptyText" Text="当前筛选没有工具。可切换“全部”或清空搜索。" Visibility="Collapsed" Foreground="#94A3B8" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center" Margin="18" IsHitTestVisible="False" />
+                    </Grid>
+                    <TextBlock x:Name="ToolCatalogStatusText" Grid.Row="4" Text="按分类显示 · 双击或拖入流程" Foreground="#94A3B8" FontSize="10" TextWrapping="Wrap" Margin="9,5,9,0" />
+                    <Button x:Name="AddToolButton" Grid.Row="5" Content="＋ 追加到流程末尾" Margin="8" FontWeight="SemiBold" Click="AddToolButton_Click" />
                 </Grid>
             </Border>
 
@@ -233,7 +284,7 @@
                             </DockPanel>
                         </Grid>
                     </Border>
-                    <ListBox x:Name="FlowToolList" Grid.Row="2" Margin="4" Padding="18,10" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FlowToolList_SelectionChanged" MouseDoubleClick="FlowToolList_MouseDoubleClick">
+                    <ListBox x:Name="FlowToolList" Grid.Row="2" Margin="4" Padding="18,10" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="FlowToolList_SelectionChanged" MouseDoubleClick="FlowToolList_MouseDoubleClick" AllowDrop="True" PreviewDragOver="FlowToolList_PreviewDragOver" DragLeave="FlowToolList_DragLeave" Drop="FlowToolList_Drop">
                         <ListBox.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="配置模块" FontWeight="SemiBold" Click="ConfigureToolButton_Click" />
@@ -254,7 +305,7 @@
                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="22" /></Grid.RowDefinitions>
                                     <Border x:Name="ToolCard" Margin="2" Padding="9" CornerRadius="4" Background="#FFFFFF" BorderBrush="#AAB6C5" BorderThickness="1">
                                         <Grid>
-                                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                             <Border Width="28" Height="28" CornerRadius="14" Background="#E0F2FE" Margin="0,0,7,0">
                                                 <TextBlock Text="{Binding SequenceText}" Foreground="#0369A1" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -269,6 +320,43 @@
                                                 <TextBlock Text="{Binding ElapsedText}" FontSize="10" Foreground="#64748B" />
                                             </StackPanel>
                                             <TextBlock Grid.Row="3" Grid.Column="2" Grid.ColumnSpan="2" Text="{Binding ConnectionSummary}" FontSize="10" Foreground="#7C3AED" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" ToolTip="{Binding ConnectionStatus}" />
+                                            <TextBlock Grid.Row="4" Grid.ColumnSpan="4" Text="{Binding DependencySummary}" FontSize="10" Foreground="#475569" Margin="0,5,0,2" TextTrimming="CharacterEllipsis" />
+                                            <ItemsControl Grid.Row="5" Grid.ColumnSpan="4" ItemsSource="{Binding FlowInputPorts}" Margin="0,1,0,0">
+                                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border x:Name="InputPortChip" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,5,4" ToolTip="{Binding StatusText}">
+                                                            <StackPanel>
+                                                                <TextBlock FontSize="10" FontWeight="SemiBold"><Run Text="IN  " Foreground="#7C3AED" /><Run Text="{Binding PortText, Mode=OneWay}" /></TextBlock>
+                                                                <TextBlock Text="{Binding EndpointText}" FontSize="9" Foreground="#475569" MaxWidth="250" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <DataTemplate.Triggers>
+                                                            <DataTrigger Binding="{Binding StateKey}" Value="Ready"><Setter TargetName="InputPortChip" Property="Background" Value="#ECFDF5" /><Setter TargetName="InputPortChip" Property="BorderBrush" Value="#10B981" /></DataTrigger>
+                                                            <DataTrigger Binding="{Binding StateKey}" Value="Waiting"><Setter TargetName="InputPortChip" Property="Background" Value="#FFFBEB" /><Setter TargetName="InputPortChip" Property="BorderBrush" Value="#F59E0B" /></DataTrigger>
+                                                            <DataTrigger Binding="{Binding StateKey}" Value="Missing"><Setter TargetName="InputPortChip" Property="Background" Value="#FEF2F2" /><Setter TargetName="InputPortChip" Property="BorderBrush" Value="#EF4444" /></DataTrigger>
+                                                            <DataTrigger Binding="{Binding StateKey}" Value="Error"><Setter TargetName="InputPortChip" Property="Background" Value="#FEF2F2" /><Setter TargetName="InputPortChip" Property="BorderBrush" Value="#DC2626" /></DataTrigger>
+                                                        </DataTemplate.Triggers>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <ItemsControl Grid.Row="6" Grid.ColumnSpan="4" ItemsSource="{Binding FlowOutputPorts}">
+                                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border x:Name="OutputPortChip" Background="#F0FDFA" BorderBrush="#5EEAD4" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,5,2" ToolTip="{Binding StatusText}">
+                                                            <StackPanel>
+                                                                <TextBlock FontSize="10" FontWeight="SemiBold"><Run Text="OUT  " Foreground="#0F766E" /><Run Text="{Binding PortText, Mode=OneWay}" /></TextBlock>
+                                                                <TextBlock Text="{Binding EndpointText}" FontSize="9" Foreground="#475569" MaxWidth="250" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <DataTemplate.Triggers>
+                                                            <DataTrigger Binding="{Binding StateKey}" Value="Waiting"><Setter TargetName="OutputPortChip" Property="Background" Value="#F8FAFC" /><Setter TargetName="OutputPortChip" Property="BorderBrush" Value="#CBD5E1" /></DataTrigger>
+                                                            <DataTrigger Binding="{Binding StateKey}" Value="NG"><Setter TargetName="OutputPortChip" Property="Background" Value="#FEF2F2" /><Setter TargetName="OutputPortChip" Property="BorderBrush" Value="#EF4444" /></DataTrigger>
+                                                        </DataTemplate.Triggers>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
                                         </Grid>
                                     </Border>
                                     <Grid Grid.Row="1" HorizontalAlignment="Center" Width="28">
@@ -280,11 +368,16 @@
                                     <DataTrigger Binding="{Binding ResultCode}" Value="OK"><Setter TargetName="ToolCard" Property="BorderBrush" Value="#22C55E" /></DataTrigger>
                                     <DataTrigger Binding="{Binding ResultCode}" Value="NG"><Setter TargetName="ToolCard" Property="BorderBrush" Value="#EF4444" /></DataTrigger>
                                     <DataTrigger Binding="{Binding RunStatus}" Value="运行中"><Setter TargetName="ToolCard" Property="BorderBrush" Value="#F59E0B" /><Setter TargetName="ToolCard" Property="BorderThickness" Value="2" /></DataTrigger>
+                                    <DataTrigger Binding="{Binding DependencyState}" Value="Upstream"><Setter TargetName="ToolCard" Property="Background" Value="#F5F3FF" /><Setter TargetName="ToolCard" Property="BorderBrush" Value="#8B5CF6" /><Setter TargetName="ToolCard" Property="BorderThickness" Value="2" /></DataTrigger>
+                                    <DataTrigger Binding="{Binding DependencyState}" Value="Downstream"><Setter TargetName="ToolCard" Property="Background" Value="#F0FDFA" /><Setter TargetName="ToolCard" Property="BorderBrush" Value="#14B8A6" /><Setter TargetName="ToolCard" Property="BorderThickness" Value="2" /></DataTrigger>
                                     <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True"><Setter TargetName="ToolCard" Property="Background" Value="#EFF6FF" /><Setter TargetName="ToolCard" Property="BorderBrush" Value="#2563EB" /><Setter TargetName="ToolCard" Property="BorderThickness" Value="2" /></DataTrigger>
                                 </DataTemplate.Triggers>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+                    <Border x:Name="FlowDropHintBorder" Grid.Row="2" Panel.ZIndex="10" Visibility="Collapsed" IsHitTestVisible="False" VerticalAlignment="Top" HorizontalAlignment="Center" Background="#E60F766E" BorderBrush="#5EEAD4" BorderThickness="1" CornerRadius="4" Padding="12,6" Margin="12">
+                        <TextBlock x:Name="FlowDropHintText" Text="插入位置：流程末尾" Foreground="White" FontWeight="SemiBold" />
+                    </Border>
                     <Grid Grid.Row="3" Margin="5">
                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                         <UniformGrid Columns="5">
@@ -306,7 +399,7 @@
             <GridSplitter Grid.Column="3" Grid.RowSpan="3" Width="5" Background="#CBD5E1" HorizontalAlignment="Stretch" />
 
             <!-- Right-top HALCON image workspace -->
-            <Border Grid.Column="4" Grid.Row="0" Background="#0B1220" BorderBrush="#334155" BorderThickness="1" CornerRadius="4">
+            <Border x:Name="ImageWorkspacePanel" Grid.Column="4" Grid.Row="0" Background="#0B1220" BorderBrush="#334155" BorderThickness="1" CornerRadius="4">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -314,20 +407,38 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Border Background="#182235" BorderBrush="#334155" BorderThickness="0,0,0,1" Padding="4">
-                        <WrapPanel VerticalAlignment="Center">
-                            <Button Content="选择" MinWidth="50" Click="SelectImageToolButton_Click" ToolTip="退出绘制，恢复选择模式" />
-                            <Button Content="平移" MinWidth="50" Click="PanImageToolButton_Click" ToolTip="按住右键拖动图像" />
-                            <Separator Width="5" Opacity="0" />
-                            <Button Content="矩形" MinWidth="50" Click="RectangleRoiButton_Click" />
-                            <Button Content="圆形" MinWidth="50" Click="CircleRoiButton_Click" />
-                            <Button Content="多边形" MinWidth="58" Click="PolygonRoiButton_Click" />
-                            <Button Content="✓ 确认" MinWidth="58" FontWeight="SemiBold" Foreground="#34D399" Click="ConfirmRoiButton_Click" />
-                            <Button Content="取消" MinWidth="50" Click="CancelRoiDrawingButton_Click" />
-                            <Separator Width="5" Opacity="0" />
-                            <Button Content="适应" MinWidth="50" Click="FitImageButton_Click" />
-                            <Button Content="1:1" MinWidth="50" Click="ImageOriginalSizeButton_Click" />
-                            <Button x:Name="ToggleRoiLayerPanelButton" Content="隐藏图层" MinWidth="68" Click="ToggleRoiLayerPanelButton_Click" />
-                        </WrapPanel>
+                        <StackPanel>
+                            <WrapPanel VerticalAlignment="Center">
+                                <Button x:Name="ImageWorkspaceExpandButton" Content="⛶ 放大图像" MinWidth="82" FontWeight="SemiBold" Foreground="#67E8F9" Click="ImageWorkspaceExpandButton_Click" ToolTip="临时把图像区扩展到主工作区；恢复后保留原流程与配置布局" />
+                                <Button Content="选择" MinWidth="50" Click="SelectImageToolButton_Click" ToolTip="退出绘制，恢复选择模式" />
+                                <Button Content="平移" MinWidth="50" Click="PanImageToolButton_Click" ToolTip="按住右键拖动图像" />
+                                <Separator Width="5" Opacity="0" />
+                                <Button Content="矩形" MinWidth="50" Click="RectangleRoiButton_Click" />
+                                <Button Content="圆形" MinWidth="50" Click="CircleRoiButton_Click" />
+                                 <Button Content="旋转矩形" MinWidth="68" Click="RotatedRectangleRoiButton_Click" ToolTip="从中心向主轴拖动创建；选中后可旋转并调整宽高" />
+                                 <Button Content="多边形" MinWidth="58" Click="PolygonRoiButton_Click" />
+                                 <Button Content="✓ 确认" MinWidth="58" FontWeight="SemiBold" Foreground="#34D399" Click="ConfirmRoiButton_Click" />
+                                 <Button Content="取消" MinWidth="50" Click="CancelRoiDrawingButton_Click" />
+                                 <Button Content="复制ROI" MinWidth="62" Click="CopySelectedRoiButton_Click" ToolTip="复制选中 ROI 并保留工具绑定" />
+                                 <Button Content="锁定" MinWidth="50" Click="ToggleSelectedRoiLockButton_Click" ToolTip="锁定或解锁选中 ROI" />
+                                <Separator Width="5" Opacity="0" />
+                                <Button Content="适应" MinWidth="50" Click="FitImageButton_Click" />
+                                <Button Content="1:1" MinWidth="50" Click="ImageOriginalSizeButton_Click" />
+                                <Button x:Name="ToggleRoiLayerPanelButton" Content="隐藏图层" MinWidth="68" Click="ToggleRoiLayerPanelButton_Click" />
+                                <CheckBox x:Name="ShowRoiOverlayCheckBox" Content="ROI叠加" IsChecked="True" Foreground="#67E8F9" VerticalAlignment="Center" Margin="8,0,2,0" Checked="ImageOverlayVisibility_Changed" Unchecked="ImageOverlayVisibility_Changed" ToolTip="只控制 ROI 图层显示，不删除图层或绑定" />
+                                <CheckBox x:Name="ShowResultOverlayCheckBox" Content="结果叠加" IsChecked="True" Foreground="#FDE68A" VerticalAlignment="Center" Margin="6,0,2,0" Checked="ImageOverlayVisibility_Changed" Unchecked="ImageOverlayVisibility_Changed" ToolTip="只控制算法结果显示，不释放输出快照" />
+                            </WrapPanel>
+                            <Border Background="#0F172A" BorderBrush="#334155" BorderThickness="1" CornerRadius="3" Margin="2,4,2,0" Padding="7,5">
+                                <Grid>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="150" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="图像上下文" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,7,0" />
+                                    <ComboBox x:Name="ImageContextComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="ImageContextComboBox_SelectionChanged" MinHeight="26" />
+                                    <TextBlock x:Name="ImageContextDetailText" Grid.Column="2" Text="--" Foreground="#67E8F9" VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
+                                    <TextBlock x:Name="ImageContextSourceText" Grid.Row="1" Grid.ColumnSpan="3" Text="来源：全局输入" Foreground="#E2E8F0" FontSize="10" VerticalAlignment="Center" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
                     </Border>
                     <Grid Grid.Row="1">
                         <Grid.ColumnDefinitions>
@@ -335,6 +446,12 @@
                             <ColumnDefinition x:Name="RoiLayerPanelColumn" Width="220" />
                         </Grid.ColumnDefinitions>
                         <wfi:WindowsFormsHost x:Name="HalconHost" Margin="1" />
+                        <Border x:Name="ImageEmptyStateBorder" Grid.Column="0" Visibility="Collapsed" Background="#0B1220" BorderBrush="#334155" BorderThickness="1" Margin="1" Padding="24">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="360">
+                                <TextBlock Text="暂无可显示图像" Foreground="#E2E8F0" FontSize="18" FontWeight="SemiBold" TextAlignment="Center" />
+                                <TextBlock x:Name="ImageEmptyStateText" Text="请选择全局输入，或先运行具有 Image 输出的上游模块。" Foreground="#94A3B8" TextWrapping="Wrap" TextAlignment="Center" Margin="0,8,0,0" />
+                            </StackPanel>
+                        </Border>
                         <Border x:Name="RoiLayerPanel" Grid.Column="1" Background="#111827" BorderBrush="#334155" BorderThickness="1,0,0,0" Padding="6">
                             <Grid>
                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
@@ -353,28 +470,34 @@
                                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                                         <TextBlock Text="{Binding ShapeText}" Foreground="#67E8F9" FontSize="10" />
                                                         <TextBlock Text="{Binding BindingSummary}" Foreground="#A78BFA" FontSize="10" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock x:Name="RoiContextResultText" Text="{Binding ContextResultText}" Foreground="#94A3B8" FontSize="10" TextTrimming="CharacterEllipsis" />
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="2">
-                                                        <CheckBox IsChecked="{Binding IsVisible}" ToolTip="显示/隐藏" Content="眼" Foreground="#CBD5E1" Checked="RoiLayerVisibilityCheckBox_Changed" Unchecked="RoiLayerVisibilityCheckBox_Changed" />
-                                                        <CheckBox IsChecked="{Binding IsEnabled}" ToolTip="参与/退出运行" Content="用" Foreground="#CBD5E1" Checked="RoiLayerEnabledCheckBox_Changed" Unchecked="RoiLayerEnabledCheckBox_Changed" />
+                                                         <CheckBox IsChecked="{Binding IsVisible}" ToolTip="显示/隐藏" Content="眼" Foreground="#CBD5E1" Checked="RoiLayerVisibilityCheckBox_Changed" Unchecked="RoiLayerVisibilityCheckBox_Changed" />
+                                                         <CheckBox IsChecked="{Binding IsEnabled}" ToolTip="参与/退出运行" Content="用" Foreground="#CBD5E1" Checked="RoiLayerEnabledCheckBox_Changed" Unchecked="RoiLayerEnabledCheckBox_Changed" />
+                                                         <CheckBox IsChecked="{Binding IsLocked, Mode=OneWay}" ToolTip="锁定几何与删除" Content="锁" Foreground="#FDE68A" Checked="RoiLayerLockCheckBox_Changed" Unchecked="RoiLayerLockCheckBox_Changed" />
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>
                                             <DataTemplate.Triggers>
                                                 <DataTrigger Binding="{Binding IsEnabled}" Value="False"><Setter TargetName="RoiLayerCard" Property="Opacity" Value="0.55" /></DataTrigger>
+                                                <DataTrigger Binding="{Binding ContextResultCode}" Value="OK"><Setter TargetName="RoiLayerCard" Property="BorderBrush" Value="#22C55E" /><Setter TargetName="RoiContextResultText" Property="Foreground" Value="#86EFAC" /></DataTrigger>
+                                                <DataTrigger Binding="{Binding ContextResultCode}" Value="NG"><Setter TargetName="RoiLayerCard" Property="BorderBrush" Value="#EF4444" /><Setter TargetName="RoiContextResultText" Property="Foreground" Value="#FCA5A5" /></DataTrigger>
                                             </DataTemplate.Triggers>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
-                                <TextBlock Grid.Row="2" Text="选中图层后在右侧“图像/ROI”绑定工具" Foreground="#94A3B8" FontSize="10" TextWrapping="Wrap" Margin="2,6,2,2" />
+                                <TextBlock Grid.Row="2" Text="选择模式：绿色控制点编辑几何，橙色圆点旋转；锁定可防止误改" Foreground="#94A3B8" FontSize="10" TextWrapping="Wrap" Margin="2,6,2,2" />
                             </Grid>
                         </Border>
                     </Grid>
                     <Border Grid.Row="2" Background="#182235" BorderBrush="#334155" BorderThickness="0,1,0,0" Padding="7,4">
                         <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                            <TextBlock x:Name="OverlayStatusText" Foreground="#CBD5E1" Text="图像区：拖拽图片或打开文件夹开始" TextTrimming="CharacterEllipsis" />
-                            <TextBlock x:Name="HeaderStatusText" Grid.Column="1" Foreground="#A7F3D0" Text="就绪" Margin="12,0,0,0" TextTrimming="CharacterEllipsis" />
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="2*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <TextBlock x:Name="OverlayStatusText" Foreground="#FDE68A" Text="结果：无可用叠加" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
+                            <TextBlock x:Name="RoiOverlayLegendText" Grid.Column="1" Foreground="#67E8F9" Text="ROI：0 个" Margin="12,0,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
+                            <TextBlock x:Name="ImagePixelStatusText" Grid.Column="2" Foreground="#FDE68A" Text="像素：--" Margin="12,0,0,0" />
+                            <TextBlock x:Name="HeaderStatusText" Grid.Column="3" Foreground="#A7F3D0" Text="就绪" Margin="12,0,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
                         </Grid>
                     </Border>
                 </Grid>
@@ -419,6 +542,17 @@
                                     <TextBlock Grid.Row="3" Text="错误" /><TextBlock x:Name="SelectedResultErrorText" Grid.Row="3" Grid.Column="1" Text="--" Foreground="#B91C1C" TextWrapping="Wrap" />
                                 </Grid>
                             </GroupBox>
+                            <GroupBox Header="逐 ROI 结果">
+                                <DataGrid x:Name="SelectedRoiResultsDataGrid" Height="145" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="ROI" Binding="{Binding RoiName}" Width="90" />
+                                        <DataGridTextColumn Header="判定" Binding="{Binding ResultCode}" Width="55" />
+                                        <DataGridTextColumn Header="数值" Binding="{Binding ValueText}" Width="110" />
+                                        <DataGridTextColumn Header="耗时" Binding="{Binding ElapsedText}" Width="65" />
+                                        <DataGridTextColumn Header="说明" Binding="{Binding DisplayMessage}" Width="*" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </GroupBox>
                             <UniformGrid Columns="4">
                                 <Button Content="当前" Click="RunCurrentToolButton_Click" />
                                 <Button Content="到此" Click="RunToHereButton_Click" />
@@ -428,7 +562,229 @@
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
-                <TabItem x:Name="ParametersTab" Header="参数" ToolTip="参数 Inspector">
+                <TabItem x:Name="DockConfigurationTab" Header="模块配置" ToolTip="常驻模块配置工作台">
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Border Background="#263449" Padding="10">
+                            <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock x:Name="DockModuleTitleText" Text="请选择流程模块" Foreground="White" FontSize="15" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="DockModuleTypeText" Text="右侧常驻配置，不打开主要参数弹窗" Foreground="#BFDBFE" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <Border Grid.Column="1" Background="#0F766E" CornerRadius="10" Padding="9,3" VerticalAlignment="Center">
+                                    <TextBlock x:Name="DockDraftStateText" Text="无草稿" Foreground="White" FontWeight="SemiBold" />
+                                </Border>
+                                <DockPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,6,0,0">
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Button x:Name="DockRevertButton" Content="撤销草稿" MinWidth="68" MinHeight="25" Click="DockRevertButton_Click" />
+                                        <Button x:Name="DockApplyButton" Content="应用" MinWidth="62" MinHeight="25" Foreground="#34D399" FontWeight="SemiBold" Click="DockApplyButton_Click" />
+                                    </StackPanel>
+                                    <Button x:Name="DockTrialRunButton" DockPanel.Dock="Left" Content="▶ 试运行" MinWidth="72" MinHeight="25" Click="DockTrialRunButton_Click" />
+                                    <TextBlock x:Name="DockFooterText" Text="选择模块开始配置" VerticalAlignment="Center" Foreground="#CBD5E1" Margin="8,0" TextTrimming="CharacterEllipsis" />
+                                </DockPanel>
+                            </Grid>
+                        </Border>
+                        <TabControl x:Name="DockConfigurationTabs" Grid.Row="1" Margin="6">
+                            <TabItem Header="基本参数">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="9">
+                                        <GroupBox Header="实例">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="78" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                <TextBlock Text="实例名称" VerticalAlignment="Center" />
+                                                <TextBox x:Name="DockInstanceNameTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                            </Grid>
+                                        </GroupBox>
+                                        <TextBlock x:Name="DockEmptyText" Text="从中央流程选择一个模块后即可配置。" Foreground="#64748B" TextWrapping="Wrap" Margin="4,6" />
+                                        <StackPanel x:Name="DockImageSourcePanel" Visibility="Collapsed">
+                                            <GroupBox Header="本地图像源">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="72" /><ColumnDefinition Width="*" /><ColumnDefinition Width="76" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="图像文件" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockLocalImagePathTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <Button Grid.Column="2" Content="选择" Click="DockBrowseLocalImageButton_Click" />
+                                                    <TextBlock Grid.Row="1" Text="图像 SN" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockLocalImageSerialTextBox" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" TextChanged="DockDraftValue_Changed" />
+                                                </Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                         <StackPanel x:Name="DockImageChannelPanel" Visibility="Collapsed">
+                                            <GroupBox Header="HALCON 图像通道">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="88" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="处理模式" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockImageChannelModeComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="通道序号" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockImageChannelIndexTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" ToolTip="仅提取指定通道时生效，从 1 开始" />
+                                                </Grid>
+                                            </GroupBox>
+                                         </StackPanel>
+                                         <StackPanel x:Name="DockImageFilterPanel" Visibility="Collapsed">
+                                             <GroupBox Header="HALCON 图像滤波">
+                                                 <Grid>
+                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="88" /><ColumnDefinition Width="*" /><ColumnDefinition Width="68" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                     <TextBlock Text="滤波模式" VerticalAlignment="Center" />
+                                                     <ComboBox x:Name="DockImageFilterModeComboBox" Grid.Column="1" Grid.ColumnSpan="3" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                     <TextBlock Grid.Row="1" Text="模板宽" VerticalAlignment="Center" />
+                                                     <TextBox x:Name="DockImageFilterWidthTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" ToolTip="均值滤波：3 到 255 的奇数" />
+                                                     <TextBlock Grid.Row="1" Grid.Column="2" Text="模板高" VerticalAlignment="Center" />
+                                                     <TextBox x:Name="DockImageFilterHeightTextBox" Grid.Row="1" Grid.Column="3" TextChanged="DockDraftValue_Changed" ToolTip="均值滤波：3 到 255 的奇数" />
+                                                     <TextBlock Grid.Row="2" Text="中值半径" VerticalAlignment="Center" />
+                                                     <TextBox x:Name="DockImageFilterRadiusTextBox" Grid.Row="2" Grid.Column="1" TextChanged="DockDraftValue_Changed" ToolTip="中值滤波：1 到 100" />
+                                                     <TextBlock Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2" Text="均值使用宽×高；中值使用圆形半径" Foreground="#64748B" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                                 </Grid>
+                                             </GroupBox>
+                                         </StackPanel>
+                                         <StackPanel x:Name="DockImageThresholdPanel" Visibility="Collapsed">
+                                             <GroupBox Header="HALCON 阈值分割">
+                                                 <Grid>
+                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="88" /><ColumnDefinition Width="*" /><ColumnDefinition Width="68" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                     <TextBlock Text="灰度下限" VerticalAlignment="Center" />
+                                                     <TextBox x:Name="DockImageThresholdMinTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" ToolTip="0 到 255，且不大于灰度上限" />
+                                                     <TextBlock Grid.Column="2" Text="灰度上限" VerticalAlignment="Center" />
+                                                     <TextBox x:Name="DockImageThresholdMaxTextBox" Grid.Column="3" TextChanged="DockDraftValue_Changed" ToolTip="0 到 255，且不小于灰度下限" />
+                                                     <TextBlock Grid.Row="1" Grid.ColumnSpan="4" Text="彩色输入固定使用 HALCON rgb1_to_gray 后再执行 threshold；输出 Region 可供灰度和边缘工具订阅。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                                 </Grid>
+                                             </GroupBox>
+                                         </StackPanel>
+                                         <StackPanel x:Name="DockRegionMorphologyPanel" Visibility="Collapsed">
+                                             <GroupBox Header="HALCON Region 形态学">
+                                                 <Grid>
+                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="88" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                     <TextBlock Text="操作模式" VerticalAlignment="Center" />
+                                                     <ComboBox x:Name="DockRegionMorphologyModeComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                     <TextBlock Grid.Row="1" Text="圆形半径" VerticalAlignment="Center" />
+                                                     <TextBox x:Name="DockRegionMorphologyRadiusTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" ToolTip="0.5 到 100 像素" />
+                                                     <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="订阅上游 Region；开/闭、膨胀和腐蚀均使用 HALCON 圆形结构元素，输出 Region 可继续供灰度和边缘工具订阅。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                                 </Grid>
+                                             </GroupBox>
+                                         </StackPanel>
+                                         <StackPanel x:Name="DockRegionFeaturePanel" Visibility="Collapsed">
+                                             <GroupBox Header="HALCON 区域特征筛选">
+                                                 <Grid>
+                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="88" /><ColumnDefinition Width="*" /><ColumnDefinition Width="58" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                     <TextBlock Text="筛选特征" VerticalAlignment="Center" />
+                                                     <ComboBox x:Name="DockRegionFeatureComboBox" Grid.Column="1" Grid.ColumnSpan="3" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                     <TextBlock Grid.Row="1" Text="下限" VerticalAlignment="Center" />
+                                                     <TextBox x:Name="DockRegionFeatureMinTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                     <TextBlock Grid.Row="1" Grid.Column="2" Text="上限" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                     <TextBox x:Name="DockRegionFeatureMaxTextBox" Grid.Row="1" Grid.Column="3" TextChanged="DockDraftValue_Changed" />
+                                                     <TextBlock Grid.Row="2" Grid.ColumnSpan="4" Text="订阅上游 Region，先分离连通域，再按面积、宽度、高度或圆度执行 HALCON select_shape。面积单位 px²，宽高单位 px，圆度范围 0..1。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                                 </Grid>
+                                             </GroupBox>
+                                         </StackPanel>
+                                         <StackPanel x:Name="DockRegionSetOperationPanel" Visibility="Collapsed">
+                                             <GroupBox Header="HALCON Region 集合运算">
+                                                 <Grid>
+                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="88" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                     <TextBlock Text="集合操作" VerticalAlignment="Center" />
+                                                     <ComboBox x:Name="DockRegionSetOperationComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                     <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="在“输入”页分别订阅 RegionA 与 RegionB。两路必须来自不同的前序端口；差集严格按 A-B 执行。输出 Region 可继续供筛选、灰度和边缘工具订阅。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                                 </Grid>
+                                             </GroupBox>
+                                         </StackPanel>
+                                        <StackPanel x:Name="DockBlobPanel" Visibility="Collapsed">
+                                            <GroupBox Header="Blob 参数">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="灰度下限" VerticalAlignment="Center" /><TextBox x:Name="DockBlobMinTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Column="2" Text="灰度上限" VerticalAlignment="Center" /><TextBox x:Name="DockBlobMaxTextBox" Grid.Column="3" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="最小面积" VerticalAlignment="Center" /><TextBox x:Name="DockBlobAreaTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                </Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockGrayPanel" Visibility="Collapsed">
+                                            <GroupBox Header="灰度统计参数">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /><ColumnDefinition Width="74" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="判定下限" VerticalAlignment="Center" /><TextBox x:Name="DockGrayMinTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Column="2" Text="判定上限" VerticalAlignment="Center" /><TextBox x:Name="DockGrayMaxTextBox" Grid.Column="3" TextChanged="DockDraftValue_Changed" />
+                                                </Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockEdgePanel" Visibility="Collapsed">
+                                            <GroupBox Header="边缘测量参数">
+                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="88" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="边缘阈值" VerticalAlignment="Center" /><TextBox x:Name="DockEdgeThresholdTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" /></Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockNumericPanel" Visibility="Collapsed">
+                                            <GroupBox Header="数值判定参数">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="76" /><ColumnDefinition Width="*" /><ColumnDefinition Width="68" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="比较方式" VerticalAlignment="Center" /><ComboBox x:Name="DockNumericOperatorComboBox" Grid.Column="1" Grid.ColumnSpan="3" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="下限/目标" VerticalAlignment="Center" /><TextBox x:Name="DockNumericLowerTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="上限" VerticalAlignment="Center" /><TextBox x:Name="DockNumericUpperTextBox" Grid.Row="1" Grid.Column="3" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Text="相等容差" VerticalAlignment="Center" /><TextBox x:Name="DockNumericToleranceTextBox" Grid.Row="2" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                </Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                        <Border x:Name="DockCompatibilityPanel" Visibility="Collapsed" Background="#FFF7ED" BorderBrush="#FDBA74" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,6,0,0">
+                                            <StackPanel><TextBlock Text="Shape/HDevelop 暂用兼容配置，不在缺少真实样本时改写算法或程序契约。" TextWrapping="Wrap" /><Button Content="打开兼容配置" Margin="0,8,0,0" Click="DockOpenCompatibilityButton_Click" /></StackPanel>
+                                        </Border>
+                                        <TextBlock x:Name="DockValidationText" Foreground="#B91C1C" TextWrapping="Wrap" Margin="4,8,4,0" />
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="运行参数">
+                                <StackPanel Margin="14">
+                                    <CheckBox x:Name="DockEnabledCheckBox" Content="启用此模块" Click="DockDraftValue_Changed" />
+                                    <TextBlock x:Name="DockRunStateText" Text="状态：--" Margin="0,12,0,0" TextWrapping="Wrap" />
+                                    <TextBlock Text="当前模块遵循流程级运行范围、连续间隔、超时和遇 NG 停止策略。" Margin="0,10,0,0" Foreground="#64748B" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </TabItem>
+                            <TabItem Header="输入">
+                                <Grid Margin="9">
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <TextBlock x:Name="DockInputSummaryText" Text="该模块没有输入端口。" TextWrapping="Wrap" Foreground="#475569" />
+                                    <ListBox x:Name="DockInputPortItemsControl" Grid.Row="1" Margin="0,8,0,0" BorderThickness="0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="7" Margin="0,0,0,6">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="104" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <StackPanel><TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" /><TextBlock Text="{Binding DataType}" Foreground="#6D28D9" FontSize="10" /><TextBlock Text="{Binding StatusText}" Foreground="#0F766E" FontSize="10" TextWrapping="Wrap" /></StackPanel>
+                                                        <StackPanel Grid.Column="1"><TextBlock Text="来源" Foreground="#64748B" FontSize="10" /><ComboBox ItemsSource="{Binding SourceOptions}" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectedValue="{Binding SelectedSourceKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="DockInputSourceComboBox_SelectionChanged" /><TextBlock Text="{Binding CurrentValue, StringFormat=当前：{0}}" FontSize="10" TextTrimming="CharacterEllipsis" /></StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <Button Grid.Row="2" Content="全部恢复默认输入" HorizontalAlignment="Right" Padding="12,5" Click="DockResetInputSourcesButton_Click" />
+                                </Grid>
+                            </TabItem>
+                            <TabItem Header="ROI / 模板">
+                                <Grid Margin="9">
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <StackPanel>
+                                        <TextBlock x:Name="DockRoiSummaryText" Text="该模块没有 ROI 输入。" TextWrapping="Wrap" />
+                                        <ComboBox x:Name="DockRoiExecutionModeComboBox" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                    <ItemsControl x:Name="DockRoiBindingItemsControl" Grid.Row="1" Margin="0,8,0,0">
+                                        <ItemsControl.ItemTemplate><DataTemplate><Border BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="7" Margin="0,0,0,5"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><CheckBox IsChecked="{Binding IsBound}" Click="DockRoiBindingCheckBox_Click" Margin="0,0,8,0" /><StackPanel Grid.Column="1"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" /><TextBlock Text="{Binding GeometryText}" Foreground="#64748B" FontSize="10" TextTrimming="CharacterEllipsis" /></StackPanel><TextBlock Grid.Column="2" Text="{Binding ShapeText}" Foreground="#0369A1" /></Grid></Border></DataTemplate></ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <DockPanel Grid.Row="2"><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="全选" Click="DockSelectAllRoiButton_Click" /><Button Content="清空" Click="DockClearRoiButton_Click" /><Button Content="返回图像区" Foreground="#0F766E" FontWeight="SemiBold" Click="DockOpenRoiWorkspaceButton_Click" /></StackPanel></DockPanel>
+                                </Grid>
+                            </TabItem>
+                            <TabItem Header="结果显示">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="10"><TextBlock x:Name="DockResultText" Text="最近结果：--" TextWrapping="Wrap" /><TextBlock x:Name="DockErrorText" Text="错误：--" Foreground="#B91C1C" TextWrapping="Wrap" Margin="0,6,0,0" /><DataGrid x:Name="DockRoiResultsDataGrid" Height="145" Margin="0,10,0,0" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"><DataGrid.Columns><DataGridTextColumn Header="ROI" Binding="{Binding RoiName}" Width="90" /><DataGridTextColumn Header="判定" Binding="{Binding ResultCode}" Width="55" /><DataGridTextColumn Header="数值" Binding="{Binding ValueText}" Width="100" /><DataGridTextColumn Header="说明" Binding="{Binding DisplayMessage}" Width="*" /></DataGrid.Columns></DataGrid></StackPanel></ScrollViewer>
+                            </TabItem>
+                            <TabItem Header="帮助"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="14"><TextBlock x:Name="DockHelpText" Text="选择模块后显示帮助。" TextWrapping="Wrap" /><TextBlock Text="草稿未应用前不会改变当前实例；试运行临时使用草稿，完成后恢复已应用参数。" Foreground="#0F766E" TextWrapping="Wrap" Margin="0,12,0,0" /></StackPanel></ScrollViewer></TabItem>
+                        </TabControl>
+                        <Border Grid.Row="2" Height="0" />
+                    </Grid>
+                </TabItem>
+                <TabItem x:Name="ParametersTab" Header="兼容参数" ToolTip="旧 Inspector 兼容层" Visibility="Collapsed">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="9">
                             <Border Background="#263449" CornerRadius="3" Padding="10" Margin="0,0,0,10">
@@ -468,6 +824,16 @@
                                         <TextBlock x:Name="TemplateStatusText" Text="模板：未训练" TextWrapping="Wrap" Margin="4" />
                                         <TextBlock x:Name="MatchResultText" Text="结果：--" TextWrapping="Wrap" Margin="4" />
                                         <TextBlock x:Name="LastMessageText" Text="最新外发结果：--" TextWrapping="Wrap" Margin="4" Foreground="#475569" />
+                                    </StackPanel>
+                                </GroupBox>
+                            </StackPanel>
+
+                            <StackPanel x:Name="ImageSourceInspectorPanel" Visibility="Collapsed">
+                                <GroupBox Header="本地图像源">
+                                    <StackPanel>
+                                        <TextBlock x:Name="ImageSourcePathText" Text="文件：--" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="ImageSourceSerialText" Text="SN：--" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                        <TextBlock Text="在统一模块配置中选择图片并设置 SN；运行后从 Image 输出端口发布安全快照。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,6,0,0" />
                                     </StackPanel>
                                 </GroupBox>
                             </StackPanel>
@@ -653,6 +1019,7 @@
                                     <WrapPanel>
                                         <Button x:Name="RectangleRoiButton" Content="矩形" Click="RectangleRoiButton_Click" />
                                         <Button x:Name="CircleRoiButton" Content="圆形" Click="CircleRoiButton_Click" />
+                                        <Button x:Name="RotatedRectangleRoiButton" Content="旋转矩形" Click="RotatedRectangleRoiButton_Click" />
                                         <Button x:Name="PolygonRoiButton" Content="多边形" Click="PolygonRoiButton_Click" />
                                         <Button x:Name="ConfirmRoiButton" Content="确认并新增" FontWeight="Bold" Click="ConfirmRoiButton_Click" />
                                         <Button Content="取消绘制" Click="CancelRoiDrawingButton_Click" />
@@ -665,15 +1032,23 @@
                             <GroupBox Header="选中 ROI 图层">
                                 <StackPanel>
                                     <TextBlock x:Name="RoiSelectedLayerText" Text="未选择 ROI 图层" FontWeight="SemiBold" Foreground="#334155" Margin="4" />
-                                    <Grid>
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="62" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                        <TextBlock Text="名称" VerticalAlignment="Center" />
-                                        <TextBox x:Name="SelectedRoiLayerNameTextBox" Grid.Column="1" IsEnabled="False" LostFocus="SelectedRoiLayerNameTextBox_LostFocus" />
-                                    </Grid>
-                                    <UniformGrid Columns="2">
-                                        <Button x:Name="ClearRoiButton" Content="删除选中" Click="ClearRoiButton_Click" />
-                                        <Button x:Name="ClearAllRoiLayersButton" Content="清空全部" Click="ClearAllRoiLayersButton_Click" />
-                                    </UniformGrid>
+                                     <Grid>
+                                         <Grid.ColumnDefinitions><ColumnDefinition Width="62" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                         <TextBlock Text="名称" VerticalAlignment="Center" />
+                                         <TextBox x:Name="SelectedRoiLayerNameTextBox" Grid.Column="1" IsEnabled="False" LostFocus="SelectedRoiLayerNameTextBox_LostFocus" />
+                                         <TextBlock Grid.Row="1" Text="几何" VerticalAlignment="Center" />
+                                         <TextBlock x:Name="SelectedRoiGeometryText" Grid.Row="1" Grid.Column="1" Text="--" Foreground="#64748B" TextWrapping="Wrap" />
+                                         <TextBlock Grid.Row="2" Text="保护" VerticalAlignment="Center" />
+                                         <CheckBox x:Name="SelectedRoiLockCheckBox" Grid.Row="2" Grid.Column="1" Content="锁定几何与删除" IsEnabled="False" Click="SelectedRoiLockCheckBox_Click" />
+                                     </Grid>
+                                     <UniformGrid Columns="4">
+                                         <Button x:Name="CopySelectedRoiButton" Content="复制" Click="CopySelectedRoiButton_Click" />
+                                         <Button x:Name="ToggleSelectedRoiLockButton" Content="锁定" Click="ToggleSelectedRoiLockButton_Click" />
+                                         <Button x:Name="ClearRoiButton" Content="删除选中" Click="ClearRoiButton_Click" />
+                                         <Button x:Name="ClearAllRoiLayersButton" Content="清空全部" Click="ClearAllRoiLayersButton_Click" />
+                                     </UniformGrid>
+                                     <TextBlock x:Name="RoiEditGuidanceText" Text="选择模式：单击 ROI 后拖动内部移动，拖动控制点编辑几何。" Foreground="#0F766E" TextWrapping="Wrap" Margin="4" />
                                 </StackPanel>
                             </GroupBox>
                             <GroupBox Header="绑定到当前工具">
@@ -696,7 +1071,7 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                    <TextBlock x:Name="RoiBindingsStatusText" Text="绑定后，运行时会合并所有已启用 ROI。" Foreground="#64748B" TextWrapping="Wrap" Margin="4" />
+                                    <TextBlock x:Name="RoiBindingsStatusText" Text="绑定后按当前模块的 ROI 执行模式运行。" Foreground="#64748B" TextWrapping="Wrap" Margin="4" />
                                     <Button Content="运行当前工具验证 ROI" FontWeight="SemiBold" Foreground="#0F766E" Click="RunCurrentToolButton_Click" />
                                 </StackPanel>
                             </GroupBox>
@@ -751,27 +1126,69 @@
                     </ScrollViewer>
                 </TabItem>
 
-                <TabItem x:Name="ProjectDiagnosticsTab" Header="工程" ToolTip="工程/诊断">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="9">
-                            <GroupBox Header="当前配方">
-                                <StackPanel>
-                                    <TextBox x:Name="RecipeNameEditTextBox" Text="DefaultRecipe" />
-                                    <TextBlock x:Name="RecipePathText" Text="路径：--" TextWrapping="Wrap" Foreground="#475569" Margin="4" />
-                                    <WrapPanel><Button Content="打开配方目录" Click="OpenRecipeDirectoryButton_Click" /><Button Content="打开日志目录" Click="OpenLogDirectoryButton_Click" /></WrapPanel>
+                <TabItem x:Name="ProjectDiagnosticsTab" Header="方案" ToolTip="方案/配方/诊断">
+                    <TabControl x:Name="RecipeWorkspaceTabs" Margin="5">
+                        <TabItem Header="当前">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="8">
+                                    <Border x:Name="RecipeWorkspaceStatusBorder" Background="#FFF7ED" BorderBrush="#FDBA74" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,8">
+                                        <TextBlock x:Name="RecipeWorkspaceStatusText" Text="新方案尚未保存" Foreground="#9A3412" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                    </Border>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="78" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                        <TextBlock Text="方案名称" VerticalAlignment="Center" /><TextBox x:Name="RecipeNameEditTextBox" Grid.Column="1" Text="DefaultRecipe" />
+                                        <TextBlock Grid.Row="1" Text="正式路径" VerticalAlignment="Top" Margin="0,7,0,0" /><TextBlock x:Name="RecipePathText" Grid.Row="1" Grid.Column="1" Text="--" TextWrapping="Wrap" Foreground="#475569" Margin="4,7" />
+                                        <TextBlock Grid.Row="2" Text="格式版本" VerticalAlignment="Center" /><TextBlock x:Name="RecipeSchemaText" Grid.Row="2" Grid.Column="1" Text="v2" Foreground="#0F766E" Margin="4" />
+                                        <TextBlock Grid.Row="3" Text="最近保存" VerticalAlignment="Center" /><TextBlock x:Name="RecipeSavedAtText" Grid.Row="3" Grid.Column="1" Text="--" Foreground="#64748B" Margin="4" />
+                                    </Grid>
+                                    <WrapPanel Margin="0,7,0,0">
+                                        <Button Content="新建" Click="NewRecipeButton_Click" /><Button Content="打开" Click="LoadRecipeButton_Click" />
+                                        <Button Content="保存" FontWeight="SemiBold" Foreground="#0F766E" Click="SaveRecipeButton_Click" /><Button Content="另存为" Click="SaveRecipeAsButton_Click" />
+                                    </WrapPanel>
+                                    <WrapPanel><Button Content="打开方案目录" Click="OpenRecipeDirectoryButton_Click" /><Button Content="打开日志目录" Click="OpenLogDirectoryButton_Click" /></WrapPanel>
                                 </StackPanel>
-                            </GroupBox>
-                            <GroupBox Header="启动自检">
-                                <DataGrid x:Name="DiagnosticsDataGrid" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" Height="260">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="项目" Binding="{Binding Name}" Width="125" />
-                                        <DataGridTextColumn Header="状态" Binding="{Binding Status}" Width="55" />
-                                        <DataGridTextColumn Header="详情" Binding="{Binding Detail}" Width="*" />
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </GroupBox>
-                        </StackPanel>
-                    </ScrollViewer>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem Header="最近">
+                            <Grid Margin="8">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <TextBlock Text="双击即可打开最近方案；不存在的文件会明确标记。" Foreground="#475569" TextWrapping="Wrap" Margin="2,0,2,6" />
+                                <ListBox x:Name="RecentRecipeList" Grid.Row="1" HorizontalContentAlignment="Stretch" MouseDoubleClick="RecentRecipeList_MouseDoubleClick">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="7,5">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding DirectoryText}" Foreground="#64748B" FontSize="10" TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}" />
+                                                    <TextBlock Text="{Binding StateText}" Foreground="#0F766E" FontSize="10" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <WrapPanel Grid.Row="2"><Button Content="打开所选" Click="OpenRecentRecipeButton_Click" /><Button Content="移除记录" Click="RemoveRecentRecipeButton_Click" /></WrapPanel>
+                            </Grid>
+                        </TabItem>
+                        <TabItem Header="恢复">
+                            <StackPanel Margin="10">
+                                <TextBlock Text="异常退出时，未保存修改只写入独立恢复副本，不会覆盖正式方案。" Foreground="#475569" TextWrapping="Wrap" Margin="2,0,2,8" />
+                                <Border Background="#FFF7ED" BorderBrush="#FDBA74" BorderThickness="1" CornerRadius="4" Padding="9">
+                                    <TextBlock x:Name="RecoveryStatusText" Text="当前没有待恢复的方案。" Foreground="#9A3412" TextWrapping="Wrap" />
+                                </Border>
+                                <WrapPanel Margin="0,8,0,0"><Button x:Name="RecoverRecipeButton" Content="恢复副本" IsEnabled="False" Click="RecoverRecipeButton_Click" /><Button x:Name="DiscardRecoveryButton" Content="忽略并删除" IsEnabled="False" Click="DiscardRecoveryButton_Click" /></WrapPanel>
+                            </StackPanel>
+                        </TabItem>
+                        <TabItem Header="自检">
+                            <DataGrid x:Name="DiagnosticsDataGrid" Margin="7" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="项目" Binding="{Binding Name}" Width="125" />
+                                    <DataGridTextColumn Header="状态" Binding="{Binding Status}" Width="55" />
+                                    <DataGridTextColumn Header="详情" Binding="{Binding Detail}" Width="*" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </TabItem>
+                    </TabControl>
                 </TabItem>
             </TabControl>
         </Grid>

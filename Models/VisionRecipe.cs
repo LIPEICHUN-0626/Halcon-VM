@@ -9,6 +9,7 @@ namespace HalconWinFormsDemo.Models
     {
         public VisionRecipe()
         {
+            SchemaVersion = RecipeSchema.CurrentVersion;
             Name = "DefaultRecipe";
             ProcedureName = "RunInspection";
             BlobMinGray = 80;
@@ -108,6 +109,12 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 26, EmitDefaultValue = false)]
         public VmFlowRunPolicy FlowRunPolicy { get; set; }
 
+        [DataMember(Order = 27, EmitDefaultValue = false)]
+        public int SchemaVersion { get; set; }
+
+        [DataMember(Order = 28, EmitDefaultValue = false)]
+        public string SavedAtUtc { get; set; }
+
     }
 
     [DataContract]
@@ -133,6 +140,9 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 7, EmitDefaultValue = false)]
         public VmToolParameterData Parameters { get; set; }
+
+        [DataMember(Order = 8, EmitDefaultValue = false)]
+        public List<VmToolInputBindingData> InputBindings { get; set; }
     }
 
     [DataContract]
@@ -189,6 +199,15 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 10)]
         public double[] PolygonColumns { get; set; }
+
+        [DataMember(Order = 11, EmitDefaultValue = false)]
+        public double Phi { get; set; }
+
+        [DataMember(Order = 12, EmitDefaultValue = false)]
+        public double Length1 { get; set; }
+
+        [DataMember(Order = 13, EmitDefaultValue = false)]
+        public double Length2 { get; set; }
     }
 
     [DataContract]
@@ -208,6 +227,9 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 5)]
         public RoiRecipeData Geometry { get; set; }
+
+        [DataMember(Order = 6, EmitDefaultValue = false)]
+        public bool IsLocked { get; set; }
     }
 
     [DataContract]
@@ -243,5 +265,14 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 4)]
         public string LastImageDirectory { get; set; }
+
+        [DataMember(Order = 5, EmitDefaultValue = false)]
+        public List<string> RecentRecipePaths { get; set; }
+
+        [DataMember(Order = 6, EmitDefaultValue = false)]
+        public List<string> FavoriteToolKinds { get; set; }
+
+        [DataMember(Order = 7, EmitDefaultValue = false)]
+        public List<string> RecentToolKinds { get; set; }
     }
 }

@@ -79,6 +79,46 @@ namespace HalconWinFormsDemo.Services
             return new HImage(color);
         }
 
+        public HImage ExtractChannel(HImage image, int channelIndex)
+        {
+            if (image == null)
+            {
+                throw new InvalidOperationException("No image is loaded.");
+            }
+
+            int channelCount = GetChannelCount(image);
+            if (channelIndex < 1 || channelIndex > channelCount)
+            {
+                throw new ArgumentOutOfRangeException(
+                    "channelIndex",
+                    string.Format("图像只有 {0} 个通道，不能提取第 {1} 通道。", channelCount, channelIndex));
+            }
+
+            HObject channel;
+            HOperatorSet.AccessChannel(image, out channel, channelIndex);
+            return new HImage(channel);
+        }
+
+        public HImage MeanFilter(HImage image, int maskWidth, int maskHeight)
+        {
+            if (image == null)
+            {
+                throw new InvalidOperationException("No image is loaded.");
+            }
+
+            return image.MeanImage(maskWidth, maskHeight);
+        }
+
+        public HImage MedianFilter(HImage image, int radius)
+        {
+            if (image == null)
+            {
+                throw new InvalidOperationException("No image is loaded.");
+            }
+
+            return image.MedianImage("circle", radius, "mirrored");
+        }
+
         public void OpenCamera(string interfaceName, string deviceName)
         {
             CloseCamera();
