@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using HalconDotNet;
+using HalconWinFormsDemo.Models;
 
 namespace HalconWinFormsDemo.Services
 {
@@ -117,6 +118,513 @@ namespace HalconWinFormsDemo.Services
             }
 
             return image.MedianImage("circle", radius, "mirrored");
+        }
+
+        public HImage ScaleImage(HImage image, double scale, double offset)
+        {
+            if (image == null)
+            {
+                throw new InvalidOperationException("No image is loaded.");
+            }
+
+            HObject enhanced;
+            HOperatorSet.ScaleImage(image, out enhanced, scale, offset);
+            return new HImage(enhanced);
+        }
+
+        public HImage Emphasize(HImage image, int maskWidth, int maskHeight, double factor)
+        {
+            if (image == null)
+            {
+                throw new InvalidOperationException("No image is loaded.");
+            }
+
+            HObject enhanced;
+            HOperatorSet.Emphasize(image, out enhanced, maskWidth, maskHeight, factor);
+            return new HImage(enhanced);
+        }
+
+        public HImage AbsoluteDifference(HImage imageA, HImage imageB, double multiplier)
+        {
+            if (imageA == null)
+            {
+                throw new ArgumentNullException("imageA");
+            }
+
+            if (imageB == null)
+            {
+                throw new ArgumentNullException("imageB");
+            }
+
+            HObject difference = null;
+            try
+            {
+                HOperatorSet.AbsDiffImage(imageA, imageB, out difference, multiplier);
+                HImage result = new HImage(difference);
+                difference = null;
+                return result;
+            }
+            finally
+            {
+                if (difference != null)
+                {
+                    difference.Dispose();
+                }
+            }
+        }
+
+        public HImage SubtractImage(HImage minuend, HImage subtrahend, double multiplier, double add)
+        {
+            if (minuend == null)
+            {
+                throw new ArgumentNullException("minuend");
+            }
+
+            if (subtrahend == null)
+            {
+                throw new ArgumentNullException("subtrahend");
+            }
+
+            HObject difference = null;
+            try
+            {
+                HOperatorSet.SubImage(minuend, subtrahend, out difference, multiplier, add);
+                HImage result = new HImage(difference);
+                difference = null;
+                return result;
+            }
+            finally
+            {
+                if (difference != null)
+                {
+                    difference.Dispose();
+                }
+            }
+        }
+
+        public HRegion DynamicThreshold(HImage originalImage, HImage referenceImage, double offset, string polarity)
+        {
+            if (originalImage == null)
+            {
+                throw new ArgumentNullException("originalImage");
+            }
+
+            if (referenceImage == null)
+            {
+                throw new ArgumentNullException("referenceImage");
+            }
+
+            HObject region = null;
+            try
+            {
+                HOperatorSet.DynThreshold(originalImage, referenceImage, out region, offset, polarity);
+                HRegion result = new HRegion(region);
+                region = null;
+                return result;
+            }
+            finally
+            {
+                if (region != null)
+                {
+                    region.Dispose();
+                }
+            }
+        }
+
+        public HObject GenerateRegionContours(HRegion region, string mode)
+        {
+            if (region == null)
+            {
+                throw new ArgumentNullException("region");
+            }
+
+            HObject contours = null;
+            try
+            {
+                HOperatorSet.GenContourRegionXld(region, out contours, VmRegionContourMode.GetHalconValue(mode));
+                HObject result = contours;
+                contours = null;
+                return result;
+            }
+            finally
+            {
+                if (contours != null)
+                {
+                    contours.Dispose();
+                }
+            }
+        }
+
+        public HObject FilterXldContours(HObject contours, string feature, double minimum, double maximum)
+        {
+            if (contours == null)
+            {
+                throw new ArgumentNullException("contours");
+            }
+
+            HObject selectedContours = null;
+            try
+            {
+                HOperatorSet.SelectContoursXld(
+                    contours,
+                    out selectedContours,
+                    VmXldContourFeature.GetHalconValue(feature),
+                    minimum,
+                    maximum,
+                    0,
+                    0);
+                HObject result = selectedContours;
+                selectedContours = null;
+                return result;
+            }
+            finally
+            {
+                if (selectedContours != null)
+                {
+                    selectedContours.Dispose();
+                }
+            }
+        }
+
+        public HObject SegmentXldContours(HObject contours, string mode, int smoothContour, double maxLineDistance1, double maxLineDistance2)
+        {
+            if (contours == null)
+            {
+                throw new ArgumentNullException("contours");
+            }
+
+            HObject segmentedContours = null;
+            try
+            {
+                HOperatorSet.SegmentContoursXld(
+                    contours,
+                    out segmentedContours,
+                    VmXldSegmentMode.GetHalconValue(mode),
+                    smoothContour,
+                    maxLineDistance1,
+                    maxLineDistance2);
+                HObject result = segmentedContours;
+                segmentedContours = null;
+                return result;
+            }
+            finally
+            {
+                if (segmentedContours != null)
+                {
+                    segmentedContours.Dispose();
+                }
+            }
+        }
+
+        public HObject FitXldLines(
+            HObject contours,
+            string algorithm,
+            int maxNumPoints,
+            int clippingEndPoints,
+            int iterations,
+            double clippingFactor,
+            out HTuple rowBegin,
+            out HTuple columnBegin,
+            out HTuple rowEnd,
+            out HTuple columnEnd,
+            out HTuple normalRow,
+            out HTuple normalColumn,
+            out HTuple distance)
+        {
+            if (contours == null)
+            {
+                throw new ArgumentNullException("contours");
+            }
+
+            rowBegin = columnBegin = rowEnd = columnEnd = normalRow = normalColumn = distance = null;
+            HObject fittedLines = null;
+            HOperatorSet.FitLineContourXld(
+                contours,
+                VmXldLineFitAlgorithm.GetHalconValue(algorithm),
+                maxNumPoints,
+                clippingEndPoints,
+                iterations,
+                clippingFactor,
+                out rowBegin,
+                out columnBegin,
+                out rowEnd,
+                out columnEnd,
+                out normalRow,
+                out normalColumn,
+                out distance);
+
+            try
+            {
+                HOperatorSet.GenEmptyObj(out fittedLines);
+                for (int index = 0; index < rowBegin.Length; index++)
+                {
+                    HObject line = null;
+                    HObject combined = null;
+                    try
+                    {
+                        HOperatorSet.GenContourPolygonXld(
+                            out line,
+                            new HTuple(new[] { rowBegin[index].D, rowEnd[index].D }),
+                            new HTuple(new[] { columnBegin[index].D, columnEnd[index].D }));
+                        HOperatorSet.ConcatObj(fittedLines, line, out combined);
+                        fittedLines.Dispose();
+                        fittedLines = combined;
+                        combined = null;
+                    }
+                    finally
+                    {
+                        if (line != null) line.Dispose();
+                        if (combined != null) combined.Dispose();
+                    }
+                }
+
+                HObject result = fittedLines;
+                fittedLines = null;
+                return result;
+            }
+            finally
+            {
+                if (fittedLines != null) fittedLines.Dispose();
+            }
+        }
+
+        public HObject FitXldCircles(
+            HObject contours,
+            string algorithm,
+            int maxNumPoints,
+            double maxClosureDistance,
+            int clippingEndPoints,
+            int iterations,
+            double clippingFactor,
+            out HTuple row,
+            out HTuple column,
+            out HTuple radius,
+            out HTuple startPhi,
+            out HTuple endPhi,
+            out HTuple pointOrder)
+        {
+            if (contours == null)
+            {
+                throw new ArgumentNullException("contours");
+            }
+
+            row = column = radius = startPhi = endPhi = pointOrder = null;
+            HOperatorSet.FitCircleContourXld(
+                contours,
+                VmXldCircleFitAlgorithm.GetHalconValue(algorithm),
+                maxNumPoints,
+                maxClosureDistance,
+                clippingEndPoints,
+                iterations,
+                clippingFactor,
+                out row,
+                out column,
+                out radius,
+                out startPhi,
+                out endPhi,
+                out pointOrder);
+
+            HObject fittedCircles = null;
+            try
+            {
+                HOperatorSet.GenEmptyObj(out fittedCircles);
+                for (int index = 0; index < row.Length; index++)
+                {
+                    HObject circle = null;
+                    HObject combined = null;
+                    try
+                    {
+                        string order = string.Equals(pointOrder[index].S, "negative", StringComparison.OrdinalIgnoreCase) ? "negative" : "positive";
+                        HOperatorSet.GenCircleContourXld(
+                            out circle,
+                            row[index].D,
+                            column[index].D,
+                            radius[index].D,
+                            startPhi[index].D,
+                            endPhi[index].D,
+                            order,
+                            1.0);
+                        HOperatorSet.ConcatObj(fittedCircles, circle, out combined);
+                        fittedCircles.Dispose();
+                        fittedCircles = combined;
+                        combined = null;
+                    }
+                    finally
+                    {
+                        if (circle != null) circle.Dispose();
+                        if (combined != null) combined.Dispose();
+                    }
+                }
+
+                HObject result = fittedCircles;
+                fittedCircles = null;
+                return result;
+            }
+            finally
+            {
+                if (fittedCircles != null) fittedCircles.Dispose();
+            }
+        }
+
+        public HObject FitXldEllipses(
+            HObject contours,
+            string algorithm,
+            int maxNumPoints,
+            double maxClosureDistance,
+            int clippingEndPoints,
+            int vossTabSize,
+            int iterations,
+            double clippingFactor,
+            out HTuple row,
+            out HTuple column,
+            out HTuple phi,
+            out HTuple radius1,
+            out HTuple radius2,
+            out HTuple startPhi,
+            out HTuple endPhi,
+            out HTuple pointOrder)
+        {
+            if (contours == null)
+            {
+                throw new ArgumentNullException("contours");
+            }
+
+            row = column = phi = radius1 = radius2 = startPhi = endPhi = pointOrder = null;
+            HOperatorSet.FitEllipseContourXld(
+                contours,
+                VmXldEllipseFitAlgorithm.GetHalconValue(algorithm),
+                maxNumPoints,
+                maxClosureDistance,
+                clippingEndPoints,
+                vossTabSize,
+                iterations,
+                clippingFactor,
+                out row,
+                out column,
+                out phi,
+                out radius1,
+                out radius2,
+                out startPhi,
+                out endPhi,
+                out pointOrder);
+
+            HObject fittedEllipses = null;
+            try
+            {
+                HOperatorSet.GenEmptyObj(out fittedEllipses);
+                for (int index = 0; index < row.Length; index++)
+                {
+                    HObject ellipse = null;
+                    HObject combined = null;
+                    try
+                    {
+                        string order = string.Equals(pointOrder[index].S, "negative", StringComparison.OrdinalIgnoreCase) ? "negative" : "positive";
+                        HOperatorSet.GenEllipseContourXld(
+                            out ellipse,
+                            row[index].D,
+                            column[index].D,
+                            phi[index].D,
+                            radius1[index].D,
+                            radius2[index].D,
+                            startPhi[index].D,
+                            endPhi[index].D,
+                            order,
+                            1.0);
+                        HOperatorSet.ConcatObj(fittedEllipses, ellipse, out combined);
+                        fittedEllipses.Dispose();
+                        fittedEllipses = combined;
+                        combined = null;
+                    }
+                    finally
+                    {
+                        if (ellipse != null) ellipse.Dispose();
+                        if (combined != null) combined.Dispose();
+                    }
+                }
+
+                HObject result = fittedEllipses;
+                fittedEllipses = null;
+                return result;
+            }
+            finally
+            {
+                if (fittedEllipses != null) fittedEllipses.Dispose();
+            }
+        }
+
+        public HObject FitXldRectangles(
+            HObject contours,
+            string algorithm,
+            int maxNumPoints,
+            double maxClosureDistance,
+            int clippingEndPoints,
+            int iterations,
+            double clippingFactor,
+            out HTuple row,
+            out HTuple column,
+            out HTuple phi,
+            out HTuple length1,
+            out HTuple length2,
+            out HTuple pointOrder)
+        {
+            if (contours == null)
+            {
+                throw new ArgumentNullException("contours");
+            }
+
+            row = column = phi = length1 = length2 = pointOrder = null;
+            HOperatorSet.FitRectangle2ContourXld(
+                contours,
+                VmXldRectangleFitAlgorithm.GetHalconValue(algorithm),
+                maxNumPoints,
+                maxClosureDistance,
+                clippingEndPoints,
+                iterations,
+                clippingFactor,
+                out row,
+                out column,
+                out phi,
+                out length1,
+                out length2,
+                out pointOrder);
+
+            HObject fittedRectangles = null;
+            try
+            {
+                HOperatorSet.GenEmptyObj(out fittedRectangles);
+                for (int index = 0; index < row.Length; index++)
+                {
+                    HObject rectangle = null;
+                    HObject combined = null;
+                    try
+                    {
+                        HOperatorSet.GenRectangle2ContourXld(
+                            out rectangle,
+                            row[index].D,
+                            column[index].D,
+                            phi[index].D,
+                            length1[index].D,
+                            length2[index].D);
+                        HOperatorSet.ConcatObj(fittedRectangles, rectangle, out combined);
+                        fittedRectangles.Dispose();
+                        fittedRectangles = combined;
+                        combined = null;
+                    }
+                    finally
+                    {
+                        if (rectangle != null) rectangle.Dispose();
+                        if (combined != null) combined.Dispose();
+                    }
+                }
+
+                HObject result = fittedRectangles;
+                fittedRectangles = null;
+                return result;
+            }
+            finally
+            {
+                if (fittedRectangles != null) fittedRectangles.Dispose();
+            }
         }
 
         public void OpenCamera(string interfaceName, string deviceName)

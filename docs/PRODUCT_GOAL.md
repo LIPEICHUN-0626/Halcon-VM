@@ -1,6 +1,6 @@
 # 产品长期目标
 
-更新日期：2026-07-19
+更新日期：2026-07-23
 状态：长期有效
 
 ## 产品定义
@@ -15,9 +15,9 @@ VM 是产品体验和用户习惯参照；HALCON 是全部视觉算子、图像�
 
 迭代授权：后续默认由开发代理自行选择并执行 A/B 双线 Sprint，不再逐轮等待确认；每轮仍必须明确 A 线可见 UI/UX 和 B 线真实工业功能，并完成验证和文档。自 2026-07-16 起，Git 按 10 个已验证小交付统一提交/推送，计数见 `docs/GIT_BATCH_LOG.md`，不再为每个小改动上传。恢复 BSB 或触碰 HALCON 算法含义、相机 SDK、投产协议、旧工程格式等高风险边界时仍需单独确认。
 
-当前产品基线（S15，S06-S15 Git 批次已达到 10/10 并批量交付，当前新批次 0/10）：活动 WPF 已形成顶部菜单/快捷工具条、左侧模块箱、中央顺序流程、右上 HALCON 图像工作区、右下模块结果/配置/方案和底部状态/历史。中央流程卡现在由真实元数据和 `InputBindings` 显示 IN/OUT 端口、类型、来源、当前值、消费者及等待/异常状态，选中模块会高亮直接上游与下游；首个双 Region 汇聚在流程卡和右侧输入页一致可见。右侧常驻“模块配置”覆盖本地图像源、图像通道、图像滤波、阈值分割、Region 形态学、Region 特征筛选、Region 集合运算、Blob、灰度、边缘和数值判定。矩形、圆、旋转矩形和多边形 ROI 具备直接编辑、复制、锁定、几何保护和配方闭环。HALCON 连续 Image/Region 链现可通过双 Region 并集、交集、差集或对称差汇聚，再驱动特征筛选、Gray/Edge。Shape/HDevelop 仍走兼容配置，执行仍为确定性线性调度；二维连接路径、自动分层布局、真实并行/Group、椭圆/圆环/屏蔽区、数组、多流程、相机、坐标、工业通讯、权限、`.jw/.handle` 和 BSB 仍未完成。
+当前产品基线（S25，Git 批次 `10/10`，按规则触发本轮统一提交/推送）：活动 WPF 已形成顶部菜单/快捷工具条、左侧模块箱、中央流程、右上 HALCON 图像工作区、右下模块结果/配置/方案和底部状态/历史。中央默认“连接画布”把真实 `InputBindings` 映射为有方向的 Image/Region/XLD/Number 曲线，支持连接检查、端口导航、OUT→IN 创建/替换/重连、橡皮框/Ctrl 多选、复制/副本、批量启停/删除、可见网格、用户节点坐标、50 项撤销/重做和组织型 Group。S25 在运行菜单、顶部/流程工具条、画布/节点/列表右键增加断点、清除断点、单步、继续及 F9/F10/F5；断点在启用模块执行前命中，红色断点、橙色下一执行指针、组合摘要、暂停原因和下一模块可见，单步只执行一个启用模块，断点随配方和撤销/重做保存。右侧常驻配置新增“XLD 旋转矩形拟合测量”，连续链可达 `Image -> Region -> XLD -> fitted rectangle XLD -> Length1/Length2/Number`；HALCON `fit_rectangle2_contour_xld` 输出托管矩形、数量、中心、方向、两边半长、四角点、点序、方向稳定性、实际残差、算法和参数，并进入青色叠加、I/O、结果、日志、配方和 NumericJudge。矩形、圆、旋转矩形和多边形 ROI 具备直接编辑、复制、锁定、几何保护和配方闭环。Shape/HDevelop 仍走兼容配置，执行仍为确定性线性调度；单个 HALCON 算子不可中断，真实并行、执行型 Group、监视表/运行到光标、椭圆 ROI/圆环/屏蔽区、数组及几何/姿态类型、多流程、相机、坐标、工业通讯、权限、`.jw/.handle` 和 BSB 仍未完成。
 
-官方产品基线见 `docs/VM_OFFICIAL_REFERENCE_SPEC.md`。2026-07-19 再次核对海康 VM 官方资料：模块输入可选择前序模块输出且受数据类型约束，VM5.0 强调网格布局、多模块汇聚和自动串/并连排列。S15 因而只把真实类型化端口、直接依赖和首个双 Region 汇聚带入中央流程，不用无执行语义的自由 Graph 动画冒充完成。并/交/差/对称差分别调用 HALCON `union2/intersection/difference/symm_difference`，是本项目面向通用工业场景的产品化封装，不声称复刻海康内部算法。二维连接路径、自动分层布局、真实分支调度、完整 ROI/数组/模型、Shape/HDevelop、自动换型和权限仍不完整，不能据此宣称完整 VM 工作区已经完成。
+官方产品基线见 `docs/VM_OFFICIAL_REFERENCE_SPEC.md`。S25 的流程断点/单步属于依据官方 VM 调试/运行习惯做出的本项目产品化实现，不声称复刻海康内部调度器。HALCON 20.11 官方文档与本机程序集反射确认 `fit_rectangle2_contour_xld` 精确 .NET 签名、`regression/huber/tukey`、至少 8 点与四边覆盖要求，以及 `Row/Column/Phi/Length1/Length2/PointOrder` 语义；合成旋转矩形经三算法得到中心 `(120,180)`、方向约 `31.513°`、半边长 `60/25 px`，物理 UI 链得到中心 `(210,320)`、方向 `25.783°`、半边长 `140/70.003 px`。空/短/直线退化和非法参数受控，近正方形明确显示“90°方向等价”。当前画布已有真实拖线、用户布局、撤销/重做、组织型 Group 和首版断点/单步，但仍没有真实并行调度、执行型 Group、多流程、全量编辑历史或调试监视表；完整 ROI/数组/几何/模型、Shape/HDevelop、自动换型和权限仍不完整，不能据此宣称完整 VM 工作区已经完成。
 
 ## 官方依据
 
@@ -27,6 +27,17 @@ VM 是产品体验和用户习惯参照；HALCON 是全部视觉算子、图像�
 - [海康 VM 算法开发平台官方用户手册 PDF](https://pinfo.hikrobotics.com/hkws/unzip/20231101163730_26101_doc/pdf.pdf)：方案生命周期、模块参数和 ROI 位置/尺寸/角度编辑、复制/删除及屏蔽区等官方行为依据。
 - [官方“图像源”模块说明](https://pinfo.hikrobotics.com/hkws/unzip/20231101163730_26101_doc/GUID-8D7949F0-EB91-4794-BD3C-D4182726D931.html)：模块输入可选择来源、订阅控制值，输出按类型提供给后续模块。
 - [官方“相机映射”说明](https://pinfo.hikrobotics.com/hkws/unzip/20231101163730_26101_doc/GUID-CC3DB2DB-FC0B-4410-A58B-DDAC72E2360B.html)：后续模块可订阅前序模块输出，并要求数据类型和坐标语义保持一致。
+- [MVTec HALCON 20.11.4 `dyn_threshold`](https://www.mvtec.com/doc/halcon/2011/en/dyn_threshold.html)：S17 两路单通道输入、Light/Dark 条件、Offset 范围及连接后处理的算法语义依据。
+- [MVTec HALCON 20.11.4 `sub_image`](https://www.mvtec.com/doc/halcon/2011/en/sub_image.html)：S18 方向减法 `(g1-g2)*Mult+Add`、溢出裁剪与 .NET 签名依据。
+- [MVTec HALCON 20.11.4 `abs_diff_image`](https://www.mvtec.com/doc/halcon/2011/en/abs_diff_image.html)：绝对差分 `abs(g1-g2)*Mult`、`Mult > 0` 与可后接阈值分割的官方算子依据；20.11 .NET 精确签名另由本机程序集反射确认。
+- [MVTec HALCON 20.11.4 `gen_contour_region_xld`](https://www.mvtec.com/doc/halcon/2011/en/gen_contour_region_xld.html)：S19 从 Region 生成 `center/border/border_holes` XLD 的官方语义依据。
+- [MVTec HALCON 20.11.4 `length_xld`](https://www.mvtec.com/doc/halcon/2011/en/length_xld.html)：S19 按轮廓返回长度元组并汇总 `TotalLength` 的官方依据。
+- [MVTec HALCON 20.11.4 `select_contours_xld`](https://www.mvtec.com/doc/halcon/2011/en/select_contours_xld.html)：S20 按轮廓长度或最大跨度筛选 XLD，并以 `Min1/Max1` 定义范围的官方依据。
+- [MVTec HALCON 20.11.4 `segment_contours_xld`](https://www.mvtec.com/doc/halcon/2011/en/segment_contours_xld.html)：S21 将 XLD 按直线、圆弧或椭圆弧模式分段，并读取轮廓近似分类的官方依据。
+- [MVTec HALCON 20.11 `fit_line_contour_xld`](https://www.mvtec.com/doc/halcon/2011/en/fit_line_contour_xld.html)：S22 对每条直线轮廓执行 regression/Huber/Tukey/drop/Gauss 拟合并输出端点、法向和距离的官方依据。
+- [MVTec HALCON 20.11 `fit_circle_contour_xld`](https://www.mvtec.com/doc/halcon/2011/en/fit_circle_contour_xld.html)：S23 对每条整圆/圆弧轮廓执行代数/几何及 Huber/Tukey 鲁棒拟合，配置最大闭合距离并输出圆心、半径、起止角和点序的官方依据。
+- [MVTec HALCON 20.11 `fit_ellipse_contour_xld`](https://www.mvtec.com/doc/halcon/2011/en/fit_ellipse_contour_xld.html)：S24 对每条椭圆/椭圆弧轮廓执行代数、焦点、几何、Voss 及 Huber/Tukey 鲁棒拟合，并输出中心、方向、长短半轴、起止角和点序的官方依据。
+- [MVTec HALCON 20.11 `fit_rectangle2_contour_xld`](https://www.mvtec.com/doc/halcon/2011/en/fit_rectangle2_contour_xld.html)：S25 对覆盖四边的 XLD 执行回归/Huber/Tukey 旋转矩形拟合，并输出中心、方向、两边半长和点序的官方依据。
 
 ## 目标用户体验
 

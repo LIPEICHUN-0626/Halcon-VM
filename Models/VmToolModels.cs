@@ -21,7 +21,17 @@ namespace HalconWinFormsDemo.Models
         ImageThreshold,
         RegionMorphology,
         RegionFeatureFilter,
-        RegionSetOperation
+        RegionSetOperation,
+        ImageEnhancement,
+        DynamicThreshold,
+        ImageDifference,
+        RegionContourMeasurement,
+        XldContourFilter,
+        XldContourSegmentation,
+        XldLineFitting,
+        XldCircleFitting,
+        XldEllipseFitting,
+        XldRectangleFitting
     }
 
     public sealed class VmToolCatalogItem : INotifyPropertyChanged
@@ -124,6 +134,16 @@ namespace HalconWinFormsDemo.Models
         private string connectionSummary;
         private string dependencyState;
         private string dependencySummary;
+        private bool isFlowSelected;
+        private double graphX;
+        private double graphY;
+        private double graphHeight = 180;
+        private bool hasManualGraphPosition;
+        private string groupId;
+        private string groupName;
+        private bool isGroupCollapsed;
+        private bool isBreakpoint;
+        private bool isExecutionPointer;
         private readonly List<string> boundRoiIds = new List<string>();
         private readonly List<VmToolInputBindingData> inputBindings = new List<VmToolInputBindingData>();
         private readonly Dictionary<string, object> runtimeOutputs = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
@@ -218,6 +238,119 @@ namespace HalconWinFormsDemo.Models
 
                 isEnabled = value;
                 OnPropertyChanged("IsEnabled");
+            }
+        }
+
+        public bool IsFlowSelected
+        {
+            get { return isFlowSelected; }
+            set
+            {
+                if (isFlowSelected == value)
+                {
+                    return;
+                }
+
+                isFlowSelected = value;
+                OnPropertyChanged("IsFlowSelected");
+            }
+        }
+
+        public string GroupId
+        {
+            get { return groupId; }
+            set
+            {
+                if (string.Equals(groupId, value, StringComparison.Ordinal)) return;
+                groupId = value;
+                OnPropertyChanged("GroupId");
+                OnPropertyChanged("HasFlowGroup");
+                OnPropertyChanged("GroupBadgeText");
+            }
+        }
+
+        public string GroupName
+        {
+            get { return groupName; }
+            set
+            {
+                if (string.Equals(groupName, value, StringComparison.Ordinal)) return;
+                groupName = value;
+                OnPropertyChanged("GroupName");
+                OnPropertyChanged("GroupBadgeText");
+            }
+        }
+
+        public bool IsGroupCollapsed
+        {
+            get { return isGroupCollapsed; }
+            set
+            {
+                if (isGroupCollapsed == value) return;
+                isGroupCollapsed = value;
+                OnPropertyChanged("IsGroupCollapsed");
+                OnPropertyChanged("GroupBadgeText");
+            }
+        }
+
+        public bool HasFlowGroup
+        {
+            get { return !string.IsNullOrWhiteSpace(GroupId); }
+        }
+
+        public string GroupBadgeText
+        {
+            get
+            {
+                return HasFlowGroup
+                    ? (IsGroupCollapsed ? "▸ " : "▾ ") + (string.IsNullOrWhiteSpace(GroupName) ? "未命名组合" : GroupName)
+                    : string.Empty;
+            }
+        }
+
+        public bool IsBreakpoint
+        {
+            get { return isBreakpoint; }
+            set
+            {
+                if (isBreakpoint == value) return;
+                isBreakpoint = value;
+                OnPropertyChanged("IsBreakpoint");
+                OnPropertyChanged("BreakpointBadgeText");
+                OnPropertyChanged("DebugBadgeText");
+            }
+        }
+
+        public bool IsExecutionPointer
+        {
+            get { return isExecutionPointer; }
+            set
+            {
+                if (isExecutionPointer == value) return;
+                isExecutionPointer = value;
+                OnPropertyChanged("IsExecutionPointer");
+                OnPropertyChanged("ExecutionBadgeText");
+                OnPropertyChanged("DebugBadgeText");
+            }
+        }
+
+        public string BreakpointBadgeText
+        {
+            get { return IsBreakpoint ? "● 断点" : string.Empty; }
+        }
+
+        public string ExecutionBadgeText
+        {
+            get { return IsExecutionPointer ? "▶ 下一执行" : string.Empty; }
+        }
+
+        public string DebugBadgeText
+        {
+            get
+            {
+                if (IsBreakpoint && IsExecutionPointer) return "● 断点 · ▶ 下一执行";
+                if (IsExecutionPointer) return ExecutionBadgeText;
+                return BreakpointBadgeText;
             }
         }
 
@@ -404,6 +537,57 @@ namespace HalconWinFormsDemo.Models
 
                 dependencySummary = value;
                 OnPropertyChanged("DependencySummary");
+            }
+        }
+
+        public double GraphX
+        {
+            get { return graphX; }
+            set
+            {
+                if (Math.Abs(graphX - value) < 0.01) return;
+                graphX = value;
+                OnPropertyChanged("GraphX");
+                OnPropertyChanged("GraphPositionText");
+            }
+        }
+
+        public double GraphY
+        {
+            get { return graphY; }
+            set
+            {
+                if (Math.Abs(graphY - value) < 0.01) return;
+                graphY = value;
+                OnPropertyChanged("GraphY");
+                OnPropertyChanged("GraphPositionText");
+            }
+        }
+
+        public bool HasManualGraphPosition
+        {
+            get { return hasManualGraphPosition; }
+            set
+            {
+                if (hasManualGraphPosition == value) return;
+                hasManualGraphPosition = value;
+                OnPropertyChanged("HasManualGraphPosition");
+            }
+        }
+
+        public string GraphPositionText
+        {
+            get { return string.Format(CultureInfo.InvariantCulture, "X {0:0}  Y {1:0}", GraphX, GraphY); }
+        }
+
+        public double GraphHeight
+        {
+            get { return graphHeight; }
+            set
+            {
+                if (Math.Abs(graphHeight - value) < 0.01) return;
+                graphHeight = value;
+                OnPropertyChanged("GraphHeight");
             }
         }
 
@@ -627,6 +811,12 @@ namespace HalconWinFormsDemo.Models
                 return imageSnapshot.DisplayText;
             }
 
+            VmXldSnapshot xldSnapshot = value as VmXldSnapshot;
+            if (xldSnapshot != null)
+            {
+                return xldSnapshot.DisplayText;
+            }
+
             IEnumerable<VmRoiRunResult> roiResultItems = value as IEnumerable<VmRoiRunResult>;
             if (roiResultItems != null)
             {
@@ -663,6 +853,12 @@ namespace HalconWinFormsDemo.Models
                     return "图像通道";
                 case VmToolKind.ImageFilter:
                     return "图像滤波";
+                case VmToolKind.ImageEnhancement:
+                    return "图像增强";
+                case VmToolKind.ImageDifference:
+                    return "双图像差分";
+                case VmToolKind.DynamicThreshold:
+                    return "动态阈值分割";
                 case VmToolKind.ImageThreshold:
                     return "阈值分割";
                 case VmToolKind.RegionMorphology:
@@ -671,6 +867,20 @@ namespace HalconWinFormsDemo.Models
                     return "Region 特征筛选";
                 case VmToolKind.RegionSetOperation:
                     return "Region 集合运算";
+                case VmToolKind.RegionContourMeasurement:
+                    return "Region 轮廓测量";
+                case VmToolKind.XldContourFilter:
+                    return "XLD 轮廓筛选";
+                case VmToolKind.XldContourSegmentation:
+                    return "XLD 轮廓分段";
+                case VmToolKind.XldLineFitting:
+                    return "XLD 直线拟合测量";
+                case VmToolKind.XldCircleFitting:
+                    return "XLD 圆拟合测量";
+                case VmToolKind.XldEllipseFitting:
+                    return "XLD 椭圆拟合测量";
+                case VmToolKind.XldRectangleFitting:
+                    return "XLD 旋转矩形拟合测量";
                 case VmToolKind.ShapeMatch:
                     return "Shape Model 模板匹配";
                 case VmToolKind.Blob:
@@ -700,11 +910,22 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.GrayStat:
                 case VmToolKind.ImageChannel:
                 case VmToolKind.ImageFilter:
+                case VmToolKind.ImageEnhancement:
+                case VmToolKind.ImageDifference:
+                case VmToolKind.DynamicThreshold:
                 case VmToolKind.ImageThreshold:
                 case VmToolKind.RegionMorphology:
                 case VmToolKind.RegionFeatureFilter:
                 case VmToolKind.RegionSetOperation:
                     return "图像处理";
+                case VmToolKind.RegionContourMeasurement:
+                case VmToolKind.XldContourFilter:
+                case VmToolKind.XldContourSegmentation:
+                case VmToolKind.XldLineFitting:
+                case VmToolKind.XldCircleFitting:
+                case VmToolKind.XldEllipseFitting:
+                case VmToolKind.XldRectangleFitting:
+                    return "测量";
                 case VmToolKind.EdgeMeasure:
                     return "测量";
                 case VmToolKind.HDevelop:
@@ -726,6 +947,12 @@ namespace HalconWinFormsDemo.Models
                     return "使用 HALCON 保持原图、转换灰度或提取指定图像通道，并继续输出安全 Image 快照。";
                 case VmToolKind.ImageFilter:
                     return "使用 HALCON 均值或中值滤波抑制随机噪声，并继续输出安全 Image 快照。";
+                case VmToolKind.ImageEnhancement:
+                    return "使用 HALCON 线性灰度缩放或局部对比度增强改善图像可分辨性，并继续输出安全 Image 快照。";
+                case VmToolKind.ImageDifference:
+                    return "显式订阅两路同尺寸、同通道图像，使用 HALCON 绝对差分或带增益/偏移的方向减法提取变化，并继续输出安全 Image 快照。";
+                case VmToolKind.DynamicThreshold:
+                    return "显式订阅原图与参考图，使用 HALCON dyn_threshold 按局部灰度差提取明缺陷或暗缺陷，并输出安全 Region 快照。";
                 case VmToolKind.ImageThreshold:
                     return "将输入图像按明确的灰度上下限执行 HALCON 阈值分割，输出可订阅的安全 Region 快照。";
                 case VmToolKind.RegionMorphology:
@@ -734,6 +961,20 @@ namespace HalconWinFormsDemo.Models
                     return "订阅上游 Region，使用 HALCON 按面积、宽度、高度或圆度筛选连通区域并输出安全 Region 快照。";
                 case VmToolKind.RegionSetOperation:
                     return "订阅两路不同的上游 Region，使用 HALCON 执行并集、交集、差集或对称差，并输出可继续订阅的安全 Region 快照。";
+                case VmToolKind.RegionContourMeasurement:
+                    return "订阅上游 Region，使用 HALCON 生成可显示的 XLD 轮廓并测量轮廓总长度与数量。";
+                case VmToolKind.XldContourFilter:
+                    return "订阅上游 XLD，使用 HALCON 按轮廓长度或最大跨度筛选，并输出可继续订阅和显示的 XLD。";
+                case VmToolKind.XldContourSegmentation:
+                    return "订阅上游 XLD，使用 HALCON 将轮廓分为直线段及圆弧或椭圆弧，并输出分类、长度与可继续订阅的 XLD。";
+                case VmToolKind.XldLineFitting:
+                    return "订阅直线段 XLD，使用 HALCON 鲁棒拟合直线，输出端点、长度、方向与残差，并提供可显示的拟合线 XLD。";
+                case VmToolKind.XldCircleFitting:
+                    return "订阅圆弧或整圆 XLD，使用 HALCON 鲁棒拟合圆，输出圆心、半径、弧角、点序与残差，并提供可显示的拟合圆弧 XLD。";
+                case VmToolKind.XldEllipseFitting:
+                    return "订阅椭圆弧或闭合 XLD，使用 HALCON 鲁棒拟合椭圆，输出中心、主轴方向、长短半轴、弧角、点序与残差，并提供可显示的拟合椭圆 XLD。";
+                case VmToolKind.XldRectangleFitting:
+                    return "订阅完整或部分矩形 XLD，使用 HALCON 鲁棒拟合旋转矩形，输出中心、方向、两边半长、四角点、点序与残差，并提供可显示的拟合矩形 XLD。";
                 case VmToolKind.ShapeMatch:
                     return "HALCON Shape Model 定位目标并输出中心、角度和分数。";
                 case VmToolKind.Blob:
@@ -759,11 +1000,32 @@ namespace HalconWinFormsDemo.Models
                     return new VmPortDefinition[0];
                 case VmToolKind.ImageChannel:
                 case VmToolKind.ImageFilter:
+                case VmToolKind.ImageEnhancement:
                 case VmToolKind.ImageThreshold:
                     return new[] { Port("Image", "输入图像", "Image", false) };
+                case VmToolKind.ImageDifference:
+                    return new[]
+                    {
+                        Port("ImageA", "图像 A（被减图）", "Image", false),
+                        Port("ImageB", "图像 B（减图）", "Image", false)
+                    };
+                case VmToolKind.DynamicThreshold:
+                    return new[]
+                    {
+                        Port("OriginalImage", "原始图像", "Image", false),
+                        Port("ReferenceImage", "参考图像", "Image", false)
+                    };
                 case VmToolKind.RegionMorphology:
                 case VmToolKind.RegionFeatureFilter:
+                case VmToolKind.RegionContourMeasurement:
                     return new[] { Port("Region", "输入区域", "Region", false) };
+                case VmToolKind.XldContourFilter:
+                case VmToolKind.XldContourSegmentation:
+                case VmToolKind.XldLineFitting:
+                case VmToolKind.XldCircleFitting:
+                case VmToolKind.XldEllipseFitting:
+                case VmToolKind.XldRectangleFitting:
+                    return new[] { Port("XLD", "输入轮廓", "XLD", false) };
                 case VmToolKind.RegionSetOperation:
                     return new[]
                     {
@@ -813,6 +1075,112 @@ namespace HalconWinFormsDemo.Models
                         Port("Height", "图像高度", "Number", false),
                         Port("ResultCode", "结果码", "String", false)
                     };
+                case VmToolKind.RegionContourMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "轮廓对象", "XLD", false),
+                        Port("TotalLength", "轮廓总长度", "Number", false),
+                        Port("ContourCount", "轮廓数量", "Number", false),
+                        Port("Mode", "轮廓模式", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldContourFilter:
+                    return new[]
+                    {
+                        Port("XLD", "筛选轮廓", "XLD", false),
+                        Port("TotalLength", "轮廓总长度", "Number", false),
+                        Port("ContourCount", "轮廓数量", "Number", false),
+                        Port("Feature", "筛选特征", "String", false),
+                        Port("Range", "筛选范围", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldContourSegmentation:
+                    return new[]
+                    {
+                        Port("XLD", "分段轮廓", "XLD", false),
+                        Port("TotalLength", "分段总长度", "Number", false),
+                        Port("SegmentCount", "分段数量", "Number", false),
+                        Port("LineCount", "直线段数量", "Number", false),
+                        Port("ArcCount", "圆弧/椭圆弧数量", "Number", false),
+                        Port("Mode", "分段模式", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldLineFitting:
+                    return new[]
+                    {
+                        Port("XLD", "拟合直线", "XLD", false),
+                        Port("LineCount", "直线数量", "Number", false),
+                        Port("TotalLength", "直线总长度", "Number", false),
+                        Port("MeanAngle", "平均方向角", "Number", false),
+                        Port("MaxResidual", "最大点线残差", "Number", false),
+                        Port("StartRow", "主线起点行", "Number", false),
+                        Port("StartColumn", "主线起点列", "Number", false),
+                        Port("EndRow", "主线终点行", "Number", false),
+                        Port("EndColumn", "主线终点列", "Number", false),
+                        Port("Algorithm", "拟合算法", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldCircleFitting:
+                    return new[]
+                    {
+                        Port("XLD", "拟合圆弧", "XLD", false),
+                        Port("CircleCount", "圆数量", "Number", false),
+                        Port("CenterRow", "主圆圆心行", "Number", false),
+                        Port("CenterColumn", "主圆圆心列", "Number", false),
+                        Port("Radius", "主圆半径", "Number", false),
+                        Port("StartPhi", "主圆起始角", "Number", false),
+                        Port("EndPhi", "主圆终止角", "Number", false),
+                        Port("PointOrder", "主圆点序", "String", false),
+                        Port("MaxResidual", "最大径向残差", "Number", false),
+                        Port("Algorithm", "拟合算法", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldEllipseFitting:
+                    return new[]
+                    {
+                        Port("XLD", "拟合椭圆弧", "XLD", false),
+                        Port("EllipseCount", "椭圆数量", "Number", false),
+                        Port("CenterRow", "主椭圆中心行", "Number", false),
+                        Port("CenterColumn", "主椭圆中心列", "Number", false),
+                        Port("Phi", "主轴方向角", "Number", false),
+                        Port("Radius1", "长半轴", "Number", false),
+                        Port("Radius2", "短半轴", "Number", false),
+                        Port("StartPhi", "主椭圆起始角", "Number", false),
+                        Port("EndPhi", "主椭圆终止角", "Number", false),
+                        Port("PointOrder", "主椭圆点序", "String", false),
+                        Port("MaxResidual", "最大椭圆残差", "Number", false),
+                        Port("Algorithm", "拟合算法", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldRectangleFitting:
+                    return new[]
+                    {
+                        Port("XLD", "拟合旋转矩形", "XLD", false),
+                        Port("RectangleCount", "矩形数量", "Number", false),
+                        Port("CenterRow", "主矩形中心行", "Number", false),
+                        Port("CenterColumn", "主矩形中心列", "Number", false),
+                        Port("Phi", "Length1 边方向角", "Number", false),
+                        Port("Length1", "Length1 边半长", "Number", false),
+                        Port("Length2", "Length2 边半长", "Number", false),
+                        Port("Corner1Row", "角点1行", "Number", false),
+                        Port("Corner1Column", "角点1列", "Number", false),
+                        Port("Corner2Row", "角点2行", "Number", false),
+                        Port("Corner2Column", "角点2列", "Number", false),
+                        Port("Corner3Row", "角点3行", "Number", false),
+                        Port("Corner3Column", "角点3列", "Number", false),
+                        Port("Corner4Row", "角点4行", "Number", false),
+                        Port("Corner4Column", "角点4列", "Number", false),
+                        Port("PointOrder", "主矩形点序", "String", false),
+                        Port("OrientationState", "方向稳定性", "String", false),
+                        Port("MaxResidual", "最大边界残差", "Number", false),
+                        Port("Algorithm", "拟合算法", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
                 case VmToolKind.ImageChannel:
                     return new[]
                     {
@@ -833,6 +1201,38 @@ namespace HalconWinFormsDemo.Models
                         Port("Channels", "图像通道数", "Number", false),
                         Port("Mode", "滤波模式", "String", false),
                         Port("Kernel", "滤波模板", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.ImageEnhancement:
+                    return new[]
+                    {
+                        Port("Image", "增强图像", "Image", false),
+                        Port("Width", "图像宽度", "Number", false),
+                        Port("Height", "图像高度", "Number", false),
+                        Port("Channels", "图像通道数", "Number", false),
+                        Port("Mode", "增强模式", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.ImageDifference:
+                    return new[]
+                    {
+                        Port("Image", "差分图像", "Image", false),
+                        Port("Width", "图像宽度", "Number", false),
+                        Port("Height", "图像高度", "Number", false),
+                        Port("Channels", "图像通道数", "Number", false),
+                        Port("Mode", "差分模式", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.DynamicThreshold:
+                    return new[]
+                    {
+                        Port("Region", "动态阈值区域", "Region", false),
+                        Port("Area", "区域总面积", "Number", false),
+                        Port("RegionCount", "连通区域数", "Number", false),
+                        Port("Polarity", "明暗极性", "String", false),
+                        Port("Offset", "灰度偏移", "Number", false),
                         Port("ResultCode", "结果码", "String", false)
                     };
                 case VmToolKind.ImageThreshold:

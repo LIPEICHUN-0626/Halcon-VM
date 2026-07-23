@@ -1,6 +1,6 @@
 # 海康 VM 官方参考产品规范
 
-更新日期：2026-07-19
+更新日期：2026-07-23
 用途：定义本项目要复刻的 VM / VisionMaster 产品结构、交互习惯、功能边界和验收口径。
 状态：长期产品基线；实现状态仍以代码和可复现验证为准。
 
@@ -26,6 +26,16 @@
 8. [海康机器人 VM 算法开发平台官方用户手册 PDF](https://pinfo.hikrobotics.com/hkws/unzip/20231101163730_26101_doc/pdf.pdf)与[VM3D 官方手册目录](https://pinfo.hikrobotics.com/hkws/unzip/20240919112534_17943_doc/index.html)：再次确认图像控件可订阅流程模块图像、提供自适应显示并按层显示图像叠加，2D 图像处理目录包含形态学处理。放大方式、叠加开关粒度、具体颜色和 HALCON 参数属于本项目产品化实现。
 9. 同一官方 VM 手册和[图像源模块章节](https://pinfo.hikrobotics.com/hkws/unzip/20231101163730_26101_doc/GUID-8D7949F0-EB91-4794-BD3C-D4182726D931.html)确认模块输入来源可订阅前序模块输出且具有明确数据类型约束；S15 的端口类型、来源、消费者和双输入汇聚可视化据此作为产品化实现，不代表海康内部连接模型。
 10. MVTec 官方 HALCON 算子文档：[union2](https://www.mvtec.com/doc/halcon/2011/en/union2.html)、[intersection](https://www.mvtec.com/doc/halcon/2011/en/intersection.html)、[difference](https://www.mvtec.com/doc/halcon/2011/en/difference.html)和[symm_difference](https://www.mvtec.com/doc/halcon/2111/en/symm_difference.html)作为 S15 集合语义依据；项目以已安装 HALCON 20.11 .NET 导出签名和专项结果共同验证实际运行。
+11. 同一 VM5.0 官方发布资料与 VM 手册确认网格布局、多模块汇聚、自动串/并连排列和前后模块连接习惯；S16 将真实 `InputBindings` 映射为二维依赖层和连接曲线，是本项目产品化推导，不代表海康内部连接模型或并行调度已经复刻。MVTec 官方 [scale_image](https://www.mvtec.com/doc/halcon/11/en/scale_image.html) 与 [emphasize](https://www.mvtec.com/doc/halcon/2011/en/emphasize.html) 算子文档作为 S16 线性灰度缩放和局部对比度增强语义依据，实际运行以已安装 HALCON 20.11 .NET 签名和专项像素结果验证。
+12. S17 的连接检查器是依据 VM 前后模块连接/输入订阅习惯做出的产品化推导：选择、定位、清除和修复必须作用于本项目真实 `InputBindings`，不代表海康内部实现已知。MVTec 官方 HALCON 20.11.4 [`dyn_threshold`](https://www.mvtec.com/doc/halcon/2011/en/dyn_threshold.html) 文档确认两路单通道图像、Light/Dark 比较和 `-255 < Offset < 255` 算子语义；本项目将现场配置收窄为 `1 <= Offset < 255`，以保留明/暗方向含义并规避接近零偏移的噪声风险，该限制属于本项目工业封装。
+13. S18 继续依据 VM 官方手册“参数可从前序模块结果订阅”的操作习惯，把输入端口订阅替换/清除和输出消费者导航作为本项目产品化实现；所有动作写回真实 `InputBindings`，不代表海康内部端口编辑器已被复制。MVTec HALCON 20.11.4 官方 [`sub_image`](https://www.mvtec.com/doc/halcon/2011/en/sub_image.html) 文档确认 `(g1-g2)*Mult+Add`、裁剪和 .NET 签名；官方 [`abs_diff_image`](https://www.mvtec.com/doc/halcon/2011/en/abs_diff_image.html) 说明绝对差 `abs(g1-g2)*Mult` 与 `Mult > 0`。本机 20.11 `halcondotnet.dll` 反射进一步确认 `HOperatorSet.AbsDiffImage(..., HTuple)` 与 `SubImage(..., HTuple, HTuple)` 精确导出签名。
+14. VM 官方手册明确描述“右键单模块复制”以及“框选多个模块后复制，在目标区域右键粘贴”。S19 先交付多入口模块剪贴板、顺序列表多选、新 ToolId/安全名称、配置复制和合法连接重映射；连接画布框选留待 S20，因此不能宣称官方多选交互已完整复刻。MVTec HALCON 20.11.4 官方 [`gen_contour_region_xld`](https://www.mvtec.com/doc/halcon/2011/en/gen_contour_region_xld.html) 确认 `center/border/border_holes` 语义，[`length_xld`](https://www.mvtec.com/doc/halcon/2011/en/length_xld.html) 确认逐 XLD 轮廓返回长度元组；本机 20.11 `halcondotnet.dll` 反射确认对应 `HOperatorSet` 精确签名。
+15. S20 已按上述官方多模块习惯补连接画布可见橡皮框、Ctrl 增选/取消、选择计数和真实批量动作；这是本项目对交互习惯的实现，不代表海康内部选择模型。MVTec HALCON 20.11.4 官方 [`select_contours_xld`](https://www.mvtec.com/doc/halcon/2011/en/select_contours_xld.html) 确认 `contour_length/maximum_extent` 的范围均由 `Min1/Max1` 控制、`Min2/Max2` 对这两个特征无影响；本机 20.11 `halcondotnet.dll` 反射确认 `HOperatorSet.SelectContoursXld(HObject, out HObject, HTuple, HTuple, HTuple, HTuple, HTuple)` 精确签名。S20 不据此宣称用户拖拽连线、撤销、Group 或并行已完成。
+16. 海康 VM 官方产品页明确以“完全图形化”与“拖拽式操作”描述快速搭建视觉方案；S21 据此把真实 OUT→IN 端口拖线、已连接 IN 重连和可连接/拒绝反馈作为本项目产品化实现，所有动作写回真实 `InputBindings`，不代表海康内部连接模型已知。MVTec HALCON 20.11.4 官方 [`segment_contours_xld`](https://www.mvtec.com/doc/halcon/2011/en/segment_contours_xld.html) 确认 `lines/lines_circles/lines_ellipses`、平滑及两项最大线距语义；本机 20.11 `halcondotnet.dll` 反射确认 `HOperatorSet.SegmentContoursXld(HObject, out HObject, HTuple, HTuple, HTuple, HTuple)` 精确签名。S21 不据此宣称撤销、手动节点布局、Group、并行或多流程已完成。
+17. VM5.0 官方发布资料明确提到网格布局、多模块汇聚与自动排列；S22 据此实现可见网格、模块手动定位、吸附、对齐/等距和恢复自动布局，坐标只作为本项目可选配方呈现字段，不代表海康内部布局存储或调度模型已知。MVTec HALCON 20.11 官方 [`fit_line_contour_xld`](https://www.mvtec.com/doc/halcon/2011/en/fit_line_contour_xld.html) 确认逐轮廓直线拟合、regression/Huber/Tukey/drop/Gauss、最大采样点、端点裁剪、迭代与裁剪因子语义；本机 20.11 `halcondotnet.dll` 反射确认 `HOperatorSet.FitLineContourXld(HObject, HTuple, HTuple, HTuple, HTuple, HTuple, out HTuple, out HTuple, out HTuple, out HTuple, out HTuple, out HTuple, out HTuple)` 精确签名。S22 不据此宣称撤销/重做、Group、并行或多流程已完成。
+18. 海康 VM 官方资料中的图形化方案搭建、多模块编辑和网格工作区用于确认撤销/重做应恢复真实流程状态而非播放动画；S23 的 50 项纯 DTO 历史、快捷键和恢复语义是本项目产品化实现，不代表海康内部历史模型已知。MVTec HALCON 20.11 官方 [`fit_circle_contour_xld`](https://www.mvtec.com/doc/halcon/2011/en/fit_circle_contour_xld.html) 确认一条轮廓拟合一个圆、`algebraic/ahuber/atukey/geometric/geohuber/geotukey`、`MaxNumPoints`、`MaxClosureDist`、端点裁剪、迭代、裁剪因子及 `Row/Column/Radius/StartPhi/EndPhi/PointOrder` 输出语义；本机 20.11 `halcondotnet.dll` 反射确认 `HOperatorSet.FitCircleContourXld(HObject, HTuple, HTuple, HTuple, HTuple, HTuple, HTuple, out HTuple, out HTuple, out HTuple, out HTuple, out HTuple, out HTuple)` 精确签名。S23 不据此宣称完整 Group、并行、多流程或海康内部圆算法已知。
+19. VM5.0 官方发布资料明确提到多模块组合折叠；S24 据此实现可命名、可持久化、安全折叠且显示边界连接的组织型 Group 首版，这是本项目产品化实现，不代表海康内部 Group 存储或调度模型已知。MVTec HALCON 20.11 官方 [`fit_ellipse_contour_xld`](https://www.mvtec.com/doc/halcon/2011/en/fit_ellipse_contour_xld.html) 确认 `fitzgibbon/fhuber/ftukey/focpoints/fphuber/fptukey/geometric/geohuber/geotukey/voss`、`MaxNumPoints/MaxClosureDist/ClippingEndPoints/VossTabSize/Iterations/ClippingFactor` 及 `Row/Column/Phi/Radius1/Radius2/StartPhi/EndPhi/PointOrder` 语义，其中 `Radius1` 为长半轴、`Radius2` 为短半轴；本机 20.11 `halcondotnet.dll` 反射确认 `HOperatorSet.FitEllipseContourXld(HObject, HTuple, HTuple, HTuple, HTuple, HTuple, HTuple, HTuple, out HTuple, out HTuple, out HTuple, out HTuple, out HTuple, out HTuple, out HTuple, out HTuple)` 精确签名。S24 不据此宣称执行型 Group、并行、多流程或海康内部椭圆算法已知。
+20. S25 的流程断点、单步、继续、红色断点和下一执行指针，是依据官方 VM 调试/运行工作方式与本项目真实确定性执行器做出的产品化推导，不代表海康内部断点存储或调度器实现已知。MVTec HALCON 20.11 官方 [`fit_rectangle2_contour_xld`](https://www.mvtec.com/doc/halcon/2011/en/fit_rectangle2_contour_xld.html) 确认 `regression/huber/tukey`、`MaxNumPoints/MaxClosureDist/ClippingEndPoints/Iterations/ClippingFactor`、至少 8 个轮廓点及四条矩形边内部均须被轮廓覆盖的前提，并输出 `Row/Column/Phi/Length1/Length2/PointOrder`；本机 20.11 `halcondotnet.dll` 反射确认 `HOperatorSet.FitRectangle2ContourXld(HObject, HTuple, HTuple, HTuple, HTuple, HTuple, HTuple, out HTuple, out HTuple, out HTuple, out HTuple, out HTuple, out HTuple)` 精确签名。S25 的四角点、近正方形方向提示和实际最大残差属于本项目基于官方拟合结果的产品化派生，不冒充海康内部矩形算法。
 
 ### 2.2 证据等级
 
@@ -234,13 +244,15 @@
 - 相机 SDK、投产通信协议和旧工程格式是稳定边界；先适配、再迁移、可回退。
 - 不提交海康手册、官方截图、商标、图标或其他受保护资产；只在文档中链接官方来源并使用自制图标/布局实现同类工作方式。
 
-## 12. 当前代码真实基线（S15，S06-S15 批次已达到 10/10 并批量交付）
+## 12. 当前代码真实基线（S25，当前 Git 批次 10/10，按规则触发统一提交/推送）
 
 ### 12.1 已验证实现
 
 - 活动 WPF 已采用左模块箱、中央网格顺序流程、右上 HALCON 图像/ROI、右下结果/配置/方案和底部日志/历史分区；模块箱支持分类折叠、搜索、收藏、最近、双击和拖拽确定性插入。
-- Shape、Blob、灰度、边缘、HDevelop、数值判定、本地图像源、图像通道、图像滤波、阈值分割、Region 形态学、Region 特征筛选和 Region 集合运算的运行适配；右侧停靠配置覆盖除 Shape/HDevelop 外的上述主要工具。
-- 类型化 I/O 与 Image/Region/Number 真实数据链；中央卡显示真实端口、来源、值、消费者和直接依赖，双 Region 可执行 HALCON 并/交/差/对称差并继续连接筛选/Gray/Edge；托管 HALCON Image/Region 快照在上游重跑、删除、配方重载和关闭时释放。
+- Shape、Blob、灰度、边缘、HDevelop、数值判定、本地图像源、图像通道、图像滤波、图像增强、双图像差分、阈值分割、动态阈值分割、Region 形态学、Region 特征筛选、Region 集合运算、Region 轮廓测量、XLD 轮廓筛选、XLD 轮廓分段和 XLD 直线/圆/椭圆/旋转矩形拟合测量的运行适配；右侧停靠配置覆盖除 Shape/HDevelop 外的上述主要工具。
+- 类型化 I/O 与 Image/Region/XLD/Number 真实数据链；中央默认连接画布显示真实依赖层、方向曲线、端口标签、消费者、等待/错误和选中关系，连接可检查/修复，IN 端口可替换/清除订阅或拖出重连，OUT 端口可浏览/定位消费者或拖到兼容 IN 创建/替换真实绑定；画布还支持模块拖动、24 像素网格、对齐/等距、自动/手动状态、可选坐标配方回读，以及显示成员/边界连接/确定性序号/异常的组织型 Group 首版。双 Image 可执行 HALCON 绝对/方向差分和 `dyn_threshold`，双 Region 可执行集合运算，Region 可生成托管 XLD，XLD 可筛选、分段和拟合直线/圆/椭圆/旋转矩形并把尺寸、角度、残差驱动数值判定；托管 HALCON Image/Region/XLD 快照在上游重跑、删除、历史恢复、配方重载和关闭时释放。
+- 编辑菜单、流程工具条、连接画布和顺序列表右键菜单已有复制、粘贴、创建副本及快捷键；连接画布支持可见橡皮框、Ctrl 增减和选择计数，并与顺序列表同步；批量复制/副本/启停/删除作用于真实流程，批量删除清理消费者并失效下游，不复制运行结果或 HALCON 快照。
+- 运行菜单、顶部/流程工具条、画布/节点/列表右键和 `F9/F10/F5` 已提供断点开关、清除断点、单步和继续；红色断点、橙色下一执行指针、组合摘要、暂停原因和下一工具可见。断点在启用模块执行前命中，单步只执行一个启用工具，断点随配方和撤销/重做保存；执行指针只属于运行态。
 - 右上支持全局输入/当前模块输入/当前模块输出、来源工具/端口、文件/SN、尺寸、鼠标坐标、灰度/RGB 值、工作区放大/恢复、ROI/结果独立显隐、真实结果图例和空/失效状态。
 - ROI 图层、矩形/圆/旋转矩形/多边形、显隐/启停/命名/删除、工具级多 ROI 绑定、逐 ROI 结果和 HALCON Region 执行；四类 ROI 已支持对应控制点移动和几何调整、复制、锁定、边界及非法几何保护。
 - 单方案 JSON v2 当前/最近/恢复/自检、脏状态、原子保存、单份备份和独立恢复副本。
@@ -249,10 +261,10 @@
 
 ### 12.2 与 VM 的真实差距
 
-- 主分区已纠正，端口和首个双输入汇聚已真实可见，但中央流程仍是纵向确定性线性节点；没有二维连接路径、依赖分层自动排列、真实分支调度、Group 折叠、多流程和完整调度。
+- 主分区已纠正，真实端口、二维连接、依赖分层、分支/汇聚、连接导航、OUT→IN 拖线、模块复制粘贴、画布多选/批量动作、用户节点位置持久化、首批真实撤销/重做、组织型 Group 及执行前断点/单步已可用，但执行仍是确定性线性调度；没有运行到所选、调试监视表、全量动作历史面板、真实分支并行、执行型 Group、多流程和完整调度，单个 HALCON 算子也不可中断。
 - 首批主要参数已迁入常驻/停靠工作台，右侧 Inspector 仅作摘要；Shape/HDevelop/模型页仍依赖兼容弹窗，通用 Schema 和连续试运行不完整。
 - 图像区已有模块/全局图像、像素值、连续 Image/Region 叠加、放大/恢复、ROI/结果独立显隐、结果图例和四类 ROI 精细编辑，但仍缺完整独立叠加层列表、椭圆/圆环/线点、屏蔽区、位置修正、十字线、多画面、缩略图和完整中间/结果图链。
-- Image/Region/Number 已形成连续首链及首个双 Region 汇聚，但数组、XLD/几何/姿态/标定映射、二维连接画布和拖拽连线仍缺。
+- Image/Region/XLD/Number 已形成连续链、真实二维连接及双 Image/双 Region 汇聚，XLD 已有生产、筛选、分段、直线拟合、圆拟合、椭圆拟合和旋转矩形拟合七个可显示/释放工具；但双几何关系、数组、几何/姿态/标定映射和完整模块目录仍缺。
 - 相机服务和旧 WinForms 能力对 WPF 用户不可达；没有资源管理闭环。
 - 只有数值判定一个计算工具；坐标、标定、通信流程工具和 BSB 工具没有真实入口。
 - 运行界面设计器、多流程、全局变量/触发/脚本/数据队列、权限、持久历史、诊断和部署均未实现。

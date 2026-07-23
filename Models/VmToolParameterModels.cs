@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization;
 
 namespace HalconWinFormsDemo.Models
@@ -30,6 +31,49 @@ namespace HalconWinFormsDemo.Models
             RegionFeatureMin = 0;
             RegionFeatureMax = 999999999;
             RegionSetOperationMode = VmRegionSetOperationMode.Union;
+            ImageEnhancementMode = VmImageEnhancementMode.LinearScale;
+            ImageEnhancementScale = 1.0;
+            ImageEnhancementOffset = 0.0;
+            ImageEnhancementMaskWidth = 7;
+            ImageEnhancementMaskHeight = 7;
+            ImageEnhancementFactor = 1.0;
+            DynamicThresholdPolarity = VmDynamicThresholdPolarity.Light;
+            DynamicThresholdOffset = 5.0;
+            ImageDifferenceMode = VmImageDifferenceMode.AbsoluteDifference;
+            ImageDifferenceMultiplier = 1.0;
+            ImageDifferenceAdd = 0.0;
+            RegionContourMode = VmRegionContourMode.Border;
+            XldContourFeature = VmXldContourFeature.ContourLength;
+            XldContourMin = 0;
+            XldContourMax = 999999999;
+            XldSegmentMode = VmXldSegmentMode.LinesCircles;
+            XldSegmentSmooth = 5;
+            XldSegmentMaxLineDistance1 = 4;
+            XldSegmentMaxLineDistance2 = 2;
+            XldLineFitAlgorithm = VmXldLineFitAlgorithm.Tukey;
+            XldLineFitMaxNumPoints = -1;
+            XldLineFitClippingEndPoints = 0;
+            XldLineFitIterations = 5;
+            XldLineFitClippingFactor = 2;
+            XldCircleFitAlgorithm = VmXldCircleFitAlgorithm.ATukey;
+            XldCircleFitMaxNumPoints = -1;
+            XldCircleFitMaxClosureDistance = 1.5;
+            XldCircleFitClippingEndPoints = 0;
+            XldCircleFitIterations = 5;
+            XldCircleFitClippingFactor = 2;
+            XldEllipseFitAlgorithm = VmXldEllipseFitAlgorithm.FTukey;
+            XldEllipseFitMaxNumPoints = -1;
+            XldEllipseFitMaxClosureDistance = 1.5;
+            XldEllipseFitClippingEndPoints = 0;
+            XldEllipseFitVossTabSize = 200;
+            XldEllipseFitIterations = 5;
+            XldEllipseFitClippingFactor = 2;
+            XldRectangleFitAlgorithm = VmXldRectangleFitAlgorithm.Tukey;
+            XldRectangleFitMaxNumPoints = -1;
+            XldRectangleFitMaxClosureDistance = 1.5;
+            XldRectangleFitClippingEndPoints = 0;
+            XldRectangleFitIterations = 5;
+            XldRectangleFitClippingFactor = 2;
         }
 
         [DataMember(Order = 1)] public double BlobMinGray { get; set; }
@@ -55,6 +99,49 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 21, EmitDefaultValue = false)] public double RegionFeatureMin { get; set; }
         [DataMember(Order = 22, EmitDefaultValue = false)] public double RegionFeatureMax { get; set; }
         [DataMember(Order = 23, EmitDefaultValue = false)] public string RegionSetOperationMode { get; set; }
+        [DataMember(Order = 24, EmitDefaultValue = false)] public string ImageEnhancementMode { get; set; }
+        [DataMember(Order = 25, EmitDefaultValue = false)] public double ImageEnhancementScale { get; set; }
+        [DataMember(Order = 26, EmitDefaultValue = false)] public double ImageEnhancementOffset { get; set; }
+        [DataMember(Order = 27, EmitDefaultValue = false)] public int ImageEnhancementMaskWidth { get; set; }
+        [DataMember(Order = 28, EmitDefaultValue = false)] public int ImageEnhancementMaskHeight { get; set; }
+        [DataMember(Order = 29, EmitDefaultValue = false)] public double ImageEnhancementFactor { get; set; }
+        [DataMember(Order = 30, EmitDefaultValue = false)] public string DynamicThresholdPolarity { get; set; }
+        [DataMember(Order = 31, EmitDefaultValue = false)] public double DynamicThresholdOffset { get; set; }
+        [DataMember(Order = 32, EmitDefaultValue = false)] public string ImageDifferenceMode { get; set; }
+        [DataMember(Order = 33, EmitDefaultValue = false)] public double ImageDifferenceMultiplier { get; set; }
+        [DataMember(Order = 34, EmitDefaultValue = false)] public double ImageDifferenceAdd { get; set; }
+        [DataMember(Order = 35, EmitDefaultValue = false)] public string RegionContourMode { get; set; }
+        [DataMember(Order = 36, EmitDefaultValue = false)] public string XldContourFeature { get; set; }
+        [DataMember(Order = 37, EmitDefaultValue = false)] public double XldContourMin { get; set; }
+        [DataMember(Order = 38, EmitDefaultValue = false)] public double XldContourMax { get; set; }
+        [DataMember(Order = 39, EmitDefaultValue = false)] public string XldSegmentMode { get; set; }
+        [DataMember(Order = 40, EmitDefaultValue = false)] public int XldSegmentSmooth { get; set; }
+        [DataMember(Order = 41, EmitDefaultValue = false)] public double XldSegmentMaxLineDistance1 { get; set; }
+        [DataMember(Order = 42, EmitDefaultValue = false)] public double XldSegmentMaxLineDistance2 { get; set; }
+        [DataMember(Order = 43, EmitDefaultValue = false)] public string XldLineFitAlgorithm { get; set; }
+        [DataMember(Order = 44, EmitDefaultValue = false)] public int XldLineFitMaxNumPoints { get; set; }
+        [DataMember(Order = 45, EmitDefaultValue = false)] public int XldLineFitClippingEndPoints { get; set; }
+        [DataMember(Order = 46, EmitDefaultValue = false)] public int XldLineFitIterations { get; set; }
+        [DataMember(Order = 47, EmitDefaultValue = false)] public double XldLineFitClippingFactor { get; set; }
+        [DataMember(Order = 48, EmitDefaultValue = false)] public string XldCircleFitAlgorithm { get; set; }
+        [DataMember(Order = 49, EmitDefaultValue = false)] public int XldCircleFitMaxNumPoints { get; set; }
+        [DataMember(Order = 50, EmitDefaultValue = false)] public double XldCircleFitMaxClosureDistance { get; set; }
+        [DataMember(Order = 51, EmitDefaultValue = false)] public int XldCircleFitClippingEndPoints { get; set; }
+        [DataMember(Order = 52, EmitDefaultValue = false)] public int XldCircleFitIterations { get; set; }
+        [DataMember(Order = 53, EmitDefaultValue = false)] public double XldCircleFitClippingFactor { get; set; }
+        [DataMember(Order = 54, EmitDefaultValue = false)] public string XldEllipseFitAlgorithm { get; set; }
+        [DataMember(Order = 55, EmitDefaultValue = false)] public int XldEllipseFitMaxNumPoints { get; set; }
+        [DataMember(Order = 56, EmitDefaultValue = false)] public double XldEllipseFitMaxClosureDistance { get; set; }
+        [DataMember(Order = 57, EmitDefaultValue = false)] public int XldEllipseFitClippingEndPoints { get; set; }
+        [DataMember(Order = 58, EmitDefaultValue = false)] public int XldEllipseFitVossTabSize { get; set; }
+        [DataMember(Order = 59, EmitDefaultValue = false)] public int XldEllipseFitIterations { get; set; }
+        [DataMember(Order = 60, EmitDefaultValue = false)] public double XldEllipseFitClippingFactor { get; set; }
+        [DataMember(Order = 61, EmitDefaultValue = false)] public string XldRectangleFitAlgorithm { get; set; }
+        [DataMember(Order = 62, EmitDefaultValue = false)] public int XldRectangleFitMaxNumPoints { get; set; }
+        [DataMember(Order = 63, EmitDefaultValue = false)] public double XldRectangleFitMaxClosureDistance { get; set; }
+        [DataMember(Order = 64, EmitDefaultValue = false)] public int XldRectangleFitClippingEndPoints { get; set; }
+        [DataMember(Order = 65, EmitDefaultValue = false)] public int XldRectangleFitIterations { get; set; }
+        [DataMember(Order = 66, EmitDefaultValue = false)] public double XldRectangleFitClippingFactor { get; set; }
 
         public VmToolParameterData Clone()
         {
@@ -70,6 +157,102 @@ namespace HalconWinFormsDemo.Models
             ImageFilterMode = VmImageFilterMode.Normalize(ImageFilterMode);
             RegionMorphologyMode = VmRegionMorphologyMode.Normalize(RegionMorphologyMode);
             RegionSetOperationMode = VmRegionSetOperationMode.Normalize(RegionSetOperationMode);
+            ImageEnhancementMode = VmImageEnhancementMode.Normalize(ImageEnhancementMode);
+            DynamicThresholdPolarity = VmDynamicThresholdPolarity.Normalize(DynamicThresholdPolarity);
+            ImageDifferenceMode = VmImageDifferenceMode.Normalize(ImageDifferenceMode);
+            RegionContourMode = VmRegionContourMode.Normalize(RegionContourMode);
+            if (string.IsNullOrWhiteSpace(XldContourFeature))
+            {
+                XldContourFeature = VmXldContourFeature.ContourLength;
+                if (XldContourMin == 0 && XldContourMax == 0) XldContourMax = 999999999;
+            }
+            else
+            {
+                XldContourFeature = VmXldContourFeature.Normalize(XldContourFeature);
+            }
+            if (string.IsNullOrWhiteSpace(XldSegmentMode))
+            {
+                XldSegmentMode = VmXldSegmentMode.LinesCircles;
+                if (XldSegmentSmooth == 0 && XldSegmentMaxLineDistance1 == 0 && XldSegmentMaxLineDistance2 == 0)
+                {
+                    XldSegmentSmooth = 5;
+                    XldSegmentMaxLineDistance1 = 4;
+                    XldSegmentMaxLineDistance2 = 2;
+                }
+            }
+            else
+            {
+                XldSegmentMode = VmXldSegmentMode.Normalize(XldSegmentMode);
+            }
+            if (string.IsNullOrWhiteSpace(XldLineFitAlgorithm))
+            {
+                XldLineFitAlgorithm = VmXldLineFitAlgorithm.Tukey;
+                if (XldLineFitMaxNumPoints == 0 && XldLineFitClippingEndPoints == 0 &&
+                    XldLineFitIterations == 0 && XldLineFitClippingFactor == 0)
+                {
+                    XldLineFitMaxNumPoints = -1;
+                    XldLineFitIterations = 5;
+                    XldLineFitClippingFactor = 2;
+                }
+            }
+            else
+            {
+                XldLineFitAlgorithm = VmXldLineFitAlgorithm.Normalize(XldLineFitAlgorithm);
+            }
+            if (string.IsNullOrWhiteSpace(XldCircleFitAlgorithm))
+            {
+                XldCircleFitAlgorithm = VmXldCircleFitAlgorithm.ATukey;
+                if (XldCircleFitMaxNumPoints == 0 && XldCircleFitMaxClosureDistance == 0 &&
+                    XldCircleFitClippingEndPoints == 0 && XldCircleFitIterations == 0 && XldCircleFitClippingFactor == 0)
+                {
+                    XldCircleFitMaxNumPoints = -1;
+                    XldCircleFitMaxClosureDistance = 1.5;
+                    XldCircleFitIterations = 5;
+                    XldCircleFitClippingFactor = 2;
+                }
+            }
+            else
+            {
+                if (VmXldCircleFitAlgorithm.IsSupported(XldCircleFitAlgorithm))
+                {
+                    XldCircleFitAlgorithm = VmXldCircleFitAlgorithm.Normalize(XldCircleFitAlgorithm);
+                }
+            }
+            if (string.IsNullOrWhiteSpace(XldEllipseFitAlgorithm))
+            {
+                XldEllipseFitAlgorithm = VmXldEllipseFitAlgorithm.FTukey;
+                if (XldEllipseFitMaxNumPoints == 0 && XldEllipseFitMaxClosureDistance == 0 &&
+                    XldEllipseFitClippingEndPoints == 0 && XldEllipseFitVossTabSize == 0 &&
+                    XldEllipseFitIterations == 0 && XldEllipseFitClippingFactor == 0)
+                {
+                    XldEllipseFitMaxNumPoints = -1;
+                    XldEllipseFitMaxClosureDistance = 1.5;
+                    XldEllipseFitVossTabSize = 200;
+                    XldEllipseFitIterations = 5;
+                    XldEllipseFitClippingFactor = 2;
+                }
+            }
+            else if (VmXldEllipseFitAlgorithm.IsSupported(XldEllipseFitAlgorithm))
+            {
+                XldEllipseFitAlgorithm = VmXldEllipseFitAlgorithm.Normalize(XldEllipseFitAlgorithm);
+            }
+            if (string.IsNullOrWhiteSpace(XldRectangleFitAlgorithm))
+            {
+                XldRectangleFitAlgorithm = VmXldRectangleFitAlgorithm.Tukey;
+                if (XldRectangleFitMaxNumPoints == 0 && XldRectangleFitMaxClosureDistance == 0 &&
+                    XldRectangleFitClippingEndPoints == 0 && XldRectangleFitIterations == 0 &&
+                    XldRectangleFitClippingFactor == 0)
+                {
+                    XldRectangleFitMaxNumPoints = -1;
+                    XldRectangleFitMaxClosureDistance = 1.5;
+                    XldRectangleFitIterations = 5;
+                    XldRectangleFitClippingFactor = 2;
+                }
+            }
+            else if (VmXldRectangleFitAlgorithm.IsSupported(XldRectangleFitAlgorithm))
+            {
+                XldRectangleFitAlgorithm = VmXldRectangleFitAlgorithm.Normalize(XldRectangleFitAlgorithm);
+            }
             if (string.IsNullOrWhiteSpace(RegionFeature))
             {
                 RegionFeature = VmRegionFeature.Area;
@@ -135,6 +318,241 @@ namespace HalconWinFormsDemo.Models
                 if (filterMode == VmImageFilterMode.Median && (ImageFilterRadius < 1 || ImageFilterRadius > 100))
                 {
                     return "中值滤波半径必须在 1 到 100 之间。";
+                }
+            }
+
+            if (kind == VmToolKind.ImageEnhancement)
+            {
+                if (!VmImageEnhancementMode.IsSupported(ImageEnhancementMode))
+                {
+                    return "图像增强模式无效。";
+                }
+
+                string enhancementMode = VmImageEnhancementMode.Normalize(ImageEnhancementMode);
+                if (enhancementMode == VmImageEnhancementMode.LinearScale &&
+                    (!IsFinite(ImageEnhancementScale) || !IsFinite(ImageEnhancementOffset) ||
+                     ImageEnhancementScale < 0.01 || ImageEnhancementScale > 10 ||
+                     ImageEnhancementOffset < -255 || ImageEnhancementOffset > 255))
+                {
+                    return "线性灰度缩放必须满足增益 0.01..10、偏移 -255..255。";
+                }
+
+                if (enhancementMode == VmImageEnhancementMode.LocalContrast &&
+                    (!IsOddInRange(ImageEnhancementMaskWidth, 3, 255) ||
+                     !IsOddInRange(ImageEnhancementMaskHeight, 3, 255) ||
+                     !IsFinite(ImageEnhancementFactor) || ImageEnhancementFactor <= 0 || ImageEnhancementFactor > 20))
+                {
+                    return "局部对比度增强必须使用 3..255 的奇数模板，增强因子必须满足 0 < 因子 ≤ 20。";
+                }
+            }
+
+            if (kind == VmToolKind.DynamicThreshold)
+            {
+                if (!VmDynamicThresholdPolarity.IsSupported(DynamicThresholdPolarity))
+                {
+                    return "动态阈值明暗极性无效。";
+                }
+
+                if (!IsFinite(DynamicThresholdOffset) || DynamicThresholdOffset < 1 || DynamicThresholdOffset >= 255)
+                {
+                    return "动态阈值偏移必须满足 1 ≤ 偏移 < 255；过小偏移会产生大量噪声。";
+                }
+            }
+
+            if (kind == VmToolKind.ImageDifference)
+            {
+                if (!VmImageDifferenceMode.IsSupported(ImageDifferenceMode))
+                {
+                    return "双图像差分模式无效。";
+                }
+
+                if (!IsFinite(ImageDifferenceMultiplier) || ImageDifferenceMultiplier <= 0 || ImageDifferenceMultiplier > 100)
+                {
+                    return "双图像差分增益必须满足 0 < 增益 ≤ 100。";
+                }
+
+                if (VmImageDifferenceMode.Normalize(ImageDifferenceMode) != VmImageDifferenceMode.AbsoluteDifference &&
+                    (!IsFinite(ImageDifferenceAdd) || ImageDifferenceAdd < -65535 || ImageDifferenceAdd > 65535))
+                {
+                    return "方向减法灰度偏移必须在 -65535 到 65535 之间。";
+                }
+            }
+
+            if (kind == VmToolKind.RegionContourMeasurement && !VmRegionContourMode.IsSupported(RegionContourMode))
+            {
+                return "Region 轮廓模式无效。";
+            }
+
+            if (kind == VmToolKind.XldContourFilter)
+            {
+                if (!VmXldContourFeature.IsSupported(XldContourFeature))
+                {
+                    return "XLD 轮廓筛选特征无效。";
+                }
+
+                if (!IsFinite(XldContourMin) || !IsFinite(XldContourMax) || XldContourMin < 0 || XldContourMin > XldContourMax)
+                {
+                    return "XLD 轮廓筛选范围必须满足 0 ≤ 下限 ≤ 上限。";
+                }
+
+                if (XldContourMax > 1000000000000.0)
+                {
+                    return "XLD 轮廓筛选上限不能超过 1e12 像素。";
+                }
+            }
+
+            if (kind == VmToolKind.XldContourSegmentation)
+            {
+                if (!VmXldSegmentMode.IsSupported(XldSegmentMode))
+                {
+                    return "XLD 轮廓分段模式无效。";
+                }
+
+                if (XldSegmentSmooth != 0 && (XldSegmentSmooth < 3 || XldSegmentSmooth > 101 || XldSegmentSmooth % 2 == 0))
+                {
+                    return "XLD 分段平滑点数必须为 0，或 3 到 101 之间的奇数。";
+                }
+
+                if (!IsFinite(XldSegmentMaxLineDistance1) || !IsFinite(XldSegmentMaxLineDistance2) ||
+                    XldSegmentMaxLineDistance1 < 0 || XldSegmentMaxLineDistance1 > 10000 ||
+                    XldSegmentMaxLineDistance2 < 0 || XldSegmentMaxLineDistance2 > 10000)
+                {
+                    return "XLD 分段最大线距 1/2 必须是 0 到 10000 之间的有限数值。";
+                }
+            }
+
+            if (kind == VmToolKind.XldLineFitting)
+            {
+                if (!VmXldLineFitAlgorithm.IsSupported(XldLineFitAlgorithm))
+                {
+                    return "XLD 直线拟合算法无效。";
+                }
+
+                if (XldLineFitMaxNumPoints != -1 && (XldLineFitMaxNumPoints < 2 || XldLineFitMaxNumPoints > 1000000))
+                {
+                    return "最大采样点数必须为 -1（全部），或 2 到 1000000。";
+                }
+
+                if (XldLineFitClippingEndPoints < 0 || XldLineFitClippingEndPoints > 100000)
+                {
+                    return "端点裁剪数量必须在 0 到 100000 之间。";
+                }
+
+                if (XldLineFitIterations < 0 || XldLineFitIterations > 1000)
+                {
+                    return "鲁棒迭代次数必须在 0 到 1000 之间。";
+                }
+
+                if (!IsFinite(XldLineFitClippingFactor) || XldLineFitClippingFactor <= 0 || XldLineFitClippingFactor > 100)
+                {
+                    return "裁剪因子必须满足 0 < 因子 ≤ 100。";
+                }
+            }
+
+            if (kind == VmToolKind.XldCircleFitting)
+            {
+                if (!VmXldCircleFitAlgorithm.IsSupported(XldCircleFitAlgorithm))
+                {
+                    return "XLD 圆拟合算法无效。";
+                }
+
+                if (XldCircleFitMaxNumPoints != -1 && (XldCircleFitMaxNumPoints < 3 || XldCircleFitMaxNumPoints > 1000000))
+                {
+                    return "圆拟合最大采样点数必须为 -1（全部），或 3 到 1000000。";
+                }
+
+                if (!IsFinite(XldCircleFitMaxClosureDistance) || XldCircleFitMaxClosureDistance < 0 || XldCircleFitMaxClosureDistance > 100000)
+                {
+                    return "最大闭合距离必须是 0 到 100000 之间的有限数值。";
+                }
+
+                if (XldCircleFitClippingEndPoints < 0 || XldCircleFitClippingEndPoints > 100000)
+                {
+                    return "圆拟合端点裁剪数量必须在 0 到 100000 之间。";
+                }
+
+                if (XldCircleFitIterations < 0 || XldCircleFitIterations > 1000)
+                {
+                    return "圆拟合鲁棒迭代次数必须在 0 到 1000 之间。";
+                }
+
+                if (!IsFinite(XldCircleFitClippingFactor) || XldCircleFitClippingFactor <= 0 || XldCircleFitClippingFactor > 100)
+                {
+                    return "圆拟合裁剪因子必须满足 0 < 因子 ≤ 100。";
+                }
+            }
+
+            if (kind == VmToolKind.XldEllipseFitting)
+            {
+                if (!VmXldEllipseFitAlgorithm.IsSupported(XldEllipseFitAlgorithm))
+                {
+                    return "XLD 椭圆拟合算法无效。";
+                }
+
+                if (XldEllipseFitMaxNumPoints != -1 && (XldEllipseFitMaxNumPoints < 5 || XldEllipseFitMaxNumPoints > 1000000))
+                {
+                    return "椭圆拟合最大采样点数必须为 -1（全部），或 5 到 1000000。";
+                }
+
+                if (!IsFinite(XldEllipseFitMaxClosureDistance) || XldEllipseFitMaxClosureDistance < 0 || XldEllipseFitMaxClosureDistance > 100000)
+                {
+                    return "椭圆拟合最大闭合距离必须是 0 到 100000 之间的有限数值。";
+                }
+
+                if (XldEllipseFitClippingEndPoints < 0 || XldEllipseFitClippingEndPoints > 100000)
+                {
+                    return "椭圆拟合端点裁剪数量必须在 0 到 100000 之间。";
+                }
+
+                if (XldEllipseFitVossTabSize < 4 || XldEllipseFitVossTabSize > 1000000)
+                {
+                    return "Voss 查找表大小必须在 4 到 1000000 之间。";
+                }
+
+                if (XldEllipseFitIterations < 0 || XldEllipseFitIterations > 1000)
+                {
+                    return "椭圆拟合鲁棒迭代次数必须在 0 到 1000 之间。";
+                }
+
+                if (!IsFinite(XldEllipseFitClippingFactor) || XldEllipseFitClippingFactor <= 0 || XldEllipseFitClippingFactor > 100)
+                {
+                    return "椭圆拟合裁剪因子必须满足 0 < 因子 ≤ 100。";
+                }
+            }
+
+            if (kind == VmToolKind.XldRectangleFitting)
+            {
+                if (!VmXldRectangleFitAlgorithm.IsSupported(XldRectangleFitAlgorithm))
+                {
+                    return "XLD 旋转矩形拟合算法无效。";
+                }
+
+                if (XldRectangleFitMaxNumPoints != -1 &&
+                    (XldRectangleFitMaxNumPoints < 8 || XldRectangleFitMaxNumPoints > 1000000))
+                {
+                    return "旋转矩形拟合最大采样点数必须为 -1（全部），或 8 到 1000000。";
+                }
+
+                if (!IsFinite(XldRectangleFitMaxClosureDistance) ||
+                    XldRectangleFitMaxClosureDistance < 0 || XldRectangleFitMaxClosureDistance > 100000)
+                {
+                    return "旋转矩形拟合最大闭合距离必须是 0 到 100000 之间的有限数值。";
+                }
+
+                if (XldRectangleFitClippingEndPoints < 0 || XldRectangleFitClippingEndPoints > 100000)
+                {
+                    return "旋转矩形拟合端点裁剪数量必须在 0 到 100000 之间。";
+                }
+
+                if (XldRectangleFitIterations < 0 || XldRectangleFitIterations > 1000)
+                {
+                    return "旋转矩形拟合鲁棒迭代次数必须在 0 到 1000 之间。";
+                }
+
+                if (!IsFinite(XldRectangleFitClippingFactor) ||
+                    XldRectangleFitClippingFactor <= 0 || XldRectangleFitClippingFactor > 100)
+                {
+                    return "旋转矩形拟合裁剪因子必须满足 0 < 因子 ≤ 100。";
                 }
             }
 
@@ -265,6 +683,553 @@ namespace HalconWinFormsDemo.Models
                 new VmImageFilterModeOption { Key = Median, DisplayText = "中值滤波（圆形半径）" }
             };
         }
+    }
+
+    public static class VmImageEnhancementMode
+    {
+        public const string LinearScale = "LinearScale";
+        public const string LocalContrast = "LocalContrast";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, LinearScale, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, LocalContrast, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, LinearScale, StringComparison.OrdinalIgnoreCase))
+            {
+                return LinearScale;
+            }
+
+            return string.Equals(value, LocalContrast, StringComparison.OrdinalIgnoreCase) ? LocalContrast : value.Trim();
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            return normalized == LocalContrast ? "局部对比度增强" : (normalized == LinearScale ? "线性灰度缩放" : "未知模式");
+        }
+
+        public static VmImageEnhancementModeOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmImageEnhancementModeOption { Key = LinearScale, DisplayText = "线性灰度缩放（增益 + 偏移）" },
+                new VmImageEnhancementModeOption { Key = LocalContrast, DisplayText = "局部对比度增强（Emphasize）" }
+            };
+        }
+    }
+
+    public sealed class VmImageEnhancementModeOption
+    {
+        public string Key { get; set; }
+
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmImageDifferenceMode
+    {
+        public const string AbsoluteDifference = "AbsoluteDifference";
+        public const string SubtractAB = "SubtractAB";
+        public const string SubtractBA = "SubtractBA";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, AbsoluteDifference, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, SubtractAB, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, SubtractBA, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, AbsoluteDifference, StringComparison.OrdinalIgnoreCase))
+            {
+                return AbsoluteDifference;
+            }
+
+            if (string.Equals(value, SubtractAB, StringComparison.OrdinalIgnoreCase)) return SubtractAB;
+            if (string.Equals(value, SubtractBA, StringComparison.OrdinalIgnoreCase)) return SubtractBA;
+            return value.Trim();
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == SubtractAB) return "方向减法 A - B";
+            if (normalized == SubtractBA) return "方向减法 B - A";
+            return normalized == AbsoluteDifference ? "绝对差分 |A - B|" : "未知模式";
+        }
+
+        public static VmImageDifferenceModeOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmImageDifferenceModeOption { Key = AbsoluteDifference, DisplayText = "绝对差分 |A - B|（AbsDiffImage）" },
+                new VmImageDifferenceModeOption { Key = SubtractAB, DisplayText = "方向减法 A - B（SubImage）" },
+                new VmImageDifferenceModeOption { Key = SubtractBA, DisplayText = "方向减法 B - A（SubImage）" }
+            };
+        }
+    }
+
+    public static class VmRegionContourMode
+    {
+        public const string Border = "Border";
+        public const string Center = "Center";
+        public const string BorderHoles = "BorderHoles";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, Border, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Center, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, BorderHoles, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, Border, StringComparison.OrdinalIgnoreCase)) return Border;
+            if (string.Equals(value, Center, StringComparison.OrdinalIgnoreCase)) return Center;
+            return string.Equals(value, BorderHoles, StringComparison.OrdinalIgnoreCase) ? BorderHoles : value.Trim();
+        }
+
+        public static string GetHalconValue(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Center) return "center";
+            if (normalized == BorderHoles) return "border_holes";
+            return "border";
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Center) return "边界像素中心";
+            if (normalized == BorderHoles) return "外边界与孔洞";
+            return normalized == Border ? "像素外边界" : "未知模式";
+        }
+
+        public static VmRegionContourModeOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmRegionContourModeOption { Key = Border, DisplayText = "像素外边界（border）" },
+                new VmRegionContourModeOption { Key = Center, DisplayText = "边界像素中心（center）" },
+                new VmRegionContourModeOption { Key = BorderHoles, DisplayText = "外边界与孔洞（border_holes）" }
+            };
+        }
+    }
+
+    public sealed class VmRegionContourModeOption
+    {
+        public string Key { get; set; }
+
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmXldContourFeature
+    {
+        public const string ContourLength = "ContourLength";
+        public const string MaximumExtent = "MaximumExtent";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, ContourLength, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, MaximumExtent, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, ContourLength, StringComparison.OrdinalIgnoreCase)) return ContourLength;
+            return string.Equals(value, MaximumExtent, StringComparison.OrdinalIgnoreCase) ? MaximumExtent : value.Trim();
+        }
+
+        public static string GetHalconValue(string value)
+        {
+            return Normalize(value) == MaximumExtent ? "maximum_extent" : "contour_length";
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == MaximumExtent) return "最大跨度";
+            return normalized == ContourLength ? "轮廓长度" : "未知特征";
+        }
+
+        public static VmXldContourFeatureOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmXldContourFeatureOption { Key = ContourLength, DisplayText = "轮廓长度（contour_length）" },
+                new VmXldContourFeatureOption { Key = MaximumExtent, DisplayText = "最大跨度（maximum_extent）" }
+            };
+        }
+    }
+
+    public sealed class VmXldContourFeatureOption
+    {
+        public string Key { get; set; }
+
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmXldSegmentMode
+    {
+        public const string Lines = "Lines";
+        public const string LinesCircles = "LinesCircles";
+        public const string LinesEllipses = "LinesEllipses";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, Lines, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, LinesCircles, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, LinesEllipses, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, LinesCircles, StringComparison.OrdinalIgnoreCase)) return LinesCircles;
+            if (string.Equals(value, Lines, StringComparison.OrdinalIgnoreCase)) return Lines;
+            return string.Equals(value, LinesEllipses, StringComparison.OrdinalIgnoreCase) ? LinesEllipses : value.Trim();
+        }
+
+        public static string GetHalconValue(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Lines) return "lines";
+            if (normalized == LinesEllipses) return "lines_ellipses";
+            return "lines_circles";
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Lines) return "仅直线";
+            if (normalized == LinesEllipses) return "直线 + 椭圆弧";
+            return normalized == LinesCircles ? "直线 + 圆弧" : "未知模式";
+        }
+
+        public static VmXldSegmentModeOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmXldSegmentModeOption { Key = Lines, DisplayText = "仅直线（lines）" },
+                new VmXldSegmentModeOption { Key = LinesCircles, DisplayText = "直线 + 圆弧（lines_circles）" },
+                new VmXldSegmentModeOption { Key = LinesEllipses, DisplayText = "直线 + 椭圆弧（lines_ellipses）" }
+            };
+        }
+    }
+
+    public sealed class VmXldSegmentModeOption
+    {
+        public string Key { get; set; }
+
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmXldLineFitAlgorithm
+    {
+        public const string Regression = "Regression";
+        public const string Huber = "Huber";
+        public const string Tukey = "Tukey";
+        public const string Drop = "Drop";
+        public const string Gauss = "Gauss";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, Regression, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Huber, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Tukey, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Drop, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Gauss, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, Tukey, StringComparison.OrdinalIgnoreCase)) return Tukey;
+            if (string.Equals(value, Regression, StringComparison.OrdinalIgnoreCase)) return Regression;
+            if (string.Equals(value, Huber, StringComparison.OrdinalIgnoreCase)) return Huber;
+            if (string.Equals(value, Drop, StringComparison.OrdinalIgnoreCase)) return Drop;
+            return string.Equals(value, Gauss, StringComparison.OrdinalIgnoreCase) ? Gauss : value.Trim();
+        }
+
+        public static string GetHalconValue(string value)
+        {
+            return Normalize(value).ToLowerInvariant();
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Regression) return "最小二乘";
+            if (normalized == Huber) return "Huber 鲁棒";
+            if (normalized == Drop) return "剔除离群点";
+            if (normalized == Gauss) return "高斯加权";
+            return normalized == Tukey ? "Tukey 鲁棒" : "未知算法";
+        }
+
+        public static VmXldLineFitAlgorithmOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmXldLineFitAlgorithmOption { Key = Tukey, DisplayText = "Tukey 鲁棒（推荐）" },
+                new VmXldLineFitAlgorithmOption { Key = Huber, DisplayText = "Huber 鲁棒" },
+                new VmXldLineFitAlgorithmOption { Key = Regression, DisplayText = "最小二乘（regression）" },
+                new VmXldLineFitAlgorithmOption { Key = Drop, DisplayText = "剔除离群点（drop）" },
+                new VmXldLineFitAlgorithmOption { Key = Gauss, DisplayText = "高斯加权（gauss）" }
+            };
+        }
+    }
+
+    public sealed class VmXldLineFitAlgorithmOption
+    {
+        public string Key { get; set; }
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmXldCircleFitAlgorithm
+    {
+        public const string Algebraic = "Algebraic";
+        public const string AHuber = "AHuber";
+        public const string ATukey = "ATukey";
+        public const string Geometric = "Geometric";
+        public const string GeoHuber = "GeoHuber";
+        public const string GeoTukey = "GeoTukey";
+
+        public static bool IsSupported(string value)
+        {
+            return new[] { Algebraic, AHuber, ATukey, Geometric, GeoHuber, GeoTukey }
+                .Any(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static string Normalize(string value)
+        {
+            return new[] { Algebraic, AHuber, ATukey, Geometric, GeoHuber, GeoTukey }
+                .FirstOrDefault(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase)) ?? ATukey;
+        }
+
+        public static string GetHalconValue(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Algebraic) return "algebraic";
+            if (normalized == AHuber) return "ahuber";
+            if (normalized == Geometric) return "geometric";
+            if (normalized == GeoHuber) return "geohuber";
+            if (normalized == GeoTukey) return "geotukey";
+            return "atukey";
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Algebraic) return "代数拟合";
+            if (normalized == AHuber) return "代数 Huber 鲁棒";
+            if (normalized == Geometric) return "几何拟合";
+            if (normalized == GeoHuber) return "几何 Huber 鲁棒";
+            if (normalized == GeoTukey) return "几何 Tukey 鲁棒";
+            return "代数 Tukey 鲁棒";
+        }
+
+        public static VmXldCircleFitAlgorithmOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmXldCircleFitAlgorithmOption { Key = ATukey, DisplayText = "代数 Tukey 鲁棒（推荐）" },
+                new VmXldCircleFitAlgorithmOption { Key = AHuber, DisplayText = "代数 Huber 鲁棒" },
+                new VmXldCircleFitAlgorithmOption { Key = Algebraic, DisplayText = "代数拟合" },
+                new VmXldCircleFitAlgorithmOption { Key = GeoTukey, DisplayText = "几何 Tukey 鲁棒" },
+                new VmXldCircleFitAlgorithmOption { Key = GeoHuber, DisplayText = "几何 Huber 鲁棒" },
+                new VmXldCircleFitAlgorithmOption { Key = Geometric, DisplayText = "几何拟合" }
+            };
+        }
+    }
+
+    public sealed class VmXldCircleFitAlgorithmOption
+    {
+        public string Key { get; set; }
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmXldEllipseFitAlgorithm
+    {
+        public const string Fitzgibbon = "Fitzgibbon";
+        public const string FHuber = "FHuber";
+        public const string FTukey = "FTukey";
+        public const string FocPoints = "FocPoints";
+        public const string FPHuber = "FPHuber";
+        public const string FPTukey = "FPTukey";
+        public const string Geometric = "Geometric";
+        public const string GeoHuber = "GeoHuber";
+        public const string GeoTukey = "GeoTukey";
+        public const string Voss = "Voss";
+
+        private static readonly string[] Values =
+        {
+            Fitzgibbon, FHuber, FTukey, FocPoints, FPHuber, FPTukey,
+            Geometric, GeoHuber, GeoTukey, Voss
+        };
+
+        public static bool IsSupported(string value)
+        {
+            return Values.Any(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static string Normalize(string value)
+        {
+            return Values.FirstOrDefault(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase)) ?? FTukey;
+        }
+
+        public static string GetHalconValue(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Fitzgibbon) return "fitzgibbon";
+            if (normalized == FHuber) return "fhuber";
+            if (normalized == FocPoints) return "focpoints";
+            if (normalized == FPHuber) return "fphuber";
+            if (normalized == FPTukey) return "fptukey";
+            if (normalized == Geometric) return "geometric";
+            if (normalized == GeoHuber) return "geohuber";
+            if (normalized == GeoTukey) return "geotukey";
+            if (normalized == Voss) return "voss";
+            return "ftukey";
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Fitzgibbon) return "Fitzgibbon 直接拟合";
+            if (normalized == FHuber) return "Fitzgibbon Huber 鲁棒";
+            if (normalized == FocPoints) return "焦点距离拟合";
+            if (normalized == FPHuber) return "焦点距离 Huber 鲁棒";
+            if (normalized == FPTukey) return "焦点距离 Tukey 鲁棒";
+            if (normalized == Geometric) return "几何拟合";
+            if (normalized == GeoHuber) return "几何 Huber 鲁棒";
+            if (normalized == GeoTukey) return "几何 Tukey 鲁棒";
+            if (normalized == Voss) return "Voss 查表拟合";
+            return "Fitzgibbon Tukey 鲁棒";
+        }
+
+        public static VmXldEllipseFitAlgorithmOption[] CreateAll()
+        {
+            return Values.Select(value => new VmXldEllipseFitAlgorithmOption
+            {
+                Key = value,
+                DisplayText = GetDisplayText(value) + (value == FTukey ? "（推荐）" : string.Empty)
+            }).ToArray();
+        }
+    }
+
+    public sealed class VmXldEllipseFitAlgorithmOption
+    {
+        public string Key { get; set; }
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmXldRectangleFitAlgorithm
+    {
+        public const string Regression = "Regression";
+        public const string Huber = "Huber";
+        public const string Tukey = "Tukey";
+
+        private static readonly string[] Values = { Regression, Huber, Tukey };
+
+        public static bool IsSupported(string value)
+        {
+            return Values.Any(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static string Normalize(string value)
+        {
+            return Values.FirstOrDefault(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase)) ?? Tukey;
+        }
+
+        public static string GetHalconValue(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Regression) return "regression";
+            if (normalized == Huber) return "huber";
+            return "tukey";
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Regression) return "回归拟合";
+            if (normalized == Huber) return "Huber 鲁棒拟合";
+            return "Tukey 鲁棒拟合";
+        }
+
+        public static VmXldRectangleFitAlgorithmOption[] CreateAll()
+        {
+            return Values.Select(value => new VmXldRectangleFitAlgorithmOption
+            {
+                Key = value,
+                DisplayText = GetDisplayText(value) + (value == Tukey ? "（推荐）" : string.Empty)
+            }).ToArray();
+        }
+    }
+
+    public sealed class VmXldRectangleFitAlgorithmOption
+    {
+        public string Key { get; set; }
+        public string DisplayText { get; set; }
+    }
+
+    public sealed class VmImageDifferenceModeOption
+    {
+        public string Key { get; set; }
+
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmDynamicThresholdPolarity
+    {
+        public const string Light = "Light";
+        public const string Dark = "Dark";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, Light, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Dark, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, Light, StringComparison.OrdinalIgnoreCase))
+            {
+                return Light;
+            }
+
+            return string.Equals(value, Dark, StringComparison.OrdinalIgnoreCase) ? Dark : value.Trim();
+        }
+
+        public static string GetHalconValue(string value)
+        {
+            return Normalize(value) == Dark ? "dark" : "light";
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            return normalized == Dark ? "暗缺陷（原图 ≤ 参考图 - 偏移）" :
+                (normalized == Light ? "明缺陷（原图 ≥ 参考图 + 偏移）" : "未知极性");
+        }
+
+        public static VmDynamicThresholdPolarityOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmDynamicThresholdPolarityOption { Key = Light, DisplayText = "明缺陷（Light）" },
+                new VmDynamicThresholdPolarityOption { Key = Dark, DisplayText = "暗缺陷（Dark）" }
+            };
+        }
+    }
+
+    public sealed class VmDynamicThresholdPolarityOption
+    {
+        public string Key { get; set; }
+
+        public string DisplayText { get; set; }
     }
 
     public sealed class VmImageFilterModeOption

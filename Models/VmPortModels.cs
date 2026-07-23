@@ -3,12 +3,51 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.Serialization;
+using System.Windows.Media;
 using HalconDotNet;
 
 namespace HalconWinFormsDemo.Models
 {
+    public sealed class VmFlowGroupVisual
+    {
+        public string GroupId { get; set; }
+
+        public string GroupName { get; set; }
+
+        public bool IsCollapsed { get; set; }
+
+        public double X { get; set; }
+
+        public double Y { get; set; }
+
+        public double Width { get; set; }
+
+        public double Height { get; set; }
+
+        public string StateText { get; set; }
+
+        public string MemberSummary { get; set; }
+
+        public string BoundarySummary { get; set; }
+
+        public string ExecutionSummary { get; set; }
+
+        public string ErrorSummary { get; set; }
+
+        public string DebugSummary { get; set; }
+
+        public string ToggleText
+        {
+            get { return IsCollapsed ? "展开" : "折叠"; }
+        }
+    }
+
     public sealed class VmFlowPortChip
     {
+        public string OwnerToolId { get; set; }
+
+        public string OwnerToolName { get; set; }
+
         public string Direction { get; set; }
 
         public string PortName { get; set; }
@@ -27,10 +66,78 @@ namespace HalconWinFormsDemo.Models
 
         public bool IsConnected { get; set; }
 
+        public bool IsConnectionEndpointSelected { get; set; }
+
+        public bool IsPortSelected { get; set; }
+
         public string PortText
         {
             get { return PortName + " : " + DataType; }
         }
+    }
+
+    public sealed class VmFlowPortConsumerOption
+    {
+        public string ConnectionKey { get; set; }
+
+        public string TargetToolId { get; set; }
+
+        public string TargetPortName { get; set; }
+
+        public string DisplayText { get; set; }
+
+        public string StatusText { get; set; }
+    }
+
+    public sealed class VmFlowConnectionVisual
+    {
+        public string ConnectionKey { get; set; }
+
+        public string SourceToolId { get; set; }
+
+        public string TargetToolId { get; set; }
+
+        public string SourcePortName { get; set; }
+
+        public string TargetPortName { get; set; }
+
+        public string DataType { get; set; }
+
+        public string SourceToolName { get; set; }
+
+        public string TargetToolName { get; set; }
+
+        public string SourceEndpointText { get; set; }
+
+        public string TargetEndpointText { get; set; }
+
+        public string CurrentValueText { get; set; }
+
+        public string ErrorReason { get; set; }
+
+        public string StateKey { get; set; }
+
+        public string StateText { get; set; }
+
+        public bool IsSelected { get; set; }
+
+        public string Label { get; set; }
+
+        public string StatusText { get; set; }
+
+        public Geometry Geometry { get; set; }
+
+        public Brush Stroke { get; set; }
+
+        public Brush LabelBrush { get; set; }
+
+        public double StrokeThickness { get; set; }
+
+        public DoubleCollection StrokeDashArray { get; set; }
+
+        public double LabelX { get; set; }
+
+        public double LabelY { get; set; }
     }
 
     public sealed class VmPortDefinition
@@ -390,6 +497,110 @@ namespace HalconWinFormsDemo.Models
             }
 
             return string.Join("/", channels);
+        }
+    }
+
+    public sealed class VmXldSnapshot : IDisposable
+    {
+        private HObject xld;
+
+        private VmXldSnapshot()
+        {
+        }
+
+        public string ProducerToolId { get; private set; }
+
+        public string ProducerToolName { get; private set; }
+
+        public string ProducerPortName { get; private set; }
+
+        public int ObjectCount { get; private set; }
+
+        public double TotalLength { get; private set; }
+
+        public bool IsDisposed
+        {
+            get { return xld == null; }
+        }
+
+        public string DisplayText
+        {
+            get
+            {
+                return IsDisposed
+                    ? "XLD 已释放"
+                    : "XLD ×" + ObjectCount + "，Length=" + TotalLength.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            }
+        }
+
+        public static VmXldSnapshot Create(HObject source, string producerToolId, string producerToolName, string producerPortName)
+        {
+            if (source == null)
+            {
+                throw new ArgumentNullException("source");
+            }
+
+            HObject copy = null;
+            try
+            {
+                HOperatorSet.CopyObj(source, out copy, 1, -1);
+                HTuple count;
+                HOperatorSet.CountObj(copy, out count);
+                int objectCount = count == null || count.Length == 0 ? 0 : count.I;
+                double totalLength = 0;
+                if (objectCount > 0)
+                {
+                    HTuple lengths;
+                    HOperatorSet.LengthXld(copy, out lengths);
+                    if (lengths != null)
+                    {
+                        for (int index = 0; index < lengths.Length; index++)
+                        {
+                            totalLength += lengths[index].D;
+                        }
+                    }
+                }
+
+                VmXldSnapshot snapshot = new VmXldSnapshot
+                {
+                    xld = copy,
+                    ProducerToolId = producerToolId,
+                    ProducerToolName = producerToolName,
+                    ProducerPortName = producerPortName,
+                    ObjectCount = objectCount,
+                    TotalLength = totalLength
+                };
+                copy = null;
+                return snapshot;
+            }
+            finally
+            {
+                if (copy != null)
+                {
+                    copy.Dispose();
+                }
+            }
+        }
+
+        public HObject CreateXldCopy()
+        {
+            if (xld == null)
+            {
+                throw new ObjectDisposedException("VmXldSnapshot", "上游 XLD 快照已释放，请重新运行上游工具。");
+            }
+
+            HObject copy;
+            HOperatorSet.CopyObj(xld, out copy, 1, -1);
+            return copy;
+        }
+
+        public void Dispose()
+        {
+            if (xld != null)
+            {
+                xld.Dispose();
+                xld = null;
+            }
         }
     }
 

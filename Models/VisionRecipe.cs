@@ -143,6 +143,24 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 8, EmitDefaultValue = false)]
         public List<VmToolInputBindingData> InputBindings { get; set; }
+
+        [DataMember(Order = 9, EmitDefaultValue = false)]
+        public double? GraphX { get; set; }
+
+        [DataMember(Order = 10, EmitDefaultValue = false)]
+        public double? GraphY { get; set; }
+
+        [DataMember(Order = 11, EmitDefaultValue = false)]
+        public string GroupId { get; set; }
+
+        [DataMember(Order = 12, EmitDefaultValue = false)]
+        public string GroupName { get; set; }
+
+        [DataMember(Order = 13, EmitDefaultValue = false)]
+        public bool IsGroupCollapsed { get; set; }
+
+        [DataMember(Order = 14, EmitDefaultValue = false)]
+        public bool IsBreakpoint { get; set; }
     }
 
     [DataContract]
