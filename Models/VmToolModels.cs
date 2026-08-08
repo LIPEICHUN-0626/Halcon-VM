@@ -23,6 +23,11 @@ namespace HalconWinFormsDemo.Models
         RegionFeatureFilter,
         RegionSetOperation,
         ImageEnhancement,
+        ImageResize,
+        ImageMirror,
+        ImageRotate,
+        PolarImageUnwrap,
+        RoiImageExtraction,
         DynamicThreshold,
         ImageDifference,
         RegionContourMeasurement,
@@ -31,7 +36,12 @@ namespace HalconWinFormsDemo.Models
         XldLineFitting,
         XldCircleFitting,
         XldEllipseFitting,
-        XldRectangleFitting
+        XldRectangleFitting,
+        XldLineRelationMeasurement,
+        CaliperEdgePairMeasurement,
+        LinearCaliperArrayMeasurement,
+        CircularCaliperCircleFinder,
+        RingWallThicknessMeasurement
     }
 
     public sealed class VmToolCatalogItem : INotifyPropertyChanged
@@ -855,6 +865,16 @@ namespace HalconWinFormsDemo.Models
                     return "图像滤波";
                 case VmToolKind.ImageEnhancement:
                     return "图像增强";
+                case VmToolKind.ImageResize:
+                    return "图像尺寸缩放";
+                case VmToolKind.ImageMirror:
+                    return "图像镜像";
+                case VmToolKind.ImageRotate:
+                    return "图像旋转";
+                case VmToolKind.PolarImageUnwrap:
+                    return "极坐标展开";
+                case VmToolKind.RoiImageExtraction:
+                    return "ROI 图像提取";
                 case VmToolKind.ImageDifference:
                     return "双图像差分";
                 case VmToolKind.DynamicThreshold:
@@ -881,6 +901,16 @@ namespace HalconWinFormsDemo.Models
                     return "XLD 椭圆拟合测量";
                 case VmToolKind.XldRectangleFitting:
                     return "XLD 旋转矩形拟合测量";
+                case VmToolKind.XldLineRelationMeasurement:
+                    return "双直线关系测量";
+                case VmToolKind.CaliperEdgePairMeasurement:
+                    return "卡尺边缘对测量";
+                case VmToolKind.LinearCaliperArrayMeasurement:
+                    return "线性多卡尺阵列";
+                case VmToolKind.CircularCaliperCircleFinder:
+                    return "圆周卡尺找圆";
+                case VmToolKind.RingWallThicknessMeasurement:
+                    return "圆环壁厚/同心度测量";
                 case VmToolKind.ShapeMatch:
                     return "Shape Model 模板匹配";
                 case VmToolKind.Blob:
@@ -911,6 +941,11 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.ImageChannel:
                 case VmToolKind.ImageFilter:
                 case VmToolKind.ImageEnhancement:
+                case VmToolKind.ImageResize:
+                case VmToolKind.ImageMirror:
+                case VmToolKind.ImageRotate:
+                case VmToolKind.PolarImageUnwrap:
+                case VmToolKind.RoiImageExtraction:
                 case VmToolKind.ImageDifference:
                 case VmToolKind.DynamicThreshold:
                 case VmToolKind.ImageThreshold:
@@ -925,6 +960,11 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.XldCircleFitting:
                 case VmToolKind.XldEllipseFitting:
                 case VmToolKind.XldRectangleFitting:
+                case VmToolKind.XldLineRelationMeasurement:
+                case VmToolKind.CaliperEdgePairMeasurement:
+                case VmToolKind.LinearCaliperArrayMeasurement:
+                case VmToolKind.CircularCaliperCircleFinder:
+                case VmToolKind.RingWallThicknessMeasurement:
                     return "测量";
                 case VmToolKind.EdgeMeasure:
                     return "测量";
@@ -949,6 +989,16 @@ namespace HalconWinFormsDemo.Models
                     return "使用 HALCON 均值或中值滤波抑制随机噪声，并继续输出安全 Image 快照。";
                 case VmToolKind.ImageEnhancement:
                     return "使用 HALCON 线性灰度缩放或局部对比度增强改善图像可分辨性，并继续输出安全 Image 快照。";
+                case VmToolKind.ImageResize:
+                    return "使用 HALCON zoom_image_size 将图像缩放到明确目标宽高，输出行列比例与新坐标语义，并继续输出安全 Image 快照。";
+                case VmToolKind.ImageMirror:
+                    return "使用 HALCON mirror_image 按行、列或主对角线镜像图像；对角线模式会交换非方形图像的宽高，并继续输出安全 Image 快照。";
+                case VmToolKind.ImageRotate:
+                    return "使用 HALCON rotate_image 围绕图像中心逆时针旋转；90°/270°交换宽高，其余角度保持图像矩阵尺寸，并明确输出新坐标语义。";
+                case VmToolKind.PolarImageUnwrap:
+                    return "使用 HALCON 将圆环或圆弧区域按角度与半径展开为矩形图像；整圆自动避开首尾重复列，并继续输出安全 Image 快照。";
+                case VmToolKind.RoiImageExtraction:
+                    return "使用 HALCON reduce_domain 按绑定 ROI 或前序 Region 限定有效域，可选择保留原图坐标或以 crop_domain 裁剪外接框，并输出明确坐标偏移的安全 Image 快照。";
                 case VmToolKind.ImageDifference:
                     return "显式订阅两路同尺寸、同通道图像，使用 HALCON 绝对差分或带增益/偏移的方向减法提取变化，并继续输出安全 Image 快照。";
                 case VmToolKind.DynamicThreshold:
@@ -975,6 +1025,16 @@ namespace HalconWinFormsDemo.Models
                     return "订阅椭圆弧或闭合 XLD，使用 HALCON 鲁棒拟合椭圆，输出中心、主轴方向、长短半轴、弧角、点序与残差，并提供可显示的拟合椭圆 XLD。";
                 case VmToolKind.XldRectangleFitting:
                     return "订阅完整或部分矩形 XLD，使用 HALCON 鲁棒拟合旋转矩形，输出中心、方向、两边半长、四角点、点序与残差，并提供可显示的拟合矩形 XLD。";
+                case VmToolKind.XldLineRelationMeasurement:
+                    return "订阅两路不同的直线 XLD，使用 HALCON 拟合主线并测量交点、方向、夹角、平行/重合状态和线间距，输出可显示的两线与交点 XLD。";
+                case VmToolKind.CaliperEdgePairMeasurement:
+                    return "订阅真实 Image，在旋转矩形测量域内使用 HALCON measure_pairs 提取边缘对，输出边缘坐标、幅值、间距、数量及可显示的测量图形。";
+                case VmToolKind.LinearCaliperArrayMeasurement:
+                    return "订阅真实 Image，沿起点到终点均匀布置多个独立 HALCON 卡尺，输出逐卡尺距离、有效/失败索引、统计量与可显示的阵列 XLD。";
+                case VmToolKind.CircularCaliperCircleFinder:
+                    return "订阅真实 Image，沿圆周径向布置独立 HALCON 卡尺采集边缘点并鲁棒拟合圆，输出圆心、半径、残差、有效/失败索引及可显示 XLD。";
+                case VmToolKind.RingWallThicknessMeasurement:
+                    return "订阅真实 Image，沿圆周径向执行 HALCON 边缘对测量，分别鲁棒拟合内外圆并输出壁厚统计、偏心量、有效/失败索引及可显示 XLD。";
                 case VmToolKind.ShapeMatch:
                     return "HALCON Shape Model 定位目标并输出中心、角度和分数。";
                 case VmToolKind.Blob:
@@ -1001,8 +1061,22 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.ImageChannel:
                 case VmToolKind.ImageFilter:
                 case VmToolKind.ImageEnhancement:
+                case VmToolKind.ImageResize:
+                case VmToolKind.ImageMirror:
+                case VmToolKind.ImageRotate:
+                case VmToolKind.PolarImageUnwrap:
                 case VmToolKind.ImageThreshold:
+                case VmToolKind.CaliperEdgePairMeasurement:
+                case VmToolKind.LinearCaliperArrayMeasurement:
+                case VmToolKind.CircularCaliperCircleFinder:
+                case VmToolKind.RingWallThicknessMeasurement:
                     return new[] { Port("Image", "输入图像", "Image", false) };
+                case VmToolKind.RoiImageExtraction:
+                    return new[]
+                    {
+                        Port("Image", "输入图像", "Image", false),
+                        Port("ROI", "绑定 ROI / 前序 Region", "Region", true)
+                    };
                 case VmToolKind.ImageDifference:
                     return new[]
                     {
@@ -1026,6 +1100,12 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.XldEllipseFitting:
                 case VmToolKind.XldRectangleFitting:
                     return new[] { Port("XLD", "输入轮廓", "XLD", false) };
+                case VmToolKind.XldLineRelationMeasurement:
+                    return new[]
+                    {
+                        Port("LineA", "直线 A", "XLD", false),
+                        Port("LineB", "直线 B", "XLD", false)
+                    };
                 case VmToolKind.RegionSetOperation:
                     return new[]
                     {
@@ -1073,6 +1153,90 @@ namespace HalconWinFormsDemo.Models
                         Port("Path", "图像路径", "String", false),
                         Port("Width", "图像宽度", "Number", false),
                         Port("Height", "图像高度", "Number", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.CaliperEdgePairMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "测量矩形/边缘点/配对线", "XLD", false),
+                        Port("PrimaryDistance", "主边缘对间距", "Number", false),
+                        Port("PairCount", "边缘对数量", "Number", false),
+                        Port("FirstRows", "第一边缘 Row 数组", "String", false),
+                        Port("FirstColumns", "第一边缘 Column 数组", "String", false),
+                        Port("FirstAmplitudes", "第一边缘幅值数组", "String", false),
+                        Port("SecondRows", "第二边缘 Row 数组", "String", false),
+                        Port("SecondColumns", "第二边缘 Column 数组", "String", false),
+                        Port("SecondAmplitudes", "第二边缘幅值数组", "String", false),
+                        Port("IntraDistances", "边缘对内部距离数组", "String", false),
+                        Port("InterDistances", "相邻边缘对距离数组", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.LinearCaliperArrayMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "阵列基线/卡尺/边缘点/配对线", "XLD", false),
+                        Port("MeanDistance", "有效卡尺平均主间距", "Number", false),
+                        Port("ValidCount", "有效卡尺数量", "Number", false),
+                        Port("PairCount", "边缘对总数量", "Number", false),
+                        Port("MinDistance", "有效卡尺最小主间距", "Number", false),
+                        Port("MaxDistance", "有效卡尺最大主间距", "Number", false),
+                        Port("StdDev", "有效卡尺主间距标准差", "Number", false),
+                        Port("Distances", "逐卡尺主间距", "String", false),
+                        Port("ValidIndices", "有效卡尺索引", "String", false),
+                        Port("FailedIndices", "失败卡尺索引", "String", false),
+                        Port("FailureDetails", "失败原因", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.CircularCaliperCircleFinder:
+                    return new[]
+                    {
+                        Port("XLD", "搜索圆/卡尺/边缘点/拟合圆", "XLD", false),
+                        Port("CenterRow", "拟合圆心 Row", "Number", false),
+                        Port("CenterColumn", "拟合圆心 Column", "Number", false),
+                        Port("Radius", "拟合圆半径", "Number", false),
+                        Port("ValidCount", "有效边缘点数量", "Number", false),
+                        Port("FailedCount", "失败卡尺数量", "Number", false),
+                        Port("MaxResidual", "最大径向残差", "Number", false),
+                        Port("MeanAmplitude", "平均边缘幅值", "Number", false),
+                        Port("EdgeRows", "边缘点 Row 数组", "String", false),
+                        Port("EdgeColumns", "边缘点 Column 数组", "String", false),
+                        Port("EdgeAmplitudes", "边缘幅值数组", "String", false),
+                        Port("ValidIndices", "有效卡尺索引", "String", false),
+                        Port("FailedIndices", "失败卡尺索引", "String", false),
+                        Port("FailureDetails", "失败原因", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.RingWallThicknessMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "搜索圆/径向卡尺/内外边缘点/拟合圆", "XLD", false),
+                        Port("InnerCenterRow", "内圆圆心 Row", "Number", false),
+                        Port("InnerCenterColumn", "内圆圆心 Column", "Number", false),
+                        Port("InnerRadius", "内圆半径", "Number", false),
+                        Port("OuterCenterRow", "外圆圆心 Row", "Number", false),
+                        Port("OuterCenterColumn", "外圆圆心 Column", "Number", false),
+                        Port("OuterRadius", "外圆半径", "Number", false),
+                        Port("MeanThickness", "平均壁厚", "Number", false),
+                        Port("MinThickness", "最小壁厚", "Number", false),
+                        Port("MaxThickness", "最大壁厚", "Number", false),
+                        Port("StdDevThickness", "壁厚标准差", "Number", false),
+                        Port("Eccentricity", "内外圆心偏心量", "Number", false),
+                        Port("ValidCount", "有效径向卡尺数量", "Number", false),
+                        Port("FailedCount", "失败径向卡尺数量", "Number", false),
+                        Port("MaxInnerResidual", "内圆最大径向残差", "Number", false),
+                        Port("MaxOuterResidual", "外圆最大径向残差", "Number", false),
+                        Port("Thicknesses", "逐卡尺壁厚", "String", false),
+                        Port("InnerRows", "内边缘 Row 数组", "String", false),
+                        Port("InnerColumns", "内边缘 Column 数组", "String", false),
+                        Port("OuterRows", "外边缘 Row 数组", "String", false),
+                        Port("OuterColumns", "外边缘 Column 数组", "String", false),
+                        Port("ValidIndices", "有效卡尺索引", "String", false),
+                        Port("FailedIndices", "失败卡尺索引", "String", false),
+                        Port("FailureDetails", "失败原因", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
                         Port("ResultCode", "结果码", "String", false)
                     };
                 case VmToolKind.RegionContourMeasurement:
@@ -1181,6 +1345,26 @@ namespace HalconWinFormsDemo.Models
                         Port("Parameters", "参数摘要", "String", false),
                         Port("ResultCode", "结果码", "String", false)
                     };
+                case VmToolKind.XldLineRelationMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "拟合直线与交点", "XLD", false),
+                        Port("IntersectionRow", "交点行", "Number", false),
+                        Port("IntersectionColumn", "交点列", "Number", false),
+                        Port("IntersectionValid", "交点有效", "Boolean", false),
+                        Port("DirectionA", "直线 A 方向角", "Number", false),
+                        Port("DirectionB", "直线 B 方向角", "Number", false),
+                        Port("SignedAngle", "有向夹角", "Number", false),
+                        Port("AcuteAngle", "锐角夹角", "Number", false),
+                        Port("ParallelDistance", "平行线间距", "Number", false),
+                        Port("IsParallel", "是否平行", "Boolean", false),
+                        Port("IsCoincident", "是否重合/近重合", "Boolean", false),
+                        Port("Relation", "直线关系", "String", false),
+                        Port("ResidualA", "直线 A 最大残差", "Number", false),
+                        Port("ResidualB", "直线 B 最大残差", "Number", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
                 case VmToolKind.ImageChannel:
                     return new[]
                     {
@@ -1211,6 +1395,68 @@ namespace HalconWinFormsDemo.Models
                         Port("Height", "图像高度", "Number", false),
                         Port("Channels", "图像通道数", "Number", false),
                         Port("Mode", "增强模式", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.ImageResize:
+                    return new[]
+                    {
+                        Port("Image", "缩放图像", "Image", false),
+                        Port("Width", "输出图像宽度", "Number", false),
+                        Port("Height", "输出图像高度", "Number", false),
+                        Port("Channels", "图像通道数", "Number", false),
+                        Port("ScaleRow", "行方向缩放比例", "Number", false),
+                        Port("ScaleColumn", "列方向缩放比例", "Number", false),
+                        Port("Interpolation", "插值方式", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.ImageMirror:
+                    return new[]
+                    {
+                        Port("Image", "镜像图像", "Image", false),
+                        Port("Width", "输出图像宽度", "Number", false),
+                        Port("Height", "输出图像高度", "Number", false),
+                        Port("Channels", "图像通道数", "Number", false),
+                        Port("Mode", "镜像方向", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.ImageRotate:
+                    return new[]
+                    {
+                        Port("Image", "旋转图像", "Image", false),
+                        Port("Width", "输出图像宽度", "Number", false),
+                        Port("Height", "输出图像高度", "Number", false),
+                        Port("Channels", "图像通道数", "Number", false),
+                        Port("Angle", "逆时针旋转角度", "Number", false),
+                        Port("Interpolation", "插值方式", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.PolarImageUnwrap:
+                    return new[]
+                    {
+                        Port("Image", "极坐标展开图像", "Image", false),
+                        Port("Width", "输出图像宽度", "Number", false),
+                        Port("Height", "输出图像高度", "Number", false),
+                        Port("Channels", "图像通道数", "Number", false),
+                        Port("AngleRange", "角度范围", "String", false),
+                        Port("RadiusRange", "半径范围", "String", false),
+                        Port("Interpolation", "插值方式", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.RoiImageExtraction:
+                    return new[]
+                    {
+                        Port("Image", "ROI 提取图像", "Image", false),
+                        Port("Width", "输出图像宽度", "Number", false),
+                        Port("Height", "输出图像高度", "Number", false),
+                        Port("Channels", "图像通道数", "Number", false),
+                        Port("OffsetRow", "相对原图 Row 偏移", "Number", false),
+                        Port("OffsetColumn", "相对原图 Column 偏移", "Number", false),
+                        Port("Mode", "提取模式", "String", false),
                         Port("Parameters", "参数摘要", "String", false),
                         Port("ResultCode", "结果码", "String", false)
                     };
@@ -1300,6 +1546,7 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.EdgeMeasure:
                     return new[]
                     {
+                        Port("XLD", "边缘轮廓", "XLD", true),
                         Port("Length", "边缘总长度", "Number", false),
                         Port("RoiResults", "逐 ROI 结果", "RoiResult[]", true),
                         Port("ResultCode", "结果码", "String", false)
@@ -1333,7 +1580,8 @@ namespace HalconWinFormsDemo.Models
                    kind == VmToolKind.Blob ||
                    kind == VmToolKind.GrayStat ||
                    kind == VmToolKind.EdgeMeasure ||
-                   kind == VmToolKind.HDevelop;
+                   kind == VmToolKind.HDevelop ||
+                   kind == VmToolKind.RoiImageExtraction;
         }
 
         public static bool RequiresRoi(VmToolKind kind)

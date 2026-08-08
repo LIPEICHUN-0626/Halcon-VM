@@ -1,6 +1,6 @@
 # 产品长期目标
 
-更新日期：2026-07-23
+更新日期：2026-08-08
 状态：长期有效
 
 ## 产品定义
@@ -15,9 +15,9 @@ VM 是产品体验和用户习惯参照；HALCON 是全部视觉算子、图像�
 
 迭代授权：后续默认由开发代理自行选择并执行 A/B 双线 Sprint，不再逐轮等待确认；每轮仍必须明确 A 线可见 UI/UX 和 B 线真实工业功能，并完成验证和文档。自 2026-07-16 起，Git 按 10 个已验证小交付统一提交/推送，计数见 `docs/GIT_BATCH_LOG.md`，不再为每个小改动上传。恢复 BSB 或触碰 HALCON 算法含义、相机 SDK、投产协议、旧工程格式等高风险边界时仍需单独确认。
 
-当前产品基线（S25，Git 批次 `10/10`，按规则触发本轮统一提交/推送）：活动 WPF 已形成顶部菜单/快捷工具条、左侧模块箱、中央流程、右上 HALCON 图像工作区、右下模块结果/配置/方案和底部状态/历史。中央默认“连接画布”把真实 `InputBindings` 映射为有方向的 Image/Region/XLD/Number 曲线，支持连接检查、端口导航、OUT→IN 创建/替换/重连、橡皮框/Ctrl 多选、复制/副本、批量启停/删除、可见网格、用户节点坐标、50 项撤销/重做和组织型 Group。S25 在运行菜单、顶部/流程工具条、画布/节点/列表右键增加断点、清除断点、单步、继续及 F9/F10/F5；断点在启用模块执行前命中，红色断点、橙色下一执行指针、组合摘要、暂停原因和下一模块可见，单步只执行一个启用模块，断点随配方和撤销/重做保存。右侧常驻配置新增“XLD 旋转矩形拟合测量”，连续链可达 `Image -> Region -> XLD -> fitted rectangle XLD -> Length1/Length2/Number`；HALCON `fit_rectangle2_contour_xld` 输出托管矩形、数量、中心、方向、两边半长、四角点、点序、方向稳定性、实际残差、算法和参数，并进入青色叠加、I/O、结果、日志、配方和 NumericJudge。矩形、圆、旋转矩形和多边形 ROI 具备直接编辑、复制、锁定、几何保护和配方闭环。Shape/HDevelop 仍走兼容配置，执行仍为确定性线性调度；单个 HALCON 算子不可中断，真实并行、执行型 Group、监视表/运行到光标、椭圆 ROI/圆环/屏蔽区、数组及几何/姿态类型、多流程、相机、坐标、工业通讯、权限、`.jw/.handle` 和 BSB 仍未完成。
+当前产品基线（S35，新 Git 批次 `10/10`，本轮统一提交/上传）：活动 WPF 已形成顶部菜单/快捷工具条、左侧模块箱、中央流程、右上 HALCON 图像工作区、右下模块结果/配置/方案和底部状态/历史。中央默认“连接画布”把真实 `InputBindings` 映射为有方向的 Image/Region/XLD/Number 曲线，支持连接检查、端口导航、OUT→IN 创建/替换/重连、橡皮框/Ctrl 多选、复制/副本、批量启停/删除、可见网格、用户节点坐标、50 项撤销/重做、组织型 Group、断点/单步、常驻调试监视和运行到所选。右上结果图层页管理本周期真实 Region/XLD 输出；单/双画面左侧严格来自当前模块真实 Image 输入端口，右侧显示模块输出或兼容上下文，两侧支持来源/尺寸/像素/叠加状态、适应、1:1、放大及联动/独立缩放平移。矩形、圆、旋转矩形、多边形、椭圆、圆环、线和点共八类 ROI 均可在图像区创建、控制点编辑、复制、锁定、删除、显隐、启停、命名、绑定、保存和数值编辑；S35 的线 ROI 具有两端点/整体移动/长度/角度，点 ROI 具有单控制点和 X/Y 精确编辑。S31-S35 的极坐标展开、ROI 图像提取、图像尺寸缩放、图像镜像和图像旋转形成连续托管 Image 链；`rotate_image` 已按 0°/90°/180°/270°、任意角、非方图定位像素、五种插值及 domain 语义核对。Shape/HDevelop 仍走兼容配置，执行仍为确定性线性调度；Shape 兼容叠加尚未进入逐层清单，圆环壁厚工具几何仍靠数值配置，成组输出仍是可读字符串而非类型化数组；单个 HALCON 算子不可中断，真实并行、执行型 Group、运行到光标/变量表达式监视、屏蔽区、位置修正、通用几何/姿态类型、多流程、相机、坐标、工业通讯、权限、`.jw/.handle` 和 BSB 仍未完成。
 
-官方产品基线见 `docs/VM_OFFICIAL_REFERENCE_SPEC.md`。S25 的流程断点/单步属于依据官方 VM 调试/运行习惯做出的本项目产品化实现，不声称复刻海康内部调度器。HALCON 20.11 官方文档与本机程序集反射确认 `fit_rectangle2_contour_xld` 精确 .NET 签名、`regression/huber/tukey`、至少 8 点与四边覆盖要求，以及 `Row/Column/Phi/Length1/Length2/PointOrder` 语义；合成旋转矩形经三算法得到中心 `(120,180)`、方向约 `31.513°`、半边长 `60/25 px`，物理 UI 链得到中心 `(210,320)`、方向 `25.783°`、半边长 `140/70.003 px`。空/短/直线退化和非法参数受控，近正方形明确显示“90°方向等价”。当前画布已有真实拖线、用户布局、撤销/重做、组织型 Group 和首版断点/单步，但仍没有真实并行调度、执行型 Group、多流程、全量编辑历史或调试监视表；完整 ROI/数组/几何/模型、Shape/HDevelop、自动换型和权限仍不完整，不能据此宣称完整 VM 工作区已经完成。
+官方产品基线见 `docs/VM_OFFICIAL_REFERENCE_SPEC.md`。官方 VM 手册确认线/点基础 ROI，并明确图形 ROI 可设置屏蔽区且运行时不检测被屏蔽部分；S35 已完成线/点的真实 UI 和配方闭环，S36 将继续屏蔽区。MVTec HALCON 20.11 官方文档和本机运行确认 `rotate_image` 围绕图像中心逆时针旋转、90°/270°交换宽高、输入 domain 被忽略及输出 domain 交集语义。旧 v1 与 S09-S35 共 28 组功能回归全部通过，1942×1222 线/点 ROI 与旋转常驻配置 UI、原图 ROI/HALCON 旋转图像导出通过；全仓库 XAML 审计得到 558 个事件引用、238 个唯一处理入口且 0 缺失。Debug/Release x64 均为 0 警告、0 错误且双版本启动响应。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 因缺样本或设备仍未验证；当前工作区仍不等于完整 VM。
 
 ## 官方依据
 
@@ -38,6 +38,21 @@ VM 是产品体验和用户习惯参照；HALCON 是全部视觉算子、图像�
 - [MVTec HALCON 20.11 `fit_circle_contour_xld`](https://www.mvtec.com/doc/halcon/2011/en/fit_circle_contour_xld.html)：S23 对每条整圆/圆弧轮廓执行代数/几何及 Huber/Tukey 鲁棒拟合，配置最大闭合距离并输出圆心、半径、起止角和点序的官方依据。
 - [MVTec HALCON 20.11 `fit_ellipse_contour_xld`](https://www.mvtec.com/doc/halcon/2011/en/fit_ellipse_contour_xld.html)：S24 对每条椭圆/椭圆弧轮廓执行代数、焦点、几何、Voss 及 Huber/Tukey 鲁棒拟合，并输出中心、方向、长短半轴、起止角和点序的官方依据。
 - [MVTec HALCON 20.11 `fit_rectangle2_contour_xld`](https://www.mvtec.com/doc/halcon/2011/en/fit_rectangle2_contour_xld.html)：S25 对覆盖四边的 XLD 执行回归/Huber/Tukey 旋转矩形拟合，并输出中心、方向、两边半长和点序的官方依据。
+- [MVTec HALCON 20.11 `intersection_lines`](https://www.mvtec.com/doc/halcon/2011/en/intersection_lines.html)：S26 计算两条无限直线交点，并区分完全重合 `IsOverlapping` 的官方依据。
+- [MVTec HALCON 20.11 `angle_ll`](https://www.mvtec.com/doc/halcon/2011/en/angle_ll.html)：S26 输出受端点方向影响的两线有向夹角，并派生无向锐角的官方依据。
+- [MVTec HALCON 20.11 `distance_pl`](https://www.mvtec.com/doc/halcon/2011/en/distance_pl.html)：S26 对平行线计算点到无限直线正交距离的官方依据。
+- [MVTec HALCON 20.11 `gen_cross_contour_xld`](https://www.mvtec.com/doc/halcon/2011/en/gen_cross_contour_xld.html)：S26 为有效交点生成可显示十字 XLD 的官方依据。
+- [MVTec HALCON 20.11 `gen_measure_rectangle2`](https://www.mvtec.com/doc/halcon/2011/en/gen_measure_rectangle2.html)：S27 从旋转矩形测量域创建 measure handle，并约束图像尺寸、插值、宽度和 Sigma 的官方依据。
+- [MVTec HALCON 20.11 `measure_pairs`](https://www.mvtec.com/doc/halcon/2011/en/measure_pairs.html)：S27 按边缘极性与选择方式返回成对边缘坐标、幅值、对内/对间距离的官方依据。
+- [MVTec HALCON 20.11 `measure_pos`](https://www.mvtec.com/doc/halcon/2011/en/measure_pos.html)：S29 沿旋转矩形主轴按极性和选择方式提取单边缘位置、幅值与间距，并约束 Sigma 和测量方向的官方依据。
+- [MVTec HALCON 20.11 `close_measure`](https://www.mvtec.com/doc/halcon/2011/en/close_measure.html)：S27 在成功、NG 和异常路径关闭 measure handle 的生命周期依据。
+- [MVTec HALCON 20.11 `measure_pairs`](https://www.mvtec.com/doc/halcon/2011/en/measure_pairs.html)与[`fit_circle_contour_xld`](https://www.mvtec.com/doc/halcon/2011/en/fit_circle_contour_xld.html)：S30 逐径向卡尺获取内外边缘对、分别鲁棒拟合内外圆并派生壁厚统计与偏心量的算法依据。
+- [MVTec HALCON `polar_trans_image_ext`](https://www.mvtec.com/doc/halcon/2511/en/polar_trans_image_ext.html)：S31 已按圆心、角度、内外半径、输出尺寸和插值把指定圆环弧展开为矩形 Image，并用完整 360°去重、顺逆方向和定位标记专项确认输出列/行语义。
+- [MVTec HALCON 20.11 `reduce_domain`](https://www.mvtec.com/doc/halcon/2011/en/reduce_domain.html)：S32 以输入图像 domain 与 ROI/Region 的交集限定有效域，并保持原图矩阵尺寸和坐标。
+- [MVTec HALCON 20.11 `crop_domain`](https://www.mvtec.com/doc/halcon/2011/en/crop_domain.html)：S32 将有效域裁成最小外接矩形，并通过 `OffsetRow/OffsetColumn` 明确局部输出相对原图的坐标偏移。
+- [MVTec HALCON 20.11 `zoom_image_size`](https://www.mvtec.com/doc/halcon/2011/en/zoom_image_size.html)：S33 按目标宽高和插值缩放完整图像矩阵，并显式输出行列比例及新坐标系。
+- [MVTec HALCON 20.11 `rotate_image`](https://www.mvtec.com/doc/halcon/2011/en/rotate_image.html)：S35 围绕图像中心逆时针旋转、90°/270°宽高交换和 domain 语义的官方依据。
+- [MVTec HALCON 20.11 `affine_trans_image`](https://www.mvtec.com/doc/halcon/2011/en/affine_trans_image.html)：S36 任意二维仿射、五种插值、输出尺寸适应、行列矩阵坐标与 domain 语义的官方依据。
 
 ## 目标用户体验
 

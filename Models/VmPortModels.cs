@@ -8,6 +8,85 @@ using HalconDotNet;
 
 namespace HalconWinFormsDemo.Models
 {
+    public sealed class VmResultOverlayLayer : INotifyPropertyChanged
+    {
+        private bool isVisible;
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        public string LayerKey { get; set; }
+
+        public string ToolId { get; set; }
+
+        public string ToolName { get; set; }
+
+        public string PortName { get; set; }
+
+        public string DataType { get; set; }
+
+        public int Sequence { get; set; }
+
+        public string ColorName { get; set; }
+
+        public string HalconColor { get; set; }
+
+        public string ColorHex { get; set; }
+
+        public string StateKey { get; set; }
+
+        public string StateText { get; set; }
+
+        public string ResultCode { get; set; }
+
+        public int ObjectCount { get; set; }
+
+        public string MetricText { get; set; }
+
+        public bool IsVisible
+        {
+            get { return isVisible; }
+            set
+            {
+                if (isVisible == value)
+                {
+                    return;
+                }
+
+                isVisible = value;
+                OnPropertyChanged("IsVisible");
+            }
+        }
+
+        public string SequenceText
+        {
+            get { return Sequence.ToString("00", System.Globalization.CultureInfo.InvariantCulture); }
+        }
+
+        public string SourceText
+        {
+            get { return ToolName + "." + PortName; }
+        }
+
+        public string TypeText
+        {
+            get { return DataType + " · " + ColorName; }
+        }
+
+        public string ObjectText
+        {
+            get { return "对象 " + ObjectCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + (string.IsNullOrWhiteSpace(MetricText) ? string.Empty : " · " + MetricText); }
+        }
+
+        private void OnPropertyChanged(string propertyName)
+        {
+            PropertyChangedEventHandler handler = PropertyChanged;
+            if (handler != null)
+            {
+                handler(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }
+    }
+
     public sealed class VmFlowGroupVisual
     {
         public string GroupId { get; set; }

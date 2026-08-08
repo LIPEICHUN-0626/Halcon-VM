@@ -1,29 +1,181 @@
 # Sprint Backlog
 
-更新日期：2026-07-23
+更新日期：2026-08-08
 
-## 下一 Sprint：S26 VM 式调试监视工作台 + HALCON 双直线关系测量
+## 下一 Sprint：S36 VM 式 ROI 屏蔽区工作台 + HALCON 图像仿射变换
 
 状态：**提议**
 
-### A 线：VM 式调试监视工作台
+### A 线：VM 式 ROI 屏蔽区工作台
 
-1. 在中央流程区增加可停靠的调试监视面板，集中显示断点清单、当前/下一模块、暂停原因、本周期输入/输出、结果码、耗时和错误；可从监视项定位节点或打开真实 I/O。
-2. 增加运行到所选模块、启停/清除单个断点和断点列表导航；复用 S25 的确定性执行器、`InputBindings`、配方和历史，不建立脱离执行器的假时间线。
-3. 流程完成、停止、方案切换、撤销/重做和工具删除后必须正确清理或重建监视状态；仍不宣称单个 HALCON 算子可中断、真实并行或执行型 Group。
+1. 依据官方 VM“屏蔽区”行为，把屏蔽区作为工具级 ROI 配置加入图像工具栏、ROI 图层侧栏和右侧常驻 ROI/模板页；检测 ROI 与屏蔽区必须使用不同视觉语义和清楚状态，不得只增加隐藏 DTO 或无执行效果的彩色覆盖。
+2. 首版至少支持矩形、圆和多边形屏蔽，复用创建、控制点/顶点、移动、数值编辑、复制、锁定、显隐、启停、命名、删除、绑定、边界/非法几何、配方及撤销/重做。
+3. Blob、GrayStat、EdgeMeasure 等真实 ROI 消费工具运行时使用 `有效 ROI = 合并检测 ROI - 合并启用屏蔽区`；右侧状态、图像叠加、逐 ROI 结果和错误必须能解释屏蔽数量、有效面积与空域原因。显隐只影响显示，启停才影响执行。
 
-### B 线：HALCON 双直线关系测量
+### B 线：HALCON 图像仿射变换
 
-1. 实施前核对 HALCON 20.11 直线交点、夹角和距离相关算子及坐标/角度语义，新增“双直线关系测量”，显式订阅两路不同 XLD。
-2. 输出交点行列、方向角、夹角/锐角、平行/重合状态、线间距离、图形叠加、参数和结果码；Number 进入 I/O、日志、配方和 NumericJudge。
-3. 相交、垂直、平行、近共线、含噪、短轮廓、非直线、缺路/同源、类型/顺序、上游未运行/NG/释放、重跑失效和托管对象生命周期必须闭环。
+1. 新增右侧常驻“图像仿射变换”，显式订阅真实 Image，以本机 HALCON 20.11 精确签名构造 `HomMat2D` 并调用 `affine_trans_image`。
+2. 配置平移 Row/Column、Row/Column 缩放、逆时针旋转、斜切、五种插值和 `AdaptImageSize`；输出托管 `Image/Width/Height/Channels/HomMat2D/Parameters/ResultCode` 并驱动 Threshold、Blob、Gray、Edge。
+3. 明确 HALCON 行/列矩阵坐标、变换组合顺序、0.5 像素坐标差异、输入 domain 被忽略、输出 domain 和负坐标裁剪；变换输出使用新坐标上下文，校验奇异/非有限矩阵、无效插值/尺寸选项、失效输入并释放旧 Image。
 
 ### 验收标准
 
-- 物理 UI 能从监视面板管理断点、运行到所选、定位真实端口，并在单步/继续/停止后显示与执行器一致的快照。
-- 双直线相交/平行/垂直/近共线结果和叠加可核对，失败路径给出明确原因。
-- S09-S25、旧配方、Image/Region/XLD/Number 生命周期不回退；Debug/Release、启动、事件入口和物理 UI 通过。
-- BSB 按用户指令继续未实施/未验证；S26 作为新 Git 批次第 `1/10` 次，完成验证后只记录、不上传。
+- 屏蔽区用合成多缺陷图证明屏蔽内目标被排除、屏蔽外目标仍检测；多屏蔽区、全屏蔽空域、禁用/显隐差异、复制、锁定、删除、绑定、配方、撤销/重做、逐 ROI 结果与生命周期通过。
+- 图像仿射覆盖单位、平移、缩放、旋转、斜切、组合顺序、两种尺寸适应、灰度/RGB、五插值、非方图定位像素、domain、非法矩阵/参数、托管生命周期、配方和下游工具链。
+- S09-S35、旧配方和 Image/Region/XLD/Number 生命周期不回退；Debug/Release、双版本启动和 HALCON 图像导出/高 DPI UI 通过。
+- 以官方 VM 用户手册“屏蔽区运行时不检测”的语义和 MVTec [`affine_trans_image`](https://www.mvtec.com/doc/halcon/2011/en/affine_trans_image.html)为依据，并反射本机 20.11 精确签名。BSB 按用户指令继续未实施/未验证。
+
+## 已完成 Sprint：S35 VM 式线/点 ROI 图像编辑 + HALCON 图像旋转
+
+状态：**已验证实现**
+
+- A 线：图像工具栏与右侧 ROI 页已新增线/点入口；线具备起止端点、整体移动、长度/角度和数值双向编辑，点具备单控制点和 X/Y 数值编辑。两类均复用选择、复制、锁定、显隐、启停、命名、删除、工具绑定、边界保护、配方和撤销/重做。
+- B 线：右侧常驻 HALCON“图像旋转”真实调用 `rotate_image`，支持 0–360°逆时针角度和五种插值，输出托管 `Image/Width/Height/Channels/Angle/Interpolation/Parameters/ResultCode` 并驱动 Threshold/Blob/Gray/Edge；90°/270°交换非方图宽高，输入 domain 被忽略且输出使用新坐标语义。
+- 门禁：`S35LinePointRoiAndImageRotateSmoke.ps1` 覆盖线/点控制点、移动、数值草稿、复制/锁定/删除/绑定、配方、撤销/重做和边界；旋转覆盖 0°/90°/180°/270°/45°、4×3 定位像素、灰度/RGB、五插值、缩小 domain、非法参数、上游/旧快照释放、重复运行、配方和下游 Threshold。旧 v1 与 S09-S35 共 28/28 回归通过；1942×1222 UI、原图线/点 ROI 与旋转 HALCON 图像导出、全仓库 558 个 XAML 事件引用/238 个唯一入口/0 缺失通过；Debug/Release x64 0 警告 0 错误，双版本启动响应。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 缺样本/设备，未验证；BSB 按用户指令未实施/未验证；Git 批次达到 `10/10`，本轮统一提交/推送。
+- 未完成：屏蔽区、位置修正、ROI 继承、多画面/缩略图和通用 Geometry/Pose 端口仍缺；图像旋转输出属于新坐标上下文，不能直接叠加输入 ROI。
+
+## 已完成 Sprint：S34 VM 式双十字辅助线 + HALCON 图像镜像
+
+状态：**已验证实现**
+
+- A 线：图像工具栏“十字线”入口和可折叠常驻面板已交付；两组辅助线分别支持启用、中心 X/Y、颜色、1–5 线宽、居中和锁定，未锁定时图像内拖动与数值双向同步。左右视口设置独立保存，单/双画面切换不串坐标，显示变化不修改算法输出、结果图层或 `InputBindings`。
+- B 线：右侧常驻 HALCON“图像镜像”已交付；真实 `mirror_image` 支持 `row/column/diagonal`，输出托管 `Image/Width/Height/Channels/Mode/Parameters/ResultCode` 并可继续驱动 Threshold/Blob/Gray/Edge。4×3 非方图的三种定位像素、对角 3×4、RGB、缩小 domain、异常路径和生命周期通过。
+- 门禁：`S34CrosshairAndImageMirrorSmoke.ps1` 和 27/27 全量功能回归通过；1942×1222 十字面板、镜像常驻配置及左右 HALCON 图像导出通过。低高度 UI 首轮发现默认展开面板会压缩图像区，已改为默认折叠并复测通过。532 个 XAML 事件引用对应 231 个唯一入口且 0 缺失；Debug/Release x64 0 警告 0 错误，双版本启动 5 秒保持响应。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 缺样本/设备，未验证；BSB 按用户指令未实施/未验证；Git 批次 `9/10`，不提交或推送。
+- 未完成：十字线没有标签、快捷键和撤销/重做；面板为本项目产品化布局，不宣称逐像素复制海康；图像镜像是新坐标上下文，原图 ROI 不直接叠加。
+
+## 已完成 Sprint：S33 VM 式双画面图像对比 + HALCON 图像尺寸缩放
+
+状态：**已验证实现**
+
+- A 线：单/双画面显式切换、左侧严格当前模块真实 Image 输入端口、右侧模块输出/兼容上下文、ImageA/ImageB 选择、来源/尺寸/像素/叠加状态、适应/1:1/最大化和联动/独立缩放平移已交付；不同尺寸按归一化中心与可视比例联动，缩放输出不误叠输入 ROI。
+- B 线：右侧常驻 HALCON“图像尺寸缩放”已交付；`FullDomain + zoom_image_size` 支持五种插值，输出托管 `Image/Width/Height/Channels/ScaleRow/ScaleColumn/Interpolation/Parameters/ResultCode` 和完整矩形 domain，并可继续驱动 Threshold/Blob/Gray/Edge。
+- 门禁：640×440→320×220 得到行列比例 `0.5/0.5`；缩小/放大、灰度/RGB、定位像素、缩小 domain 输入、非法宽高/插值、上游未运行/释放、旧 Image 释放、配方和下游 Threshold 通过。旧 v1 与 S09-S33 共 26 组功能回归、1942×1222 物理 UI/左右 HALCON 图像导出、468 个 XAML 事件引用对应 191 个唯一处理入口且无缺失。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 缺样本/设备，未验证；BSB 未实施/未验证。Git 批次 `8/10`，不提交或推送。
+
+## 已完成 Sprint：S32 VM 式 ROI 数值几何属性工作台 + HALCON ROI 图像提取
+
+状态：**已验证实现**
+
+- A 线：六类 ROI 的 X/Y、宽高、角度、长短轴直径、内外直径和多边形顶点常驻数值页已交付；图像/数值双向同步、实时草稿预览、应用/取消、锁定只读、边界/尺寸/半径顺序/自相交校验、配方及撤销/重做通过。
+- B 线：HALCON `reduce_domain/crop_domain` 的绑定 ROI/前序 Region、保留原矩阵/原坐标、裁剪外接框和 `OffsetRow/OffsetColumn` 通过；输出托管 Image 可继续驱动 Threshold，灰度/RGB、空交集、上游释放、旧快照释放和配方通过。
+- 门禁：旧 v1 与 S09-S32 共 25 组功能回归、1942×1222 物理 UI/四张图像导出、181 个去重 XAML 事件处理方法、Debug/Release 0 警告 0 错误及双版本启动 5 秒通过。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 缺样本/设备，未验证；BSB 未实施/未验证。Git 批次 `7/10`，不提交或推送。
+
+## 已完成 Sprint：S31 VM 式椭圆/圆环 ROI 图像编辑 + HALCON 极坐标展开
+
+状态：**已验证实现**
+
+- A 线：椭圆/圆环入口、中心/长短轴/旋转与内外半径控制点、创建/选择/移动/复制/锁定/删除/显隐/绑定/配方及几何保护已验证。
+- B 线：HALCON `polar_trans_image_ext` 常驻配置、托管 Image、整圆去重、顺逆/开弧、灰度/RGB、插值配置、越界/释放、下游 Threshold 及输入坐标叠加隔离已验证。
+- 门禁：旧 v1 与 S09-S31 共 24 组功能回归、Debug/Release 0 警告 0 错误、双版本启动 5 秒、逻辑 1554×978 UI 和四张图像导出通过；真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 缺样本/设备，未验证。BSB 未实施/未验证。Git 批次 `6/10`，不提交或推送。
+
+## 已完成 Sprint：S30 VM 式圆周测量域图像编排 + HALCON 圆环壁厚/同心度测量
+
+状态：**已验证实现**
+
+### A 线完成
+
+1. “圆周卡尺找圆”已接入图像区测量域编辑；选择模块或结果图层后同步真实模块输入、流程、配置和图层，显示搜索圆/弧、全部径向卡尺、红色失败项及圆心、半径、起始角、结束角、Length1、Length2 六个控制点。
+2. 真实鼠标可移动圆心/整体、调整搜索半径、起止角和卡尺长宽；拖动只写右侧草稿，试运行不自动应用，应用才写入实例参数、配方脏状态和 50 项撤销/重做，取消恢复。整圆起止角控制点采用不同半径显示，避免重叠后无法命中。
+3. 全部卡尺遵守 HALCON bilinear 安全边界，并校验最小半径、30–360°覆盖、数量和 Length/Sigma。切换工具/图层、删除、方案加载和历史恢复会清理预览与拖动状态。
+
+### B 线完成
+
+1. 新增右侧常驻“圆环壁厚/同心度测量”，接入工具箱、流程、真实 Image 输入、参数、试运行、结果、帮助、图层、I/O、日志、配方和 NumericJudge。
+2. 每个径向卡尺独立调用 HALCON `gen_measure_rectangle2 + measure_pairs + close_measure`，选择中点最接近搜索半径的边缘对并按配置中心半径排序内外点，再以 ATukey `fit_circle_contour_xld` 分别拟合内外圆。
+3. 输出托管搜索弧/卡尺矩形/边缘对/内外边缘点/内外拟合圆 `XLD`，以及内外圆心/半径、Mean/Min/Max/StdDevThickness、Eccentricity、Valid/FailedCount、残差、逐项坐标/厚度、失败详情、参数和结果码；局部失败保留其他有效项，每个 handle 在全部路径关闭。逐项集合当前仍为可读字符串，不冒充类型化数组。
+
+### S30 验证结论
+
+- `S30CircularEditorAndRingThicknessSmoke.ps1` 通过：真实鼠标覆盖圆心、半径、起始角、结束角、Length1、Length2 六控制点，草稿隔离、试运行/取消/应用、撤销/重做、配方和上下文清理通过；圆环测量覆盖整圆、开弧、反向、非同心、部分缺边、低对比、bilinear 越界、扇区离群点、非法数量/角度、上游释放、配方、NumericJudge、旧 XLD 释放和 20 次 handle 生命周期。
+- 旧 v1 配方与 S09-S30 共 23 组功能回归全部通过。逻辑 1554×978 主界面和四张 HALCON 图像导出确认圆周编辑控制点、径向卡尺/失败项、内外边缘点和双拟合圆；界面夹具得到 `ValidCount=24`、`MeanThickness=55.060 px`、`Eccentricity=0.017 px`。
+- Debug/Release x64 均 0 警告 0 错误；Debug 独立启动 8 秒保持响应，标题为“HALCON VM 工业视觉平台”。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 因缺样本/设备未验证；BSB 按用户指令未实施/未验证。S30 记为新 Git 批次第 `5/10` 次，不提交或推送。
+
+## 已完成 Sprint：S29 VM 式线性阵列图像编排 + HALCON 圆周卡尺找圆
+
+状态：**已验证实现**
+
+### A 线完成
+
+1. “线性多卡尺阵列”已接入图像区测量域编辑；选择模块或结果图层后同步真实模块输入、流程、配置和图层，显示基线、起点、终点、整体、Length1/Length2 控制点、全部卡尺和红色失败项。
+2. 真实鼠标可移动起点/终点、整体平移和调整卡尺长宽；拖动只写右侧草稿，试运行不自动应用，应用才写入实例参数、配方脏状态和 50 项撤销/重做，取消恢复。
+3. 整体移动触边时保持基线长度，不会逐端点裁剪而压缩阵列；全部卡尺遵守 HALCON bilinear 安全边界。切换工具/图层、删除、方案加载和历史恢复会清理预览与拖动状态。
+
+### B 线完成
+
+1. 新增右侧常驻“圆周卡尺找圆”，接入工具箱、流程、真实 Image 输入、参数、试运行、结果、帮助、图层、I/O、日志、配方和 NumericJudge。
+2. 沿整圆或正/反向开弧布置 3–360 个径向卡尺，每项独立调用 HALCON `gen_measure_rectangle2 + measure_pos + close_measure`；从多边缘中选择最接近搜索圆的点，再用 `fit_circle_contour_xld` 的 ATukey 鲁棒拟合圆。
+3. 输出托管 `XLD/CenterRow/CenterColumn/Radius/ValidCount/FailedCount/MaxResidual/MeanAmplitude/EdgeRows/EdgeColumns/EdgeAmplitudes/ValidIndices/FailedIndices/FailureDetails/Parameters/ResultCode`；部分失败仍保留可用拟合，全部 handle 在成功、NG 和异常路径逐项关闭。
+
+### S29 验证结论
+
+- `S29LinearArrayEditorAndCircularCaliperSmoke.ps1` 通过：真实窗口鼠标验证阵列整体/起点/Length1/Length2、草稿试运行/取消/应用、撤销/重做和陈旧预览清理；找圆覆盖整圆、200°开弧、顺/逆、24 卡尺、半圆缺边、低对比、全无边、bilinear 越界、扇区离群点、非法参数、上游释放、配方、旧 XLD 释放和 20 次 handle 生命周期。
+- 旧 v1 配方与 S09-S29 共 22 组功能回归全部通过。逻辑 1554×978 主界面确认线性阵列编辑条和圆周找圆常驻配置；HALCON 窗口导出确认阵列控制点/红色失败卡尺，以及独显 20 个径向卡尺、边缘点和拟合圆，结果为 `ValidCount=20`、`Radius=144.969 px`。
+- Debug/Release x64 均 0 警告 0 错误；Debug 独立启动 8 秒保持响应，标题为“HALCON VM 工业视觉平台”。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 因缺样本/设备未验证；BSB 按用户指令未实施/未验证。S29 记为新 Git 批次第 `4/10` 次，不提交或推送。
+
+## 已完成 Sprint：S28 VM 式图像内测量几何交互 + HALCON 线性多卡尺阵列
+
+状态：**已验证实现**
+
+### A 线完成
+
+1. 图像区新增“卡尺域”入口和编辑条；选择单卡尺模块或其 XLD 图层后同步真实模块输入图像、流程选择和右侧常驻配置，并显示旋转矩形、中心、Length1/Length2 和旋转控制点。
+2. 拖动只更新右侧参数草稿与实时 Row/Column/Phi/Length1/Length2；试运行不自动应用，应用后才写入工具参数、方案脏状态和 50 项撤销/重做，取消恢复原值。
+3. HALCON bilinear 安全边界、最小半长和 `Length1 >= 2*Sigma` 受保护；重叠控制点改为最近距离命中。退出编辑、选择其他工具、删除、方案加载和历史恢复会释放预览并清除陈旧上下文。
+
+### B 线完成
+
+1. 右侧常驻“线性多卡尺阵列”接入工具箱、流程、Image 输入、参数、试运行、结果、帮助、图层、I/O、日志、配方和 NumericJudge。
+2. 沿起止基线等距布置 2–200 个垂直卡尺，每个卡尺独立调用 HALCON `gen_measure_rectangle2 + measure_pairs + close_measure`；输出基线、测量矩形、边缘十字/连线组成的托管 XLD。
+3. 输出 `MeanDistance/ValidCount/PairCount/MinDistance/MaxDistance/StdDev/Distances/ValidIndices/FailedIndices/FailureDetails/Parameters/ResultCode`；单项失败保留其他结果并定位索引，每个 handle 在成功、NG 和异常路径关闭。逐项集合当前仍为可读字符串，不冒充类型化数组。
+
+### S28 验证结论
+
+- `S28MeasurementDomainAndLinearCaliperArraySmoke.ps1` 通过：真实鼠标拖动只改草稿、取消、应用、撤销/重做和陈旧预览清理；水平 3/5/10、旋转 5 卡尺、局部缺边、全无边、低对比、越界、非法数量、输入释放、配方、NumericJudge、旧 XLD 释放和 25 次 handle 生命周期全部通过。
+- S09-S28 与旧 v1 配方共 21 组烟测全回归；逻辑 1554×978 UI 确认编辑条、控制点上下文、单卡尺常驻参数、阵列流程节点与结果图层，阵列得到 `ValidCount=7`、`PairCount=14`。WPF 离屏截图不能捕获原生 HALCON HWindow 内容，但实际 HALCON 运行与绘制未抛异常。
+- Debug/Release x64 均 0 警告 0 错误，双版本独立启动 8 秒保持运行。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 因缺样本/设备未验证；BSB 按用户指令未实施/未验证。S28 记为新 Git 批次第 `3/10` 次，不提交或推送。
+
+## 已完成 Sprint：S27 VM 式多结果图层管理 + HALCON 卡尺边缘对测量
+
+状态：**已验证实现**
+
+### A 线完成
+
+1. 右上图像侧栏新增常驻“结果图层”页，按本周期真实 Region/XLD 输出显示来源工具/端口、类型、颜色、对象数、显示顺序和等待/有效/失效状态。
+2. 提供显隐、独显、全显、全隐、上移、下移、定位生产者和打开配置；绘制只使用托管快照临时副本，显示操作不释放输出、不改变真实 `InputBindings`、执行顺序或算法结果。
+3. 模块重跑、删除、上游释放、配方切换和历史恢复后图层安全刷新；显示顺序和显隐状态可在同一运行上下文保持。Shape 兼容叠加尚未进入逐层清单，不冒充完整图层系统。
+
+### B 线完成
+
+1. 右侧常驻“卡尺边缘对测量”接入工具箱、流程、Image 输入、参数、试运行、结果、帮助、图层、I/O、日志、配方和 NumericJudge。
+2. 使用 HALCON 20.11 `gen_measure_rectangle2 + measure_pairs + close_measure`，配置 Row/Column/Phi/Length1/Length2/Sigma/Threshold/Transition/Select；输出测量矩形、全部边缘十字、成对连线、第一/第二边缘坐标与幅值、对内/对间距离、PairCount、PrimaryDistance、参数和结果码。
+3. 颜色图像按固定 `rgb1_to_gray` 进入测量；measure handle 在成功、无边缘对、非法输入和异常路径均关闭。成组坐标/幅值/距离当前作为可读字符串输出，类型化数组端口尚未实现。
+
+### S27 验证结论
+
+- `S27ResultLayersAndCaliperSmoke.ps1` 通过：正/负/全部极性、First/Last、90°旋转、多边缘对、缺边、低对比、越界、非法半长/半宽/Sigma/阈值/极性/选择方式、上游未运行/释放、配方、NumericJudge、25 次重跑 handle 生命周期及图层显隐/隔离/排序/失效/恢复全部通过。
+- S09-S27 与旧 v1 配方共 20 组烟测全回归；物理 1554×978 UI 确认结果图层、卡尺常驻配置、`Image -> Caliper -> PrimaryDistance Judge` 和真实叠加，得到 `PairCount=2`、`PrimaryDistance=66 px`。WPF 离屏截图无法捕获原生 HALCON HWindow 内容，但实际运行与绘制未抛异常，此限制已明确记录。
+- Debug/Release x64 均 0 警告 0 错误，Debug 独立启动 5 秒保持运行。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 因缺样本/设备未验证；BSB 按用户指令未实施/未验证。S27 记为新 Git 批次第 `2/10` 次，不提交或推送。
+
+## 已完成 Sprint：S26 VM 式调试监视工作台 + HALCON 双直线关系测量
+
+状态：**已验证实现**
+
+### A 线完成
+
+1. 中央流程区新增常驻“调试监视”，真实显示断点清单、当前/下一模块、执行范围、暂停原因和所选模块本周期输入/输出、结果码、状态、耗时、错误。
+2. 可从监视区定位节点、打开第一个输入/完整 I/O、切换断点、清除全部断点；“运行到所选”复用确定性 Full 执行计划，执行完目标启用模块后停在下一启用模块前，较早断点仍可优先中断。
+3. 调试运行目标只保存在运行态，不进入配方；工具删除、方案切换、停止/继续和结果失效会同步刷新。高频流程工具条已收敛为运行/调试/视图入口，为画布和监视区释放空间。该工作台是依据 VM 调试/运行习惯的产品化推导，不宣称复刻海康内部调试器。
+
+### B 线完成
+
+1. 右侧常驻“双直线关系测量”接入工具箱、流程、输入、参数、试运行、结果、帮助、叠加、I/O、日志、配方和 NumericJudge；两路 `LineA/LineB` 必须来自不同、合法前序 XLD。
+2. 使用 HALCON 20.11 `fit_line_contour_xld` 拟合各输入最长直线，再以 `angle_ll`、`intersection_lines`、`distance_pl` 计算关系，并用 `gen_cross_contour_xld + concat_obj` 生成两线/交点托管 XLD 叠加。
+3. 输出 `IntersectionRow/Column/Valid`、`DirectionA/B`、`SignedAngle`、`AcuteAngle`、`ParallelDistance`、`IsParallel`、`IsCoincident`、`Relation`、两路残差、参数和结果码；空/短/弧形、同源、类型/顺序、非法容差、未运行/释放对象均明确拒绝。
+
+### S26 验证结论
+
+- `S26DebugMonitorAndXldLineRelationSmoke.ps1` 通过：相交/垂直、平行距离 `15 px`、近重合、Tukey 含噪离群点、空/单点/非直线、非法算法/容差、双输入约束、上游状态、配方、重跑释放、断点列表/切换、运行到所选和继续全部通过。
+- S09-S26 与旧 v1 配方共 19 组烟测全回归；物理 1554×978 UI 确认常驻监视、真实当前/下一/范围/暂停原因/I/O 快照、精简流程工具条及双直线配置/叠加，锐角 `65.772°`、交点约 `(210,349)`。
+- Debug/Release x64 均 0 警告 0 错误，双版本启动保持响应，402 个 XAML 事件引用对应 194 个去重处理方法且无缺失；差异、敏感信息和构建产物门禁通过。真实 Shape 模板、相机和 `.jw/.handle` 因缺样本/设备未验证；BSB 按用户指令未实施/未验证。S26 记为新 Git 批次第 `1/10` 次，不提交或推送。
 
 ## 已完成 Sprint：S25 VM 式断点/单步调试 + HALCON XLD 旋转矩形拟合测量
 
@@ -45,7 +197,7 @@
 
 - `S25FlowDebugAndXldRectangleFittingSmoke.ps1` 通过：断点前暂停、单步一个、继续、停用跳过、配方回读、撤销/重做及指针清理均通过；旋转矩形三算法得到中心 `(120,180)`、方向约 `31.513°`、半边长 `60/25 px`，近正方形、空/短/直线退化、六类非法参数、参数回读和 XLD 生命周期通过。
 - S09-S25 与旧 v1 配方共 18 组烟测全回归；物理 1554×978 UI 确认顶部/流程工具条、断点/单步/继续、红色断点、橙色下一执行指针、旋转矩形常驻配置和 `Image -> Region -> XLD -> Rectangle -> Length1 Judge` 链，输出半边长 `140/70.003 px`、方向 `25.783°`。
-- Debug/Release x64 均 0 警告 0 错误，双版本启动 4 秒保持响应。旧 `.jw/.handle`、真实 Shape 模板和相机设备因缺样本/设备未验证；BSB 按用户指令未实施/未验证。S25 记为当前 Git 批次第 `10/10` 次并触发统一提交/推送。
+- Debug/Release x64 均 0 警告 0 错误，双版本启动 4 秒保持响应。旧 `.jw/.handle`、真实 Shape 模板和相机设备因缺样本/设备未验证；BSB 按用户指令未实施/未验证。S25 使上一批达到 `10/10` 并创建本地批次提交；GitHub 上传尚未确认。
 
 ## 已完成 Sprint：S24 VM 式流程组合/折叠 + HALCON XLD 椭圆拟合测量
 
@@ -773,7 +925,17 @@
 | P0 | S23 撤销/重做与 XLD 圆拟合 | 真实编辑历史、状态和快捷键 | HALCON `fit_circle_contour_xld` 工业测量封装 | 已验证实现 |
 | P0 | S24 流程组合/折叠与 XLD 椭圆拟合 | 可持久化组合容器及边界连接 | HALCON `fit_ellipse_contour_xld` 工业测量封装 | 已验证实现 |
 | P0 | S25 断点/单步调试与 XLD 旋转矩形拟合 | 确定性执行断点、单步、继续和指针 | HALCON `fit_rectangle2_contour_xld` 工业测量封装 | 已验证实现 |
-| P0 | S26 调试监视工作台与双直线关系测量 | 断点列表、运行快照、节点定位和运行到所选 | HALCON 双 XLD 交点/夹角/平行距离工业测量封装 | 提议 |
+| P0 | S26 调试监视工作台与双直线关系测量 | 断点列表、运行快照、节点定位和运行到所选 | HALCON 双 XLD 交点/夹角/平行距离工业测量封装 | 已验证实现 |
+| P0 | S27 多结果图层管理与卡尺边缘对测量 | 全部 Region/XLD/测量叠加的显隐、隔离、排序和定位 | HALCON 旋转矩形卡尺边缘对与间距工业测量封装 | 已验证实现 |
+| P0 | S28 图像内测量几何与线性多卡尺阵列 | 测量域控制点、草稿/应用/取消和上下文联动 | HALCON 多卡尺逐项测量、统计和失败定位 | 已验证实现 |
+| P0 | S29 线性阵列图像编排与圆周卡尺找圆 | 基线/整体/卡尺长宽控制点和逐项状态 | HALCON 圆周采边、拟合圆与失败定位 | 已验证实现 |
+| P0 | S30 圆周测量域图像编排与圆环壁厚/同心度测量 | 圆心/半径/角度/卡尺长宽控制点和逐项状态 | HALCON 径向边缘对、双圆拟合、厚度统计与偏心量 | 已验证实现 |
+| P0 | S31 椭圆/圆环 ROI 图像编辑与极坐标展开 | 椭圆/圆环创建、控制点、绑定和几何保护 | HALCON `polar_trans_image_ext` 托管 Image 与下游链 | 已验证实现 |
+| P0 | S32 ROI 数值几何属性与 ROI 图像提取 | 六类 ROI 数值属性与图像控制点双向同步 | HALCON `reduce_domain/crop_domain` 托管 Image 与坐标偏移 | 已验证实现 |
+| P0 | S33 双画面图像对比与图像尺寸缩放 | 单/双视口输入输出对比及联动/独立视图 | HALCON `zoom_image_size` 托管 Image 与坐标比例 | 已验证实现 |
+| P0 | S34 双十字辅助线与图像镜像 | 两组十字线的常驻配置与图像内交互 | HALCON `mirror_image` 托管 Image 与坐标映射 | 已验证实现 |
+| P0 | S35 线/点 ROI 图像编辑与图像旋转 | 线/点创建、控制点、数值属性和配方 | HALCON `rotate_image` 托管 Image 与坐标语义 | 已验证实现 |
+| P0 | S36 ROI 屏蔽区与图像仿射变换 | 屏蔽区常驻配置、图像编辑和真实 ROI 排除 | HALCON `affine_trans_image` 托管 Image 与矩阵/坐标语义 | 提议 |
 | P0 | 后续资源管理 | 相机/控制器/IO/光源设备页 | WPF 单帧/连续采集和诊断闭环 | 提议，SDK 前需确认 |
 | P1 | 后续通信管理 | 设备、事件、报文监视 | 心跳、重连、超时、映射、触发和回复 | 提议 |
 | P1 | 后续全局逻辑 | 变量/触发/脚本/队列页面 | 类型化跨流程数据与多流程执行 | 提议 |

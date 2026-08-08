@@ -29,6 +29,8 @@ namespace HalconWinFormsDemo.Models
             TcpEncoding = "UTF-8";
             AutoSendResult = true;
             FlowRunPolicy = new VmFlowRunPolicy();
+            RightImageCrosshairs = VmImageCrosshairViewSettings.CreateDefault();
+            LeftImageCrosshairs = VmImageCrosshairViewSettings.CreateDefault();
         }
 
         [DataMember(Order = 1)]
@@ -115,6 +117,86 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 28, EmitDefaultValue = false)]
         public string SavedAtUtc { get; set; }
 
+        [DataMember(Order = 29, EmitDefaultValue = false)]
+        public VmImageCrosshairViewSettings RightImageCrosshairs { get; set; }
+
+        [DataMember(Order = 30, EmitDefaultValue = false)]
+        public VmImageCrosshairViewSettings LeftImageCrosshairs { get; set; }
+
+    }
+
+    [DataContract]
+    public sealed class VmImageCrosshairViewSettings
+    {
+        [DataMember(Order = 1, EmitDefaultValue = false)]
+        public VmImageCrosshairGuideData Guide1 { get; set; }
+
+        [DataMember(Order = 2, EmitDefaultValue = false)]
+        public VmImageCrosshairGuideData Guide2 { get; set; }
+
+        public static VmImageCrosshairViewSettings CreateDefault()
+        {
+            return new VmImageCrosshairViewSettings
+            {
+                Guide1 = VmImageCrosshairGuideData.CreateDefault("green"),
+                Guide2 = VmImageCrosshairGuideData.CreateDefault("yellow")
+            };
+        }
+
+        public VmImageCrosshairViewSettings CloneNormalized()
+        {
+            return new VmImageCrosshairViewSettings
+            {
+                Guide1 = VmImageCrosshairGuideData.Normalize(Guide1, "green"),
+                Guide2 = VmImageCrosshairGuideData.Normalize(Guide2, "yellow")
+            };
+        }
+    }
+
+    [DataContract]
+    public sealed class VmImageCrosshairGuideData
+    {
+        [DataMember(Order = 1, EmitDefaultValue = false)] public bool IsEnabled { get; set; }
+        [DataMember(Order = 2, EmitDefaultValue = false)] public double X { get; set; }
+        [DataMember(Order = 3, EmitDefaultValue = false)] public double Y { get; set; }
+        [DataMember(Order = 4, EmitDefaultValue = false)] public string Color { get; set; }
+        [DataMember(Order = 5, EmitDefaultValue = false)] public int Thickness { get; set; }
+        [DataMember(Order = 6, EmitDefaultValue = false)] public bool IsLocked { get; set; }
+
+        public static VmImageCrosshairGuideData CreateDefault(string color)
+        {
+            return new VmImageCrosshairGuideData { Color = color, Thickness = 1 };
+        }
+
+        public static VmImageCrosshairGuideData Normalize(VmImageCrosshairGuideData source, string defaultColor)
+        {
+            VmImageCrosshairGuideData value = source ?? CreateDefault(defaultColor);
+            return new VmImageCrosshairGuideData
+            {
+                IsEnabled = value.IsEnabled,
+                X = IsFinite(value.X) && value.X >= 0 ? value.X : 0,
+                Y = IsFinite(value.Y) && value.Y >= 0 ? value.Y : 0,
+                Color = NormalizeColor(value.Color, defaultColor),
+                Thickness = Math.Max(1, Math.Min(5, value.Thickness <= 0 ? 1 : value.Thickness)),
+                IsLocked = value.IsLocked
+            };
+        }
+
+        private static string NormalizeColor(string value, string fallback)
+        {
+            string normalized = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim().ToLowerInvariant();
+            string[] supported = { "green", "yellow", "cyan", "magenta", "red", "orange", "blue", "white" };
+            foreach (string item in supported)
+            {
+                if (string.Equals(item, normalized, StringComparison.OrdinalIgnoreCase)) return item;
+            }
+            return fallback;
+        }
+
+        private static bool IsFinite(double value)
+        {
+            return !double.IsNaN(value) && !double.IsInfinity(value);
+        }
     }
 
     [DataContract]
@@ -226,6 +308,12 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 13, EmitDefaultValue = false)]
         public double Length2 { get; set; }
+
+        [DataMember(Order = 14, EmitDefaultValue = false)]
+        public double InnerRadius { get; set; }
+
+        [DataMember(Order = 15, EmitDefaultValue = false)]
+        public double OuterRadius { get; set; }
     }
 
     [DataContract]

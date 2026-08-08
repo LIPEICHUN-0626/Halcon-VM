@@ -10,13 +10,17 @@ namespace HalconWinFormsDemo.Models
     {
         Rectangle,
         Circle,
+        Ellipse,
+        Annulus,
         Polygon,
-        RotatedRectangle
+        RotatedRectangle,
+        Line,
+        Point
     }
 
     public sealed class RoiData : IDisposable
     {
-        private RoiData(RoiShapeType shapeType, double row1, double column1, double row2, double column2, double row, double column, double radius, double[] polygonRows, double[] polygonColumns, double phi, double length1, double length2)
+        private RoiData(RoiShapeType shapeType, double row1, double column1, double row2, double column2, double row, double column, double radius, double[] polygonRows, double[] polygonColumns, double phi, double length1, double length2, double innerRadius, double outerRadius)
         {
             ShapeType = shapeType;
             Row1 = row1;
@@ -31,6 +35,8 @@ namespace HalconWinFormsDemo.Models
             Phi = phi;
             Length1 = length1;
             Length2 = length2;
+            InnerRadius = innerRadius;
+            OuterRadius = outerRadius;
             Region = CreateRegion();
         }
 
@@ -60,13 +66,21 @@ namespace HalconWinFormsDemo.Models
 
         public double Length2 { get; private set; }
 
+        public double InnerRadius { get; private set; }
+
+        public double OuterRadius { get; private set; }
+
         public HRegion Region { get; private set; }
 
         public string ShapeDisplayText
         {
             get
             {
+                if (ShapeType == RoiShapeType.Line) return "直线";
+                if (ShapeType == RoiShapeType.Point) return "点";
                 if (ShapeType == RoiShapeType.RotatedRectangle) return "旋转矩形";
+                if (ShapeType == RoiShapeType.Ellipse) return "椭圆";
+                if (ShapeType == RoiShapeType.Annulus) return "圆环";
                 if (ShapeType == RoiShapeType.Polygon) return "多边形";
                 if (ShapeType == RoiShapeType.Circle) return "圆形";
                 return "矩形";
@@ -77,6 +91,32 @@ namespace HalconWinFormsDemo.Models
         {
             get
             {
+                if (ShapeType == RoiShapeType.Line)
+                {
+                    double deltaColumn = Column2 - Column1;
+                    double deltaRow = Row2 - Row1;
+                    double length = Math.Sqrt(deltaColumn * deltaColumn + deltaRow * deltaRow);
+                    double angle = Math.Atan2(-deltaRow, deltaColumn) * 180.0 / Math.PI;
+                    return string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        "直线：P1=({0:F1}, {1:F1}), P2=({2:F1}, {3:F1}), 长度={4:F1}, 角度={5:F1}°",
+                        Column1,
+                        Row1,
+                        Column2,
+                        Row2,
+                        length,
+                        angle);
+                }
+
+                if (ShapeType == RoiShapeType.Point)
+                {
+                    return string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        "点：X={0:F1}, Y={1:F1}",
+                        Column,
+                        Row);
+                }
+
                 if (ShapeType == RoiShapeType.Polygon)
                 {
                     return string.Format("多边形：顶点={0}", PolygonRows == null ? 0 : PolygonRows.Length);
@@ -94,6 +134,29 @@ namespace HalconWinFormsDemo.Models
                         Phi * 180.0 / Math.PI);
                 }
 
+                if (ShapeType == RoiShapeType.Ellipse)
+                {
+                    return string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        "椭圆：中心 R={0:F1}, C={1:F1}, 长轴={2:F1}, 短轴={3:F1}, 角度={4:F1}°",
+                        Row,
+                        Column,
+                        Length1 * 2.0,
+                        Length2 * 2.0,
+                        Phi * 180.0 / Math.PI);
+                }
+
+                if (ShapeType == RoiShapeType.Annulus)
+                {
+                    return string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        "圆环：中心 R={0:F1}, C={1:F1}, 内径={2:F1}, 外径={3:F1}",
+                        Row,
+                        Column,
+                        InnerRadius * 2.0,
+                        OuterRadius * 2.0);
+                }
+
                 if (ShapeType == RoiShapeType.Circle)
                 {
                     return string.Format("圆形：R={0:F1}, C={1:F1}, 半径={2:F1}", Row, Column, Radius);
@@ -109,12 +172,59 @@ namespace HalconWinFormsDemo.Models
             double left = Math.Min(column1, column2);
             double bottom = Math.Max(row1, row2);
             double right = Math.Max(column1, column2);
-            return new RoiData(RoiShapeType.Rectangle, top, left, bottom, right, 0, 0, 0, null, null, 0, 0, 0);
+            return new RoiData(RoiShapeType.Rectangle, top, left, bottom, right, 0, 0, 0, null, null, 0, 0, 0, 0, 0);
+        }
+
+        public static RoiData CreateLine(double row1, double column1, double row2, double column2)
+        {
+            return new RoiData(RoiShapeType.Line, row1, column1, row2, column2, 0, 0, 0, null, null, 0, 0, 0, 0, 0);
+        }
+
+        public static RoiData CreatePoint(double row, double column)
+        {
+            return new RoiData(RoiShapeType.Point, 0, 0, 0, 0, row, column, 0, null, null, 0, 0, 0, 0, 0);
         }
 
         public static RoiData CreateCircle(double row, double column, double radius)
         {
-            return new RoiData(RoiShapeType.Circle, 0, 0, 0, 0, row, column, Math.Max(1, radius), null, null, 0, 0, 0);
+            return new RoiData(RoiShapeType.Circle, 0, 0, 0, 0, row, column, Math.Max(1, radius), null, null, 0, 0, 0, 0, 0);
+        }
+
+        public static RoiData CreateEllipse(double row, double column, double phi, double radius1, double radius2)
+        {
+            radius1 = Math.Max(1, radius1);
+            radius2 = Math.Max(1, radius2);
+            if (radius2 > radius1)
+            {
+                double swap = radius1;
+                radius1 = radius2;
+                radius2 = swap;
+                phi += Math.PI / 2.0;
+            }
+
+            return new RoiData(
+                RoiShapeType.Ellipse,
+                0,
+                0,
+                0,
+                0,
+                row,
+                column,
+                0,
+                null,
+                null,
+                NormalizeAngle(phi),
+                radius1,
+                radius2,
+                0,
+                0);
+        }
+
+        public static RoiData CreateAnnulus(double row, double column, double innerRadius, double outerRadius)
+        {
+            outerRadius = Math.Max(2, outerRadius);
+            innerRadius = Math.Max(1, Math.Min(innerRadius, outerRadius - 1));
+            return new RoiData(RoiShapeType.Annulus, 0, 0, 0, 0, row, column, 0, null, null, 0, 0, 0, innerRadius, outerRadius);
         }
 
         public static RoiData CreateRotatedRectangle(double row, double column, double phi, double length1, double length2)
@@ -132,7 +242,9 @@ namespace HalconWinFormsDemo.Models
                 null,
                 NormalizeAngle(phi),
                 Math.Max(1, length1),
-                Math.Max(1, length2));
+                Math.Max(1, length2),
+                0,
+                0);
         }
 
         public static RoiData CreatePolygon(IEnumerable<PointF> points)
@@ -164,11 +276,21 @@ namespace HalconWinFormsDemo.Models
             double row2 = rows.Max();
             double column1 = columns.Min();
             double column2 = columns.Max();
-            return new RoiData(RoiShapeType.Polygon, row1, column1, row2, column2, 0, 0, 0, (double[])rows.Clone(), (double[])columns.Clone(), 0, 0, 0);
+            return new RoiData(RoiShapeType.Polygon, row1, column1, row2, column2, 0, 0, 0, (double[])rows.Clone(), (double[])columns.Clone(), 0, 0, 0, 0, 0);
         }
 
         public RoiData Clone()
         {
+            if (ShapeType == RoiShapeType.Line)
+            {
+                return CreateLine(Row1, Column1, Row2, Column2);
+            }
+
+            if (ShapeType == RoiShapeType.Point)
+            {
+                return CreatePoint(Row, Column);
+            }
+
             if (ShapeType == RoiShapeType.Polygon)
             {
                 return CreatePolygon(PolygonRows, PolygonColumns);
@@ -177,6 +299,16 @@ namespace HalconWinFormsDemo.Models
             if (ShapeType == RoiShapeType.Circle)
             {
                 return CreateCircle(Row, Column, Radius);
+            }
+
+            if (ShapeType == RoiShapeType.Ellipse)
+            {
+                return CreateEllipse(Row, Column, Phi, Length1, Length2);
+            }
+
+            if (ShapeType == RoiShapeType.Annulus)
+            {
+                return CreateAnnulus(Row, Column, InnerRadius, OuterRadius);
             }
 
             if (ShapeType == RoiShapeType.RotatedRectangle)
@@ -220,6 +352,20 @@ namespace HalconWinFormsDemo.Models
 
         private HRegion CreateRegion()
         {
+            if (ShapeType == RoiShapeType.Line)
+            {
+                HObject region;
+                HOperatorSet.GenRegionLine(out region, Row1, Column1, Row2, Column2);
+                return new HRegion(region);
+            }
+
+            if (ShapeType == RoiShapeType.Point)
+            {
+                HObject region;
+                HOperatorSet.GenRegionPoints(out region, Row, Column);
+                return new HRegion(region);
+            }
+
             if (ShapeType == RoiShapeType.Polygon)
             {
                 HObject region;
@@ -230,6 +376,33 @@ namespace HalconWinFormsDemo.Models
             if (ShapeType == RoiShapeType.Circle)
             {
                 return new HRegion(Row, Column, Radius);
+            }
+
+            if (ShapeType == RoiShapeType.Ellipse)
+            {
+                HObject region;
+                HOperatorSet.GenEllipse(out region, Row, Column, Phi, Length1, Length2);
+                return new HRegion(region);
+            }
+
+            if (ShapeType == RoiShapeType.Annulus)
+            {
+                HObject outer = null;
+                HObject inner = null;
+                HObject ring = null;
+                try
+                {
+                    HOperatorSet.GenCircle(out outer, Row, Column, OuterRadius);
+                    HOperatorSet.GenCircle(out inner, Row, Column, InnerRadius);
+                    HOperatorSet.Difference(outer, inner, out ring);
+                    return new HRegion(ring);
+                }
+                finally
+                {
+                    if (outer != null) outer.Dispose();
+                    if (inner != null) inner.Dispose();
+                    if (ring != null) ring.Dispose();
+                }
             }
 
             if (ShapeType == RoiShapeType.RotatedRectangle)

@@ -63,13 +63,30 @@ namespace HalconWinFormsDemo.Services
             window.SetDraw("margin");
             window.SetColor(color);
             window.SetLineWidth(width);
-            if (roi.ShapeType == RoiShapeType.Polygon)
+            if (roi.ShapeType == RoiShapeType.Line)
+            {
+                window.DispLine(roi.Row1, roi.Column1, roi.Row2, roi.Column2);
+            }
+            else if (roi.ShapeType == RoiShapeType.Point)
+            {
+                window.DispCross(roi.Row, roi.Column, 18, 0);
+            }
+            else if (roi.ShapeType == RoiShapeType.Polygon)
             {
                 DrawRegionBoundary(window, roi.Region, color, width);
             }
             else if (roi.ShapeType == RoiShapeType.RotatedRectangle)
             {
                 window.DispRectangle2(roi.Row, roi.Column, roi.Phi, roi.Length1, roi.Length2);
+            }
+            else if (roi.ShapeType == RoiShapeType.Ellipse)
+            {
+                window.DispEllipse(roi.Row, roi.Column, roi.Phi, roi.Length1, roi.Length2);
+            }
+            else if (roi.ShapeType == RoiShapeType.Annulus)
+            {
+                window.DispCircle(roi.Row, roi.Column, roi.OuterRadius);
+                window.DispCircle(roi.Row, roi.Column, roi.InnerRadius);
             }
             else if (roi.ShapeType == RoiShapeType.Circle)
             {
@@ -157,6 +174,20 @@ namespace HalconWinFormsDemo.Services
 
             window.SetColor("magenta");
             window.SetLineWidth(1);
+            if (roi.ShapeType == RoiShapeType.Line)
+            {
+                window.DispCross(roi.Row1, roi.Column1, 16, 0);
+                window.DispCross(roi.Row2, roi.Column2, 16, 0);
+                return;
+            }
+
+            if (roi.ShapeType == RoiShapeType.Point)
+            {
+                window.DispCircle(roi.Row, roi.Column, 5);
+                window.DispCross(roi.Row, roi.Column, 18, 0);
+                return;
+            }
+
             if (roi.ShapeType == RoiShapeType.Polygon)
             {
                 for (int index = 0; index < roi.PolygonRows.Length; index++)
@@ -166,9 +197,16 @@ namespace HalconWinFormsDemo.Services
                 return;
             }
 
-            if (roi.ShapeType == RoiShapeType.RotatedRectangle)
+            if (roi.ShapeType == RoiShapeType.RotatedRectangle || roi.ShapeType == RoiShapeType.Ellipse)
             {
                 DrawRotatedRectangleHandles(window, roi, false);
+                return;
+            }
+
+            if (roi.ShapeType == RoiShapeType.Annulus)
+            {
+                window.DispCross(roi.Row, roi.Column + roi.InnerRadius, 16, 0);
+                window.DispCross(roi.Row, roi.Column + roi.OuterRadius, 16, 0);
                 return;
             }
 
@@ -199,6 +237,29 @@ namespace HalconWinFormsDemo.Services
 
             window.SetColor(locked ? "yellow" : "green");
             window.SetLineWidth(2);
+            if (roi.ShapeType == RoiShapeType.Line)
+            {
+                window.DispCross(roi.Row1, roi.Column1, locked ? 12 : 18, 0);
+                window.DispCross(roi.Row2, roi.Column2, locked ? 12 : 18, 0);
+                window.DispCross((roi.Row1 + roi.Row2) * 0.5, (roi.Column1 + roi.Column2) * 0.5, 12, 0);
+                if (locked)
+                {
+                    SafeDispText(window, "LOCK", (int)Math.Max(0, Math.Min(roi.Row1, roi.Row2) - 18), (int)Math.Max(0, Math.Min(roi.Column1, roi.Column2)), "yellow");
+                }
+                return;
+            }
+
+            if (roi.ShapeType == RoiShapeType.Point)
+            {
+                window.DispCircle(roi.Row, roi.Column, locked ? 4 : 6);
+                window.DispCross(roi.Row, roi.Column, locked ? 14 : 20, 0);
+                if (locked)
+                {
+                    SafeDispText(window, "LOCK", (int)Math.Max(0, roi.Row - 18), (int)Math.Max(0, roi.Column + 8), "yellow");
+                }
+                return;
+            }
+
             if (roi.ShapeType == RoiShapeType.Polygon)
             {
                 for (int index = 0; index < roi.PolygonRows.Length; index++)
@@ -221,9 +282,21 @@ namespace HalconWinFormsDemo.Services
                 return;
             }
 
-            if (roi.ShapeType == RoiShapeType.RotatedRectangle)
+            if (roi.ShapeType == RoiShapeType.RotatedRectangle || roi.ShapeType == RoiShapeType.Ellipse)
             {
                 DrawRotatedRectangleHandles(window, roi, locked);
+                return;
+            }
+
+            if (roi.ShapeType == RoiShapeType.Annulus)
+            {
+                window.DispCross(roi.Row, roi.Column, 14, 0);
+                window.DispCross(roi.Row, roi.Column + roi.InnerRadius, locked ? 12 : 18, 0);
+                window.DispCross(roi.Row, roi.Column + roi.OuterRadius, locked ? 12 : 18, 0);
+                if (locked)
+                {
+                    SafeDispText(window, "LOCK", (int)Math.Max(0, roi.Row - roi.OuterRadius - 18), (int)Math.Max(0, roi.Column - 18), "yellow");
+                }
                 return;
             }
 

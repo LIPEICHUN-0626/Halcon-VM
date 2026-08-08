@@ -43,6 +43,32 @@ namespace HalconWinFormsDemo.Services
             }
         }
 
+        public void SynchronizeNormalizedViewFrom(ImageViewportController source)
+        {
+            if (!HasImage || source == null || !source.HasImage)
+            {
+                return;
+            }
+
+            double sourceRows = Math.Max(2.0, source.row2 - source.row1 + 1.0);
+            double sourceColumns = Math.Max(2.0, source.column2 - source.column1 + 1.0);
+            double normalizedCenterRow = (source.row1 + source.row2 + 1.0) / (2.0 * Math.Max(1, source.imageHeight));
+            double normalizedCenterColumn = (source.column1 + source.column2 + 1.0) / (2.0 * Math.Max(1, source.imageWidth));
+            double normalizedRows = sourceRows / Math.Max(1.0, source.imageHeight);
+            double normalizedColumns = sourceColumns / Math.Max(1.0, source.imageWidth);
+
+            double targetRows = Clamp(normalizedRows * imageHeight, 2.0, imageHeight);
+            double targetColumns = Clamp(normalizedColumns * imageWidth, 2.0, imageWidth);
+            double targetCenterRow = normalizedCenterRow * imageHeight;
+            double targetCenterColumn = normalizedCenterColumn * imageWidth;
+
+            row1 = targetCenterRow - targetRows / 2.0;
+            row2 = row1 + targetRows - 1.0;
+            column1 = targetCenterColumn - targetColumns / 2.0;
+            column2 = column1 + targetColumns - 1.0;
+            ClampPart();
+        }
+
         public void SetImageSize(int width, int height)
         {
             imageWidth = Math.Max(0, width);

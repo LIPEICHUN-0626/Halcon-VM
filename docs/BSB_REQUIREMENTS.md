@@ -1,9 +1,9 @@
 # BSB 电池产线需求基线
 
-更新日期：2026-07-23
+更新日期：2026-08-08
 状态：长期核心验收场景；按用户指令暂缓实施
 
-2026-07-23 S25 只更新通用 VM 流程断点/单步与 HALCON XLD 旋转矩形拟合测量，不恢复 BSB 排期。S25 代码仍没有可从活动 WPF 使用的 BSB 工具、现场坐标链、PLC 握手或追溯闭环，本轮按用户指令未实施/未验证 BSB；下述状态全部保持不变。只有用户明确发出恢复 BSB 的指令后，才从本基线选择 BSB A/B Sprint。
+2026-08-08 S35 只更新通用 VM 线/点 ROI 与 HALCON 图像旋转，不恢复 BSB 排期。S35 代码仍没有可从活动 WPF 使用的 BSB 工具、现场坐标链、PLC 握手或追溯闭环，本轮按用户指令未实施/未验证 BSB；下述状态全部保持不变。只有用户明确发出恢复 BSB 的指令后，才从本基线选择 BSB A/B Sprint。
 
 ## 1. 场景定位
 
@@ -102,6 +102,16 @@ S23 在 S22 通用节点布局和直线拟合基础上新增纯配方 DTO 撤销
 S24 新增可持久化、可折叠且保留真实边界连接的组织型 Group，以及 `XLD -> fitted ellipse XLD -> Center/Phi/Radius1/Radius2/Angles/Residual` 椭圆拟合，可作为未来组织通用检测子链和椭圆件尺寸门禁的技术底座；本轮没有接入 BSB Mark/极柱规则、工位图像、坐标链、PLC 协议或现场样本，不能将该通用能力计入任何 BSB 条目。BSB 按用户指令未实施/未验证。
 
 S25 新增作用于真实确定性执行器的执行前断点、单步、继续和下一执行指针，以及 `XLD -> fitted rectangle XLD -> Center/Phi/Length1/Length2/Corners/Residual` 旋转矩形拟合，可作为未来调试通用检测链和矩形件尺寸门禁的技术底座；本轮没有接入 BSB Mark/极柱规则、工位图像、坐标链、PLC 协议或现场样本，不能将该通用能力计入任何 BSB 条目。BSB 按用户指令未实施/未验证。
+
+S26 新增作用于真实确定性执行器的常驻调试监视、断点清单、本周期 I/O 快照和运行到所选，以及 `XLD A + XLD B -> Intersection/Angle/ParallelDistance/Relation` 双直线关系测量，可作为未来调试通用检测链和线间几何门禁的技术底座；本轮没有接入 BSB Mark/极柱规则、工位图像、坐标链、PLC 协议、焊接几何含义或现场样本，不能将该通用能力计入任何 BSB 条目。BSB 按用户指令未实施/未验证。
+
+S27 新增作用于真实托管 Region/XLD 输出的常驻结果图层管理，以及 `Image -> Caliper XLD + PairCount/PrimaryDistance` 卡尺边缘对测量，可作为未来通用尺寸、厚度和边缘间距检测的技术底座；本轮没有接入 BSB Mark/极柱规则、工位图像、坐标链、PLC 协议、焊接几何含义或现场样本，不能将该通用能力计入任何 BSB 条目。BSB 按用户指令未实施/未验证。
+
+S28 新增单卡尺图像内测量域草稿/应用/取消和撤销/重做，以及 `Image -> LinearCaliperArray XLD + Mean/Min/Max/StdDev/ValidCount` 线性多卡尺阵列，可作为未来通用多点厚度、间距和边缘一致性检测的技术底座；本轮没有接入 BSB Mark/极柱规则、工位图像、坐标链、PLC 协议、焊接几何含义或现场样本，不能将该通用能力计入任何 BSB 条目。BSB 按用户指令未实施/未验证。
+
+S29 新增线性多卡尺阵列起点/终点/整体/长宽的图像内草稿编辑，以及 `Image -> CircularCaliperCircleFinder XLD + Center/Radius/Residual/ValidCount` 圆周卡尺找圆，可作为未来通用圆孔、圆弧、圆件中心和半径测量的技术底座；本轮没有接入 BSB Mark/极柱规则、工位图像、坐标链、PLC 协议、焊接几何含义或现场样本，不能将该通用能力计入任何 BSB 条目。BSB 按用户指令未实施/未验证。
+
+S30 新增圆周找圆六控制点图像内编辑和 `Image -> RingThickness XLD + Thickness/Eccentricity` 圆环壁厚/同心度测量；S31-S35 继续补椭圆/圆环/线/点 ROI、极坐标展开、ROI 图像提取、图像尺寸缩放、单/双画面、双十字辅助线、HALCON 图像镜像和图像旋转。这些都是可复用的通用工业视觉底座，但没有接入任何 BSB Mark/极柱规则、工位图像、坐标链、PLC 协议、焊接几何含义、现场样本或专项验收，不能计入 BSB-001 至 BSB-015 的完成度。BSB 按用户指令未实施/未验证。
 
 ## 7. 当前现场痛点假设
 

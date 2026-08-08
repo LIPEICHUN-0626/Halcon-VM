@@ -74,6 +74,69 @@ namespace HalconWinFormsDemo.Models
             XldRectangleFitClippingEndPoints = 0;
             XldRectangleFitIterations = 5;
             XldRectangleFitClippingFactor = 2;
+            LineRelationParallelToleranceDegrees = 1.0;
+            LineRelationCoincidentDistance = 1.0;
+            LineRelationPerpendicularToleranceDegrees = 1.0;
+            CaliperRow = 120;
+            CaliperColumn = 160;
+            CaliperPhiDegrees = 0;
+            CaliperLength1 = 60;
+            CaliperLength2 = 12;
+            CaliperSigma = 1.0;
+            CaliperThreshold = 20;
+            CaliperTransition = VmCaliperTransition.All;
+            CaliperSelect = VmCaliperSelect.All;
+            LinearCaliperStartRow = 120;
+            LinearCaliperStartColumn = 80;
+            LinearCaliperEndRow = 120;
+            LinearCaliperEndColumn = 240;
+            LinearCaliperCount = 5;
+            LinearCaliperLength1 = 60;
+            LinearCaliperLength2 = 8;
+            LinearCaliperSigma = 1.0;
+            LinearCaliperThreshold = 20;
+            LinearCaliperTransition = VmCaliperTransition.All;
+            LinearCaliperSelect = VmCaliperSelect.All;
+            CircularCaliperCenterRow = 120;
+            CircularCaliperCenterColumn = 160;
+            CircularCaliperSearchRadius = 80;
+            CircularCaliperStartAngleDegrees = 0;
+            CircularCaliperEndAngleDegrees = 360;
+            CircularCaliperCount = 16;
+            CircularCaliperLength1 = 30;
+            CircularCaliperLength2 = 4;
+            CircularCaliperSigma = 1.0;
+            CircularCaliperThreshold = 20;
+            CircularCaliperTransition = VmCaliperTransition.All;
+            CircularCaliperSelect = VmCaliperSelect.All;
+            RingCenterRow = 120;
+            RingCenterColumn = 160;
+            RingSearchRadius = 80;
+            RingStartAngleDegrees = 0;
+            RingEndAngleDegrees = 360;
+            RingCaliperCount = 24;
+            RingCaliperLength1 = 30;
+            RingCaliperLength2 = 4;
+            RingCaliperSigma = 1.0;
+            RingCaliperThreshold = 20;
+            RingCaliperTransition = VmCaliperTransition.Positive;
+            RingCaliperSelect = VmCaliperSelect.All;
+            PolarCenterRow = 120;
+            PolarCenterColumn = 160;
+            PolarStartAngleDegrees = 0;
+            PolarEndAngleDegrees = 360;
+            PolarInnerRadius = 50;
+            PolarOuterRadius = 100;
+            PolarOutputWidth = 512;
+            PolarOutputHeight = 128;
+            PolarInterpolation = VmPolarInterpolation.Bilinear;
+            RoiImageExtractionMode = VmRoiImageExtractionMode.ReduceDomain;
+            ImageResizeWidth = 640;
+            ImageResizeHeight = 480;
+            ImageResizeInterpolation = VmImageResizeInterpolation.Bilinear;
+            ImageMirrorMode = VmImageMirrorMode.Row;
+            ImageRotateAngleDegrees = 90;
+            ImageRotateInterpolation = VmImageResizeInterpolation.Constant;
         }
 
         [DataMember(Order = 1)] public double BlobMinGray { get; set; }
@@ -142,6 +205,69 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 64, EmitDefaultValue = false)] public int XldRectangleFitClippingEndPoints { get; set; }
         [DataMember(Order = 65, EmitDefaultValue = false)] public int XldRectangleFitIterations { get; set; }
         [DataMember(Order = 66, EmitDefaultValue = false)] public double XldRectangleFitClippingFactor { get; set; }
+        [DataMember(Order = 67, EmitDefaultValue = false)] public double LineRelationParallelToleranceDegrees { get; set; }
+        [DataMember(Order = 68, EmitDefaultValue = false)] public double LineRelationCoincidentDistance { get; set; }
+        [DataMember(Order = 69, EmitDefaultValue = false)] public double LineRelationPerpendicularToleranceDegrees { get; set; }
+        [DataMember(Order = 70, EmitDefaultValue = false)] public double CaliperRow { get; set; }
+        [DataMember(Order = 71, EmitDefaultValue = false)] public double CaliperColumn { get; set; }
+        [DataMember(Order = 72, EmitDefaultValue = false)] public double CaliperPhiDegrees { get; set; }
+        [DataMember(Order = 73, EmitDefaultValue = false)] public double CaliperLength1 { get; set; }
+        [DataMember(Order = 74, EmitDefaultValue = false)] public double CaliperLength2 { get; set; }
+        [DataMember(Order = 75, EmitDefaultValue = false)] public double CaliperSigma { get; set; }
+        [DataMember(Order = 76, EmitDefaultValue = false)] public double CaliperThreshold { get; set; }
+        [DataMember(Order = 77, EmitDefaultValue = false)] public string CaliperTransition { get; set; }
+        [DataMember(Order = 78, EmitDefaultValue = false)] public string CaliperSelect { get; set; }
+        [DataMember(Order = 79, EmitDefaultValue = false)] public double LinearCaliperStartRow { get; set; }
+        [DataMember(Order = 80, EmitDefaultValue = false)] public double LinearCaliperStartColumn { get; set; }
+        [DataMember(Order = 81, EmitDefaultValue = false)] public double LinearCaliperEndRow { get; set; }
+        [DataMember(Order = 82, EmitDefaultValue = false)] public double LinearCaliperEndColumn { get; set; }
+        [DataMember(Order = 83, EmitDefaultValue = false)] public int LinearCaliperCount { get; set; }
+        [DataMember(Order = 84, EmitDefaultValue = false)] public double LinearCaliperLength1 { get; set; }
+        [DataMember(Order = 85, EmitDefaultValue = false)] public double LinearCaliperLength2 { get; set; }
+        [DataMember(Order = 86, EmitDefaultValue = false)] public double LinearCaliperSigma { get; set; }
+        [DataMember(Order = 87, EmitDefaultValue = false)] public double LinearCaliperThreshold { get; set; }
+        [DataMember(Order = 88, EmitDefaultValue = false)] public string LinearCaliperTransition { get; set; }
+        [DataMember(Order = 89, EmitDefaultValue = false)] public string LinearCaliperSelect { get; set; }
+        [DataMember(Order = 90, EmitDefaultValue = false)] public double CircularCaliperCenterRow { get; set; }
+        [DataMember(Order = 91, EmitDefaultValue = false)] public double CircularCaliperCenterColumn { get; set; }
+        [DataMember(Order = 92, EmitDefaultValue = false)] public double CircularCaliperSearchRadius { get; set; }
+        [DataMember(Order = 93, EmitDefaultValue = false)] public double CircularCaliperStartAngleDegrees { get; set; }
+        [DataMember(Order = 94, EmitDefaultValue = false)] public double CircularCaliperEndAngleDegrees { get; set; }
+        [DataMember(Order = 95, EmitDefaultValue = false)] public int CircularCaliperCount { get; set; }
+        [DataMember(Order = 96, EmitDefaultValue = false)] public double CircularCaliperLength1 { get; set; }
+        [DataMember(Order = 97, EmitDefaultValue = false)] public double CircularCaliperLength2 { get; set; }
+        [DataMember(Order = 98, EmitDefaultValue = false)] public double CircularCaliperSigma { get; set; }
+        [DataMember(Order = 99, EmitDefaultValue = false)] public double CircularCaliperThreshold { get; set; }
+        [DataMember(Order = 100, EmitDefaultValue = false)] public string CircularCaliperTransition { get; set; }
+        [DataMember(Order = 101, EmitDefaultValue = false)] public string CircularCaliperSelect { get; set; }
+        [DataMember(Order = 102, EmitDefaultValue = false)] public double RingCenterRow { get; set; }
+        [DataMember(Order = 103, EmitDefaultValue = false)] public double RingCenterColumn { get; set; }
+        [DataMember(Order = 104, EmitDefaultValue = false)] public double RingSearchRadius { get; set; }
+        [DataMember(Order = 105, EmitDefaultValue = false)] public double RingStartAngleDegrees { get; set; }
+        [DataMember(Order = 106, EmitDefaultValue = false)] public double RingEndAngleDegrees { get; set; }
+        [DataMember(Order = 107, EmitDefaultValue = false)] public int RingCaliperCount { get; set; }
+        [DataMember(Order = 108, EmitDefaultValue = false)] public double RingCaliperLength1 { get; set; }
+        [DataMember(Order = 109, EmitDefaultValue = false)] public double RingCaliperLength2 { get; set; }
+        [DataMember(Order = 110, EmitDefaultValue = false)] public double RingCaliperSigma { get; set; }
+        [DataMember(Order = 111, EmitDefaultValue = false)] public double RingCaliperThreshold { get; set; }
+        [DataMember(Order = 112, EmitDefaultValue = false)] public string RingCaliperTransition { get; set; }
+        [DataMember(Order = 113, EmitDefaultValue = false)] public string RingCaliperSelect { get; set; }
+        [DataMember(Order = 114, EmitDefaultValue = false)] public double PolarCenterRow { get; set; }
+        [DataMember(Order = 115, EmitDefaultValue = false)] public double PolarCenterColumn { get; set; }
+        [DataMember(Order = 116, EmitDefaultValue = false)] public double PolarStartAngleDegrees { get; set; }
+        [DataMember(Order = 117, EmitDefaultValue = false)] public double PolarEndAngleDegrees { get; set; }
+        [DataMember(Order = 118, EmitDefaultValue = false)] public double PolarInnerRadius { get; set; }
+        [DataMember(Order = 119, EmitDefaultValue = false)] public double PolarOuterRadius { get; set; }
+        [DataMember(Order = 120, EmitDefaultValue = false)] public int PolarOutputWidth { get; set; }
+        [DataMember(Order = 121, EmitDefaultValue = false)] public int PolarOutputHeight { get; set; }
+        [DataMember(Order = 122, EmitDefaultValue = false)] public string PolarInterpolation { get; set; }
+        [DataMember(Order = 123, EmitDefaultValue = false)] public string RoiImageExtractionMode { get; set; }
+        [DataMember(Order = 124, EmitDefaultValue = false)] public int ImageResizeWidth { get; set; }
+        [DataMember(Order = 125, EmitDefaultValue = false)] public int ImageResizeHeight { get; set; }
+        [DataMember(Order = 126, EmitDefaultValue = false)] public string ImageResizeInterpolation { get; set; }
+        [DataMember(Order = 127, EmitDefaultValue = false)] public string ImageMirrorMode { get; set; }
+        [DataMember(Order = 128, EmitDefaultValue = false)] public double ImageRotateAngleDegrees { get; set; }
+        [DataMember(Order = 129, EmitDefaultValue = false)] public string ImageRotateInterpolation { get; set; }
 
         public VmToolParameterData Clone()
         {
@@ -253,6 +379,107 @@ namespace HalconWinFormsDemo.Models
             {
                 XldRectangleFitAlgorithm = VmXldRectangleFitAlgorithm.Normalize(XldRectangleFitAlgorithm);
             }
+            if (LineRelationParallelToleranceDegrees == 0 &&
+                LineRelationCoincidentDistance == 0 &&
+                LineRelationPerpendicularToleranceDegrees == 0)
+            {
+                LineRelationParallelToleranceDegrees = 1.0;
+                LineRelationCoincidentDistance = 1.0;
+                LineRelationPerpendicularToleranceDegrees = 1.0;
+            }
+            if (CaliperLength1 == 0 && CaliperLength2 == 0 && CaliperSigma == 0 && CaliperThreshold == 0 &&
+                string.IsNullOrWhiteSpace(CaliperTransition) && string.IsNullOrWhiteSpace(CaliperSelect))
+            {
+                CaliperRow = 120;
+                CaliperColumn = 160;
+                CaliperLength1 = 60;
+                CaliperLength2 = 12;
+                CaliperSigma = 1.0;
+                CaliperThreshold = 20;
+            }
+            CaliperTransition = VmCaliperTransition.Normalize(CaliperTransition);
+            CaliperSelect = VmCaliperSelect.Normalize(CaliperSelect);
+            if (LinearCaliperCount == 0 && LinearCaliperLength1 == 0 && LinearCaliperLength2 == 0 &&
+                LinearCaliperSigma == 0 && LinearCaliperThreshold == 0 &&
+                string.IsNullOrWhiteSpace(LinearCaliperTransition) && string.IsNullOrWhiteSpace(LinearCaliperSelect))
+            {
+                LinearCaliperStartRow = 120;
+                LinearCaliperStartColumn = 80;
+                LinearCaliperEndRow = 120;
+                LinearCaliperEndColumn = 240;
+                LinearCaliperCount = 5;
+                LinearCaliperLength1 = 60;
+                LinearCaliperLength2 = 8;
+                LinearCaliperSigma = 1.0;
+                LinearCaliperThreshold = 20;
+            }
+            LinearCaliperTransition = VmCaliperTransition.Normalize(LinearCaliperTransition);
+            LinearCaliperSelect = VmCaliperSelect.Normalize(LinearCaliperSelect);
+            if (CircularCaliperCount == 0 && CircularCaliperSearchRadius == 0 &&
+                CircularCaliperLength1 == 0 && CircularCaliperLength2 == 0 &&
+                CircularCaliperSigma == 0 && CircularCaliperThreshold == 0 &&
+                string.IsNullOrWhiteSpace(CircularCaliperTransition) && string.IsNullOrWhiteSpace(CircularCaliperSelect))
+            {
+                CircularCaliperCenterRow = 120;
+                CircularCaliperCenterColumn = 160;
+                CircularCaliperSearchRadius = 80;
+                CircularCaliperStartAngleDegrees = 0;
+                CircularCaliperEndAngleDegrees = 360;
+                CircularCaliperCount = 16;
+                CircularCaliperLength1 = 30;
+                CircularCaliperLength2 = 4;
+                CircularCaliperSigma = 1.0;
+                CircularCaliperThreshold = 20;
+            }
+            CircularCaliperTransition = VmCaliperTransition.Normalize(CircularCaliperTransition);
+            CircularCaliperSelect = VmCaliperSelect.Normalize(CircularCaliperSelect);
+            if (RingCaliperCount == 0 && RingSearchRadius == 0 &&
+                RingCaliperLength1 == 0 && RingCaliperLength2 == 0 &&
+                RingCaliperSigma == 0 && RingCaliperThreshold == 0 &&
+                string.IsNullOrWhiteSpace(RingCaliperTransition) && string.IsNullOrWhiteSpace(RingCaliperSelect))
+            {
+                RingCenterRow = 120;
+                RingCenterColumn = 160;
+                RingSearchRadius = 80;
+                RingStartAngleDegrees = 0;
+                RingEndAngleDegrees = 360;
+                RingCaliperCount = 24;
+                RingCaliperLength1 = 30;
+                RingCaliperLength2 = 4;
+                RingCaliperSigma = 1.0;
+                RingCaliperThreshold = 20;
+                RingCaliperTransition = VmCaliperTransition.Positive;
+                RingCaliperSelect = VmCaliperSelect.All;
+            }
+            RingCaliperTransition = VmCaliperTransition.Normalize(RingCaliperTransition);
+            RingCaliperSelect = VmCaliperSelect.Normalize(RingCaliperSelect);
+            if (PolarOutputWidth == 0 && PolarOutputHeight == 0 && PolarInnerRadius == 0 && PolarOuterRadius == 0 &&
+                string.IsNullOrWhiteSpace(PolarInterpolation))
+            {
+                PolarCenterRow = 120;
+                PolarCenterColumn = 160;
+                PolarStartAngleDegrees = 0;
+                PolarEndAngleDegrees = 360;
+                PolarInnerRadius = 50;
+                PolarOuterRadius = 100;
+                PolarOutputWidth = 512;
+                PolarOutputHeight = 128;
+            }
+            PolarInterpolation = VmPolarInterpolation.Normalize(PolarInterpolation);
+            RoiImageExtractionMode = VmRoiImageExtractionMode.Normalize(RoiImageExtractionMode);
+            if (ImageResizeWidth == 0 && ImageResizeHeight == 0 && string.IsNullOrWhiteSpace(ImageResizeInterpolation))
+            {
+                ImageResizeWidth = 640;
+                ImageResizeHeight = 480;
+            }
+            ImageResizeInterpolation = VmImageResizeInterpolation.Normalize(ImageResizeInterpolation);
+            ImageMirrorMode = VmImageMirrorMode.Normalize(ImageMirrorMode);
+            if (string.IsNullOrWhiteSpace(ImageRotateInterpolation))
+            {
+                ImageRotateAngleDegrees = 90;
+                ImageRotateInterpolation = VmImageResizeInterpolation.Constant;
+            }
+            ImageRotateInterpolation = VmImageResizeInterpolation.Normalize(ImageRotateInterpolation);
             if (string.IsNullOrWhiteSpace(RegionFeature))
             {
                 RegionFeature = VmRegionFeature.Area;
@@ -346,6 +573,80 @@ namespace HalconWinFormsDemo.Models
                 }
             }
 
+            if (kind == VmToolKind.PolarImageUnwrap)
+            {
+                if (!IsFinite(PolarCenterRow) || !IsFinite(PolarCenterColumn) || PolarCenterRow < 0 || PolarCenterColumn < 0)
+                {
+                    return "极坐标展开中心 Row/Column 必须是大于等于 0 的有限像素坐标。";
+                }
+
+                if (!IsFinite(PolarStartAngleDegrees) || !IsFinite(PolarEndAngleDegrees) ||
+                    Math.Abs(PolarStartAngleDegrees) > 36000 || Math.Abs(PolarEndAngleDegrees) > 36000)
+                {
+                    return "极坐标展开起止角必须是 -36000° 到 36000° 之间的有限数值。";
+                }
+
+                double span = Math.Abs(PolarEndAngleDegrees - PolarStartAngleDegrees);
+                if (span < 1 || span > 360.000001)
+                {
+                    return "极坐标展开角度覆盖必须在 1° 到 360° 之间；终止角小于起始角表示反向展开。";
+                }
+
+                if (!IsFinite(PolarInnerRadius) || !IsFinite(PolarOuterRadius) ||
+                    PolarInnerRadius < 0 || PolarOuterRadius <= PolarInnerRadius || PolarOuterRadius > 1000000000)
+                {
+                    return "极坐标展开半径必须满足 0 ≤ 内半径 < 外半径 ≤ 1000000000。";
+                }
+
+                if (PolarOutputWidth < 2 || PolarOutputWidth > 8192 || PolarOutputHeight < 2 || PolarOutputHeight > 8192 ||
+                    (long)PolarOutputWidth * PolarOutputHeight > 16777216L)
+                {
+                    return "极坐标展开输出宽高必须在 2 到 8192 之间，且总像素数不得超过 16777216。";
+                }
+
+                if (!VmPolarInterpolation.IsSupported(PolarInterpolation))
+                {
+                    return "极坐标展开插值方式无效。";
+                }
+            }
+
+            if (kind == VmToolKind.RoiImageExtraction && !VmRoiImageExtractionMode.IsSupported(RoiImageExtractionMode))
+            {
+                return "ROI 图像提取模式无效。";
+            }
+
+            if (kind == VmToolKind.ImageResize)
+            {
+                if (ImageResizeWidth < 2 || ImageResizeWidth > 16384 || ImageResizeHeight < 2 || ImageResizeHeight > 16384 ||
+                    (long)ImageResizeWidth * ImageResizeHeight > 67108864L)
+                {
+                    return "图像尺寸缩放目标宽高必须在 2 到 16384 之间，且总像素数不得超过 67108864。";
+                }
+
+                if (!VmImageResizeInterpolation.IsSupported(ImageResizeInterpolation))
+                {
+                    return "图像尺寸缩放插值方式无效。";
+                }
+            }
+
+            if (kind == VmToolKind.ImageMirror && !VmImageMirrorMode.IsSupported(ImageMirrorMode))
+            {
+                return "图像镜像方向无效。";
+            }
+
+            if (kind == VmToolKind.ImageRotate)
+            {
+                if (!IsFinite(ImageRotateAngleDegrees) || ImageRotateAngleDegrees < 0 || ImageRotateAngleDegrees > 360)
+                {
+                    return "图像旋转角度必须是 0 到 360 度之间的有限数值。";
+                }
+
+                if (!VmImageResizeInterpolation.IsSupported(ImageRotateInterpolation))
+                {
+                    return "图像旋转插值方式无效。";
+                }
+            }
+
             if (kind == VmToolKind.DynamicThreshold)
             {
                 if (!VmDynamicThresholdPolarity.IsSupported(DynamicThresholdPolarity))
@@ -421,7 +722,7 @@ namespace HalconWinFormsDemo.Models
                 }
             }
 
-            if (kind == VmToolKind.XldLineFitting)
+            if (kind == VmToolKind.XldLineFitting || kind == VmToolKind.XldLineRelationMeasurement)
             {
                 if (!VmXldLineFitAlgorithm.IsSupported(XldLineFitAlgorithm))
                 {
@@ -446,6 +747,247 @@ namespace HalconWinFormsDemo.Models
                 if (!IsFinite(XldLineFitClippingFactor) || XldLineFitClippingFactor <= 0 || XldLineFitClippingFactor > 100)
                 {
                     return "裁剪因子必须满足 0 < 因子 ≤ 100。";
+                }
+            }
+
+            if (kind == VmToolKind.XldLineRelationMeasurement)
+            {
+                if (!IsFinite(LineRelationParallelToleranceDegrees) ||
+                    LineRelationParallelToleranceDegrees < 0.01 ||
+                    LineRelationParallelToleranceDegrees > 15)
+                {
+                    return "双直线平行角容差必须在 0.01° 到 15° 之间。";
+                }
+
+                if (!IsFinite(LineRelationPerpendicularToleranceDegrees) ||
+                    LineRelationPerpendicularToleranceDegrees < 0.01 ||
+                    LineRelationPerpendicularToleranceDegrees > 15)
+                {
+                    return "双直线垂直角容差必须在 0.01° 到 15° 之间。";
+                }
+
+                if (!IsFinite(LineRelationCoincidentDistance) ||
+                    LineRelationCoincidentDistance < 0 ||
+                    LineRelationCoincidentDistance > 100000)
+                {
+                    return "双直线重合距离容差必须在 0 到 100000 像素之间。";
+                }
+            }
+
+            if (kind == VmToolKind.CaliperEdgePairMeasurement)
+            {
+                if (!IsFinite(CaliperRow) || !IsFinite(CaliperColumn) ||
+                    CaliperRow < 0 || CaliperColumn < 0 ||
+                    CaliperRow > 1000000000 || CaliperColumn > 1000000000)
+                {
+                    return "卡尺中心 Row/Column 必须是大于等于 0 的有限像素坐标。";
+                }
+
+                if (!IsFinite(CaliperPhiDegrees) || CaliperPhiDegrees < -180 || CaliperPhiDegrees > 180)
+                {
+                    return "卡尺方向角必须在 -180° 到 180° 之间。";
+                }
+
+                if (!IsFinite(CaliperLength1) || !IsFinite(CaliperLength2) ||
+                    CaliperLength1 < 1 || CaliperLength1 > 100000 ||
+                    CaliperLength2 < 1 || CaliperLength2 > 100000)
+                {
+                    return "卡尺 Length1/Length2 半长必须在 1 到 100000 像素之间。";
+                }
+
+                if (!IsFinite(CaliperSigma) || CaliperSigma < 0.4 || CaliperSigma > 100 ||
+                    CaliperSigma > CaliperLength1 * 0.5)
+                {
+                    return "卡尺 Sigma 必须在 0.4 到 100 之间，且不得大于 Length1 的一半。";
+                }
+
+                if (!IsFinite(CaliperThreshold) || CaliperThreshold < 1 || CaliperThreshold > 1000000)
+                {
+                    return "卡尺边缘阈值必须是 1 到 1000000 之间的有限数值。";
+                }
+
+                if (!VmCaliperTransition.IsSupported(CaliperTransition))
+                {
+                    return "卡尺边缘极性无效。";
+                }
+
+                if (!VmCaliperSelect.IsSupported(CaliperSelect))
+                {
+                    return "卡尺边缘对选择方式无效。";
+                }
+            }
+
+            if (kind == VmToolKind.LinearCaliperArrayMeasurement)
+            {
+                if (!IsFinite(LinearCaliperStartRow) || !IsFinite(LinearCaliperStartColumn) ||
+                    !IsFinite(LinearCaliperEndRow) || !IsFinite(LinearCaliperEndColumn) ||
+                    LinearCaliperStartRow < 0 || LinearCaliperStartColumn < 0 ||
+                    LinearCaliperEndRow < 0 || LinearCaliperEndColumn < 0 ||
+                    LinearCaliperStartRow > 1000000000 || LinearCaliperStartColumn > 1000000000 ||
+                    LinearCaliperEndRow > 1000000000 || LinearCaliperEndColumn > 1000000000)
+                {
+                    return "线性多卡尺阵列起点/终点必须是大于等于 0 的有限像素坐标。";
+                }
+
+                double arrayDeltaRow = LinearCaliperEndRow - LinearCaliperStartRow;
+                double arrayDeltaColumn = LinearCaliperEndColumn - LinearCaliperStartColumn;
+                if (arrayDeltaRow * arrayDeltaRow + arrayDeltaColumn * arrayDeltaColumn < 1.0)
+                {
+                    return "线性多卡尺阵列起点与终点距离必须至少为 1 像素。";
+                }
+
+                if (LinearCaliperCount < 2 || LinearCaliperCount > 200)
+                {
+                    return "线性多卡尺阵列数量必须在 2 到 200 之间。";
+                }
+
+                if (!IsFinite(LinearCaliperLength1) || !IsFinite(LinearCaliperLength2) ||
+                    LinearCaliperLength1 < 1 || LinearCaliperLength1 > 100000 ||
+                    LinearCaliperLength2 < 1 || LinearCaliperLength2 > 100000)
+                {
+                    return "线性多卡尺 Length1/Length2 半长必须在 1 到 100000 像素之间。";
+                }
+
+                if (!IsFinite(LinearCaliperSigma) || LinearCaliperSigma < 0.4 || LinearCaliperSigma > 100 ||
+                    LinearCaliperSigma > LinearCaliperLength1 * 0.5)
+                {
+                    return "线性多卡尺 Sigma 必须在 0.4 到 100 之间，且不得大于 Length1 的一半。";
+                }
+
+                if (!IsFinite(LinearCaliperThreshold) || LinearCaliperThreshold < 1 || LinearCaliperThreshold > 1000000)
+                {
+                    return "线性多卡尺边缘阈值必须是 1 到 1000000 之间的有限数值。";
+                }
+
+                if (!VmCaliperTransition.IsSupported(LinearCaliperTransition))
+                {
+                    return "线性多卡尺边缘极性无效。";
+                }
+
+                if (!VmCaliperSelect.IsSupported(LinearCaliperSelect))
+                {
+                    return "线性多卡尺边缘对选择方式无效。";
+                }
+            }
+
+            if (kind == VmToolKind.CircularCaliperCircleFinder)
+            {
+                if (!IsFinite(CircularCaliperCenterRow) || !IsFinite(CircularCaliperCenterColumn) ||
+                    CircularCaliperCenterRow < 0 || CircularCaliperCenterColumn < 0 ||
+                    CircularCaliperCenterRow > 1000000000 || CircularCaliperCenterColumn > 1000000000)
+                {
+                    return "圆周卡尺圆心 Row/Column 必须是大于等于 0 的有限像素坐标。";
+                }
+
+                if (!IsFinite(CircularCaliperSearchRadius) ||
+                    CircularCaliperSearchRadius < 1 || CircularCaliperSearchRadius > 1000000000)
+                {
+                    return "圆周卡尺搜索半径必须在 1 到 1000000000 像素之间。";
+                }
+
+                if (!IsFinite(CircularCaliperStartAngleDegrees) || !IsFinite(CircularCaliperEndAngleDegrees) ||
+                    Math.Abs(CircularCaliperStartAngleDegrees) > 3600 || Math.Abs(CircularCaliperEndAngleDegrees) > 3600)
+                {
+                    return "圆周卡尺起止角必须是 -3600° 到 3600° 之间的有限数值。";
+                }
+
+                double circularSpan = Math.Abs(CircularCaliperEndAngleDegrees - CircularCaliperStartAngleDegrees);
+                if (circularSpan < 30 || circularSpan > 360.000001)
+                {
+                    return "圆周卡尺角度覆盖必须在 30° 到 360° 之间；终止角小于起始角表示逆向采样。";
+                }
+
+                if (CircularCaliperCount < 3 || CircularCaliperCount > 360)
+                {
+                    return "圆周卡尺数量必须在 3 到 360 之间。";
+                }
+
+                if (!IsFinite(CircularCaliperLength1) || !IsFinite(CircularCaliperLength2) ||
+                    CircularCaliperLength1 < 1 || CircularCaliperLength1 > 100000 ||
+                    CircularCaliperLength2 < 1 || CircularCaliperLength2 > 100000)
+                {
+                    return "圆周卡尺 Length1/Length2 半长必须在 1 到 100000 像素之间。";
+                }
+
+                if (!IsFinite(CircularCaliperSigma) || CircularCaliperSigma < 0.4 || CircularCaliperSigma > 100 ||
+                    CircularCaliperSigma > CircularCaliperLength1 * 0.5)
+                {
+                    return "圆周卡尺 Sigma 必须在 0.4 到 100 之间，且不得大于 Length1 的一半。";
+                }
+
+                if (!IsFinite(CircularCaliperThreshold) || CircularCaliperThreshold < 1 || CircularCaliperThreshold > 1000000)
+                {
+                    return "圆周卡尺边缘阈值必须是 1 到 1000000 之间的有限数值。";
+                }
+
+                if (!VmCaliperTransition.IsSupported(CircularCaliperTransition))
+                {
+                    return "圆周卡尺边缘极性无效。";
+                }
+
+                if (!VmCaliperSelect.IsSupported(CircularCaliperSelect))
+                {
+                    return "圆周卡尺边缘选择方式无效。";
+                }
+            }
+
+            if (kind == VmToolKind.RingWallThicknessMeasurement)
+            {
+                if (!IsFinite(RingCenterRow) || !IsFinite(RingCenterColumn) ||
+                    RingCenterRow < 0 || RingCenterColumn < 0 ||
+                    RingCenterRow > 1000000000 || RingCenterColumn > 1000000000)
+                {
+                    return "圆环测量中心 Row/Column 必须是大于等于 0 的有限像素坐标。";
+                }
+
+                if (!IsFinite(RingSearchRadius) || RingSearchRadius < 1 || RingSearchRadius > 1000000000)
+                {
+                    return "圆环测量搜索半径必须在 1 到 1000000000 像素之间。";
+                }
+
+                if (!IsFinite(RingStartAngleDegrees) || !IsFinite(RingEndAngleDegrees) ||
+                    Math.Abs(RingStartAngleDegrees) > 3600 || Math.Abs(RingEndAngleDegrees) > 3600)
+                {
+                    return "圆环测量起止角必须是 -3600° 到 3600° 之间的有限数值。";
+                }
+
+                double ringSpan = Math.Abs(RingEndAngleDegrees - RingStartAngleDegrees);
+                if (ringSpan < 30 || ringSpan > 360.000001)
+                {
+                    return "圆环测量角度覆盖必须在 30° 到 360° 之间；终止角小于起始角表示逆向采样。";
+                }
+
+                if (RingCaliperCount < 3 || RingCaliperCount > 360)
+                {
+                    return "圆环径向卡尺数量必须在 3 到 360 之间。";
+                }
+
+                if (!IsFinite(RingCaliperLength1) || !IsFinite(RingCaliperLength2) ||
+                    RingCaliperLength1 < 1 || RingCaliperLength1 > 100000 ||
+                    RingCaliperLength2 < 1 || RingCaliperLength2 > 100000)
+                {
+                    return "圆环径向卡尺 Length1/Length2 半长必须在 1 到 100000 像素之间。";
+                }
+
+                if (!IsFinite(RingCaliperSigma) || RingCaliperSigma < 0.4 || RingCaliperSigma > 100 ||
+                    RingCaliperSigma > RingCaliperLength1 * 0.5)
+                {
+                    return "圆环径向卡尺 Sigma 必须在 0.4 到 100 之间，且不得大于 Length1 的一半。";
+                }
+
+                if (!IsFinite(RingCaliperThreshold) || RingCaliperThreshold < 1 || RingCaliperThreshold > 1000000)
+                {
+                    return "圆环径向卡尺边缘阈值必须是 1 到 1000000 之间的有限数值。";
+                }
+
+                if (!VmCaliperTransition.IsSupported(RingCaliperTransition))
+                {
+                    return "圆环径向卡尺边缘极性无效。";
+                }
+
+                if (!VmCaliperSelect.IsSupported(RingCaliperSelect))
+                {
+                    return "圆环径向卡尺边缘对选择方式无效。";
                 }
             }
 
@@ -723,6 +1265,204 @@ namespace HalconWinFormsDemo.Models
     }
 
     public sealed class VmImageEnhancementModeOption
+    {
+        public string Key { get; set; }
+
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmPolarInterpolation
+    {
+        public const string NearestNeighbor = "nearest_neighbor";
+        public const string Bilinear = "bilinear";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, NearestNeighbor, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Bilinear, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, Bilinear, StringComparison.OrdinalIgnoreCase))
+            {
+                return Bilinear;
+            }
+
+            return string.Equals(value, NearestNeighbor, StringComparison.OrdinalIgnoreCase) ? NearestNeighbor : value.Trim();
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            return normalized == NearestNeighbor ? "最近邻" : (normalized == Bilinear ? "双线性" : "未知插值");
+        }
+
+        public static VmPolarInterpolationOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmPolarInterpolationOption { Key = Bilinear, DisplayText = "双线性（质量优先）" },
+                new VmPolarInterpolationOption { Key = NearestNeighbor, DisplayText = "最近邻（速度优先）" }
+            };
+        }
+    }
+
+    public sealed class VmPolarInterpolationOption
+    {
+        public string Key { get; set; }
+
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmRoiImageExtractionMode
+    {
+        public const string ReduceDomain = "ReduceDomain";
+        public const string CropDomain = "CropDomain";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, ReduceDomain, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, CropDomain, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, ReduceDomain, StringComparison.OrdinalIgnoreCase))
+            {
+                return ReduceDomain;
+            }
+
+            return string.Equals(value, CropDomain, StringComparison.OrdinalIgnoreCase) ? CropDomain : value.Trim();
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == CropDomain) return "裁剪外接框（局部坐标）";
+            if (normalized == ReduceDomain) return "保留原图尺寸与坐标";
+            return "未知模式";
+        }
+
+        public static VmRoiImageExtractionModeOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmRoiImageExtractionModeOption { Key = ReduceDomain, DisplayText = "保留原图尺寸与坐标（reduce_domain）" },
+                new VmRoiImageExtractionModeOption { Key = CropDomain, DisplayText = "裁剪有效域外接框（crop_domain）" }
+            };
+        }
+    }
+
+    public sealed class VmRoiImageExtractionModeOption
+    {
+        public string Key { get; set; }
+
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmImageResizeInterpolation
+    {
+        public const string NearestNeighbor = "nearest_neighbor";
+        public const string Constant = "constant";
+        public const string Bilinear = "bilinear";
+        public const string Bicubic = "bicubic";
+        public const string Weighted = "weighted";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, NearestNeighbor, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Constant, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Bilinear, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Bicubic, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Weighted, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return Bilinear;
+            if (string.Equals(value, NearestNeighbor, StringComparison.OrdinalIgnoreCase)) return NearestNeighbor;
+            if (string.Equals(value, Constant, StringComparison.OrdinalIgnoreCase)) return Constant;
+            if (string.Equals(value, Bilinear, StringComparison.OrdinalIgnoreCase)) return Bilinear;
+            if (string.Equals(value, Bicubic, StringComparison.OrdinalIgnoreCase)) return Bicubic;
+            if (string.Equals(value, Weighted, StringComparison.OrdinalIgnoreCase)) return Weighted;
+            return value;
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == NearestNeighbor) return "最近邻";
+            if (normalized == Constant) return "常量插值";
+            if (normalized == Bilinear) return "双线性";
+            if (normalized == Bicubic) return "双三次";
+            if (normalized == Weighted) return "加权插值";
+            return "未知插值";
+        }
+
+        public static VmImageResizeInterpolationOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmImageResizeInterpolationOption { Key = Bilinear, DisplayText = "双线性（通用）" },
+                new VmImageResizeInterpolationOption { Key = NearestNeighbor, DisplayText = "最近邻（标签/速度）" },
+                new VmImageResizeInterpolationOption { Key = Constant, DisplayText = "常量插值" },
+                new VmImageResizeInterpolationOption { Key = Bicubic, DisplayText = "双三次（质量优先）" },
+                new VmImageResizeInterpolationOption { Key = Weighted, DisplayText = "加权插值" }
+            };
+        }
+    }
+
+    public sealed class VmImageResizeInterpolationOption
+    {
+        public string Key { get; set; }
+
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmImageMirrorMode
+    {
+        public const string Row = "row";
+        public const string Column = "column";
+        public const string Diagonal = "diagonal";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, Row, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Column, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Diagonal, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return Row;
+            if (string.Equals(value, Row, StringComparison.OrdinalIgnoreCase)) return Row;
+            if (string.Equals(value, Column, StringComparison.OrdinalIgnoreCase)) return Column;
+            if (string.Equals(value, Diagonal, StringComparison.OrdinalIgnoreCase)) return Diagonal;
+            return value;
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Row) return "上下镜像（row）";
+            if (normalized == Column) return "左右镜像（column）";
+            if (normalized == Diagonal) return "主对角线镜像（diagonal）";
+            return "未知方向";
+        }
+
+        public static VmImageMirrorModeOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmImageMirrorModeOption { Key = Row, DisplayText = "上下镜像（row / 水平轴）" },
+                new VmImageMirrorModeOption { Key = Column, DisplayText = "左右镜像（column / 垂直轴）" },
+                new VmImageMirrorModeOption { Key = Diagonal, DisplayText = "主对角线镜像（diagonal / 交换宽高）" }
+            };
+        }
+    }
+
+    public sealed class VmImageMirrorModeOption
     {
         public string Key { get; set; }
 
@@ -1501,6 +2241,107 @@ namespace HalconWinFormsDemo.Models
     }
 
     public sealed class VmRoiExecutionModeOption
+    {
+        public string Key { get; set; }
+
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmCaliperTransition
+    {
+        public const string All = "All";
+        public const string Positive = "Positive";
+        public const string Negative = "Negative";
+        public const string AllStrongest = "AllStrongest";
+        public const string PositiveStrongest = "PositiveStrongest";
+        public const string NegativeStrongest = "NegativeStrongest";
+
+        private static readonly string[] Values = { All, Positive, Negative, AllStrongest, PositiveStrongest, NegativeStrongest };
+
+        public static bool IsSupported(string value)
+        {
+            return Values.Any(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return All;
+            }
+            return Values.FirstOrDefault(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase)) ?? value.Trim();
+        }
+
+        public static string GetHalconValue(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Positive) return "positive";
+            if (normalized == Negative) return "negative";
+            if (normalized == AllStrongest) return "all_strongest";
+            if (normalized == PositiveStrongest) return "positive_strongest";
+            if (normalized == NegativeStrongest) return "negative_strongest";
+            return "all";
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Positive) return "正边缘（暗→亮）";
+            if (normalized == Negative) return "负边缘（亮→暗）";
+            if (normalized == AllStrongest) return "任意极性 · 最强边缘对";
+            if (normalized == PositiveStrongest) return "正边缘 · 最强边缘对";
+            if (normalized == NegativeStrongest) return "负边缘 · 最强边缘对";
+            return "任意极性";
+        }
+
+        public static VmCaliperOption[] CreateAll()
+        {
+            return Values.Select(item => new VmCaliperOption { Key = item, DisplayText = GetDisplayText(item) }).ToArray();
+        }
+    }
+
+    public static class VmCaliperSelect
+    {
+        public const string All = "All";
+        public const string First = "First";
+        public const string Last = "Last";
+
+        private static readonly string[] Values = { All, First, Last };
+
+        public static bool IsSupported(string value)
+        {
+            return Values.Any(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return All;
+            }
+            return Values.FirstOrDefault(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase)) ?? value.Trim();
+        }
+
+        public static string GetHalconValue(string value)
+        {
+            return Normalize(value).ToLowerInvariant();
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == First) return "第一对";
+            if (normalized == Last) return "最后一对";
+            return "全部边缘对";
+        }
+
+        public static VmCaliperOption[] CreateAll()
+        {
+            return Values.Select(item => new VmCaliperOption { Key = item, DisplayText = GetDisplayText(item) }).ToArray();
+        }
+    }
+
+    public sealed class VmCaliperOption
     {
         public string Key { get; set; }
 

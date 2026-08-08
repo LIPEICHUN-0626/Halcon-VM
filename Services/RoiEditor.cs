@@ -12,8 +12,12 @@ namespace HalconWinFormsDemo.Services
         Pan,
         RectangleRoi,
         CircleRoi,
+        EllipseRoi,
+        AnnulusRoi,
         PolygonRoi,
         RotatedRectangleRoi,
+        LineRoi,
+        PointRoi,
         TemplateRectangleRoi,
         TemplateCircleRoi,
         MaskRectangleAdd,
@@ -35,12 +39,17 @@ namespace HalconWinFormsDemo.Services
         Bottom,
         BottomRight,
         Radius,
+        InnerRadius,
+        OuterRadius,
         Rotate,
         Length1Start,
         Length1End,
         Length2Start,
         Length2End,
-        PolygonVertex
+        PolygonVertex,
+        LineStart,
+        LineEnd,
+        Point
     }
 
     public struct RoiEditHit
@@ -69,6 +78,22 @@ namespace HalconWinFormsDemo.Services
                 return NoHit();
             }
 
+            if (roi.ShapeType == RoiShapeType.Point)
+            {
+                return Distance(point, new PointF((float)roi.Column, (float)roi.Row)) <= tolerance
+                    ? Hit(RoiEditHandle.Point)
+                    : NoHit();
+            }
+
+            if (roi.ShapeType == RoiShapeType.Line)
+            {
+                PointF start = new PointF((float)roi.Column1, (float)roi.Row1);
+                PointF end = new PointF((float)roi.Column2, (float)roi.Row2);
+                if (Distance(point, start) <= tolerance) return Hit(RoiEditHandle.LineStart);
+                if (Distance(point, end) <= tolerance) return Hit(RoiEditHandle.LineEnd);
+                return DistanceToSegment(point, start, end) <= tolerance ? Hit(RoiEditHandle.Move) : NoHit();
+            }
+
             if (roi.ShapeType == RoiShapeType.Circle)
             {
                 if (Distance(point, new PointF((float)(roi.Column + roi.Radius), (float)roi.Row)) <= tolerance)
@@ -79,6 +104,30 @@ namespace HalconWinFormsDemo.Services
                 double dx = point.X - roi.Column;
                 double dy = point.Y - roi.Row;
                 return dx * dx + dy * dy <= (roi.Radius + tolerance) * (roi.Radius + tolerance)
+                    ? Hit(RoiEditHandle.Move)
+                    : NoHit();
+            }
+
+            if (roi.ShapeType == RoiShapeType.Annulus)
+            {
+                PointF center = new PointF((float)roi.Column, (float)roi.Row);
+                if (Distance(point, new PointF((float)(roi.Column + roi.InnerRadius), (float)roi.Row)) <= tolerance)
+                {
+                    return Hit(RoiEditHandle.InnerRadius);
+                }
+                if (Distance(point, new PointF((float)(roi.Column + roi.OuterRadius), (float)roi.Row)) <= tolerance)
+                {
+                    return Hit(RoiEditHandle.OuterRadius);
+                }
+                if (Distance(point, center) <= tolerance)
+                {
+                    return Hit(RoiEditHandle.Move);
+                }
+
+                double dx = point.X - roi.Column;
+                double dy = point.Y - roi.Row;
+                double distance = Math.Sqrt(dx * dx + dy * dy);
+                return distance >= roi.InnerRadius - tolerance && distance <= roi.OuterRadius + tolerance
                     ? Hit(RoiEditHandle.Move)
                     : NoHit();
             }
@@ -102,7 +151,7 @@ namespace HalconWinFormsDemo.Services
                 return NoHit();
             }
 
-            if (roi.ShapeType == RoiShapeType.RotatedRectangle)
+            if (roi.ShapeType == RoiShapeType.RotatedRectangle || roi.ShapeType == RoiShapeType.Ellipse)
             {
                 PointF center = new PointF((float)roi.Column, (float)roi.Row);
                 PointF length1Start = LocalPoint(roi, -roi.Length1, 0);
@@ -110,17 +159,45 @@ namespace HalconWinFormsDemo.Services
                 PointF length2Start = LocalPoint(roi, 0, -roi.Length2);
                 PointF length2End = LocalPoint(roi, 0, roi.Length2);
                 PointF rotate = LocalPoint(roi, roi.Length1 + 16, 0);
-                if (Distance(point, rotate) <= tolerance) return Hit(RoiEditHandle.Rotate);
-                if (Distance(point, length1Start) <= tolerance) return Hit(RoiEditHandle.Length1Start);
-                if (Distance(point, length1End) <= tolerance) return Hit(RoiEditHandle.Length1End);
-                if (Distance(point, length2Start) <= tolerance) return Hit(RoiEditHandle.Length2Start);
-                if (Distance(point, length2End) <= tolerance) return Hit(RoiEditHandle.Length2End);
-                if (Distance(point, center) <= tolerance) return Hit(RoiEditHandle.Move);
+                RoiEditHandle closestHandle = RoiEditHandle.None;
+                double closestDistance = tolerance;
+                PointF[] handlePoints = { rotate, length1Start, length1End, length2Start, length2End, center };
+                RoiEditHandle[] handleKinds =
+                {
+                    RoiEditHandle.Rotate,
+                    RoiEditHandle.Length1Start,
+                    RoiEditHandle.Length1End,
+                    RoiEditHandle.Length2Start,
+                    RoiEditHandle.Length2End,
+                    RoiEditHandle.Move
+                };
+                for (int index = 0; index < handlePoints.Length; index++)
+                {
+                    double distance = Distance(point, handlePoints[index]);
+                    if (distance <= closestDistance)
+                    {
+                        closestDistance = distance;
+                        closestHandle = handleKinds[index];
+                    }
+                }
+                if (closestHandle != RoiEditHandle.None)
+                {
+                    return Hit(closestHandle);
+                }
 
                 double local1;
                 double local2;
                 ToLocal(roi, point, out local1, out local2);
-                return Math.Abs(local1) <= roi.Length1 + tolerance && Math.Abs(local2) <= roi.Length2 + tolerance
+                if (roi.ShapeType == RoiShapeType.RotatedRectangle)
+                {
+                    return Math.Abs(local1) <= roi.Length1 + tolerance && Math.Abs(local2) <= roi.Length2 + tolerance
+                        ? Hit(RoiEditHandle.Move)
+                        : NoHit();
+                }
+
+                double normalized1 = local1 / Math.Max(1, roi.Length1 + tolerance);
+                double normalized2 = local2 / Math.Max(1, roi.Length2 + tolerance);
+                return normalized1 * normalized1 + normalized2 * normalized2 <= 1.0
                     ? Hit(RoiEditHandle.Move)
                     : NoHit();
             }
@@ -191,6 +268,53 @@ namespace HalconWinFormsDemo.Services
 
             double deltaColumn = current.X - start.X;
             double deltaRow = current.Y - start.Y;
+            if (source.ShapeType == RoiShapeType.Point)
+            {
+                if (handle != RoiEditHandle.Point && handle != RoiEditHandle.Move) return source.Clone();
+                double row = source.Row + deltaRow;
+                double column = source.Column + deltaColumn;
+                if (imageHeight > 0) row = Clamp(row, 0, imageHeight - 1);
+                if (imageWidth > 0) column = Clamp(column, 0, imageWidth - 1);
+                return RoiData.CreatePoint(row, column);
+            }
+
+            if (source.ShapeType == RoiShapeType.Line)
+            {
+                double lineRow1 = source.Row1;
+                double lineColumn1 = source.Column1;
+                double lineRow2 = source.Row2;
+                double lineColumn2 = source.Column2;
+                if (handle == RoiEditHandle.Move)
+                {
+                    deltaRow = ClampDelta(deltaRow, Math.Min(lineRow1, lineRow2), Math.Max(lineRow1, lineRow2), imageHeight);
+                    deltaColumn = ClampDelta(deltaColumn, Math.Min(lineColumn1, lineColumn2), Math.Max(lineColumn1, lineColumn2), imageWidth);
+                    return RoiData.CreateLine(lineRow1 + deltaRow, lineColumn1 + deltaColumn, lineRow2 + deltaRow, lineColumn2 + deltaColumn);
+                }
+
+                if (handle == RoiEditHandle.LineStart)
+                {
+                    lineRow1 = imageHeight > 0 ? Clamp(current.Y, 0, imageHeight - 1) : current.Y;
+                    lineColumn1 = imageWidth > 0 ? Clamp(current.X, 0, imageWidth - 1) : current.X;
+                }
+                else if (handle == RoiEditHandle.LineEnd)
+                {
+                    lineRow2 = imageHeight > 0 ? Clamp(current.Y, 0, imageHeight - 1) : current.Y;
+                    lineColumn2 = imageWidth > 0 ? Clamp(current.X, 0, imageWidth - 1) : current.X;
+                }
+                else
+                {
+                    return source.Clone();
+                }
+
+                double lineDeltaRow = lineRow2 - lineRow1;
+                double lineDeltaColumn = lineColumn2 - lineColumn1;
+                if (lineDeltaRow * lineDeltaRow + lineDeltaColumn * lineDeltaColumn < 4.0)
+                {
+                    throw new InvalidOperationException("直线长度必须至少为 2 像素。");
+                }
+                return RoiData.CreateLine(lineRow1, lineColumn1, lineRow2, lineColumn2);
+            }
+
             if (source.ShapeType == RoiShapeType.Circle)
             {
                 if (handle == RoiEditHandle.Radius)
@@ -215,6 +339,43 @@ namespace HalconWinFormsDemo.Services
                         column = Clamp(column, source.Radius, Math.Max(source.Radius, imageWidth - 1 - source.Radius));
                     }
                     return RoiData.CreateCircle(row, column, source.Radius);
+                }
+
+                return source.Clone();
+            }
+
+            if (source.ShapeType == RoiShapeType.Annulus)
+            {
+                if (handle == RoiEditHandle.InnerRadius || handle == RoiEditHandle.OuterRadius)
+                {
+                    double dx = current.X - source.Column;
+                    double dy = current.Y - source.Row;
+                    double radius = Math.Sqrt(dx * dx + dy * dy);
+                    double innerRadius = source.InnerRadius;
+                    double outerRadius = source.OuterRadius;
+                    if (handle == RoiEditHandle.InnerRadius)
+                    {
+                        innerRadius = Clamp(radius, 1, Math.Max(1, outerRadius - 1));
+                    }
+                    else
+                    {
+                        double maximum = MaxCenteredRadius(source.Row, source.Column, imageWidth, imageHeight);
+                        if (maximum > 0) radius = Math.Min(radius, maximum);
+                        outerRadius = Math.Max(innerRadius + 1, radius);
+                    }
+                    return RoiData.CreateAnnulus(source.Row, source.Column, innerRadius, outerRadius);
+                }
+
+                if (handle == RoiEditHandle.Move)
+                {
+                    double row = source.Row + deltaRow;
+                    double column = source.Column + deltaColumn;
+                    if (imageWidth > 0 && imageHeight > 0)
+                    {
+                        row = Clamp(row, source.OuterRadius, Math.Max(source.OuterRadius, imageHeight - 1 - source.OuterRadius));
+                        column = Clamp(column, source.OuterRadius, Math.Max(source.OuterRadius, imageWidth - 1 - source.OuterRadius));
+                    }
+                    return RoiData.CreateAnnulus(row, column, source.InnerRadius, source.OuterRadius);
                 }
 
                 return source.Clone();
@@ -260,10 +421,20 @@ namespace HalconWinFormsDemo.Services
                 return RoiData.CreatePolygon(rows, columns);
             }
 
-            if (source.ShapeType == RoiShapeType.RotatedRectangle)
+            if (source.ShapeType == RoiShapeType.RotatedRectangle || source.ShapeType == RoiShapeType.Ellipse)
             {
                 if (handle == RoiEditHandle.Move)
                 {
+                    if (source.ShapeType == RoiShapeType.Ellipse)
+                    {
+                        double rowExtent;
+                        double columnExtent;
+                        GetEllipseExtents(source.Phi, source.Length1, source.Length2, out rowExtent, out columnExtent);
+                        deltaRow = ClampDelta(deltaRow, source.Row - rowExtent, source.Row + rowExtent, imageHeight);
+                        deltaColumn = ClampDelta(deltaColumn, source.Column - columnExtent, source.Column + columnExtent, imageWidth);
+                        return RoiData.CreateEllipse(source.Row + deltaRow, source.Column + deltaColumn, source.Phi, source.Length1, source.Length2);
+                    }
+
                     PointF[] corners = source.GetRotatedRectangleCorners();
                     deltaRow = ClampDelta(deltaRow, corners.Min(item => item.Y), corners.Max(item => item.Y), imageHeight);
                     deltaColumn = ClampDelta(deltaColumn, corners.Min(item => item.X), corners.Max(item => item.X), imageWidth);
@@ -289,7 +460,9 @@ namespace HalconWinFormsDemo.Services
                     else return source.Clone();
                 }
 
-                return FitRotatedRectangle(source.Row, source.Column, phi, length1, length2, imageWidth, imageHeight);
+                return source.ShapeType == RoiShapeType.Ellipse
+                    ? FitEllipse(source.Row, source.Column, phi, length1, length2, imageWidth, imageHeight)
+                    : FitRotatedRectangle(source.Row, source.Column, phi, length1, length2, imageWidth, imageHeight);
             }
 
             double row1 = source.Row1;
@@ -403,6 +576,51 @@ namespace HalconWinFormsDemo.Services
                 scale = Math.Max(0, Math.Min(1, scale));
                 return RoiData.CreateRotatedRectangle(row, column, phi, Math.Max(1, length1 * scale), Math.Max(1, length2 * scale));
             }
+        }
+
+        private static RoiData FitEllipse(double row, double column, double phi, double radius1, double radius2, int imageWidth, int imageHeight)
+        {
+            radius1 = Math.Max(2, radius1);
+            radius2 = Math.Max(2, radius2);
+            if (imageWidth <= 0 || imageHeight <= 0)
+            {
+                return RoiData.CreateEllipse(row, column, phi, radius1, radius2);
+            }
+
+            column = Clamp(column, 2, Math.Max(2, imageWidth - 3));
+            row = Clamp(row, 2, Math.Max(2, imageHeight - 3));
+            double rowExtent;
+            double columnExtent;
+            GetEllipseExtents(phi, radius1, radius2, out rowExtent, out columnExtent);
+            double scale = 1.0;
+            if (columnExtent > 0)
+            {
+                scale = Math.Min(scale, Math.Min(column, imageWidth - 1 - column) / columnExtent);
+            }
+            if (rowExtent > 0)
+            {
+                scale = Math.Min(scale, Math.Min(row, imageHeight - 1 - row) / rowExtent);
+            }
+            scale = Math.Max(0, Math.Min(1, scale));
+            return RoiData.CreateEllipse(row, column, phi, Math.Max(2, radius1 * scale), Math.Max(2, radius2 * scale));
+        }
+
+        private static void GetEllipseExtents(double phi, double radius1, double radius2, out double rowExtent, out double columnExtent)
+        {
+            double cos = Math.Cos(phi);
+            double sin = Math.Sin(phi);
+            columnExtent = Math.Sqrt(radius1 * radius1 * cos * cos + radius2 * radius2 * sin * sin);
+            rowExtent = Math.Sqrt(radius1 * radius1 * sin * sin + radius2 * radius2 * cos * cos);
+        }
+
+        private static double MaxCenteredRadius(double row, double column, int imageWidth, int imageHeight)
+        {
+            if (imageWidth <= 0 || imageHeight <= 0)
+            {
+                return 0;
+            }
+
+            return Math.Max(1, Math.Min(Math.Min(column, imageWidth - 1 - column), Math.Min(row, imageHeight - 1 - row)));
         }
 
         private static PointF LocalPoint(RoiData roi, double local1, double local2)
@@ -566,6 +784,17 @@ namespace HalconWinFormsDemo.Services
             double dy = left.Y - right.Y;
             return Math.Sqrt(dx * dx + dy * dy);
         }
+
+        private static double DistanceToSegment(PointF point, PointF start, PointF end)
+        {
+            double dx = end.X - start.X;
+            double dy = end.Y - start.Y;
+            double denominator = dx * dx + dy * dy;
+            if (denominator <= 0.000001) return Distance(point, start);
+            double t = ((point.X - start.X) * dx + (point.Y - start.Y) * dy) / denominator;
+            t = Math.Max(0, Math.Min(1, t));
+            return Distance(point, new PointF((float)(start.X + t * dx), (float)(start.Y + t * dy)));
+        }
     }
 
     public sealed class RoiEditor : IDisposable
@@ -673,6 +902,41 @@ namespace HalconWinFormsDemo.Services
 
         private RoiData CreateRoi(PointF imagePoint)
         {
+            if (Tool == VisionTool.PointRoi)
+            {
+                return RoiData.CreatePoint(startPoint.Y, startPoint.X);
+            }
+
+            if (Tool == VisionTool.LineRoi)
+            {
+                double endX = imagePoint.X;
+                double endY = imagePoint.Y;
+                double dx = endX - startPoint.X;
+                double dy = endY - startPoint.Y;
+                if (dx * dx + dy * dy < 4.0)
+                {
+                    endX = startPoint.X + 2.0;
+                    endY = startPoint.Y;
+                }
+                return RoiData.CreateLine(startPoint.Y, startPoint.X, endY, endX);
+            }
+
+            if (Tool == VisionTool.EllipseRoi)
+            {
+                double dx = imagePoint.X - startPoint.X;
+                double dy = imagePoint.Y - startPoint.Y;
+                double radius1 = Math.Max(2, Math.Sqrt(dx * dx + dy * dy));
+                return RoiData.CreateEllipse(startPoint.Y, startPoint.X, Math.Atan2(-dy, dx), radius1, Math.Max(2, radius1 * 0.6));
+            }
+
+            if (Tool == VisionTool.AnnulusRoi)
+            {
+                double dx = imagePoint.X - startPoint.X;
+                double dy = imagePoint.Y - startPoint.Y;
+                double outerRadius = Math.Max(3, Math.Sqrt(dx * dx + dy * dy));
+                return RoiData.CreateAnnulus(startPoint.Y, startPoint.X, Math.Max(1, outerRadius * 0.55), outerRadius);
+            }
+
             if (Tool == VisionTool.RotatedRectangleRoi)
             {
                 double dx = imagePoint.X - startPoint.X;
@@ -696,7 +960,7 @@ namespace HalconWinFormsDemo.Services
 
         public static bool IsSearchRoiTool(VisionTool tool)
         {
-            return tool == VisionTool.RectangleRoi || tool == VisionTool.CircleRoi || tool == VisionTool.PolygonRoi || tool == VisionTool.RotatedRectangleRoi;
+            return tool == VisionTool.RectangleRoi || tool == VisionTool.CircleRoi || tool == VisionTool.EllipseRoi || tool == VisionTool.AnnulusRoi || tool == VisionTool.PolygonRoi || tool == VisionTool.RotatedRectangleRoi || tool == VisionTool.LineRoi || tool == VisionTool.PointRoi;
         }
 
         public static bool IsTemplateRoiTool(VisionTool tool)
