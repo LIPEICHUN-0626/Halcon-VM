@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -7,6 +7,7 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -15,6 +16,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 using HalconDotNet;
@@ -26,10 +28,11 @@ namespace HalconWinFormsDemo
 {
     public partial class MainWindow : Window
     {
-        private const string VersionStamp = "HALCON VM S35 2026-08-06";
+        private const string VersionStamp = "HALCON VM S45 2026-08-12";
         private const string ToolCatalogDragFormat = "HalconVm.ToolCatalogItem";
         private const double FlowLayoutGridSize = 24;
         private const int FlowEditHistoryLimit = 50;
+        private const int ImageQueueThumbnailCacheLimit = 24;
 
         private readonly HalconImageService imageService = new HalconImageService();
         private readonly AppLogger logger;
@@ -40,6 +43,7 @@ namespace HalconWinFormsDemo
         private readonly TcpCommunicationService tcpService = new TcpCommunicationService();
         private readonly InspectionResultStore resultStore = new InspectionResultStore();
         private readonly RecipeService recipeService;
+        private readonly BatchTraceStore batchTraceStore;
         private readonly StartupDiagnosticsService diagnosticsService = new StartupDiagnosticsService();
         private readonly CsvExportService csvExportService = new CsvExportService();
         private readonly XlsxExportService xlsxExportService = new XlsxExportService();
@@ -53,6 +57,10 @@ namespace HalconWinFormsDemo
         private readonly ObservableCollection<VmPortDisplayItem> outputPortRows = new ObservableCollection<VmPortDisplayItem>();
         private readonly ObservableCollection<VmRoiLayer> roiLayers = new ObservableCollection<VmRoiLayer>();
         private readonly ObservableCollection<VmResultOverlayLayer> resultOverlayLayers = new ObservableCollection<VmResultOverlayLayer>();
+        private readonly ObservableCollection<VmImageBatchTraceRecord> batchTraceRecords = new ObservableCollection<VmImageBatchTraceRecord>();
+        private readonly ObservableCollection<VmImageBatchTraceRecord> filteredBatchTraceRecords = new ObservableCollection<VmImageBatchTraceRecord>();
+        private readonly ObservableCollection<VmUnifiedLayerItem> unifiedLayers = new ObservableCollection<VmUnifiedLayerItem>();
+        private readonly Dictionary<string, ResultLayerStyleRecipeData> resultLayerStyles = new Dictionary<string, ResultLayerStyleRecipeData>(StringComparer.OrdinalIgnoreCase);
         private readonly ObservableCollection<VmRoiBindingItem> roiBindingRows = new ObservableCollection<VmRoiBindingItem>();
         private readonly ObservableCollection<VmRoiBindingItem> dockRoiBindingRows = new ObservableCollection<VmRoiBindingItem>();
         private readonly ObservableCollection<VmInputPortEditorRow> dockInputPortRows = new ObservableCollection<VmInputPortEditorRow>();
@@ -63,6 +71,10 @@ namespace HalconWinFormsDemo
         private readonly ObservableCollection<VmToolInstance> debugBreakpointTools = new ObservableCollection<VmToolInstance>();
         private readonly ObservableCollection<VmRecentRecipeItem> recentRecipes = new ObservableCollection<VmRecentRecipeItem>();
         private readonly ObservableCollection<DualImageInputOption> dualImageInputOptions = new ObservableCollection<DualImageInputOption>();
+        private readonly ObservableCollection<ImageQueueItem> imageQueueItems = new ObservableCollection<ImageQueueItem>();
+        private readonly Dictionary<string, BitmapSource> imageQueueThumbnailCache = new Dictionary<string, BitmapSource>(StringComparer.OrdinalIgnoreCase);
+        private readonly LinkedList<string> imageQueueThumbnailLru = new LinkedList<string>();
+        private readonly Dictionary<string, LinkedListNode<string>> imageQueueThumbnailLruNodes = new Dictionary<string, LinkedListNode<string>>(StringComparer.OrdinalIgnoreCase);
         private readonly List<VmToolCatalogItem> toolCatalog = new List<VmToolCatalogItem>();
         private readonly HashSet<VmToolKind> favoriteToolKinds = new HashSet<VmToolKind>();
         private readonly List<VmToolKind> recentToolKinds = new List<VmToolKind>();
@@ -102,6 +114,8 @@ namespace HalconWinFormsDemo
         private string currentImagePath;
         private readonly List<string> imageFiles = new List<string>();
         private int imageIndex = -1;
+        private string imageQueueDirectory;
+        private bool imageQueueSelectionUpdating;
         private RoiData currentRoi;
         private RoiData pendingRoi;
         private TemplateItem currentTemplateItem;
@@ -138,6 +152,32 @@ namespace HalconWinFormsDemo
         private bool crosshairDragMoved;
         private bool isContinuousRunning;
         private bool isFlowExecutionActive;
+        private bool isImageQueueBatchRunning;
+        private bool imageQueueBatchStopRequested;
+        private int imageQueueBatchProcessed;
+        private int imageQueueBatchTotal;
+        private string imageQueueBatchSummary = "批次：未运行";
+        private VmImageBatchTraceRecord activeBatchTrace;
+        private bool batchTraceSelectionUpdating;
+        private VmBatchTraceStorageSettings batchTraceStorageSettings = VmBatchTraceStorageSettings.CreateDefault();
+        private bool batchTraceStorageSettingsUpdating;
+        private bool historicalImageMode;
+        private bool historicalShowResultImage;
+        private VmImageBatchTraceRecord historicalBatchRecord;
+        private VmImageBatchTraceItem historicalBatchItem;
+        private HImage historicalSourceImage;
+        private HImage historicalResultImage;
+        private readonly List<HistoricalLayerSnapshot> historicalLayers = new List<HistoricalLayerSnapshot>();
+        private bool productionRunMode;
+        private bool productionScopeUpdating;
+        private bool productionLayoutDesignMode;
+        private bool productionLayoutDraftUpdating;
+        private bool productionLayoutDraftDirty;
+        private VmProductionRunLayoutData productionRunLayout = VmProductionRunLayoutData.CreateDefault();
+        private readonly ObservableCollection<ProductionLayoutWidgetDraftItem> productionLayoutDraftItems = new ObservableCollection<ProductionLayoutWidgetDraftItem>();
+        private GridLength developerBottomPanelHeight = new GridLength(140);
+        private GridLength developerRoiLayerPanelWidth = new GridLength(260);
+        private bool developerRoiLayerPanelVisible = true;
         private bool isPauseRequested;
         private bool isStopRequested;
         private bool isDebugBreakpointPause;
@@ -173,6 +213,8 @@ namespace HalconWinFormsDemo
         private bool showRoiOverlay = true;
         private bool showResultOverlay = true;
         private bool resultOverlayLayersUpdating;
+        private bool suppressResultLayerStyleCapture;
+        private bool unifiedLayerUiUpdating;
         private bool measurementDomainEditActive;
         private bool measurementDomainDragging;
         private bool measurementDomainSelectionUpdating;
@@ -187,6 +229,95 @@ namespace HalconWinFormsDemo
         private CircularCaliperEditGeometry circularCaliperPreview;
         private CircularCaliperEditGeometry circularCaliperDragOriginal;
         private CircularCaliperEditHandle circularCaliperEditHandle;
+        private bool projectiveGeometryEditActive;
+        private bool projectiveGeometryDragging;
+        private string projectiveGeometryDragSide;
+        private int projectiveGeometryDragPointIndex = -1;
+        private VmToolParameterData projectiveGeometryPreview;
+        private bool xldContourSelectionMode;
+        private XldContourInspectorSelection xldContourSelection;
+        private string xldContourInspectorStatus = "等待在图像中命中轮廓";
+
+        private sealed class ImageQueueItem : INotifyPropertyChanged
+        {
+            private BitmapSource thumbnail;
+            private int width;
+            private int height;
+            private bool isCurrent;
+            private bool isViewed;
+            private bool isFailed;
+            private string failureMessage;
+            private bool isRunSelected;
+            private string runStateKey = "NotRun";
+            private string runResultCode = "--";
+            private double runElapsedMilliseconds;
+            private string runMessage;
+
+            public event PropertyChangedEventHandler PropertyChanged;
+
+            public string Path { get; set; }
+            public string FileName { get; set; }
+            public int Index { get; set; }
+            public string IndexText { get { return string.Format(CultureInfo.InvariantCulture, "{0:00}", Index + 1); } }
+            public BitmapSource Thumbnail { get { return thumbnail; } set { if (ReferenceEquals(thumbnail, value)) return; thumbnail = value; NotifyPropertyChanged(); } }
+            public int Width { get { return width; } set { if (width == value) return; width = value; NotifyPropertyChanged(); NotifyPropertyChanged("DimensionsText"); } }
+            public int Height { get { return height; } set { if (height == value) return; height = value; NotifyPropertyChanged(); NotifyPropertyChanged("DimensionsText"); } }
+            public string DimensionsText { get { return Width > 0 && Height > 0 ? string.Format(CultureInfo.InvariantCulture, "{0}×{1}", Width, Height) : "尺寸待读"; } }
+            public bool IsCurrent { get { return isCurrent; } set { if (isCurrent == value) return; isCurrent = value; NotifyPropertyChanged(); NotifyPropertyChanged("StateText"); } }
+            public bool IsViewed { get { return isViewed; } set { if (isViewed == value) return; isViewed = value; NotifyPropertyChanged(); NotifyPropertyChanged("StateText"); } }
+            public bool IsFailed { get { return isFailed; } set { if (isFailed == value) return; isFailed = value; NotifyPropertyChanged(); NotifyPropertyChanged("StateText"); } }
+            public string FailureMessage { get { return failureMessage; } set { if (string.Equals(failureMessage, value, StringComparison.Ordinal)) return; failureMessage = value; NotifyPropertyChanged(); NotifyPropertyChanged("StateText"); } }
+            public bool IsRunSelected { get { return isRunSelected; } set { if (isRunSelected == value) return; isRunSelected = value; NotifyPropertyChanged(); NotifyPropertyChanged("RunStateText"); } }
+            public string RunStateKey { get { return runStateKey; } set { if (string.Equals(runStateKey, value, StringComparison.Ordinal)) return; runStateKey = value; NotifyPropertyChanged(); NotifyPropertyChanged("RunStateText"); NotifyPropertyChanged("ItemToolTip"); } }
+            public string RunResultCode { get { return runResultCode; } set { if (string.Equals(runResultCode, value, StringComparison.Ordinal)) return; runResultCode = value; NotifyPropertyChanged(); NotifyPropertyChanged("RunStateText"); NotifyPropertyChanged("ItemToolTip"); } }
+            public double RunElapsedMilliseconds { get { return runElapsedMilliseconds; } set { if (Math.Abs(runElapsedMilliseconds - value) < 0.0001) return; runElapsedMilliseconds = value; NotifyPropertyChanged(); NotifyPropertyChanged("RunStateText"); NotifyPropertyChanged("ItemToolTip"); } }
+            public string RunMessage { get { return runMessage; } set { if (string.Equals(runMessage, value, StringComparison.Ordinal)) return; runMessage = value; NotifyPropertyChanged(); NotifyPropertyChanged("ItemToolTip"); } }
+            public string StateText
+            {
+                get
+                {
+                    if (IsFailed) return IsCurrent ? "当前 · 失败" : "失败";
+                    if (IsCurrent) return "当前";
+                    if (IsViewed) return "已读";
+                    return "待读取";
+                }
+            }
+            public string RunStateText
+            {
+                get
+                {
+                    if (RunStateKey == "Running") return "运行中…";
+                    if (RunStateKey == "OK") return "OK · " + RunElapsedMilliseconds.ToString("0.0", CultureInfo.InvariantCulture) + " ms";
+                    if (RunStateKey == "NG") return "NG · " + RunElapsedMilliseconds.ToString("0.0", CultureInfo.InvariantCulture) + " ms";
+                    if (RunStateKey == "Error") return "异常 · " + RunElapsedMilliseconds.ToString("0.0", CultureInfo.InvariantCulture) + " ms";
+                    if (RunStateKey == "Stopped") return "已停止";
+                    if (RunStateKey == "Skipped") return "未运行";
+                    return IsRunSelected ? "已选 · 待运行" : "待运行";
+                }
+            }
+            public string ItemToolTip
+            {
+                get
+                {
+                    string load = string.IsNullOrWhiteSpace(FailureMessage) ? Path : FailureMessage;
+                    return string.IsNullOrWhiteSpace(RunMessage) ? load : load + Environment.NewLine + "运行：" + RunMessage;
+                }
+            }
+
+            private void NotifyPropertyChanged([CallerMemberName] string propertyName = null)
+            {
+                PropertyChangedEventHandler handler = PropertyChanged;
+                if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }
+
+        private sealed class FlowRunOutcome
+        {
+            public string ResultCode { get; set; }
+            public string StopReason { get; set; }
+            public double ElapsedMilliseconds { get; set; }
+            public bool ExecutionError { get; set; }
+        }
 
         private enum LinearCaliperArrayEditHandle
         {
@@ -288,6 +419,40 @@ namespace HalconWinFormsDemo
             }
         }
 
+        private sealed class HistoricalLayerSnapshot : IDisposable
+        {
+            public VmBatchTraceLayerSnapshotData Metadata { get; set; }
+            public HObject Object { get; set; }
+            public void Dispose()
+            {
+                DisposeObject(Object);
+                Object = null;
+            }
+        }
+
+        private sealed class XldContourInspectorSelection
+        {
+            public string LayerKey { get; set; }
+            public string ToolId { get; set; }
+            public string ToolName { get; set; }
+            public string PortName { get; set; }
+            public string ViewportKey { get; set; }
+            public string ViewportContextKey { get; set; }
+            public string ViewportSourceText { get; set; }
+            public VmXldSnapshot Snapshot { get; set; }
+            public int ObjectIndex { get; set; }
+            public int ObjectCount { get; set; }
+            public int PointCount { get; set; }
+            public double Length { get; set; }
+            public double StartRow { get; set; }
+            public double StartColumn { get; set; }
+            public double EndRow { get; set; }
+            public double EndColumn { get; set; }
+            public double NearestRow { get; set; }
+            public double NearestColumn { get; set; }
+            public double HitDistance { get; set; }
+        }
+
         private sealed class CrosshairOption
         {
             public string Key { get; set; }
@@ -350,10 +515,34 @@ namespace HalconWinFormsDemo
         {
             public List<ToolFlowRecipeItem> ToolFlow { get; set; }
             public List<RoiLayerRecipeData> RoiLayers { get; set; }
+            public List<ResultLayerStyleRecipeData> ResultLayerStyles { get; set; }
+            public VmProductionRunLayoutData ProductionRunLayout { get; set; }
             public List<string> SelectedToolIds { get; set; }
             public string PrimaryToolId { get; set; }
             public string SelectedRoiId { get; set; }
             public string Fingerprint { get; set; }
+        }
+
+        private sealed class ProductionLayoutWidgetDraftItem : INotifyPropertyChanged
+        {
+            private string title;
+            private bool isVisible;
+            private int order;
+
+            public string WidgetId { get; set; }
+            public bool IsRequired { get; set; }
+            public string LocationHint { get; set; }
+            public bool CanHide { get { return !IsRequired; } }
+            public string Title { get { return title; } set { title = value; OnPropertyChanged(); } }
+            public bool IsVisible { get { return isVisible; } set { isVisible = IsRequired || value; OnPropertyChanged(); } }
+            public int Order { get { return order; } set { order = value; OnPropertyChanged(); } }
+
+            public event PropertyChangedEventHandler PropertyChanged;
+            private void OnPropertyChanged([CallerMemberName] string propertyName = null)
+            {
+                PropertyChangedEventHandler handler = PropertyChanged;
+                if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
+            }
         }
 
         private sealed class FlowEditHistoryEntry
@@ -385,6 +574,8 @@ namespace HalconWinFormsDemo
             if (logger == null) throw new ArgumentNullException("logger");
             this.recipeService = recipeService;
             this.logger = logger;
+            batchTraceStore = new BatchTraceStore(recipeService.StateDirectory);
+            batchTraceStorageSettings = batchTraceStore.LoadSettings();
             InitializeComponent();
 
             playbackTimer.Interval = TimeSpan.FromMilliseconds(650);
@@ -412,7 +603,7 @@ namespace HalconWinFormsDemo
         private void InitializeVmWorkspace()
         {
             flowTools.CollectionChanged += delegate { RefreshFlowSequence(); ScheduleRecipeStateCheck(); };
-            roiLayers.CollectionChanged += delegate { ScheduleRecipeStateCheck(); };
+            roiLayers.CollectionChanged += delegate { ScheduleRecipeStateCheck(); RefreshUnifiedLayers(); };
             toolCatalog.AddRange(new[]
             {
                 CreateCatalogItem(VmToolKind.ImageSource),
@@ -422,6 +613,9 @@ namespace HalconWinFormsDemo
                 CreateCatalogItem(VmToolKind.ImageResize),
                 CreateCatalogItem(VmToolKind.ImageMirror),
                 CreateCatalogItem(VmToolKind.ImageRotate),
+                CreateCatalogItem(VmToolKind.ImageAffineTransform),
+                CreateCatalogItem(VmToolKind.ImageProjectiveTransform),
+                CreateCatalogItem(VmToolKind.SubpixelEdgeExtraction),
                 CreateCatalogItem(VmToolKind.PolarImageUnwrap),
                 CreateCatalogItem(VmToolKind.RoiImageExtraction),
                 CreateCatalogItem(VmToolKind.ImageDifference),
@@ -432,6 +626,13 @@ namespace HalconWinFormsDemo
                 CreateCatalogItem(VmToolKind.RegionSetOperation),
                 CreateCatalogItem(VmToolKind.RegionContourMeasurement),
                 CreateCatalogItem(VmToolKind.XldContourFilter),
+                CreateCatalogItem(VmToolKind.XldAdjacentContourUnion),
+                CreateCatalogItem(VmToolKind.XldContourSmoothing),
+                CreateCatalogItem(VmToolKind.XldAffineTransform),
+                CreateCatalogItem(VmToolKind.XldProjectiveTransform),
+                CreateCatalogItem(VmToolKind.XldContourCrop),
+                CreateCatalogItem(VmToolKind.XldLengthClassification),
+                CreateCatalogItem(VmToolKind.XldLengthSortSelection),
                 CreateCatalogItem(VmToolKind.XldContourSegmentation),
                 CreateCatalogItem(VmToolKind.XldLineFitting),
                 CreateCatalogItem(VmToolKind.XldCircleFitting),
@@ -469,10 +670,14 @@ namespace HalconWinFormsDemo
             OutputPortsItemsControl.ItemsSource = outputPortRows;
             RoiLayerList.ItemsSource = roiLayers;
             ResultLayerList.ItemsSource = resultOverlayLayers;
+            UnifiedLayerList.ItemsSource = unifiedLayers;
             RoiBindingItemsControl.ItemsSource = roiBindingRows;
             DockInputPortItemsControl.ItemsSource = dockInputPortRows;
             DockRoiBindingItemsControl.ItemsSource = dockRoiBindingRows;
             RecentRecipeList.ItemsSource = recentRecipes;
+            ImageQueueList.ItemsSource = imageQueueItems;
+            BatchTraceGrid.ItemsSource = filteredBatchTraceRecords;
+            ProductionBatchTraceGrid.ItemsSource = filteredBatchTraceRecords;
             NumericOperatorComboBox.ItemsSource = NumericJudgeOperatorOption.CreateAll();
             DockNumericOperatorComboBox.ItemsSource = NumericJudgeOperatorOption.CreateAll();
             DockImageChannelModeComboBox.ItemsSource = VmImageChannelMode.CreateAll();
@@ -481,6 +686,13 @@ namespace HalconWinFormsDemo
             DockImageResizeInterpolationComboBox.ItemsSource = VmImageResizeInterpolation.CreateAll();
             DockImageMirrorModeComboBox.ItemsSource = VmImageMirrorMode.CreateAll();
             DockImageRotateInterpolationComboBox.ItemsSource = VmImageResizeInterpolation.CreateAll();
+            DockImageAffineInterpolationComboBox.ItemsSource = VmImageResizeInterpolation.CreateAll();
+            DockProjectiveInterpolationComboBox.ItemsSource = VmProjectiveInterpolation.CreateAll();
+            DockProjectiveOutputModeComboBox.ItemsSource = VmProjectiveOutputMode.CreateAll();
+            DockSubpixelEdgeFilterComboBox.ItemsSource = VmSubpixelEdgeFilter.CreateAll();
+            DockSubpixelEdgeColorPolicyComboBox.ItemsSource = VmSubpixelEdgeColorPolicy.CreateAll();
+            UnifiedLayerColorComboBox.ItemsSource = VmOverlayPalette.CreateAll();
+            UnifiedLayerViewportComboBox.ItemsSource = VmLayerViewportScope.CreateAll();
             DockPolarInterpolationComboBox.ItemsSource = VmPolarInterpolation.CreateAll();
             DockRoiImageExtractionModeComboBox.ItemsSource = VmRoiImageExtractionMode.CreateAll();
             DockImageDifferenceModeComboBox.ItemsSource = VmImageDifferenceMode.CreateAll();
@@ -490,6 +702,17 @@ namespace HalconWinFormsDemo
             DockRegionSetOperationComboBox.ItemsSource = VmRegionSetOperationMode.CreateAll();
             DockRegionContourModeComboBox.ItemsSource = VmRegionContourMode.CreateAll();
             DockXldContourFeatureComboBox.ItemsSource = VmXldContourFeature.CreateAll();
+            DockXldAdjacentAttributeModeComboBox.ItemsSource = VmXldAdjacentAttributeMode.CreateAll();
+            DockXldAffineCenterModeComboBox.ItemsSource = VmXldAffineCenterMode.CreateAll();
+            DockXldAffineOrderComboBox.ItemsSource = VmXldAffineTransformOrder.CreateAll();
+            DockXldAffineCoordinatePolicyComboBox.ItemsSource = VmXldAffineCoordinatePolicy.CreateAll();
+            DockXldProjectiveCoordinatePolicyComboBox.ItemsSource = VmXldAffineCoordinatePolicy.CreateAll();
+            DockXldLengthSortDirectionComboBox.ItemsSource = VmXldLengthSortDirection.CreateAll();
+            DockXldLengthSelectionModeComboBox.ItemsSource = VmXldLengthSelectionMode.CreateAll();
+            ProductionLayoutWidgetListBox.ItemsSource = productionLayoutDraftItems;
+            ApplyProductionRunLayout(productionRunLayout);
+            ReloadBatchTraceHistory(false);
+            LoadBatchTraceStorageSettingsUi();
             DockXldSegmentModeComboBox.ItemsSource = VmXldSegmentMode.CreateAll();
             DockXldLineFitAlgorithmComboBox.ItemsSource = VmXldLineFitAlgorithm.CreateAll();
             DockXldCircleFitAlgorithmComboBox.ItemsSource = VmXldCircleFitAlgorithm.CreateAll();
@@ -1134,7 +1357,7 @@ namespace HalconWinFormsDemo
                 instance.ConnectionStatus = "待连接 Region";
                 instance.ConnectionSummary = "Region ← 请选择上游区域";
             }
-            else if (kind == VmToolKind.XldContourFilter || kind == VmToolKind.XldContourSegmentation || kind == VmToolKind.XldLineFitting || kind == VmToolKind.XldCircleFitting || kind == VmToolKind.XldEllipseFitting || kind == VmToolKind.XldRectangleFitting)
+            else if (kind == VmToolKind.XldContourFilter || kind == VmToolKind.XldAdjacentContourUnion || kind == VmToolKind.XldContourSmoothing || kind == VmToolKind.XldAffineTransform || kind == VmToolKind.XldProjectiveTransform || kind == VmToolKind.XldContourCrop || kind == VmToolKind.XldLengthClassification || kind == VmToolKind.XldLengthSortSelection || kind == VmToolKind.XldContourSegmentation || kind == VmToolKind.XldLineFitting || kind == VmToolKind.XldCircleFitting || kind == VmToolKind.XldEllipseFitting || kind == VmToolKind.XldRectangleFitting)
             {
                 instance.ConnectionStatus = "待连接 XLD";
                 instance.ConnectionSummary = "XLD ← 请选择上游轮廓";
@@ -1200,6 +1423,12 @@ namespace HalconWinFormsDemo
                     return "Image → HALCON mirror_image → Image";
                 case VmToolKind.ImageRotate:
                     return "Image → HALCON rotate_image → Image + Angle/Interpolation";
+                case VmToolKind.ImageAffineTransform:
+                    return "Image → HALCON affine_trans_image → Image + HomMat2D";
+                case VmToolKind.ImageProjectiveTransform:
+                    return "Image → HALCON projective_trans_image → Image + HomMat2D";
+                case VmToolKind.SubpixelEdgeExtraction:
+                    return "Image + 可选 ROI/屏蔽区 → HALCON edges_sub_pix → XLD + Number";
                 case VmToolKind.PolarImageUnwrap:
                     return "Image → HALCON 圆环/圆弧极坐标展开 → Image";
                 case VmToolKind.RoiImageExtraction:
@@ -1220,6 +1449,20 @@ namespace HalconWinFormsDemo
                     return "Region → HALCON 轮廓提取/长度测量 → XLD + Number";
                 case VmToolKind.XldContourFilter:
                     return "XLD → HALCON 轮廓筛选 → XLD + Number";
+                case VmToolKind.XldAdjacentContourUnion:
+                    return "XLD → HALCON 相邻轮廓连接 → XLD + Count/Length";
+                case VmToolKind.XldContourSmoothing:
+                    return "XLD → HALCON 局部回归平滑 → XLD + Count/Length";
+                case VmToolKind.XldAffineTransform:
+                    return "XLD → HALCON 仿射变换 → XLD + Bounds/HomMat2D";
+                case VmToolKind.XldProjectiveTransform:
+                    return "XLD → HALCON 透视变换 → XLD + Bounds/HomMat2D/PointError";
+                case VmToolKind.XldContourCrop:
+                    return "XLD → HALCON 矩形精确裁剪 → XLD + Count/Length/Bounds";
+                case VmToolKind.XldLengthClassification:
+                    return "XLD → HALCON 长度测量/互斥分级 → 3×XLD + 统计";
+                case VmToolKind.XldLengthSortSelection:
+                    return "XLD → HALCON 长度稳定排序/索引选择 → XLD + 原始索引/统计";
                 case VmToolKind.XldContourSegmentation:
                     return "XLD → HALCON 轮廓分段 → XLD + Number";
                 case VmToolKind.XldLineFitting:
@@ -1403,7 +1646,9 @@ namespace HalconWinFormsDemo
         {
             List<ToolFlowRecipeItem> toolFlow = CaptureFlowRecipe();
             List<RoiLayerRecipeData> roiLayerSnapshots = CaptureRoiLayers();
-            VisionRecipe fingerprintRecipe = new VisionRecipe { ToolFlow = toolFlow, RoiLayers = roiLayerSnapshots };
+            List<ResultLayerStyleRecipeData> resultStyleSnapshots = CaptureResultLayerStyles();
+            VmProductionRunLayoutData productionLayoutSnapshot = productionRunLayout.CloneNormalized();
+            VisionRecipe fingerprintRecipe = new VisionRecipe { ToolFlow = toolFlow, RoiLayers = roiLayerSnapshots, ResultLayerStyles = resultStyleSnapshots, ProductionRunLayout = productionLayoutSnapshot };
             List<VmToolInstance> selected = GetSelectedFlowToolsInSequence();
             VmToolInstance primary = FlowToolList == null ? null : FlowToolList.SelectedItem as VmToolInstance;
             VmRoiLayer selectedRoi = RoiLayerList == null ? null : RoiLayerList.SelectedItem as VmRoiLayer;
@@ -1411,6 +1656,8 @@ namespace HalconWinFormsDemo
             {
                 ToolFlow = toolFlow,
                 RoiLayers = roiLayerSnapshots,
+                ResultLayerStyles = resultStyleSnapshots,
+                ProductionRunLayout = productionLayoutSnapshot,
                 SelectedToolIds = selected.Select(item => item.ToolId).ToList(),
                 PrimaryToolId = primary == null ? null : primary.ToolId,
                 SelectedRoiId = selectedRoi == null ? null : selectedRoi.RoiId,
@@ -1449,7 +1696,7 @@ namespace HalconWinFormsDemo
 
         private void RefreshFlowEditHistoryState()
         {
-            bool flowBusy = isContinuousRunning || isFlowExecutionActive;
+            bool flowBusy = isContinuousRunning || isFlowExecutionActive || isImageQueueBatchRunning;
             if (UndoFlowEditButton != null) UndoFlowEditButton.IsEnabled = flowUndoHistory.Count > 0 && !flowBusy;
             if (RedoFlowEditButton != null) RedoFlowEditButton.IsEnabled = flowRedoHistory.Count > 0 && !flowBusy;
             if (UndoFlowEditMenuItem != null) UndoFlowEditMenuItem.IsEnabled = flowUndoHistory.Count > 0 && !flowBusy;
@@ -1487,7 +1734,18 @@ namespace HalconWinFormsDemo
             {
                 CancelRoiGeometryDraft(false);
                 LoadRoiLayersFromRecipe(new VisionRecipe { RoiLayers = snapshot.RoiLayers });
-                ApplyFlowFromRecipe(new VisionRecipe { ToolFlow = snapshot.ToolFlow });
+                LoadResultLayerStyles(new VisionRecipe { ResultLayerStyles = snapshot.ResultLayerStyles });
+                productionRunLayout = (snapshot.ProductionRunLayout ?? VmProductionRunLayoutData.CreateDefault()).CloneNormalized();
+                ApplyProductionRunLayout(productionRunLayout);
+                suppressResultLayerStyleCapture = true;
+                try
+                {
+                    ApplyFlowFromRecipe(new VisionRecipe { ToolFlow = snapshot.ToolFlow });
+                }
+                finally
+                {
+                    suppressResultLayerStyleCapture = false;
+                }
                 List<VmToolInstance> selected = flowTools.Where(item => snapshot.SelectedToolIds != null && snapshot.SelectedToolIds.Contains(item.ToolId, StringComparer.OrdinalIgnoreCase)).ToList();
                 VmToolInstance primary = flowTools.FirstOrDefault(item => string.Equals(item.ToolId, snapshot.PrimaryToolId, StringComparison.OrdinalIgnoreCase));
                 if (primary == null) primary = selected.LastOrDefault();
@@ -1495,6 +1753,7 @@ namespace HalconWinFormsDemo
                 VmRoiLayer selectedRoi = roiLayers.FirstOrDefault(item => string.Equals(item.RoiId, snapshot.SelectedRoiId, StringComparison.OrdinalIgnoreCase)) ?? roiLayers.FirstOrDefault();
                 if (RoiLayerList != null) RoiLayerList.SelectedItem = selectedRoi;
                 SelectRoiLayer(selectedRoi);
+                RefreshResultOverlayLayers();
             }
             finally
             {
@@ -1744,7 +2003,15 @@ namespace HalconWinFormsDemo
                 throw new InvalidOperationException(source.InstanceName + "." + binding.SourcePortName + " 没有可用 Region 快照，请重新运行上游工具。");
             }
 
-            return snapshot.CreateRegionCopy();
+            using (HRegion subscribedRegion = snapshot.CreateRegionCopy())
+            {
+                return CreateEffectiveRegionFromBase(
+                    tool,
+                    subscribedRegion,
+                    GetBoundDetectionRoiLayers(tool),
+                    GetBoundMaskRoiLayers(tool),
+                    true);
+            }
         }
 
         private HRegion CreateToolInputRegion(VmToolInstance tool, string portName)
@@ -1816,9 +2083,17 @@ namespace HalconWinFormsDemo
             }
 
             VmToolInstance source = GetInputSourceTool(binding);
-            return source == null
+            string sourceText = source == null
                 ? "Region 来源无效"
                 : "订阅 " + source.InstanceName + "." + binding.SourcePortName;
+            List<VmRoiLayer> detections = GetBoundDetectionRoiLayers(tool);
+            List<VmRoiLayer> masks = GetBoundMaskRoiLayers(tool);
+            if (detections.Count > 0 || masks.Count > 0)
+            {
+                sourceText += " ∩ 检测区×" + detections.Count.ToString(CultureInfo.InvariantCulture) +
+                    " - 屏蔽区×" + masks.Count.ToString(CultureInfo.InvariantCulture);
+            }
+            return sourceText;
         }
 
         private VmImageSnapshot GetImageSnapshot(VmToolInstance source, string portName)
@@ -2222,10 +2497,10 @@ namespace HalconWinFormsDemo
                 if (tool.Kind == VmToolKind.ImageSource) tool.ConnectionSummary = "本地文件 → Image / SN / Path";
                 else if (tool.Kind == VmToolKind.ImageDifference) tool.ConnectionSummary = "ImageA + ImageB → 双图像差分";
                 else if (tool.Kind == VmToolKind.DynamicThreshold) tool.ConnectionSummary = "OriginalImage + ReferenceImage → 动态阈值分割";
-                else if (tool.Kind == VmToolKind.ImageChannel || tool.Kind == VmToolKind.ImageFilter || tool.Kind == VmToolKind.ImageEnhancement || tool.Kind == VmToolKind.ImageResize || tool.Kind == VmToolKind.ImageMirror || tool.Kind == VmToolKind.ImageRotate || tool.Kind == VmToolKind.PolarImageUnwrap || tool.Kind == VmToolKind.RoiImageExtraction || tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.CaliperEdgePairMeasurement || tool.Kind == VmToolKind.LinearCaliperArrayMeasurement || tool.Kind == VmToolKind.CircularCaliperCircleFinder || tool.Kind == VmToolKind.RingWallThicknessMeasurement) tool.ConnectionSummary = "Image → " + tool.DisplayType;
+                else if (tool.Kind == VmToolKind.ImageChannel || tool.Kind == VmToolKind.ImageFilter || tool.Kind == VmToolKind.ImageEnhancement || tool.Kind == VmToolKind.ImageResize || tool.Kind == VmToolKind.ImageMirror || tool.Kind == VmToolKind.ImageRotate || tool.Kind == VmToolKind.ImageAffineTransform || tool.Kind == VmToolKind.ImageProjectiveTransform || tool.Kind == VmToolKind.PolarImageUnwrap || tool.Kind == VmToolKind.RoiImageExtraction || tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.CaliperEdgePairMeasurement || tool.Kind == VmToolKind.LinearCaliperArrayMeasurement || tool.Kind == VmToolKind.CircularCaliperCircleFinder || tool.Kind == VmToolKind.RingWallThicknessMeasurement) tool.ConnectionSummary = "Image → " + tool.DisplayType;
                 else if (tool.Kind == VmToolKind.RegionSetOperation) tool.ConnectionSummary = "RegionA + RegionB → " + tool.DisplayType;
                 else if (tool.Kind == VmToolKind.RegionMorphology || tool.Kind == VmToolKind.RegionFeatureFilter || tool.Kind == VmToolKind.RegionContourMeasurement) tool.ConnectionSummary = "Region → " + tool.DisplayType;
-                else if (tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting) tool.ConnectionSummary = "XLD → " + tool.DisplayType;
+                else if (tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldAdjacentContourUnion || tool.Kind == VmToolKind.XldContourSmoothing || tool.Kind == VmToolKind.XldAffineTransform || tool.Kind == VmToolKind.XldProjectiveTransform || tool.Kind == VmToolKind.XldContourCrop || tool.Kind == VmToolKind.XldLengthClassification || tool.Kind == VmToolKind.XldLengthSortSelection || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting) tool.ConnectionSummary = "XLD → " + tool.DisplayType;
                 else if (tool.Kind == VmToolKind.XldLineRelationMeasurement) tool.ConnectionSummary = "LineA + LineB → " + tool.DisplayType;
                 else tool.ConnectionSummary = "系统.Image + " + GetRoiBindingSummary(tool);
                 return;
@@ -2242,7 +2517,7 @@ namespace HalconWinFormsDemo
                     ? "RegionA + RegionB ← 输入连接异常"
                     : (tool.Kind == VmToolKind.XldLineRelationMeasurement
                         ? "LineA + LineB ← 输入连接异常"
-                        : (tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting ? "XLD ← 输入连接异常" : GetRoiInputSummary(tool)));
+                        : (tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldAdjacentContourUnion || tool.Kind == VmToolKind.XldContourSmoothing || tool.Kind == VmToolKind.XldAffineTransform || tool.Kind == VmToolKind.XldProjectiveTransform || tool.Kind == VmToolKind.XldContourCrop || tool.Kind == VmToolKind.XldLengthClassification || tool.Kind == VmToolKind.XldLengthSortSelection || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting ? "XLD ← 输入连接异常" : GetRoiInputSummary(tool)));
                 return;
             }
 
@@ -2315,6 +2590,12 @@ namespace HalconWinFormsDemo
                     break;
                 }
                 case VmToolKind.XldContourFilter:
+                case VmToolKind.XldAdjacentContourUnion:
+                case VmToolKind.XldContourSmoothing:
+                case VmToolKind.XldAffineTransform:
+                case VmToolKind.XldProjectiveTransform:
+                case VmToolKind.XldContourCrop:
+                case VmToolKind.XldLengthClassification:
                 case VmToolKind.XldContourSegmentation:
                 case VmToolKind.XldLineFitting:
                 case VmToolKind.XldCircleFitting:
@@ -2417,7 +2698,7 @@ namespace HalconWinFormsDemo
                     bool hasConnectedRegion = roiBinding != null && roiSource != null &&
                                               string.Equals(roiSource.ResultCode, "OK", StringComparison.OrdinalIgnoreCase) &&
                                               roiSnapshot != null && !roiSnapshot.IsDisposed;
-                    bool hasBoundRoi = GetBoundRoiLayers(tool).Count > 0;
+                    bool hasBoundRoi = GetBoundDetectionRoiLayers(tool).Count > 0;
                     bool hasRoi = roiBinding == null ? hasBoundRoi : hasConnectedRegion;
                     tool.ConfigurationStatus = !hasImage ? "等待图像" : (!hasRoi ? (roiBinding == null ? "待绑定 ROI" : "等待上游 Region") : "就绪");
                     tool.ConnectionStatus = !hasImage
@@ -2429,21 +2710,21 @@ namespace HalconWinFormsDemo
                 case VmToolKind.ShapeMatch:
                     tool.ConfigurationStatus = currentTemplateItem == null || !currentTemplateItem.HasModel
                         ? "待配置模板"
-                        : (GetBoundRoiLayers(tool).Count == 0 ? "待绑定 ROI" : "就绪");
+                        : (GetBoundDetectionRoiLayers(tool).Count == 0 ? "待绑定检测区" : "就绪");
                     tool.ConnectionStatus = tool.ConfigurationStatus == "就绪" ? "系统输入 · 已就绪" : "系统输入 · 待配置";
                     tool.ConnectionSummary = "系统.Image + " + GetRoiBindingSummary(tool) + " + ShapeModel";
                     break;
                 case VmToolKind.HDevelop:
                     tool.ConfigurationStatus = string.IsNullOrWhiteSpace(HDevPathTextBox.Text)
                         ? "待选择程序"
-                        : (GetBoundRoiLayers(tool).Count == 0 ? "待绑定 ROI" : "就绪");
+                        : (GetBoundDetectionRoiLayers(tool).Count == 0 ? "待绑定检测区" : "就绪");
                     tool.ConnectionStatus = tool.ConfigurationStatus == "就绪" ? "系统输入 · 已就绪" : "系统输入 · 待配置";
                     tool.ConnectionSummary = "系统.Image + " + GetRoiBindingSummary(tool) + " + Program";
                     break;
                 default:
                     bool perRoiRequiresBinding = (tool.Kind == VmToolKind.Blob || tool.Kind == VmToolKind.GrayStat || tool.Kind == VmToolKind.EdgeMeasure) &&
                                                  VmRoiExecutionMode.Normalize(parameters.RoiExecutionMode) == VmRoiExecutionMode.PerRoi;
-                    bool hasPerRoiBinding = GetBoundRoiLayers(tool).Count > 0;
+                    bool hasPerRoiBinding = GetBoundDetectionRoiLayers(tool).Count > 0;
                     bool hasToolImage = HasToolInputImage(tool);
                     VmToolInputBindingData imageBinding = tool.GetInputBinding("Image");
                     tool.ConfigurationStatus = !hasToolImage
@@ -2462,7 +2743,7 @@ namespace HalconWinFormsDemo
                             : (regionBinding == null
                                 ? (imageBinding == null ? "系统输入 · 已就绪" : "Image 已连接 · 有值")
                                 : (regionSnapshot == null || regionSnapshot.IsDisposed ? "Region 已连接 · 等待上游" : "Region 已连接 · 有值")));
-                    tool.ConnectionSummary = tool.Kind == VmToolKind.ImageChannel || tool.Kind == VmToolKind.ImageFilter || tool.Kind == VmToolKind.ImageEnhancement || tool.Kind == VmToolKind.PolarImageUnwrap
+                    tool.ConnectionSummary = tool.Kind == VmToolKind.ImageChannel || tool.Kind == VmToolKind.ImageFilter || tool.Kind == VmToolKind.ImageEnhancement || tool.Kind == VmToolKind.ImageResize || tool.Kind == VmToolKind.ImageMirror || tool.Kind == VmToolKind.ImageRotate || tool.Kind == VmToolKind.ImageAffineTransform || tool.Kind == VmToolKind.ImageProjectiveTransform || tool.Kind == VmToolKind.PolarImageUnwrap
                         ? GetImageInputSummary(tool) + " → Image"
                         : (tool.Kind == VmToolKind.ImageThreshold
                             ? GetImageInputSummary(tool) + " → Region"
@@ -2638,17 +2919,19 @@ namespace HalconWinFormsDemo
                 else
                 {
                 List<VmRoiLayer> boundLayers = GetBoundRoiLayers(tool);
+                int detectionCount = boundLayers.Count(item => !item.IsMask);
+                int maskCount = boundLayers.Count(item => item.IsMask);
                 VmToolParameterData roiParameters = tool.Parameters ?? new VmToolParameterData();
                 bool perRoiMode = (tool.Kind == VmToolKind.Blob || tool.Kind == VmToolKind.GrayStat || tool.Kind == VmToolKind.EdgeMeasure) &&
                                   VmRoiExecutionMode.Normalize(roiParameters.RoiExecutionMode) == VmRoiExecutionMode.PerRoi;
-                connected = boundLayers.Count > 0 || (port.IsOptional && !perRoiMode);
+                connected = detectionCount > 0 || (port.IsOptional && !perRoiMode && maskCount == 0);
                 source = boundLayers.Count == 0 ? "未绑定" : string.Join(" + ", boundLayers.Select(item => item.Name));
                 currentValue = boundLayers.Count == 0
                     ? "--"
-                    : "Region ×" + boundLayers.Count.ToString(CultureInfo.InvariantCulture);
-                status = boundLayers.Count > 0
-                    ? "已连接 · " + (perRoiMode ? "逐区 " : "合并 ") + boundLayers.Count.ToString(CultureInfo.InvariantCulture) + " 个区域"
-                    : (port.IsOptional && !perRoiMode ? "可选 · 全图运行" : "等待 ROI 绑定");
+                    : "检测区 ×" + detectionCount.ToString(CultureInfo.InvariantCulture) + " - 屏蔽区 ×" + maskCount.ToString(CultureInfo.InvariantCulture);
+                status = connected && boundLayers.Count > 0
+                    ? "已连接 · " + (perRoiMode ? "逐区 " : "合并 ") + detectionCount.ToString(CultureInfo.InvariantCulture) + " 个检测区，扣除 " + maskCount.ToString(CultureInfo.InvariantCulture) + " 个屏蔽区"
+                    : (maskCount > 0 && detectionCount == 0 ? "无效 · 屏蔽区缺少检测区" : (port.IsOptional && !perRoiMode ? "可选 · 全图运行" : "等待检测区绑定"));
                 }
             }
             else if (port.PortName == "ShapeModel")
@@ -2917,6 +3200,8 @@ namespace HalconWinFormsDemo
             }
             StopPlayback();
             StopContinuousRun();
+            ExitHistoricalImageMode(false);
+            ClearImageQueueThumbnailCache();
             SaveLayoutState();
             DisposeToolOverlays();
             DisposeCurrentImage();
@@ -3294,6 +3579,323 @@ namespace HalconWinFormsDemo
 
             SetRecipeDirtyState(false, string.IsNullOrWhiteSpace(currentRecipePath) ? "当前为未落盘的新方案" : "方案已保存");
             RefreshRecoveryWorkspace();
+            RefreshProductionRunView();
+        }
+
+        private void ToggleProductionModeButton_Click(object sender, RoutedEventArgs e)
+        {
+            FrameworkElement source = sender as FrameworkElement;
+            bool enterProduction = source == null || !string.Equals(Convert.ToString(source.Tag, CultureInfo.InvariantCulture), "Developer", StringComparison.OrdinalIgnoreCase);
+            if (!enterProduction && productionLayoutDesignMode)
+            {
+                CloseProductionLayoutDesigner(false);
+                return;
+            }
+            SetProductionRunMode(enterProduction);
+        }
+
+        private void OpenProductionLayoutDesignerButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (isContinuousRunning || isFlowExecutionActive || isImageQueueBatchRunning)
+            {
+                HeaderStatusText.Text = "运行中不能修改运行界面；请先停止当前流程或图片批次。";
+                return;
+            }
+
+            LoadProductionLayoutDraft(productionRunLayout);
+            productionLayoutDesignMode = true;
+            SetProductionRunMode(true);
+            ToolCatalogColumn.MinWidth = 360;
+            ToolCatalogColumn.Width = new GridLength(390);
+            Grid.SetColumn(ImageWorkspacePanel, 2);
+            Grid.SetColumnSpan(ImageWorkspacePanel, 1);
+            ProductionLayoutDesignerPanel.Visibility = Visibility.Visible;
+            ApplyProductionRunLayout(CaptureProductionLayoutDraft());
+            ProductionLayoutDesignerStatusText.Text = "实时预览中 · 草稿与当前方案一致";
+            HeaderStatusText.Text = "运行界面配置已打开；右侧为共用真实状态的生产运行页预览。";
+        }
+
+        private void CloseProductionLayoutDesignerButton_Click(object sender, RoutedEventArgs e)
+        {
+            CloseProductionLayoutDesigner(false);
+        }
+
+        private void CloseProductionLayoutDesigner(bool keepProductionMode)
+        {
+            bool discardedDraft = productionLayoutDraftDirty;
+            ApplyProductionRunLayout(productionRunLayout);
+            productionLayoutDesignMode = false;
+            productionLayoutDraftDirty = false;
+            if (ProductionLayoutDesignerPanel != null) ProductionLayoutDesignerPanel.Visibility = Visibility.Collapsed;
+            ToolCatalogColumn.MinWidth = 180;
+            ToolCatalogColumn.Width = new GridLength(210);
+            if (!keepProductionMode) SetProductionRunMode(false);
+            if (discardedDraft) HeaderStatusText.Text = "运行界面未应用草稿已取消，当前方案布局未改变。";
+        }
+
+        private void LoadProductionLayoutDraft(VmProductionRunLayoutData layout)
+        {
+            productionLayoutDraftUpdating = true;
+            try
+            {
+                productionLayoutDraftItems.Clear();
+                foreach (VmProductionWidgetLayoutData item in (layout ?? VmProductionRunLayoutData.CreateDefault()).CloneNormalized().Widgets)
+                {
+                    productionLayoutDraftItems.Add(new ProductionLayoutWidgetDraftItem
+                    {
+                        WidgetId = item.WidgetId,
+                        Title = item.Title,
+                        IsVisible = item.IsVisible,
+                        IsRequired = item.IsRequired,
+                        Order = item.Order + 1,
+                        LocationHint = string.Equals(item.WidgetId, VmProductionRunLayoutData.Image, StringComparison.OrdinalIgnoreCase)
+                            ? "固定左侧图像工作区 · 安全必需"
+                            : (item.IsRequired ? "右侧组件 · 安全必需" : "右侧组件 · 可隐藏")
+                    });
+                }
+                if (ProductionLayoutWidgetListBox != null) ProductionLayoutWidgetListBox.SelectedIndex = 0;
+                productionLayoutDraftDirty = false;
+            }
+            finally
+            {
+                productionLayoutDraftUpdating = false;
+            }
+        }
+
+        private VmProductionRunLayoutData CaptureProductionLayoutDraft()
+        {
+            return new VmProductionRunLayoutData
+            {
+                Widgets = productionLayoutDraftItems.Select((item, index) => new VmProductionWidgetLayoutData
+                {
+                    WidgetId = item.WidgetId,
+                    Title = item.Title,
+                    IsVisible = item.IsVisible,
+                    IsRequired = item.IsRequired,
+                    Order = index
+                }).ToList()
+            }.CloneNormalized();
+        }
+
+        private void ProductionLayoutDraftValue_Changed(object sender, RoutedEventArgs e)
+        {
+            if (productionLayoutDraftUpdating || !productionLayoutDesignMode) return;
+            productionLayoutDraftDirty = true;
+            ApplyProductionRunLayout(CaptureProductionLayoutDraft());
+            ProductionLayoutDesignerStatusText.Text = "实时预览中 · 草稿尚未应用到方案";
+        }
+
+        private void ProductionLayoutWidgetListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+        }
+
+        private void MoveProductionWidgetUpButton_Click(object sender, RoutedEventArgs e)
+        {
+            MoveProductionLayoutDraft(-1);
+        }
+
+        private void MoveProductionWidgetDownButton_Click(object sender, RoutedEventArgs e)
+        {
+            MoveProductionLayoutDraft(1);
+        }
+
+        private void MoveProductionLayoutDraft(int delta)
+        {
+            int index = ProductionLayoutWidgetListBox == null ? -1 : ProductionLayoutWidgetListBox.SelectedIndex;
+            if (index < 0) return;
+            ProductionLayoutWidgetDraftItem selected = productionLayoutDraftItems[index];
+            if (string.Equals(selected.WidgetId, VmProductionRunLayoutData.Image, StringComparison.OrdinalIgnoreCase))
+            {
+                ProductionLayoutDesignerStatusText.Text = "图像组件固定在左侧，不能参与右侧组件排序。";
+                return;
+            }
+            int target = index + delta;
+            while (target >= 0 && target < productionLayoutDraftItems.Count &&
+                   string.Equals(productionLayoutDraftItems[target].WidgetId, VmProductionRunLayoutData.Image, StringComparison.OrdinalIgnoreCase)) target += delta;
+            if (target < 0 || target >= productionLayoutDraftItems.Count) return;
+            productionLayoutDraftUpdating = true;
+            try
+            {
+                productionLayoutDraftItems.Move(index, target);
+                for (int i = 0; i < productionLayoutDraftItems.Count; i++) productionLayoutDraftItems[i].Order = i + 1;
+                ProductionLayoutWidgetListBox.SelectedItem = selected;
+            }
+            finally { productionLayoutDraftUpdating = false; }
+            productionLayoutDraftDirty = true;
+            ApplyProductionRunLayout(CaptureProductionLayoutDraft());
+            ProductionLayoutDesignerStatusText.Text = "实时预览中 · 组件顺序尚未应用到方案";
+        }
+
+        private void ResetProductionLayoutButton_Click(object sender, RoutedEventArgs e)
+        {
+            LoadProductionLayoutDraft(VmProductionRunLayoutData.CreateDefault());
+            productionLayoutDraftDirty = true;
+            ApplyProductionRunLayout(CaptureProductionLayoutDraft());
+            ProductionLayoutDesignerStatusText.Text = "已恢复默认草稿，尚未应用到方案";
+        }
+
+        private void CancelProductionLayoutButton_Click(object sender, RoutedEventArgs e)
+        {
+            LoadProductionLayoutDraft(productionRunLayout);
+            ApplyProductionRunLayout(productionRunLayout);
+            ProductionLayoutDesignerStatusText.Text = "草稿已取消，已恢复当前方案布局";
+        }
+
+        private void ApplyProductionLayoutButton_Click(object sender, RoutedEventArgs e)
+        {
+            FlowEditSnapshot before = CaptureFlowEditSnapshot();
+            productionRunLayout = CaptureProductionLayoutDraft();
+            ApplyProductionRunLayout(productionRunLayout);
+            productionLayoutDraftDirty = false;
+            CommitFlowEditHistory("运行界面配置", before);
+            ProductionLayoutDesignerStatusText.Text = "已应用到当前方案 · 可在开发界面撤销/重做";
+        }
+
+        private void ApplyProductionRunLayout(VmProductionRunLayoutData layout)
+        {
+            if (ProductionRunPanel == null) return;
+            VmProductionRunLayoutData normalized = (layout ?? VmProductionRunLayoutData.CreateDefault()).CloneNormalized();
+            Dictionary<string, VmProductionWidgetLayoutData> items = normalized.Widgets.ToDictionary(item => item.WidgetId, StringComparer.OrdinalIgnoreCase);
+            VmProductionWidgetLayoutData value;
+            if (items.TryGetValue(VmProductionRunLayoutData.Scheme, out value)) { ProductionSchemeWidgetTitleText.Text = value.Title; ProductionSchemeWidget.Visibility = value.IsVisible ? Visibility.Visible : Visibility.Collapsed; }
+            if (items.TryGetValue(VmProductionRunLayoutData.Image, out value)) ProductionImageTitleText.Text = value.Title;
+            if (items.TryGetValue(VmProductionRunLayoutData.OverallResult, out value)) { ProductionOverallResultWidget.Header = value.Title; ProductionOverallResultWidget.Visibility = Visibility.Visible; }
+            if (items.TryGetValue(VmProductionRunLayoutData.Statistics, out value)) { ProductionStatisticsWidget.Header = value.Title; ProductionStatisticsWidget.Visibility = value.IsVisible ? Visibility.Visible : Visibility.Collapsed; }
+            if (items.TryGetValue(VmProductionRunLayoutData.RunControl, out value)) { ProductionRunControlWidget.Header = value.Title; ProductionRunControlWidget.Visibility = Visibility.Visible; }
+            if (items.TryGetValue(VmProductionRunLayoutData.Batch, out value)) { ProductionBatchWidget.Header = value.Title; ProductionBatchWidget.Visibility = value.IsVisible ? Visibility.Visible : Visibility.Collapsed; }
+            if (items.TryGetValue(VmProductionRunLayoutData.Alarm, out value)) { ProductionAlarmWidget.Header = value.Title; ProductionAlarmWidget.Visibility = value.IsVisible ? Visibility.Visible : Visibility.Collapsed; }
+            if (items.TryGetValue(VmProductionRunLayoutData.RecentResults, out value)) { ProductionRecentResultsWidget.Header = value.Title; ProductionRecentResultsWidget.Visibility = value.IsVisible ? Visibility.Visible : Visibility.Collapsed; }
+
+            Dictionary<string, FrameworkElement> rightWidgets = new Dictionary<string, FrameworkElement>(StringComparer.OrdinalIgnoreCase)
+            {
+                { VmProductionRunLayoutData.Scheme, ProductionSchemeWidget },
+                { VmProductionRunLayoutData.OverallResult, ProductionOverallResultWidget },
+                { VmProductionRunLayoutData.Statistics, ProductionStatisticsWidget },
+                { VmProductionRunLayoutData.RunControl, ProductionRunControlWidget },
+                { VmProductionRunLayoutData.Batch, ProductionBatchWidget },
+                { VmProductionRunLayoutData.Alarm, ProductionAlarmWidget },
+                { VmProductionRunLayoutData.RecentResults, ProductionRecentResultsWidget }
+            };
+            foreach (FrameworkElement widget in rightWidgets.Values.ToList()) ProductionWidgetStack.Children.Remove(widget);
+            ProductionWidgetStack.Children.Remove(ProductionRunFooterText);
+            foreach (VmProductionWidgetLayoutData item in normalized.Widgets)
+            {
+                FrameworkElement widget;
+                if (rightWidgets.TryGetValue(item.WidgetId, out widget)) ProductionWidgetStack.Children.Add(widget);
+            }
+            ProductionWidgetStack.Children.Add(ProductionRunFooterText);
+            ProductionImageTitleText.Visibility = productionRunMode ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void SetProductionRunMode(bool enabled)
+        {
+            if (productionRunMode == enabled) return;
+
+            productionRunMode = enabled;
+            if (enabled)
+            {
+                if (BottomPanelRow.ActualHeight >= 80) developerBottomPanelHeight = new GridLength(BottomPanelRow.ActualHeight);
+                else if (BottomPanelRow.Height.Value >= 80) developerBottomPanelHeight = BottomPanelRow.Height;
+                if (RoiLayerPanelColumn.ActualWidth > 0) developerRoiLayerPanelWidth = new GridLength(RoiLayerPanelColumn.ActualWidth);
+                else developerRoiLayerPanelWidth = RoiLayerPanelColumn.Width;
+                developerRoiLayerPanelVisible = RoiLayerPanel.Visibility == Visibility.Visible && developerRoiLayerPanelWidth.Value > 0;
+                if (xldContourSelectionMode) SetXldContourSelectionMode(false, false);
+                FinishRoiGeometryEdit(false);
+                ClearMeasurementDomainContext();
+                SynchronizeProjectiveGeometryContext(null);
+            }
+
+            MainMenu.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
+            DeveloperToolbarPanel.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
+            ProductionToolbarPanel.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+            ToolCatalogPanel.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
+            ToolCatalogSplitter.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
+            FlowWorkspacePanel.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
+            RightWorkspaceSplitter.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
+            RightTabs.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
+            ProductionRunPanel.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+            ImageWorkspaceToolbarPanel.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
+            ProductionImageTitleText.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+            RoiLayerPanel.Visibility = enabled || !developerRoiLayerPanelVisible ? Visibility.Collapsed : Visibility.Visible;
+            RoiLayerPanelColumn.Width = enabled || !developerRoiLayerPanelVisible ? new GridLength(0) : developerRoiLayerPanelWidth;
+            BottomPanelSplitter.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
+            BottomTabs.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
+            BottomPanelRow.Height = enabled ? new GridLength(0) : developerBottomPanelHeight;
+
+            Grid.SetColumn(ImageWorkspacePanel, enabled || imageWorkspaceExpanded ? 0 : 4);
+            Grid.SetColumnSpan(ImageWorkspacePanel, enabled ? 3 : (imageWorkspaceExpanded ? 5 : 1));
+            Grid.SetRow(ImageWorkspacePanel, 0);
+            Grid.SetRowSpan(ImageWorkspacePanel, enabled || imageWorkspaceExpanded ? 3 : 1);
+
+            RefreshProductionRunView();
+            ApplyProductionRunLayout(productionLayoutDesignMode ? CaptureProductionLayoutDraft() : productionRunLayout);
+            HeaderStatusText.Text = enabled
+                ? "已进入生产运行界面；当前方案、执行器、图像、结果、统计和报警均与开发界面共用。"
+                : "已返回开发界面；生产运行期间的方案和运行状态已保留。";
+            ScheduleRefreshDisplay();
+        }
+
+        private void ProductionQueueRunScopeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (productionScopeUpdating || ImageQueueRunScopeComboBox == null) return;
+            ComboBox source = sender as ComboBox;
+            ComboBoxItem selected = source == null ? null : source.SelectedItem as ComboBoxItem;
+            string scope = selected == null ? "Current" : Convert.ToString(selected.Tag, CultureInfo.InvariantCulture);
+            SyncProductionQueueScope(scope);
+            RefreshImageQueueUi();
+        }
+
+        private void SyncProductionQueueScope(string scope)
+        {
+            productionScopeUpdating = true;
+            try
+            {
+                ComboBox[] boxes = { ImageQueueRunScopeComboBox, ProductionQueueRunScopeComboBox, ProductionQueueRunScopeComboBox2 };
+                foreach (ComboBox box in boxes)
+                {
+                    if (box == null) continue;
+                    ComboBoxItem match = box.Items.OfType<ComboBoxItem>()
+                        .FirstOrDefault(item => string.Equals(Convert.ToString(item.Tag, CultureInfo.InvariantCulture), scope, StringComparison.OrdinalIgnoreCase));
+                    box.SelectedItem = match ?? box.Items.OfType<ComboBoxItem>().FirstOrDefault();
+                }
+            }
+            finally
+            {
+                productionScopeUpdating = false;
+            }
+        }
+
+        private void RefreshProductionRunView()
+        {
+            if (ProductionRunPanel == null) return;
+
+            ProductionSchemeText.Text = RecipeNameText == null ? "方案：未加载" : RecipeNameText.Text;
+            ProductionModeStateText.Text = "真实执行器 · " + (ModeStatusText == null ? "待命" : ModeStatusText.Text.Replace("模式：", string.Empty));
+            string result = FlowRunResultText == null || string.IsNullOrWhiteSpace(FlowRunResultText.Text) ? "--" : FlowRunResultText.Text;
+            ProductionOverallResultText.Text = result;
+            ProductionOverallResultText.Foreground = string.Equals(result, "OK", StringComparison.OrdinalIgnoreCase)
+                ? System.Windows.Media.Brushes.LimeGreen
+                : (string.Equals(result, "RUN", StringComparison.OrdinalIgnoreCase) ? System.Windows.Media.Brushes.DeepSkyBlue
+                    : (result == "--" ? System.Windows.Media.Brushes.WhiteSmoke : System.Windows.Media.Brushes.OrangeRed));
+            ProductionElapsedText.Text = "耗时：" + (FlowRunElapsedText == null ? "--" : FlowRunElapsedText.Text);
+            ProductionCurrentToolText.Text = FlowCurrentToolText == null ? "--" : FlowCurrentToolText.Text;
+            ProductionStopReasonText.Text = FlowStopReasonText == null ? "--" : FlowStopReasonText.Text;
+            ProductionQueueSummaryText.Text = string.IsNullOrWhiteSpace(imageQueueBatchSummary) ? "批次：未运行" : imageQueueBatchSummary;
+            ProductionOkText.Text = MetricOkText == null ? "0" : MetricOkText.Text;
+            ProductionNgText.Text = MetricNgText == null ? "0" : MetricNgText.Text;
+            ProductionYieldText.Text = MetricYieldText == null ? "--" : MetricYieldText.Text;
+            ProductionCycleText.Text = MetricCycleText == null ? "--" : MetricCycleText.Text;
+
+            string alarm = AlarmTextBox == null ? string.Empty : AlarmTextBox.Text;
+            string latestAlarm = alarm.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+            ProductionAlarmText.Text = string.IsNullOrWhiteSpace(latestAlarm) ? "当前无报警" : latestAlarm;
+            ProductionRecentResultsGrid.ItemsSource = resultStore.Records.OrderByDescending(item => item.Timestamp).Take(50).ToList();
+
+            ComboBoxItem selectedScope = ImageQueueRunScopeComboBox == null ? null : ImageQueueRunScopeComboBox.SelectedItem as ComboBoxItem;
+            SyncProductionQueueScope(selectedScope == null ? "Current" : Convert.ToString(selectedScope.Tag, CultureInfo.InvariantCulture));
+            bool queueBusy = isImageQueueBatchRunning || isContinuousRunning || isFlowExecutionActive;
+            if (ProductionQueueRunScopeComboBox != null) ProductionQueueRunScopeComboBox.IsEnabled = imageFiles.Count > 0 && !queueBusy;
+            if (ProductionQueueRunScopeComboBox2 != null) ProductionQueueRunScopeComboBox2.IsEnabled = imageFiles.Count > 0 && !queueBusy;
         }
 
         private void SetRecipeDirtyState(bool dirty, string detail)
@@ -3474,7 +4076,7 @@ namespace HalconWinFormsDemo
             {
                 OpenFileDialog dialog = new OpenFileDialog
                 {
-                    Filter = "Image files|*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff|All files|*.*",
+                    Filter = "Image files|*.bmp;*.jpg;*.jpeg;*.png;*.tif;*.tiff;*.pgm|All files|*.*",
                     Multiselect = true
                 };
                 if (dialog.ShowDialog(this) != true)
@@ -3504,9 +4106,775 @@ namespace HalconWinFormsDemo
                         throw new InvalidOperationException("当前文件夹没有可读取的图片。");
                     }
 
-                    LoadImageQueue(files);
+                    LoadImageQueue(files, dialog.SelectedPath, null);
                 }
             });
+        }
+
+        private void ImageQueuePanelToggleButton_Click(object sender, RoutedEventArgs e)
+        {
+            bool expanded = ImageQueuePanelToggleButton.IsChecked == true;
+            ImageQueuePanel.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
+            ImageQueuePanelToggleButton.Content = expanded ? "▤ 收起队列" : "▤ 图像队列";
+            if (expanded)
+            {
+                EnsureImageQueueThumbnailsAroundCurrent();
+                ScrollCurrentImageQueueItemIntoView();
+            }
+            RefreshImageQueueUi();
+        }
+
+        private void CollapseImageQueueButton_Click(object sender, RoutedEventArgs e)
+        {
+            ImageQueuePanelToggleButton.IsChecked = false;
+            ImageQueuePanel.Visibility = Visibility.Collapsed;
+            ImageQueuePanelToggleButton.Content = "▤ 图像队列";
+        }
+
+        private void ImageQueuePlayPauseButton_Click(object sender, RoutedEventArgs e)
+        {
+            PlayButton_Click(sender, e);
+        }
+
+        private void ReloadImageQueueButton_Click(object sender, RoutedEventArgs e)
+        {
+            RunUiAction("重载图片目录", delegate
+            {
+                if (string.IsNullOrWhiteSpace(imageQueueDirectory) || !Directory.Exists(imageQueueDirectory))
+                {
+                    throw new InvalidOperationException("当前队列没有可重载的有效目录，请先使用“批量图片”选择文件夹。");
+                }
+
+                string keepPath = currentImagePath;
+                HashSet<string> selectedPaths = new HashSet<string>(imageQueueItems.Where(item => item.IsRunSelected).Select(item => item.Path), StringComparer.OrdinalIgnoreCase);
+                string[] files = EnumerateImages(imageQueueDirectory).ToArray();
+                if (files.Length == 0)
+                {
+                    throw new InvalidOperationException("当前目录已没有支持的图片文件。");
+                }
+
+                LoadImageQueue(files, imageQueueDirectory, keepPath);
+                foreach (ImageQueueItem item in imageQueueItems) item.IsRunSelected = selectedPaths.Contains(item.Path);
+                RefreshImageQueueUi();
+                LogInfo("图片目录已重载：" + imageQueueDirectory + "，共 " + imageFiles.Count + " 张。");
+            });
+        }
+
+        private void ClearImageQueueButton_Click(object sender, RoutedEventArgs e)
+        {
+            RunUiAction("清空图片队列", delegate
+            {
+                ClearImageQueue(true);
+                HeaderStatusText.Text = "图片队列已清空。";
+                LogInfo("图片队列已清空，当前全局图像与相关运行结果已释放。");
+            });
+        }
+
+        private void ImageQueueList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (imageQueueSelectionUpdating || ImageQueueList == null)
+            {
+                return;
+            }
+
+            ImageQueueItem item = ImageQueueList.SelectedItem as ImageQueueItem;
+            if (item == null || item.Index == imageIndex)
+            {
+                return;
+            }
+
+            StopPlayback();
+            if (!TryLoadImageAtIndex(item.Index, true))
+            {
+                RefreshImageQueueUi();
+            }
+        }
+
+        private void ImageQueueRunSelection_Click(object sender, RoutedEventArgs e)
+        {
+            RefreshImageQueueUi();
+        }
+
+        private void FirstImageQueueButton_Click(object sender, RoutedEventArgs e)
+        {
+            MoveImageToQueueBoundary(true);
+        }
+
+        private void LastImageQueueButton_Click(object sender, RoutedEventArgs e)
+        {
+            MoveImageToQueueBoundary(false);
+        }
+
+        private void MoveImageToQueueBoundary(bool first)
+        {
+            RunUiAction(first ? "定位首张图片" : "定位末张图片", delegate
+            {
+                if (isImageQueueBatchRunning || isContinuousRunning || isFlowExecutionActive)
+                {
+                    throw new InvalidOperationException("流程运行期间不能切换图片，请先停止或等待完成。");
+                }
+                if (imageFiles.Count == 0) throw new InvalidOperationException("当前图片队列为空。");
+                StopPlayback();
+                int start = first ? 0 : imageFiles.Count - 1;
+                int step = first ? 1 : -1;
+                for (int index = start; index >= 0 && index < imageFiles.Count; index += step)
+                {
+                    if (TryLoadImageAtIndex(index, true)) return;
+                }
+                throw new InvalidOperationException("队列中没有可读取图片。");
+            });
+        }
+
+        private void SelectAllImageQueueButton_Click(object sender, RoutedEventArgs e)
+        {
+            SetAllImageQueueRunSelections(true);
+        }
+
+        private void ClearImageQueueSelectionButton_Click(object sender, RoutedEventArgs e)
+        {
+            SetAllImageQueueRunSelections(false);
+        }
+
+        private void SetAllImageQueueRunSelections(bool selected)
+        {
+            if (isImageQueueBatchRunning || isContinuousRunning || isFlowExecutionActive)
+            {
+                HeaderStatusText.Text = "运行期间不能修改图片运行选择。";
+                return;
+            }
+            foreach (ImageQueueItem item in imageQueueItems) item.IsRunSelected = selected;
+            HeaderStatusText.Text = selected ? "已选择图片队列全部项目。" : "已清除图片队列运行选择。";
+            RefreshImageQueueUi();
+        }
+
+        private async void RunImageQueueBatchButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                await RunImageQueueBatchAsync();
+            }
+            catch (Exception ex)
+            {
+                HandleFlowRunException("图片队列运行", ex);
+            }
+        }
+
+        private void StopImageQueueBatchButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!isImageQueueBatchRunning)
+            {
+                HeaderStatusText.Text = "当前没有运行中的图片批次。";
+                return;
+            }
+            imageQueueBatchStopRequested = true;
+            isStopRequested = true;
+            isPauseRequested = false;
+            HeaderStatusText.Text = isFlowExecutionActive ? "已请求停止图片批次，将在当前工具完成后生效。" : "已请求停止图片批次。";
+            LogInfo(HeaderStatusText.Text);
+            RefreshUiState();
+        }
+
+        private string GetImageQueueRunScope()
+        {
+            ComboBoxItem selected = ImageQueueRunScopeComboBox == null ? null : ImageQueueRunScopeComboBox.SelectedItem as ComboBoxItem;
+            string scope = selected == null ? null : selected.Tag as string;
+            return string.IsNullOrWhiteSpace(scope) ? "Current" : scope;
+        }
+
+        private List<ImageQueueItem> GetImageQueueRunTargets(string scope)
+        {
+            if (string.Equals(scope, "All", StringComparison.OrdinalIgnoreCase)) return imageQueueItems.ToList();
+            if (string.Equals(scope, "Selected", StringComparison.OrdinalIgnoreCase)) return imageQueueItems.Where(item => item.IsRunSelected).ToList();
+            ImageQueueItem current = imageIndex >= 0 && imageIndex < imageQueueItems.Count ? imageQueueItems[imageIndex] : null;
+            return current == null ? new List<ImageQueueItem>() : new List<ImageQueueItem> { current };
+        }
+
+        private async Task RunImageQueueBatchAsync()
+        {
+            if (historicalImageMode)
+            {
+                throw new InvalidOperationException("历史结果回看是只读上下文，请先返回实时图像后再运行图片批次。");
+            }
+            if (isImageQueueBatchRunning || isContinuousRunning || isFlowExecutionActive)
+            {
+                throw new InvalidOperationException("已有流程或图片批次正在运行，请先停止或等待完成。");
+            }
+            if (imageQueueItems.Count == 0) throw new InvalidOperationException("请先加载本地图片或图片文件夹。");
+
+            string scope = GetImageQueueRunScope();
+            List<ImageQueueItem> targets = GetImageQueueRunTargets(scope);
+            if (targets.Count == 0)
+            {
+                throw new InvalidOperationException(string.Equals(scope, "Selected", StringComparison.OrdinalIgnoreCase)
+                    ? "“运行选中”没有勾选任何图片。请勾选缩略项左上角的“选”。"
+                    : "当前没有可运行的图片。");
+            }
+
+            VmFlowRunPolicy policy = ReadFlowRunPolicyFromUi();
+            VmFlowExecutionPlanner.BuildPlan(flowTools, FlowToolList.SelectedItem as VmToolInstance, VmFlowRunRequestMode.Full);
+            VisionRecipe traceRecipe = CaptureRecipe();
+            activeBatchTrace = new VmImageBatchTraceRecord
+            {
+                SchemaVersion = VmImageBatchTraceRecord.CurrentSchemaVersion,
+                BatchId = DateTime.Now.ToString("yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture) + "-" + Guid.NewGuid().ToString("N").Substring(0, 4).ToUpperInvariant(),
+                RecipeName = string.IsNullOrWhiteSpace(traceRecipe.Name) ? "未命名方案" : traceRecipe.Name,
+                RecipeFingerprint = BatchTraceStore.HashFingerprint(recipeService.GetRecipeFingerprint(traceRecipe)),
+                StartedAtUtc = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
+                Scope = scope,
+                TotalCount = targets.Count,
+                Outcome = "Running",
+                Items = targets.Select((item, index) => new VmImageBatchTraceItem
+                {
+                    Sequence = index,
+                    FilePath = item.Path,
+                    FileName = item.FileName,
+                    State = "NotRun",
+                    ResultCode = "--",
+                    Message = "等待运行"
+                }).ToList()
+            };
+            Stopwatch batchStopwatch = Stopwatch.StartNew();
+            StopPlayback();
+            foreach (ImageQueueItem item in targets)
+            {
+                item.RunStateKey = "NotRun";
+                item.RunResultCode = "--";
+                item.RunElapsedMilliseconds = 0;
+                item.RunMessage = "等待运行";
+            }
+
+            imageQueueBatchProcessed = 0;
+            imageQueueBatchTotal = targets.Count;
+            imageQueueBatchStopRequested = false;
+            isStopRequested = false;
+            isPauseRequested = false;
+            isImageQueueBatchRunning = true;
+            imageQueueBatchSummary = "批次：运行中 0 / " + targets.Count.ToString(CultureInfo.InvariantCulture);
+            LogInfo("图片队列运行启动：范围=" + scope + "，目标=" + targets.Count.ToString(CultureInfo.InvariantCulture) + "。按确定性流程逐图执行。");
+            RefreshUiState();
+
+            try
+            {
+                for (int targetIndex = 0; targetIndex < targets.Count; targetIndex++)
+                {
+                    ImageQueueItem item = targets[targetIndex];
+                    if (imageQueueBatchStopRequested || isStopRequested)
+                    {
+                        MarkRemainingImageQueueTargetsSkipped(targets, targetIndex, "用户停止，未运行");
+                        break;
+                    }
+
+                    item.RunStateKey = "Running";
+                    item.RunMessage = "正在加载并执行完整流程";
+                    imageQueueBatchSummary = string.Format(CultureInfo.InvariantCulture, "批次：运行中 {0}/{1} · {2}", targetIndex + 1, targets.Count, item.FileName);
+                    RefreshImageQueueUi();
+                    ScrollImageQueueItemIntoView(item);
+                    await Dispatcher.Yield(DispatcherPriority.Background);
+
+                    Stopwatch imageStopwatch = Stopwatch.StartNew();
+                    try
+                    {
+                        if (!TryLoadImageAtIndex(item.Index, false))
+                        {
+                            item.RunStateKey = "Error";
+                            item.RunResultCode = "ERROR";
+                            item.RunMessage = string.IsNullOrWhiteSpace(item.FailureMessage) ? "图片加载失败" : item.FailureMessage;
+                        }
+                        else
+                        {
+                            FlowRunOutcome outcome = await RunInspectionRangeAsync(VmFlowRunRequestMode.Full, "图片队列 #" + (item.Index + 1).ToString(CultureInfo.InvariantCulture));
+                            item.RunResultCode = outcome.ResultCode;
+                            item.RunMessage = outcome.StopReason;
+                            item.RunElapsedMilliseconds = outcome.ElapsedMilliseconds;
+                            item.RunStateKey = outcome.ResultCode == "OK"
+                                ? "OK"
+                                : (outcome.ResultCode == "STOP"
+                                     ? "Stopped"
+                                     : (outcome.ResultCode == "TIMEOUT" || outcome.ExecutionError ? "Error" : "NG"));
+                            if (activeBatchTrace != null && targetIndex < activeBatchTrace.Items.Count)
+                            {
+                                TryPersistBatchTraceItemAssets(activeBatchTrace, activeBatchTrace.Items[targetIndex]);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        item.RunStateKey = "Error";
+                        item.RunResultCode = "ERROR";
+                        item.RunMessage = ex.Message;
+                        AppendAlarm("图片队列 " + item.FileName + " 执行异常：" + ex.Message);
+                    }
+                    finally
+                    {
+                        imageStopwatch.Stop();
+                        if (item.RunElapsedMilliseconds <= 0) item.RunElapsedMilliseconds = imageStopwatch.Elapsed.TotalMilliseconds;
+                        imageQueueBatchProcessed++;
+                    }
+
+                    bool itemFailed = item.RunStateKey == "NG" || item.RunStateKey == "Error";
+                    if (item.RunStateKey == "Stopped" || imageQueueBatchStopRequested || isStopRequested)
+                    {
+                        imageQueueBatchStopRequested = true;
+                        MarkRemainingImageQueueTargetsSkipped(targets, targetIndex + 1, "用户停止，未运行");
+                        break;
+                    }
+                    if (itemFailed && policy.StopOnNg)
+                    {
+                        imageQueueBatchStopRequested = true;
+                        MarkRemainingImageQueueTargetsSkipped(targets, targetIndex + 1, "遇 NG/异常停止，未运行");
+                        break;
+                    }
+
+                    RefreshImageQueueUi();
+                    if (targetIndex < targets.Count - 1 && policy.ContinuousIntervalMilliseconds > 0)
+                    {
+                        await DelayImageQueueBatchIntervalAsync(policy.ContinuousIntervalMilliseconds);
+                    }
+                }
+            }
+            finally
+            {
+                batchStopwatch.Stop();
+                isImageQueueBatchRunning = false;
+                isPauseRequested = false;
+                isStopRequested = false;
+                int ok = targets.Count(item => item.RunStateKey == "OK");
+                int ng = targets.Count(item => item.RunStateKey == "NG");
+                int error = targets.Count(item => item.RunStateKey == "Error");
+                int skipped = targets.Count(item => item.RunStateKey == "Skipped" || item.RunStateKey == "Stopped");
+                string finalState = imageQueueBatchStopRequested ? "已停止" : "已完成";
+                imageQueueBatchSummary = string.Format(CultureInfo.InvariantCulture, "批次：{0} · OK {1} · NG {2} · 异常 {3} · 未运行 {4} · 合计 {5}", finalState, ok, ng, error, skipped, targets.Count);
+                if (activeBatchTrace != null)
+                {
+                    activeBatchTrace.CompletedAtUtc = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+                    activeBatchTrace.TotalElapsedMilliseconds = batchStopwatch.Elapsed.TotalMilliseconds;
+                    for (int index = 0; index < activeBatchTrace.Items.Count && index < targets.Count; index++)
+                    {
+                        ImageQueueItem sourceItem = targets[index];
+                        VmImageBatchTraceItem traceItem = activeBatchTrace.Items[index];
+                        traceItem.State = sourceItem.RunStateKey;
+                        traceItem.ResultCode = sourceItem.RunResultCode;
+                        traceItem.ElapsedMilliseconds = sourceItem.RunElapsedMilliseconds;
+                        traceItem.Message = sourceItem.RunMessage;
+                    }
+                    activeBatchTrace.Outcome = imageQueueBatchStopRequested ? "Stopped" : (error > 0 ? "Error" : (ng > 0 ? "NG" : "OK"));
+                    activeBatchTrace.AssetsEnabled = batchTraceStorageSettings.SaveImages || batchTraceStorageSettings.SaveLayers;
+                    activeBatchTrace.Normalize();
+                    TryPersistCompletedBatchTrace(activeBatchTrace);
+                    activeBatchTrace = null;
+                }
+                HeaderStatusText.Text = imageQueueBatchSummary;
+                LogInfo(imageQueueBatchSummary);
+                imageQueueBatchStopRequested = false;
+                RefreshUiState();
+                ScheduleRefreshDisplay();
+            }
+        }
+
+        private async Task DelayImageQueueBatchIntervalAsync(int milliseconds)
+        {
+            int remaining = Math.Max(0, milliseconds);
+            while (remaining > 0 && !imageQueueBatchStopRequested && !isStopRequested)
+            {
+                int slice = Math.Min(50, remaining);
+                await Task.Delay(slice);
+                remaining -= slice;
+            }
+        }
+
+        private static void MarkRemainingImageQueueTargetsSkipped(IList<ImageQueueItem> targets, int startIndex, string reason)
+        {
+            for (int index = Math.Max(0, startIndex); index < targets.Count; index++)
+            {
+                if (targets[index].RunStateKey == "NotRun")
+                {
+                    targets[index].RunStateKey = "Skipped";
+                    targets[index].RunResultCode = "--";
+                    targets[index].RunMessage = reason;
+                }
+            }
+        }
+
+        private void TryPersistBatchTraceItemAssets(VmImageBatchTraceRecord record, VmImageBatchTraceItem item)
+        {
+            if (record == null || item == null || !batchTraceStorageSettings.SaveImages && !batchTraceStorageSettings.SaveLayers) return;
+            HImage source = null;
+            HImage result = null;
+            List<VmBatchTraceLayerCapture> captures = new List<VmBatchTraceLayerCapture>();
+            try
+            {
+                if (batchTraceStorageSettings.SaveImages && currentImage != null) source = currentImage.CopyImage();
+                if (batchTraceStorageSettings.SaveImages)
+                {
+                    VmToolInstance imageTool = flowTools.OrderByDescending(tool => tool.Sequence).FirstOrDefault(tool =>
+                        ToolMetadata.GetOutputPorts(tool.Kind).Any(port => string.Equals(port.DataType, "Image", StringComparison.OrdinalIgnoreCase)) &&
+                        ToolMetadata.GetOutputPorts(tool.Kind).Any(port =>
+                        {
+                            if (!string.Equals(port.DataType, "Image", StringComparison.OrdinalIgnoreCase)) return false;
+                            object raw;
+                            VmImageSnapshot snapshot = tool.TryGetOutputValue(port.PortName, out raw) ? raw as VmImageSnapshot : null;
+                            return snapshot != null && !snapshot.IsDisposed;
+                        }));
+                    if (imageTool != null)
+                    {
+                        foreach (VmPortDefinition port in ToolMetadata.GetOutputPorts(imageTool.Kind).Where(port => string.Equals(port.DataType, "Image", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            object raw;
+                            VmImageSnapshot snapshot = imageTool.TryGetOutputValue(port.PortName, out raw) ? raw as VmImageSnapshot : null;
+                            if (snapshot == null || snapshot.IsDisposed) continue;
+                            result = snapshot.CreateImageCopy();
+                            item.ResultImageSource = imageTool.InstanceName + "." + port.PortName;
+                            break;
+                        }
+                    }
+                    if (result == null && source != null)
+                    {
+                        result = source.CopyImage();
+                        item.ResultImageSource = "流程最终显示图（原图副本）";
+                    }
+                }
+                if (batchTraceStorageSettings.SaveLayers)
+                {
+                    RefreshResultOverlayLayers();
+                    foreach (VmResultOverlayLayer layer in resultOverlayLayers.Where(layer => layer.StateKey == "Valid"))
+                    {
+                        VmToolInstance tool = flowTools.FirstOrDefault(candidate => string.Equals(candidate.ToolId, layer.ToolId, StringComparison.OrdinalIgnoreCase));
+                        object raw;
+                        if (tool == null || !tool.TryGetOutputValue(layer.PortName, out raw)) continue;
+                        HObject copy = null;
+                        VmRegionSnapshot region = raw as VmRegionSnapshot;
+                        VmXldSnapshot xld = raw as VmXldSnapshot;
+                        if (region != null && !region.IsDisposed) copy = region.CreateRegionCopy();
+                        else if (xld != null && !xld.IsDisposed) copy = xld.CreateXldCopy();
+                        if (copy == null) continue;
+                        captures.Add(new VmBatchTraceLayerCapture
+                        {
+                            Object = copy,
+                            Metadata = new VmBatchTraceLayerSnapshotData
+                            {
+                                ToolId = layer.ToolId, ToolName = layer.ToolName, PortName = layer.PortName, DataType = layer.DataType,
+                                Color = layer.HalconColor, LineWidth = layer.LineWidth, Opacity = layer.Opacity, IsVisible = layer.IsVisible,
+                                ObjectCount = layer.ObjectCount, MetricText = layer.MetricText
+                            }
+                        });
+                    }
+                }
+                batchTraceStore.SaveItemAssets(record, item, source, result, captures);
+            }
+            catch (Exception ex)
+            {
+                item.AssetState = "Corrupt";
+                item.AssetMessage = "结果快照保存失败：" + ex.Message;
+                AppendAlarm(item.FileName + " 的批次结果快照保存失败（不影响检测结果）：" + ex.Message);
+            }
+            finally
+            {
+                if (source != null) { source.Dispose(); source = null; }
+                if (result != null) { result.Dispose(); result = null; }
+                foreach (VmBatchTraceLayerCapture capture in captures) DisposeObject(capture.Object);
+            }
+        }
+
+        private void TryPersistCompletedBatchTrace(VmImageBatchTraceRecord record)
+        {
+            try
+            {
+                batchTraceStore.Save(record);
+                BatchTraceStorageSummaryText.Text = batchTraceStore.EnforceRetention(batchTraceStorageSettings) + " · 本地文件，不是 MES/合规归档";
+                ReloadBatchTraceHistory(false);
+                VmImageBatchTraceRecord saved = filteredBatchTraceRecords.FirstOrDefault(item => string.Equals(item.BatchId, record.BatchId, StringComparison.OrdinalIgnoreCase));
+                if (saved != null)
+                {
+                    batchTraceSelectionUpdating = true;
+                    try
+                    {
+                        BatchTraceGrid.SelectedItem = saved;
+                        ProductionBatchTraceGrid.SelectedItem = saved;
+                        BatchTraceItemGrid.ItemsSource = saved.Items;
+                    }
+                    finally { batchTraceSelectionUpdating = false; }
+                }
+                LogInfo("批次追溯已保存：" + record.BatchId + "。仅为本地文件追溯，不等同于 MES/数据库。");
+            }
+            catch (Exception ex)
+            {
+                AppendAlarm("批次已完成，但本地追溯保存失败（不影响本次检测结果）：" + ex.Message);
+            }
+        }
+
+        private void ReloadBatchTraceHistory(bool reportStatus)
+        {
+            VmBatchTraceLoadResult loaded;
+            try
+            {
+                loaded = batchTraceStore.LoadAll();
+            }
+            catch (Exception ex)
+            {
+                if (reportStatus) AppendAlarm("批次追溯重新加载失败：" + ex.Message);
+                return;
+            }
+
+            batchTraceRecords.Clear();
+            foreach (VmImageBatchTraceRecord record in loaded.Records) batchTraceRecords.Add(record);
+            ApplyBatchTraceFilters();
+            if (loaded.Warnings.Count > 0)
+            {
+                AppendAlarm(string.Format(CultureInfo.InvariantCulture, "批次追溯隔离了 {0} 份损坏记录；其余记录仍可使用。{1}", loaded.Warnings.Count, reportStatus ? " " + string.Join("；", loaded.Warnings.Take(3)) : string.Empty));
+            }
+            if (reportStatus) HeaderStatusText.Text = string.Format(CultureInfo.InvariantCulture, "批次追溯已加载 {0} 条，损坏隔离 {1} 条。", loaded.Records.Count, loaded.Warnings.Count);
+        }
+
+        private void ApplyBatchTraceFilters()
+        {
+            if (BatchTraceGrid == null) return;
+            DateTime? from = BatchTraceFromDatePicker == null ? null : BatchTraceFromDatePicker.SelectedDate;
+            DateTime? to = BatchTraceToDatePicker == null ? null : BatchTraceToDatePicker.SelectedDate;
+            string idFilter = BatchTraceIdFilterTextBox == null ? string.Empty : (BatchTraceIdFilterTextBox.Text ?? string.Empty).Trim();
+            string recipeFilter = BatchTraceRecipeFilterTextBox == null ? string.Empty : (BatchTraceRecipeFilterTextBox.Text ?? string.Empty).Trim();
+            ComboBoxItem resultItem = BatchTraceResultFilterComboBox == null ? null : BatchTraceResultFilterComboBox.SelectedItem as ComboBoxItem;
+            string resultFilter = resultItem == null ? "All" : Convert.ToString(resultItem.Tag, CultureInfo.InvariantCulture);
+            IEnumerable<VmImageBatchTraceRecord> query = batchTraceRecords;
+            query = query.Where(record =>
+            {
+                DateTime started;
+                DateTime? local = DateTime.TryParse(record.StartedAtUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out started) ? (DateTime?)started.ToLocalTime() : null;
+                if (from.HasValue && (!local.HasValue || local.Value.Date < from.Value.Date)) return false;
+                if (to.HasValue && (!local.HasValue || local.Value.Date > to.Value.Date)) return false;
+                if (idFilter.Length > 0 && (record.BatchId ?? string.Empty).IndexOf(idFilter, StringComparison.OrdinalIgnoreCase) < 0) return false;
+                if (recipeFilter.Length > 0 && (record.RecipeName ?? string.Empty).IndexOf(recipeFilter, StringComparison.OrdinalIgnoreCase) < 0) return false;
+                return string.Equals(resultFilter, "All", StringComparison.OrdinalIgnoreCase) || string.Equals(record.Outcome, resultFilter, StringComparison.OrdinalIgnoreCase);
+            });
+            filteredBatchTraceRecords.Clear();
+            foreach (VmImageBatchTraceRecord record in query.OrderByDescending(item => item.StartedAtUtc)) filteredBatchTraceRecords.Add(record);
+            BatchTraceSummaryText.Text = string.Format(CultureInfo.InvariantCulture, "显示 {0} / {1} 批 · 共 {2} 图", filteredBatchTraceRecords.Count, batchTraceRecords.Count, filteredBatchTraceRecords.Sum(item => item.TotalCount));
+            if (BatchTraceGrid.SelectedItem == null && filteredBatchTraceRecords.Count > 0) BatchTraceGrid.SelectedItem = filteredBatchTraceRecords[0];
+        }
+
+        private void BatchTraceFilter_Changed(object sender, RoutedEventArgs e)
+        {
+            if (uiReady) ApplyBatchTraceFilters();
+        }
+
+        private void ReloadBatchTraceButton_Click(object sender, RoutedEventArgs e)
+        {
+            ReloadBatchTraceHistory(true);
+        }
+
+        private void BatchTraceGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (batchTraceSelectionUpdating) return;
+            VmImageBatchTraceRecord selected = (sender as DataGrid) == ProductionBatchTraceGrid
+                ? ProductionBatchTraceGrid.SelectedItem as VmImageBatchTraceRecord
+                : BatchTraceGrid.SelectedItem as VmImageBatchTraceRecord;
+            batchTraceSelectionUpdating = true;
+            try
+            {
+                BatchTraceGrid.SelectedItem = selected;
+                ProductionBatchTraceGrid.SelectedItem = selected;
+                BatchTraceItemGrid.ItemsSource = selected == null ? null : selected.Items;
+            }
+            finally { batchTraceSelectionUpdating = false; }
+        }
+
+        private void ExportBatchTraceCsvButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (filteredBatchTraceRecords.Count == 0)
+            {
+                HeaderStatusText.Text = "当前筛选条件没有可导出的批次记录。";
+                return;
+            }
+            SaveFileDialog dialog = new SaveFileDialog
+            {
+                Filter = "CSV 文件 (*.csv)|*.csv",
+                FileName = "batch-trace-" + DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + ".csv"
+            };
+            if (dialog.ShowDialog(this) != true) return;
+            try
+            {
+                batchTraceStore.ExportCsv(dialog.FileName, filteredBatchTraceRecords);
+                HeaderStatusText.Text = string.Format(CultureInfo.InvariantCulture, "已导出 {0} 个批次：{1}", filteredBatchTraceRecords.Count, dialog.FileName);
+            }
+            catch (Exception ex)
+            {
+                AppendAlarm("批次追溯 CSV 导出失败：" + ex.Message);
+            }
+        }
+
+        private void LoadBatchTraceStorageSettingsUi()
+        {
+            if (BatchTraceSaveImagesCheckBox == null) return;
+            batchTraceStorageSettingsUpdating = true;
+            try
+            {
+                batchTraceStorageSettings = (batchTraceStorageSettings ?? VmBatchTraceStorageSettings.CreateDefault()).Normalize();
+                BatchTraceSaveImagesCheckBox.IsChecked = batchTraceStorageSettings.SaveImages;
+                BatchTraceSaveLayersCheckBox.IsChecked = batchTraceStorageSettings.SaveLayers;
+                BatchTraceMaximumBatchCountTextBox.Text = batchTraceStorageSettings.MaximumBatchCount.ToString(CultureInfo.InvariantCulture);
+                BatchTraceMaximumMegabytesTextBox.Text = batchTraceStorageSettings.MaximumMegabytes.ToString(CultureInfo.InvariantCulture);
+                BatchTraceStorageSummaryText.Text = batchTraceStore.EnforceRetention(batchTraceStorageSettings) + " · 本地文件，不是 MES/合规归档";
+            }
+            catch (Exception ex)
+            {
+                BatchTraceStorageSummaryText.Text = "追溯容量状态不可用：" + ex.Message;
+            }
+            finally { batchTraceStorageSettingsUpdating = false; }
+        }
+
+        private void BatchTraceStorageSettings_Changed(object sender, RoutedEventArgs e)
+        {
+            if (batchTraceStorageSettingsUpdating || !uiReady) return;
+            int count;
+            int megabytes;
+            if (!int.TryParse(BatchTraceMaximumBatchCountTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out count) ||
+                !int.TryParse(BatchTraceMaximumMegabytesTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out megabytes))
+            {
+                BatchTraceStorageSummaryText.Text = "保留批数和容量必须是整数。";
+                return;
+            }
+            batchTraceStorageSettings = new VmBatchTraceStorageSettings
+            {
+                SaveImages = BatchTraceSaveImagesCheckBox.IsChecked == true,
+                SaveLayers = BatchTraceSaveLayersCheckBox.IsChecked == true,
+                MaximumBatchCount = count,
+                MaximumMegabytes = megabytes
+            }.Normalize();
+            try
+            {
+                batchTraceStore.SaveSettings(batchTraceStorageSettings);
+                BatchTraceStorageSummaryText.Text = batchTraceStore.EnforceRetention(batchTraceStorageSettings) + " · 设置已保存";
+                ReloadBatchTraceHistory(false);
+            }
+            catch (Exception ex) { AppendAlarm("批次追溯容量设置保存失败：" + ex.Message); }
+        }
+
+        private void CleanupOrphanBatchAssetsButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                int removed = batchTraceStore.CleanupOrphanAssets();
+                BatchTraceStorageSummaryText.Text = batchTraceStore.EnforceRetention(batchTraceStorageSettings) + " · 清理孤立目录 " + removed.ToString(CultureInfo.InvariantCulture) + " 个";
+                HeaderStatusText.Text = "追溯孤立资源清理完成；没有删除任何源图。";
+            }
+            catch (Exception ex) { AppendAlarm("追溯孤立资源清理失败：" + ex.Message); }
+        }
+
+        private void DeleteSelectedBatchTraceButton_Click(object sender, RoutedEventArgs e)
+        {
+            VmImageBatchTraceRecord record = BatchTraceGrid.SelectedItem as VmImageBatchTraceRecord;
+            if (record == null) { HeaderStatusText.Text = "请先选择要删除的批次。"; return; }
+            if (historicalImageMode && historicalBatchRecord != null && string.Equals(historicalBatchRecord.BatchId, record.BatchId, StringComparison.OrdinalIgnoreCase)) ExitHistoricalImageMode(false);
+            try
+            {
+                batchTraceStore.DeleteBatch(record);
+                ReloadBatchTraceHistory(false);
+                HeaderStatusText.Text = "已删除所选本地批次记录及其受管快照；源图未删除。";
+            }
+            catch (Exception ex) { AppendAlarm("删除批次追溯失败：" + ex.Message); }
+        }
+
+        private void ReviewSelectedBatchTraceItemButton_Click(object sender, RoutedEventArgs e)
+        {
+            EnterHistoricalImageMode(BatchTraceGrid.SelectedItem as VmImageBatchTraceRecord, BatchTraceItemGrid.SelectedItem as VmImageBatchTraceItem);
+        }
+
+        private void BatchTraceItemGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            ReviewSelectedBatchTraceItemButton_Click(sender, e);
+        }
+
+        private void ReviewSelectedProductionBatchTraceButton_Click(object sender, RoutedEventArgs e)
+        {
+            VmImageBatchTraceRecord record = ProductionBatchTraceGrid.SelectedItem as VmImageBatchTraceRecord;
+            EnterHistoricalImageMode(record, record == null ? null : record.Items.FirstOrDefault(item => item.AssetState == "Ready"));
+        }
+
+        private void EnterHistoricalImageMode(VmImageBatchTraceRecord record, VmImageBatchTraceItem item)
+        {
+            if (record == null || item == null) { HeaderStatusText.Text = "请选择包含结果快照的逐图记录。"; return; }
+            ExitHistoricalImageMode(false);
+            try
+            {
+                List<string> warnings = new List<string>();
+                if (!string.IsNullOrWhiteSpace(item.SourceImageRelativePath))
+                {
+                    try { historicalSourceImage = batchTraceStore.ReadImageAsset(item.SourceImageRelativePath); }
+                    catch (Exception ex) { warnings.Add("源图快照不可读：" + ex.Message); }
+                }
+                if (!string.IsNullOrWhiteSpace(item.ResultImageRelativePath))
+                {
+                    try { historicalResultImage = batchTraceStore.ReadImageAsset(item.ResultImageRelativePath); }
+                    catch (Exception ex) { warnings.Add("结果图快照不可读：" + ex.Message); }
+                }
+                foreach (VmBatchTraceLayerSnapshotData layer in item.Layers)
+                {
+                    try { historicalLayers.Add(new HistoricalLayerSnapshot { Metadata = layer, Object = batchTraceStore.ReadObjectAsset(layer.RelativePath) }); }
+                    catch (Exception ex) { warnings.Add((string.IsNullOrWhiteSpace(layer.SourceText) ? "结果图层" : layer.SourceText) + "不可读：" + ex.Message); }
+                }
+                if (historicalSourceImage == null && historicalResultImage == null) throw new InvalidOperationException("该记录没有可回看的图像快照。");
+                historicalBatchRecord = record;
+                historicalBatchItem = item;
+                historicalShowResultImage = historicalResultImage != null;
+                historicalImageMode = true;
+                HistoricalImageContextBar.Visibility = Visibility.Visible;
+                ReturnLiveImageButton.Visibility = Visibility.Visible;
+                HistoricalImageTitleText.Text = record.BatchId + " · #" + item.SequenceText + " " + item.FileName;
+                HistoricalImageMetadataText.Text = string.Format(CultureInfo.InvariantCulture, "方案 {0} · 指纹 {1} · {2}/{3} · {4} · 图层 {5}/{6}{7}", record.RecipeDisplay, record.FingerprintShort, item.StateText, item.ResultCode, item.ElapsedText, historicalLayers.Count, item.Layers.Count, warnings.Count == 0 ? string.Empty : " · 降级：" + string.Join("；", warnings));
+                HistoricalSourceImageButton.IsEnabled = historicalSourceImage != null;
+                HistoricalResultImageButton.IsEnabled = historicalResultImage != null;
+                HImage initialImage = historicalShowResultImage ? historicalResultImage : historicalSourceImage;
+                viewport.SetImageSize(GetImageWidth(initialImage), GetImageHeight(initialImage));
+                HeaderStatusText.Text = warnings.Count == 0
+                    ? "已进入只读历史回看；实时图像、工具输出、ROI、绑定和统计均未改变。"
+                    : "已进入降级只读历史回看；部分资源损坏或缺失，实时状态未改变。";
+                RefreshUiState();
+                ScheduleRefreshDisplay();
+            }
+            catch (Exception ex)
+            {
+                ExitHistoricalImageMode(false);
+                AppendAlarm("历史结果回看失败：" + ex.Message);
+            }
+        }
+
+        private void HistoricalSourceImageButton_Click(object sender, RoutedEventArgs e) { if (historicalSourceImage != null) { historicalShowResultImage = false; viewport.SetImageSize(GetImageWidth(historicalSourceImage), GetImageHeight(historicalSourceImage)); ScheduleRefreshDisplay(); } }
+        private void HistoricalResultImageButton_Click(object sender, RoutedEventArgs e) { if (historicalResultImage != null) { historicalShowResultImage = true; viewport.SetImageSize(GetImageWidth(historicalResultImage), GetImageHeight(historicalResultImage)); ScheduleRefreshDisplay(); } }
+        private void ReturnLiveImageButton_Click(object sender, RoutedEventArgs e) { ExitHistoricalImageMode(true); }
+
+        private void ExitHistoricalImageMode(bool refresh)
+        {
+            historicalImageMode = false;
+            historicalBatchRecord = null;
+            historicalBatchItem = null;
+            if (historicalSourceImage != null) { historicalSourceImage.Dispose(); historicalSourceImage = null; }
+            if (historicalResultImage != null) { historicalResultImage.Dispose(); historicalResultImage = null; }
+            foreach (HistoricalLayerSnapshot layer in historicalLayers) layer.Dispose();
+            historicalLayers.Clear();
+            if (HistoricalImageContextBar != null) HistoricalImageContextBar.Visibility = Visibility.Collapsed;
+            if (ReturnLiveImageButton != null) ReturnLiveImageButton.Visibility = Visibility.Collapsed;
+            if (refresh)
+            {
+                ResolvedImageContext liveContext = ResolveImageContext();
+                if (liveContext.HasImage) viewport.SetImageSize(liveContext.Width, liveContext.Height); else viewport.Clear();
+                HeaderStatusText.Text = "已返回实时图像上下文；未触发流程重跑。";
+                RefreshUiState();
+                ScheduleRefreshDisplay();
+            }
+        }
+
+        private void ScrollImageQueueItemIntoView(ImageQueueItem item)
+        {
+            if (ImageQueueList != null && item != null) ImageQueueList.ScrollIntoView(item);
+        }
+
+        private void ImageQueueThumbnail_Loaded(object sender, RoutedEventArgs e)
+        {
+            System.Windows.Controls.Image image = sender as System.Windows.Controls.Image;
+            ImageQueueItem item = image == null ? null : image.DataContext as ImageQueueItem;
+            if (item != null)
+            {
+                EnsureImageQueueThumbnail(item);
+            }
         }
 
         private void PreviousImageButton_Click(object sender, RoutedEventArgs e)
@@ -3523,6 +4891,12 @@ namespace HalconWinFormsDemo
         {
             RunUiAction("自动播放", delegate
             {
+                if (playbackTimer.IsEnabled)
+                {
+                    StopPlayback();
+                    HeaderStatusText.Text = "图片播放已暂停，当前停在 " + (imageIndex + 1).ToString(CultureInfo.InvariantCulture) + " / " + imageFiles.Count.ToString(CultureInfo.InvariantCulture) + "。";
+                    return;
+                }
                 if (imageFiles.Count <= 1)
                 {
                     throw new InvalidOperationException("请先加载多张图片或文件夹。");
@@ -3549,6 +4923,10 @@ namespace HalconWinFormsDemo
         {
             try
             {
+                if (isImageQueueBatchRunning)
+                {
+                    throw new InvalidOperationException("图片队列批次正在运行，请先停止或等待完成。");
+                }
                 VmFlowRunPolicy policy = ReadFlowRunPolicyFromUi();
                 VmFlowExecutionPlanner.BuildPlan(flowTools, FlowToolList.SelectedItem as VmToolInstance, VmFlowRunRequestMode.Full);
                 StopPlayback();
@@ -3859,6 +5237,9 @@ namespace HalconWinFormsDemo
             {
                 OverlayStatusText.Text = BuildResultOverlayLegendText();
             }
+            VmResultOverlayLayer changedLayer = (sender as FrameworkElement) == null ? null : (sender as FrameworkElement).DataContext as VmResultOverlayLayer;
+            if (changedLayer != null) StoreResultLayerStyle(changedLayer);
+            RefreshUnifiedLayers();
             RefreshResultLayerCount();
         }
 
@@ -3877,14 +5258,6 @@ namespace HalconWinFormsDemo
             {
                 return;
             }
-            if (tool.Kind != VmToolKind.CaliperEdgePairMeasurement &&
-                tool.Kind != VmToolKind.LinearCaliperArrayMeasurement &&
-                tool.Kind != VmToolKind.CircularCaliperCircleFinder)
-            {
-                ClearMeasurementDomainContext();
-                ScheduleRefreshDisplay();
-                return;
-            }
 
             measurementDomainSelectionUpdating = true;
             try
@@ -3894,7 +5267,7 @@ namespace HalconWinFormsDemo
                 FlowToolList.ScrollIntoView(tool);
                 RightTabs.SelectedItem = DockConfigurationTab;
                 DockConfigurationTabs.SelectedIndex = 0;
-                SetImageContextSelection(VmImageContextOption.ModuleInput);
+                SetImageContextSelection(SupportsInteractiveMeasurementDomain(tool.Kind) ? VmImageContextOption.ModuleInput : VmImageContextOption.ModuleOutput);
                 UpdateImageContextViewport(true);
                 if (SupportsInteractiveMeasurementDomain(tool.Kind))
                 {
@@ -3910,7 +5283,285 @@ namespace HalconWinFormsDemo
             {
                 measurementDomainSelectionUpdating = false;
             }
+            if (!unifiedLayerUiUpdating && UnifiedLayerList != null)
+            {
+                unifiedLayerUiUpdating = true;
+                UnifiedLayerList.SelectedItem = unifiedLayers.FirstOrDefault(item => string.Equals(item.LayerKey, layer.LayerKey, StringComparison.OrdinalIgnoreCase));
+                unifiedLayerUiUpdating = false;
+                LoadUnifiedLayerEditor(UnifiedLayerList.SelectedItem as VmUnifiedLayerItem);
+            }
             ScheduleRefreshDisplay();
+        }
+
+        private void RefreshUnifiedLayers()
+        {
+            if (UnifiedLayerList == null) return;
+            string selectedKey = UnifiedLayerList.SelectedItem is VmUnifiedLayerItem ? ((VmUnifiedLayerItem)UnifiedLayerList.SelectedItem).LayerKey : null;
+            List<VmUnifiedLayerItem> refreshed = new List<VmUnifiedLayerItem>();
+            for (int index = 0; index < roiLayers.Count; index++)
+            {
+                VmRoiLayer layer = roiLayers[index];
+                if (layer.LayerOrder <= 0) layer.LayerOrder = 2000 + index;
+                refreshed.Add(new VmUnifiedLayerItem
+                {
+                    LayerKey = "roi:" + layer.RoiId,
+                    LayerKind = "ROI",
+                    DisplayName = layer.Name,
+                    SourceText = layer.RoleText + " · " + layer.BindingSummary,
+                    TypeText = "ROI / " + layer.ShapeText + " · " + layer.ViewportScopeText,
+                    StateText = layer.IsEnabled ? "有效" : "停用",
+                    CoordinateContextText = "输入图像坐标 · " + layer.OpacityText,
+                    ColorHex = layer.DisplayColorHex,
+                    LayerOrder = layer.LayerOrder,
+                    IsVisible = layer.IsVisible,
+                    IsLocked = layer.IsLocked,
+                    RoiLayer = layer
+                });
+            }
+            foreach (VmResultOverlayLayer layer in resultOverlayLayers)
+            {
+                refreshed.Add(new VmUnifiedLayerItem
+                {
+                    LayerKey = layer.LayerKey,
+                    LayerKind = "Result",
+                    DisplayName = layer.DisplayName,
+                    SourceText = layer.SourceText,
+                    TypeText = layer.DataType + " · " + layer.ViewportScopeText,
+                    StateText = layer.StateText,
+                    CoordinateContextText = "来源模块输出坐标 · " + layer.OpacityText,
+                    ColorHex = layer.ColorHex,
+                    LayerOrder = layer.LayerOrder,
+                    IsVisible = layer.IsVisible,
+                    IsLocked = layer.IsLocked,
+                    ResultLayer = layer
+                });
+            }
+            if (currentTemplateItem != null || flowTools.Any(item => item.Kind == VmToolKind.ShapeMatch || item.Kind == VmToolKind.HDevelop))
+            {
+                refreshed.Add(new VmUnifiedLayerItem
+                {
+                    LayerKey = "compatibility:shape",
+                    LayerKind = "Compatibility",
+                    DisplayName = "Shape/HDevelop 兼容叠加",
+                    SourceText = "兼容绘制通道",
+                    TypeText = "待迁移到托管结果图层",
+                    StateText = "兼容",
+                    CoordinateContextText = "暂不支持统一属性与排序",
+                    ColorHex = "#A78BFA",
+                    LayerOrder = 0,
+                    IsVisible = showResultOverlay,
+                    IsLocked = true,
+                    IsCompatibilityLayer = true
+                });
+            }
+
+            unifiedLayerUiUpdating = true;
+            try
+            {
+                unifiedLayers.Clear();
+                foreach (VmUnifiedLayerItem item in refreshed.OrderBy(item => item.LayerOrder).ThenBy(item => item.DisplayName)) unifiedLayers.Add(item);
+                UnifiedLayerList.SelectedItem = string.IsNullOrWhiteSpace(selectedKey) ? null : unifiedLayers.FirstOrDefault(item => string.Equals(item.LayerKey, selectedKey, StringComparison.OrdinalIgnoreCase));
+                UnifiedLayerCountText.Text = unifiedLayers.Count.ToString(CultureInfo.InvariantCulture);
+            }
+            finally
+            {
+                unifiedLayerUiUpdating = false;
+            }
+            LoadUnifiedLayerEditor(UnifiedLayerList.SelectedItem as VmUnifiedLayerItem);
+        }
+
+        private void UnifiedLayerList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (unifiedLayerUiUpdating) return;
+            VmUnifiedLayerItem item = UnifiedLayerList.SelectedItem as VmUnifiedLayerItem;
+            LoadUnifiedLayerEditor(item);
+            unifiedLayerUiUpdating = true;
+            try
+            {
+                if (item != null && item.RoiLayer != null)
+                {
+                    RoiLayerList.SelectedItem = item.RoiLayer;
+                    RoiLayerList.ScrollIntoView(item.RoiLayer);
+                    SelectRoiLayer(item.RoiLayer);
+                }
+                else if (item != null && item.ResultLayer != null)
+                {
+                    ResultLayerList.SelectedItem = item.ResultLayer;
+                    ResultLayerList.ScrollIntoView(item.ResultLayer);
+                    SynchronizeResultLayerContext(item.ResultLayer);
+                }
+            }
+            finally
+            {
+                unifiedLayerUiUpdating = false;
+            }
+            ScheduleRefreshDisplay();
+        }
+
+        private void SynchronizeResultLayerContext(VmResultOverlayLayer layer)
+        {
+            VmToolInstance tool = layer == null ? null : flowTools.FirstOrDefault(item => string.Equals(item.ToolId, layer.ToolId, StringComparison.OrdinalIgnoreCase));
+            if (tool == null) return;
+            FlowToolList.SelectedItems.Clear();
+            FlowToolList.SelectedItem = tool;
+            FlowToolList.ScrollIntoView(tool);
+            RightTabs.SelectedItem = DockConfigurationTab;
+            DockConfigurationTabs.SelectedIndex = 0;
+            SetImageContextSelection(SupportsInteractiveMeasurementDomain(tool.Kind) ? VmImageContextOption.ModuleInput : VmImageContextOption.ModuleOutput);
+            UpdateImageContextViewport(true);
+            if (SupportsInteractiveMeasurementDomain(tool.Kind)) SynchronizeMeasurementDomainContext(tool); else ClearMeasurementDomainContext();
+            HeaderStatusText.Text = "已同步图层、流程节点、模块配置与图像上下文：" + layer.SourceText;
+        }
+
+        private void LoadUnifiedLayerEditor(VmUnifiedLayerItem item)
+        {
+            if (UnifiedLayerNameTextBox == null) return;
+            bool editable = item != null && !item.IsCompatibilityLayer;
+            UnifiedLayerNameTextBox.IsEnabled = editable;
+            UnifiedLayerColorComboBox.IsEnabled = editable;
+            UnifiedLayerViewportComboBox.IsEnabled = editable;
+            UnifiedLayerLineWidthComboBox.IsEnabled = editable;
+            UnifiedLayerOpacityComboBox.IsEnabled = editable;
+            UnifiedLayerVisibleCheckBox.IsEnabled = editable;
+            UnifiedLayerLockCheckBox.IsEnabled = editable;
+            UnifiedLayerNameTextBox.Text = item == null ? string.Empty : item.DisplayName;
+            if (item == null || item.IsCompatibilityLayer) return;
+            if (item.RoiLayer != null)
+            {
+                UnifiedLayerColorComboBox.SelectedValue = item.RoiLayer.DisplayColor;
+                UnifiedLayerViewportComboBox.SelectedValue = item.RoiLayer.ViewportScope;
+                UnifiedLayerLineWidthComboBox.SelectedValue = item.RoiLayer.DisplayLineWidth.ToString(CultureInfo.InvariantCulture);
+                UnifiedLayerOpacityComboBox.SelectedValue = item.RoiLayer.DisplayOpacity.ToString(CultureInfo.InvariantCulture);
+                UnifiedLayerVisibleCheckBox.IsChecked = item.RoiLayer.IsVisible;
+                UnifiedLayerLockCheckBox.IsChecked = item.RoiLayer.IsLocked;
+            }
+            else
+            {
+                UnifiedLayerColorComboBox.SelectedValue = item.ResultLayer.HalconColor;
+                UnifiedLayerViewportComboBox.SelectedValue = item.ResultLayer.ViewportScope;
+                UnifiedLayerLineWidthComboBox.SelectedValue = item.ResultLayer.LineWidth.ToString(CultureInfo.InvariantCulture);
+                UnifiedLayerOpacityComboBox.SelectedValue = item.ResultLayer.Opacity.ToString(CultureInfo.InvariantCulture);
+                UnifiedLayerVisibleCheckBox.IsChecked = item.ResultLayer.IsVisible;
+                UnifiedLayerLockCheckBox.IsChecked = item.ResultLayer.IsLocked;
+            }
+        }
+
+        private void ApplyUnifiedLayerPropertiesButton_Click(object sender, RoutedEventArgs e)
+        {
+            VmUnifiedLayerItem item = UnifiedLayerList.SelectedItem as VmUnifiedLayerItem;
+            if (item == null || item.IsCompatibilityLayer)
+            {
+                HeaderStatusText.Text = item == null ? "请先选择图层。" : "Shape/HDevelop 兼容叠加仍待迁移，当前只展示迁移状态。";
+                return;
+            }
+            bool requestedLock = UnifiedLayerLockCheckBox.IsChecked == true;
+            if (item.IsLocked && requestedLock)
+            {
+                HeaderStatusText.Text = "图层已锁定；请先取消“锁定”并应用，之后再修改显示属性。";
+                return;
+            }
+            int lineWidth;
+            int opacity;
+            if (!int.TryParse(Convert.ToString(UnifiedLayerLineWidthComboBox.SelectedValue, CultureInfo.InvariantCulture), out lineWidth) ||
+                !int.TryParse(Convert.ToString(UnifiedLayerOpacityComboBox.SelectedValue, CultureInfo.InvariantCulture), out opacity))
+            {
+                HeaderStatusText.Text = "请选择有效线宽和透明度。";
+                return;
+            }
+            string name = string.IsNullOrWhiteSpace(UnifiedLayerNameTextBox.Text) ? item.DisplayName : UnifiedLayerNameTextBox.Text.Trim();
+            FlowEditSnapshot before = CaptureFlowEditSnapshot();
+            if (item.RoiLayer != null)
+            {
+                item.RoiLayer.Name = name;
+                item.RoiLayer.DisplayColor = UnifiedLayerColorComboBox.SelectedValue as string;
+                item.RoiLayer.ViewportScope = UnifiedLayerViewportComboBox.SelectedValue as string;
+                item.RoiLayer.DisplayLineWidth = lineWidth;
+                item.RoiLayer.DisplayOpacity = opacity;
+                item.RoiLayer.IsVisible = UnifiedLayerVisibleCheckBox.IsChecked == true;
+                item.RoiLayer.IsLocked = requestedLock;
+                RefreshRoiLayerBindingSummaries();
+            }
+            else
+            {
+                item.ResultLayer.DisplayName = name;
+                item.ResultLayer.HalconColor = VmOverlayPalette.Normalize(UnifiedLayerColorComboBox.SelectedValue as string, item.ResultLayer.HalconColor);
+                item.ResultLayer.ColorHex = VmOverlayPalette.GetHex(item.ResultLayer.HalconColor);
+                item.ResultLayer.ColorName = VmOverlayPalette.GetDisplayText(item.ResultLayer.HalconColor);
+                item.ResultLayer.ViewportScope = UnifiedLayerViewportComboBox.SelectedValue as string;
+                item.ResultLayer.LineWidth = lineWidth;
+                item.ResultLayer.Opacity = opacity;
+                item.ResultLayer.IsVisible = UnifiedLayerVisibleCheckBox.IsChecked == true;
+                item.ResultLayer.IsLocked = requestedLock;
+                StoreResultLayerStyle(item.ResultLayer);
+            }
+            CommitFlowEditHistory("修改图层属性：" + name, before);
+            RefreshUnifiedLayers();
+            ScheduleRefreshDisplay();
+            HeaderStatusText.Text = "图层属性已应用并进入方案/撤销历史；算法快照、连接和运行结果未改变。";
+        }
+
+        private void IsolateUnifiedLayerButton_Click(object sender, RoutedEventArgs e)
+        {
+            VmUnifiedLayerItem selected = UnifiedLayerList.SelectedItem as VmUnifiedLayerItem;
+            if (selected == null || selected.IsCompatibilityLayer) { HeaderStatusText.Text = "请先选择可管理图层。"; return; }
+            FlowEditSnapshot before = CaptureFlowEditSnapshot();
+            foreach (VmRoiLayer layer in roiLayers) layer.IsVisible = selected.RoiLayer != null && ReferenceEquals(layer, selected.RoiLayer);
+            foreach (VmResultOverlayLayer layer in resultOverlayLayers)
+            {
+                layer.IsVisible = selected.ResultLayer != null && ReferenceEquals(layer, selected.ResultLayer);
+                StoreResultLayerStyle(layer);
+            }
+            showRoiOverlay = true;
+            showResultOverlay = true;
+            ShowRoiOverlayCheckBox.IsChecked = true;
+            ShowResultOverlayCheckBox.IsChecked = true;
+            CommitFlowEditHistory("独显图层：" + selected.DisplayName, before);
+            RefreshUnifiedLayers();
+            ScheduleRefreshDisplay();
+        }
+
+        private void MoveUnifiedLayerUpButton_Click(object sender, RoutedEventArgs e) { MoveUnifiedLayer(-1); }
+        private void MoveUnifiedLayerDownButton_Click(object sender, RoutedEventArgs e) { MoveUnifiedLayer(1); }
+
+        private void MoveUnifiedLayer(int offset)
+        {
+            VmUnifiedLayerItem selected = UnifiedLayerList.SelectedItem as VmUnifiedLayerItem;
+            List<VmUnifiedLayerItem> managed = unifiedLayers.Where(item => !item.IsCompatibilityLayer).ToList();
+            int index = selected == null ? -1 : managed.IndexOf(selected);
+            int target = index + offset;
+            if (index < 0 || target < 0 || target >= managed.Count) return;
+            FlowEditSnapshot before = CaptureFlowEditSnapshot();
+            managed.RemoveAt(index);
+            managed.Insert(target, selected);
+            for (int order = 0; order < managed.Count; order++)
+            {
+                if (managed[order].RoiLayer != null) managed[order].RoiLayer.LayerOrder = order + 1;
+                else { managed[order].ResultLayer.LayerOrder = order + 1; StoreResultLayerStyle(managed[order].ResultLayer); }
+            }
+            CommitFlowEditHistory("调整统一图层顺序", before);
+            RefreshUnifiedLayers();
+            UnifiedLayerList.SelectedItem = unifiedLayers.FirstOrDefault(item => string.Equals(item.LayerKey, selected.LayerKey, StringComparison.OrdinalIgnoreCase));
+            ScheduleRefreshDisplay();
+        }
+
+        private void LocateUnifiedLayerButton_Click(object sender, RoutedEventArgs e)
+        {
+            VmUnifiedLayerItem item = UnifiedLayerList.SelectedItem as VmUnifiedLayerItem;
+            if (item == null) return;
+            if (item.RoiLayer != null)
+            {
+                RoiLayerList.SelectedItem = item.RoiLayer;
+                RightTabs.SelectedItem = RoiTab;
+                HeaderStatusText.Text = "已定位 ROI 属性与图像图层：" + item.RoiLayer.Name;
+            }
+            else if (item.ResultLayer != null) SynchronizeResultLayerContext(item.ResultLayer);
+            else HeaderStatusText.Text = "兼容叠加尚未迁入统一图层属性。";
+        }
+
+        private void RefreshUnifiedLayersButton_Click(object sender, RoutedEventArgs e)
+        {
+            RefreshResultOverlayLayers();
+            HeaderStatusText.Text = "统一图层已按当前运行输出、ROI 和兼容叠加状态刷新。";
         }
 
         private void ShowAllResultLayersButton_Click(object sender, RoutedEventArgs e)
@@ -3996,6 +5647,411 @@ namespace HalconWinFormsDemo
             HeaderStatusText.Text = "已打开 " + selected.SourceText + " 的模块配置。";
         }
 
+        private void XldContourSelectionToggleButton_Click(object sender, RoutedEventArgs e)
+        {
+            SetXldContourSelectionMode(XldContourSelectionToggleButton.IsChecked == true, true);
+        }
+
+        private void SetXldContourSelectionMode(bool enabled, bool reportStatus)
+        {
+            xldContourSelectionMode = enabled;
+            if (XldContourSelectionToggleButton != null)
+            {
+                XldContourSelectionToggleButton.IsChecked = enabled;
+                XldContourSelectionToggleButton.Content = enabled ? "结束轮廓选择" : "轮廓选择";
+            }
+            if (XldContourInspectorPanel != null)
+            {
+                XldContourInspectorPanel.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            if (enabled)
+            {
+                FinishRoiGeometryEdit(false);
+                ClearPendingRoi();
+                roiEditor.Cancel();
+                roiEditor.Tool = VisionTool.Pan;
+                ClearMeasurementDomainContext();
+                projectiveGeometryEditActive = false;
+                projectiveGeometryDragging = false;
+                projectiveGeometryPreview = null;
+                if (DockProjectiveImageEditToggleButton != null)
+                {
+                    DockProjectiveImageEditToggleButton.IsChecked = false;
+                    DockProjectiveImageEditToggleButton.Content = "在图像中编辑四点";
+                }
+                showResultOverlay = true;
+                if (ShowResultOverlayCheckBox != null) ShowResultOverlayCheckBox.IsChecked = true;
+                if (RoiLayerPanel != null)
+                {
+                    RoiLayerPanel.Visibility = Visibility.Visible;
+                    RoiLayerPanelColumn.Width = new GridLength(260);
+                    ToggleRoiLayerPanelButton.Content = "隐藏图层";
+                }
+                if (ImageLayerTabs != null) ImageLayerTabs.SelectedIndex = 2;
+                xldContourInspectorStatus = "请选择可见 XLD 图层，然后在图像中单击轮廓";
+                if (reportStatus) HeaderStatusText.Text = "轮廓选择已开启：单击当前可见真实 XLD 的最近轮廓；左右视口分别命中，不跨坐标串选。";
+            }
+            else
+            {
+                ClearXldContourSelection("轮廓选择已关闭", false);
+                roiEditor.Tool = VisionTool.Select;
+                if (imageWindow != null) imageWindow.Cursor = Forms.Cursors.Default;
+                if (comparisonImageWindow != null) comparisonImageWindow.Cursor = Forms.Cursors.Default;
+                if (reportStatus) HeaderStatusText.Text = "轮廓选择已关闭；算法 XLD 快照保持不变。";
+            }
+
+            RefreshXldContourInspectorUi();
+            ScheduleRefreshDisplay();
+        }
+
+        private void XldContourPreviousButton_Click(object sender, RoutedEventArgs e)
+        {
+            NavigateXldContour(-1);
+        }
+
+        private void XldContourNextButton_Click(object sender, RoutedEventArgs e)
+        {
+            NavigateXldContour(1);
+        }
+
+        private void XldContourIsolateToggleButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!EnsureXldContourSelectionValid(true))
+            {
+                XldContourIsolateToggleButton.IsChecked = false;
+                return;
+            }
+            HeaderStatusText.Text = XldContourIsolateToggleButton.IsChecked == true
+                ? "已在命中视口单条独显当前轮廓；其他算法输出与托管快照仍保留。"
+                : "已恢复全部可见结果图层，并继续高亮当前轮廓。";
+            ScheduleRefreshDisplay();
+        }
+
+        private void XldContourLocateButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!EnsureXldContourSelectionValid(true)) return;
+            FocusFlowGraphTool(xldContourSelection.ToolId, "已从轮廓检查器定位生产者：" + xldContourSelection.ToolName + "." + xldContourSelection.PortName);
+        }
+
+        private void XldContourOpenConfigurationButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!EnsureXldContourSelectionValid(true)) return;
+            VmToolInstance tool = flowTools.FirstOrDefault(item => string.Equals(item.ToolId, xldContourSelection.ToolId, StringComparison.OrdinalIgnoreCase));
+            if (tool == null)
+            {
+                ClearXldContourSelection("来源模块已删除", true);
+                return;
+            }
+            FlowToolList.SelectedItems.Clear();
+            FlowToolList.SelectedItem = tool;
+            FlowToolList.ScrollIntoView(tool);
+            RightTabs.SelectedItem = DockConfigurationTab;
+            DockConfigurationTabs.SelectedIndex = 0;
+            HeaderStatusText.Text = "已打开轮廓生产者配置：" + tool.InstanceName;
+        }
+
+        private void XldContourClearButton_Click(object sender, RoutedEventArgs e)
+        {
+            ClearXldContourSelection("选择已清除；请重新单击轮廓", true);
+        }
+
+        private void NavigateXldContour(int offset)
+        {
+            if (!EnsureXldContourSelectionValid(true)) return;
+            VmResultOverlayLayer layer = resultOverlayLayers.First(item => string.Equals(item.LayerKey, xldContourSelection.LayerKey, StringComparison.OrdinalIgnoreCase));
+            int count = xldContourSelection.ObjectCount;
+            int nextIndex = ((xldContourSelection.ObjectIndex - 1 + offset) % count + count) % count + 1;
+            XldContourInspectorSelection next;
+            if (!TryBuildXldContourSelection(
+                layer,
+                xldContourSelection.Snapshot,
+                string.Equals(xldContourSelection.ViewportKey, "Left", StringComparison.OrdinalIgnoreCase),
+                nextIndex,
+                new PointF((float)xldContourSelection.NearestColumn, (float)xldContourSelection.NearestRow),
+                out next))
+            {
+                ClearXldContourSelection("轮廓对象已失效，请重新运行来源模块", true);
+                return;
+            }
+            xldContourSelection = next;
+            xldContourInspectorStatus = offset < 0 ? "已切换到上一条轮廓" : "已切换到下一条轮廓";
+            RefreshXldContourInspectorUi();
+            HeaderStatusText.Text = xldContourInspectorStatus + "：" + next.ObjectIndex.ToString(CultureInfo.InvariantCulture) + "/" + next.ObjectCount.ToString(CultureInfo.InvariantCulture);
+            ScheduleRefreshDisplay();
+        }
+
+        private bool TryPickXldContour(bool isLeftViewport, PointF imagePoint, double tolerance)
+        {
+            if (!xldContourSelectionMode) return false;
+            List<VmResultOverlayLayer> candidates = GetInspectableXldLayers(isLeftViewport);
+            XldContourInspectorSelection best = null;
+            foreach (VmResultOverlayLayer layer in candidates)
+            {
+                VmXldSnapshot snapshot = GetLiveXldSnapshot(layer);
+                if (snapshot == null) continue;
+                HObject allContours = null;
+                try
+                {
+                    allContours = snapshot.CreateXldCopy();
+                    for (int index = 1; index <= snapshot.ObjectCount; index++)
+                    {
+                        HObject contour = null;
+                        try
+                        {
+                            HOperatorSet.SelectObj(allContours, out contour, index);
+                            XldContourInspectorSelection candidate = BuildXldContourSelection(
+                                layer,
+                                snapshot,
+                                isLeftViewport,
+                                index,
+                                contour,
+                                imagePoint);
+                            if (candidate != null && candidate.HitDistance <= tolerance &&
+                                (best == null || candidate.HitDistance < best.HitDistance - 0.000001))
+                            {
+                                best = candidate;
+                            }
+                        }
+                        finally
+                        {
+                            DisposeObject(contour);
+                        }
+                    }
+                }
+                catch (HalconException)
+                {
+                    // A rerun can replace the managed snapshot between candidate discovery and hit testing.
+                }
+                catch (ObjectDisposedException)
+                {
+                    // The next refresh reports the source as invalid.
+                }
+                finally
+                {
+                    DisposeObject(allContours);
+                }
+            }
+
+            if (best == null)
+            {
+                ClearXldContourSelection(candidates.Count == 0 ? "当前视口没有可拾取的有效 XLD 图层" : "未命中轮廓；请靠近轮廓线单击", false);
+                HeaderStatusText.Text = xldContourInspectorStatus;
+                return true;
+            }
+
+            xldContourSelection = best;
+            xldContourInspectorStatus = "已命中最近轮廓并单条高亮";
+            if (XldContourIsolateToggleButton != null) XldContourIsolateToggleButton.IsChecked = false;
+            RefreshXldContourInspectorUi();
+            HeaderStatusText.Text = string.Format(
+                CultureInfo.InvariantCulture,
+                "已命中 {0}.{1} 的第 {2}/{3} 条轮廓，距离 {4:0.###}px。",
+                best.ToolName,
+                best.PortName,
+                best.ObjectIndex,
+                best.ObjectCount,
+                best.HitDistance);
+            ScheduleRefreshDisplay();
+            return true;
+        }
+
+        private List<VmResultOverlayLayer> GetInspectableXldLayers(bool isLeftViewport)
+        {
+            Func<VmResultOverlayLayer, bool> valid = layer => layer != null &&
+                layer.IsVisible && layer.StateKey == "Valid" &&
+                string.Equals(layer.DataType, "XLD", StringComparison.OrdinalIgnoreCase) &&
+                VmLayerViewportScope.Includes(layer.ViewportScope, isLeftViewport) &&
+                GetLiveXldSnapshot(layer) != null;
+            VmUnifiedLayerItem selectedUnified = UnifiedLayerList == null ? null : UnifiedLayerList.SelectedItem as VmUnifiedLayerItem;
+            if (selectedUnified != null && valid(selectedUnified.ResultLayer)) return new List<VmResultOverlayLayer> { selectedUnified.ResultLayer };
+            VmResultOverlayLayer selectedResult = ResultLayerList == null ? null : ResultLayerList.SelectedItem as VmResultOverlayLayer;
+            if (valid(selectedResult)) return new List<VmResultOverlayLayer> { selectedResult };
+            return resultOverlayLayers.Where(valid).OrderByDescending(item => item.LayerOrder).ToList();
+        }
+
+        private VmXldSnapshot GetLiveXldSnapshot(VmResultOverlayLayer layer)
+        {
+            VmToolInstance tool = layer == null ? null : flowTools.FirstOrDefault(item => string.Equals(item.ToolId, layer.ToolId, StringComparison.OrdinalIgnoreCase));
+            object raw;
+            VmXldSnapshot snapshot = tool != null && tool.TryGetOutputValue(layer.PortName, out raw) ? raw as VmXldSnapshot : null;
+            return snapshot == null || snapshot.IsDisposed ? null : snapshot;
+        }
+
+        private bool TryBuildXldContourSelection(VmResultOverlayLayer layer, VmXldSnapshot snapshot, bool isLeftViewport, int objectIndex, PointF queryPoint, out XldContourInspectorSelection selection)
+        {
+            selection = null;
+            HObject allContours = null;
+            HObject contour = null;
+            try
+            {
+                allContours = snapshot.CreateXldCopy();
+                HOperatorSet.SelectObj(allContours, out contour, objectIndex);
+                selection = BuildXldContourSelection(layer, snapshot, isLeftViewport, objectIndex, contour, queryPoint);
+                return selection != null;
+            }
+            catch (HalconException)
+            {
+                return false;
+            }
+            catch (ObjectDisposedException)
+            {
+                return false;
+            }
+            finally
+            {
+                DisposeObject(contour);
+                DisposeObject(allContours);
+            }
+        }
+
+        private XldContourInspectorSelection BuildXldContourSelection(VmResultOverlayLayer layer, VmXldSnapshot snapshot, bool isLeftViewport, int objectIndex, HObject contour, PointF queryPoint)
+        {
+            HTuple rows;
+            HTuple columns;
+            HOperatorSet.GetContourXld(contour, out rows, out columns);
+            int pointCount = Math.Min(rows == null ? 0 : rows.Length, columns == null ? 0 : columns.Length);
+            if (pointCount == 0) return null;
+            double nearestRow = rows[0].D;
+            double nearestColumn = columns[0].D;
+            double nearestDistance = Distance(queryPoint.Y, queryPoint.X, nearestRow, nearestColumn);
+            for (int index = 0; index < pointCount - 1; index++)
+            {
+                double row1 = rows[index].D;
+                double column1 = columns[index].D;
+                double row2 = rows[index + 1].D;
+                double column2 = columns[index + 1].D;
+                double deltaRow = row2 - row1;
+                double deltaColumn = column2 - column1;
+                double denominator = deltaRow * deltaRow + deltaColumn * deltaColumn;
+                double projection = denominator <= 0
+                    ? 0
+                    : ((queryPoint.Y - row1) * deltaRow + (queryPoint.X - column1) * deltaColumn) / denominator;
+                projection = Math.Max(0, Math.Min(1, projection));
+                double candidateRow = row1 + projection * deltaRow;
+                double candidateColumn = column1 + projection * deltaColumn;
+                double candidateDistance = Distance(queryPoint.Y, queryPoint.X, candidateRow, candidateColumn);
+                if (candidateDistance < nearestDistance)
+                {
+                    nearestDistance = candidateDistance;
+                    nearestRow = candidateRow;
+                    nearestColumn = candidateColumn;
+                }
+            }
+            HTuple lengths;
+            HOperatorSet.LengthXld(contour, out lengths);
+            return new XldContourInspectorSelection
+            {
+                LayerKey = layer.LayerKey,
+                ToolId = layer.ToolId,
+                ToolName = layer.ToolName,
+                PortName = layer.PortName,
+                ViewportKey = isLeftViewport ? "Left" : "Right",
+                ViewportContextKey = BuildXldViewportContextKey(isLeftViewport),
+                ViewportSourceText = (isLeftViewport ? ResolveDualInputImageContext() : ResolveImageContext()).SourceText,
+                Snapshot = snapshot,
+                ObjectIndex = objectIndex,
+                ObjectCount = snapshot.ObjectCount,
+                PointCount = pointCount,
+                Length = lengths == null || lengths.Length == 0 ? 0 : lengths[0].D,
+                StartRow = rows[0].D,
+                StartColumn = columns[0].D,
+                EndRow = rows[pointCount - 1].D,
+                EndColumn = columns[pointCount - 1].D,
+                NearestRow = nearestRow,
+                NearestColumn = nearestColumn,
+                HitDistance = nearestDistance
+            };
+        }
+
+        private static double Distance(double row1, double column1, double row2, double column2)
+        {
+            double deltaRow = row2 - row1;
+            double deltaColumn = column2 - column1;
+            return Math.Sqrt(deltaRow * deltaRow + deltaColumn * deltaColumn);
+        }
+
+        private string BuildXldViewportContextKey(bool isLeftViewport)
+        {
+            ResolvedImageContext context = isLeftViewport ? ResolveDualInputImageContext() : ResolveImageContext();
+            object identity = context.Snapshot != null ? (object)context.Snapshot : context.GlobalImage;
+            return string.Join(
+                "|",
+                isLeftViewport ? "Left" : "Right",
+                context.RequestedKey ?? string.Empty,
+                context.SourceText ?? string.Empty,
+                context.Width.ToString(CultureInfo.InvariantCulture),
+                context.Height.ToString(CultureInfo.InvariantCulture),
+                identity == null ? "0" : RuntimeHelpers.GetHashCode(identity).ToString(CultureInfo.InvariantCulture));
+        }
+
+        private bool EnsureXldContourSelectionValid(bool clearOnFailure)
+        {
+            if (xldContourSelection == null) return false;
+            VmResultOverlayLayer layer = resultOverlayLayers.FirstOrDefault(item => string.Equals(item.LayerKey, xldContourSelection.LayerKey, StringComparison.OrdinalIgnoreCase));
+            bool isLeft = string.Equals(xldContourSelection.ViewportKey, "Left", StringComparison.OrdinalIgnoreCase);
+            VmXldSnapshot snapshot = GetLiveXldSnapshot(layer);
+            string reason = null;
+            if (layer == null) reason = "结果图层已删除";
+            else if (!layer.IsVisible || layer.StateKey != "Valid" || !string.Equals(layer.DataType, "XLD", StringComparison.OrdinalIgnoreCase)) reason = "结果图层已隐藏或失效";
+            else if (!VmLayerViewportScope.Includes(layer.ViewportScope, isLeft)) reason = "图层已移出命中视口";
+            else if (snapshot == null || !ReferenceEquals(snapshot, xldContourSelection.Snapshot)) reason = "来源模块已重跑或 XLD 快照已替换";
+            else if (xldContourSelection.ObjectIndex < 1 || xldContourSelection.ObjectIndex > snapshot.ObjectCount) reason = "轮廓对象序号已失效";
+            else if (!string.Equals(BuildXldViewportContextKey(isLeft), xldContourSelection.ViewportContextKey, StringComparison.Ordinal)) reason = "视口图像来源或坐标上下文已变化";
+            if (reason == null) return true;
+            if (clearOnFailure) ClearXldContourSelection(reason, true);
+            return false;
+        }
+
+        private void ClearXldContourSelection(string reason, bool updateHeader)
+        {
+            xldContourSelection = null;
+            xldContourInspectorStatus = string.IsNullOrWhiteSpace(reason) ? "等待在图像中命中轮廓" : reason;
+            if (XldContourIsolateToggleButton != null) XldContourIsolateToggleButton.IsChecked = false;
+            RefreshXldContourInspectorUi();
+            if (updateHeader && HeaderStatusText != null) HeaderStatusText.Text = xldContourInspectorStatus + "；算法 XLD 未修改。";
+            ScheduleRefreshDisplay();
+        }
+
+        private void RefreshXldContourInspectorUi()
+        {
+            if (XldContourInspectorStateText == null) return;
+            bool selected = xldContourSelection != null;
+            XldContourInspectorStateText.Text = xldContourInspectorStatus;
+            XldContourInspectorSourceText.Text = selected ? "来源：" + xldContourSelection.ToolName + "." + xldContourSelection.PortName : "来源：--";
+            XldContourInspectorContextText.Text = selected
+                ? "坐标：" + (xldContourSelection.ViewportKey == "Left" ? "左侧输入画面" : "右侧/单画面") + " · " + (xldContourSelection.ViewportSourceText ?? "--")
+                : "坐标：--";
+            XldContourInspectorIndexText.Text = selected
+                ? "对象：" + xldContourSelection.ObjectIndex.ToString(CultureInfo.InvariantCulture) + "/" + xldContourSelection.ObjectCount.ToString(CultureInfo.InvariantCulture)
+                : "对象：--";
+            XldContourInspectorGeometryText.Text = selected
+                ? string.Format(
+                    CultureInfo.InvariantCulture,
+                    "点数 {0} · 长度 {1:0.###}px · 起点 ({2:0.###},{3:0.###}) → 终点 ({4:0.###},{5:0.###})",
+                    xldContourSelection.PointCount,
+                    xldContourSelection.Length,
+                    xldContourSelection.StartRow,
+                    xldContourSelection.StartColumn,
+                    xldContourSelection.EndRow,
+                    xldContourSelection.EndColumn)
+                : "点数/长度/起终点：--";
+            XldContourInspectorNearestText.Text = selected
+                ? string.Format(
+                    CultureInfo.InvariantCulture,
+                    "最近亚像素：Row {0:0.###} / Column {1:0.###} · 命中距离 {2:0.###}px",
+                    xldContourSelection.NearestRow,
+                    xldContourSelection.NearestColumn,
+                    xldContourSelection.HitDistance)
+                : "最近亚像素：--";
+            XldContourPreviousButton.IsEnabled = selected && xldContourSelection.ObjectCount > 1;
+            XldContourNextButton.IsEnabled = selected && xldContourSelection.ObjectCount > 1;
+            XldContourIsolateToggleButton.IsEnabled = selected;
+            XldContourLocateButton.IsEnabled = selected;
+            XldContourOpenConfigurationButton.IsEnabled = selected;
+            XldContourClearButton.IsEnabled = selected;
+        }
+
         private void SetAllResultLayerVisibility(bool visible)
         {
             resultOverlayLayersUpdating = true;
@@ -4020,6 +6076,8 @@ namespace HalconWinFormsDemo
             {
                 OverlayStatusText.Text = BuildResultOverlayLegendText();
             }
+            foreach (VmResultOverlayLayer layer in resultOverlayLayers) StoreResultLayerStyle(layer);
+            RefreshUnifiedLayers();
             ScheduleRefreshDisplay();
         }
 
@@ -4050,7 +6108,11 @@ namespace HalconWinFormsDemo
             }
 
             string selectedKey = selected.LayerKey;
+            int selectedLayerOrder = selected.LayerOrder;
+            int targetLayerOrder = resultOverlayLayers[target].LayerOrder;
             resultOverlayLayers.Move(index, target);
+            selected.LayerOrder = targetLayerOrder;
+            resultOverlayLayers[index].LayerOrder = selectedLayerOrder;
             UpdateResultLayerSequences();
             ResultLayerList.SelectedItem = resultOverlayLayers.FirstOrDefault(item => string.Equals(item.LayerKey, selectedKey, StringComparison.OrdinalIgnoreCase));
             HeaderStatusText.Text = selected.SourceText + (offset < 0 ? " 已上移一层。" : " 已下移一层。");
@@ -4687,7 +6749,7 @@ namespace HalconWinFormsDemo
         private void UpdateFlowGroupCommandState()
         {
             if (FlowGroupNameTextBox == null) return;
-            bool busy = isContinuousRunning || isFlowExecutionActive;
+            bool busy = isContinuousRunning || isFlowExecutionActive || isImageQueueBatchRunning;
             List<VmToolInstance> selected = GetSelectedFlowToolsInSequence();
             List<VmToolInstance> group = GetSelectedFlowGroupMembers();
             bool hasGroup = group.Count >= 2;
@@ -4905,6 +6967,15 @@ namespace HalconWinFormsDemo
 
             if (Keyboard.FocusedElement is TextBoxBase || Keyboard.FocusedElement is ComboBox)
             {
+                return;
+            }
+
+            if (productionRunMode &&
+                (e.Key == Key.Delete || e.Key == Key.F9 || e.Key == Key.F10 ||
+                 (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control))
+            {
+                e.Handled = true;
+                HeaderStatusText.Text = "生产运行界面已屏蔽流程编辑与调试快捷键；请返回开发界面后修改。";
                 return;
             }
 
@@ -6547,7 +8618,7 @@ namespace HalconWinFormsDemo
                         ? VmImageContextOption.ModuleOutput
                         : (selected.Kind == VmToolKind.ImageSource
                         ? VmImageContextOption.ModuleOutput
-                        : (selected.Kind == VmToolKind.RegionMorphology || selected.Kind == VmToolKind.RegionFeatureFilter || selected.Kind == VmToolKind.RegionSetOperation || selected.Kind == VmToolKind.RegionContourMeasurement || selected.Kind == VmToolKind.XldContourFilter || selected.Kind == VmToolKind.XldContourSegmentation || selected.Kind == VmToolKind.XldLineFitting || selected.Kind == VmToolKind.XldCircleFitting || selected.Kind == VmToolKind.XldEllipseFitting || selected.Kind == VmToolKind.XldRectangleFitting || selected.Kind == VmToolKind.XldLineRelationMeasurement || ToolMetadata.GetInputPorts(selected.Kind).Any(item => string.Equals(item.DataType, "Image", StringComparison.OrdinalIgnoreCase))
+                        : (selected.Kind == VmToolKind.RegionMorphology || selected.Kind == VmToolKind.RegionFeatureFilter || selected.Kind == VmToolKind.RegionSetOperation || selected.Kind == VmToolKind.RegionContourMeasurement || selected.Kind == VmToolKind.XldContourFilter || selected.Kind == VmToolKind.XldAdjacentContourUnion || selected.Kind == VmToolKind.XldContourSmoothing || selected.Kind == VmToolKind.XldAffineTransform || selected.Kind == VmToolKind.XldProjectiveTransform || selected.Kind == VmToolKind.XldContourCrop || selected.Kind == VmToolKind.XldLengthClassification || selected.Kind == VmToolKind.XldContourSegmentation || selected.Kind == VmToolKind.XldLineFitting || selected.Kind == VmToolKind.XldCircleFitting || selected.Kind == VmToolKind.XldEllipseFitting || selected.Kind == VmToolKind.XldRectangleFitting || selected.Kind == VmToolKind.XldLineRelationMeasurement || ToolMetadata.GetInputPorts(selected.Kind).Any(item => string.Equals(item.DataType, "Image", StringComparison.OrdinalIgnoreCase))
                             ? VmImageContextOption.ModuleInput
                             : VmImageContextOption.GlobalInput)));
                 SetImageContextSelection(automaticContext);
@@ -6555,7 +8626,26 @@ namespace HalconWinFormsDemo
                 ScheduleRefreshDisplay();
             }
             RefreshInspector();
+            if (!measurementDomainSelectionUpdating && !unifiedLayerUiUpdating && selectedTool != null && ResultLayerList != null)
+            {
+                VmResultOverlayLayer producerLayer = resultOverlayLayers
+                    .Where(item => string.Equals(item.ToolId, selectedTool.ToolId, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(item => item.StateKey == "Valid" ? 0 : 1)
+                    .ThenBy(item => item.Sequence)
+                    .FirstOrDefault();
+                if (producerLayer != null)
+                {
+                    resultOverlayLayersUpdating = true;
+                    ResultLayerList.SelectedItem = producerLayer;
+                    resultOverlayLayersUpdating = false;
+                    unifiedLayerUiUpdating = true;
+                    UnifiedLayerList.SelectedItem = unifiedLayers.FirstOrDefault(item => string.Equals(item.LayerKey, producerLayer.LayerKey, StringComparison.OrdinalIgnoreCase));
+                    unifiedLayerUiUpdating = false;
+                    LoadUnifiedLayerEditor(UnifiedLayerList.SelectedItem as VmUnifiedLayerItem);
+                }
+            }
             SynchronizeMeasurementDomainContext(selectedTool);
+            SynchronizeProjectiveGeometryContext(selectedTool);
             RefreshDualImageInputOptions(selectedTool);
             UpdateComparisonImageViewport(true);
             RefreshFlowPortVisualization();
@@ -6662,6 +8752,9 @@ namespace HalconWinFormsDemo
                    kind == VmToolKind.ImageResize ||
                    kind == VmToolKind.ImageMirror ||
                    kind == VmToolKind.ImageRotate ||
+                   kind == VmToolKind.ImageAffineTransform ||
+                   kind == VmToolKind.ImageProjectiveTransform ||
+                   kind == VmToolKind.SubpixelEdgeExtraction ||
                    kind == VmToolKind.PolarImageUnwrap ||
                    kind == VmToolKind.RoiImageExtraction ||
                    kind == VmToolKind.ImageDifference ||
@@ -6672,6 +8765,13 @@ namespace HalconWinFormsDemo
                    kind == VmToolKind.RegionSetOperation ||
                    kind == VmToolKind.RegionContourMeasurement ||
                    kind == VmToolKind.XldContourFilter ||
+                   kind == VmToolKind.XldAdjacentContourUnion ||
+                   kind == VmToolKind.XldContourSmoothing ||
+                   kind == VmToolKind.XldAffineTransform ||
+                   kind == VmToolKind.XldProjectiveTransform ||
+                   kind == VmToolKind.XldContourCrop ||
+                   kind == VmToolKind.XldLengthClassification ||
+                   kind == VmToolKind.XldLengthSortSelection ||
                    kind == VmToolKind.XldContourSegmentation ||
                    kind == VmToolKind.XldLineFitting ||
                    kind == VmToolKind.XldCircleFitting ||
@@ -6749,6 +8849,41 @@ namespace HalconWinFormsDemo
                 DockImageMirrorModeComboBox.SelectedValue = VmImageMirrorMode.Normalize(p.ImageMirrorMode);
                 DockImageRotateAngleTextBox.Text = p.ImageRotateAngleDegrees.ToString("0.###", CultureInfo.InvariantCulture);
                 DockImageRotateInterpolationComboBox.SelectedValue = VmImageResizeInterpolation.Normalize(p.ImageRotateInterpolation);
+                DockImageAffineTranslateRowTextBox.Text = p.ImageAffineTranslateRow.ToString("0.###", CultureInfo.InvariantCulture);
+                DockImageAffineTranslateColumnTextBox.Text = p.ImageAffineTranslateColumn.ToString("0.###", CultureInfo.InvariantCulture);
+                DockImageAffineScaleRowTextBox.Text = p.ImageAffineScaleRow.ToString("0.###", CultureInfo.InvariantCulture);
+                DockImageAffineScaleColumnTextBox.Text = p.ImageAffineScaleColumn.ToString("0.###", CultureInfo.InvariantCulture);
+                DockImageAffineRotationTextBox.Text = p.ImageAffineRotationDegrees.ToString("0.###", CultureInfo.InvariantCulture);
+                DockImageAffineSlantTextBox.Text = p.ImageAffineSlantDegrees.ToString("0.###", CultureInfo.InvariantCulture);
+                DockImageAffineInterpolationComboBox.SelectedValue = VmImageResizeInterpolation.Normalize(p.ImageAffineInterpolation);
+                DockImageAffineAdaptSizeCheckBox.IsChecked = p.ImageAffineAdaptImageSize;
+                DockProjectiveSourceRow1TextBox.Text = p.ImageProjectiveSourceRow1.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveSourceColumn1TextBox.Text = p.ImageProjectiveSourceColumn1.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveSourceRow2TextBox.Text = p.ImageProjectiveSourceRow2.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveSourceColumn2TextBox.Text = p.ImageProjectiveSourceColumn2.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveSourceRow3TextBox.Text = p.ImageProjectiveSourceRow3.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveSourceColumn3TextBox.Text = p.ImageProjectiveSourceColumn3.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveSourceRow4TextBox.Text = p.ImageProjectiveSourceRow4.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveSourceColumn4TextBox.Text = p.ImageProjectiveSourceColumn4.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveTargetRow1TextBox.Text = p.ImageProjectiveTargetRow1.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveTargetColumn1TextBox.Text = p.ImageProjectiveTargetColumn1.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveTargetRow2TextBox.Text = p.ImageProjectiveTargetRow2.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveTargetColumn2TextBox.Text = p.ImageProjectiveTargetColumn2.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveTargetRow3TextBox.Text = p.ImageProjectiveTargetRow3.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveTargetColumn3TextBox.Text = p.ImageProjectiveTargetColumn3.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveTargetRow4TextBox.Text = p.ImageProjectiveTargetRow4.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveTargetColumn4TextBox.Text = p.ImageProjectiveTargetColumn4.ToString("0.###", CultureInfo.InvariantCulture);
+                DockProjectiveInterpolationComboBox.SelectedValue = VmProjectiveInterpolation.Normalize(p.ImageProjectiveInterpolation);
+                DockProjectiveOutputModeComboBox.SelectedValue = VmProjectiveOutputMode.Normalize(p.ImageProjectiveOutputMode);
+                DockProjectiveOutputWidthTextBox.Text = p.ImageProjectiveOutputWidth.ToString(CultureInfo.InvariantCulture);
+                DockProjectiveOutputHeightTextBox.Text = p.ImageProjectiveOutputHeight.ToString(CultureInfo.InvariantCulture);
+                DockProjectiveTransformDomainCheckBox.IsChecked = p.ImageProjectiveTransformDomain;
+                UpdateDockProjectiveOutputSizeState();
+                DockSubpixelEdgeFilterComboBox.SelectedValue = VmSubpixelEdgeFilter.Normalize(p.SubpixelEdgeFilter);
+                DockSubpixelEdgeAlphaTextBox.Text = p.SubpixelEdgeAlpha.ToString("0.###", CultureInfo.InvariantCulture);
+                DockSubpixelEdgeLowTextBox.Text = p.SubpixelEdgeLow.ToString(CultureInfo.InvariantCulture);
+                DockSubpixelEdgeHighTextBox.Text = p.SubpixelEdgeHigh.ToString(CultureInfo.InvariantCulture);
+                DockSubpixelEdgeColorPolicyComboBox.SelectedValue = VmSubpixelEdgeColorPolicy.Normalize(p.SubpixelEdgeColorPolicy);
                 DockPolarCenterRowTextBox.Text = p.PolarCenterRow.ToString("0.###", CultureInfo.InvariantCulture);
                 DockPolarCenterColumnTextBox.Text = p.PolarCenterColumn.ToString("0.###", CultureInfo.InvariantCulture);
                 DockPolarStartAngleTextBox.Text = p.PolarStartAngleDegrees.ToString("0.###", CultureInfo.InvariantCulture);
@@ -6776,6 +8911,49 @@ namespace HalconWinFormsDemo
                 DockXldContourFeatureComboBox.SelectedValue = VmXldContourFeature.Normalize(p.XldContourFeature);
                 DockXldContourMinTextBox.Text = p.XldContourMin.ToString("0.###", CultureInfo.InvariantCulture);
                 DockXldContourMaxTextBox.Text = p.XldContourMax.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldAdjacentMaxDistAbsTextBox.Text = p.XldAdjacentMaxDistAbs.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldAdjacentMaxDistRelTextBox.Text = p.XldAdjacentMaxDistRel.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldAdjacentAttributeModeComboBox.SelectedValue = VmXldAdjacentAttributeMode.Normalize(p.XldAdjacentAttributeMode);
+                DockXldSmoothNumRegrPointsTextBox.Text = p.XldSmoothNumRegrPoints.ToString(CultureInfo.InvariantCulture);
+                DockXldAffineCenterModeComboBox.SelectedValue = VmXldAffineCenterMode.Normalize(p.XldAffineCenterMode);
+                DockXldAffineCenterRowTextBox.Text = p.XldAffineCenterRow.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldAffineCenterColumnTextBox.Text = p.XldAffineCenterColumn.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldAffineTranslateRowTextBox.Text = p.XldAffineTranslateRow.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldAffineTranslateColumnTextBox.Text = p.XldAffineTranslateColumn.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldAffineScaleRowTextBox.Text = p.XldAffineScaleRow.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldAffineScaleColumnTextBox.Text = p.XldAffineScaleColumn.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldAffineRotationTextBox.Text = p.XldAffineRotationDegrees.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldAffineSlantTextBox.Text = p.XldAffineSlantDegrees.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldAffineOrderComboBox.SelectedValue = VmXldAffineTransformOrder.Normalize(p.XldAffineTransformOrder);
+                DockXldAffineCoordinatePolicyComboBox.SelectedValue = VmXldAffineCoordinatePolicy.Normalize(p.XldAffineCoordinatePolicy);
+                DockXldProjectiveSourceRow1TextBox.Text = p.XldProjectiveSourceRow1.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveSourceColumn1TextBox.Text = p.XldProjectiveSourceColumn1.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveSourceRow2TextBox.Text = p.XldProjectiveSourceRow2.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveSourceColumn2TextBox.Text = p.XldProjectiveSourceColumn2.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveSourceRow3TextBox.Text = p.XldProjectiveSourceRow3.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveSourceColumn3TextBox.Text = p.XldProjectiveSourceColumn3.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveSourceRow4TextBox.Text = p.XldProjectiveSourceRow4.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveSourceColumn4TextBox.Text = p.XldProjectiveSourceColumn4.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveTargetRow1TextBox.Text = p.XldProjectiveTargetRow1.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveTargetColumn1TextBox.Text = p.XldProjectiveTargetColumn1.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveTargetRow2TextBox.Text = p.XldProjectiveTargetRow2.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveTargetColumn2TextBox.Text = p.XldProjectiveTargetColumn2.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveTargetRow3TextBox.Text = p.XldProjectiveTargetRow3.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveTargetColumn3TextBox.Text = p.XldProjectiveTargetColumn3.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveTargetRow4TextBox.Text = p.XldProjectiveTargetRow4.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveTargetColumn4TextBox.Text = p.XldProjectiveTargetColumn4.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldProjectiveCoordinatePolicyComboBox.SelectedValue = VmXldAffineCoordinatePolicy.Normalize(p.XldProjectiveCoordinatePolicy);
+                DockXldCropRow1TextBox.Text = p.XldCropRow1.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldCropColumn1TextBox.Text = p.XldCropColumn1.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldCropRow2TextBox.Text = p.XldCropRow2.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldCropColumn2TextBox.Text = p.XldCropColumn2.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldCropCloseContoursCheckBox.IsChecked = p.XldCropCloseContours;
+                DockXldLengthShortMaximumTextBox.Text = p.XldLengthShortMaximum.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldLengthMediumMaximumTextBox.Text = p.XldLengthMediumMaximum.ToString("0.###", CultureInfo.InvariantCulture);
+                DockXldLengthSortDirectionComboBox.SelectedValue = VmXldLengthSortDirection.Normalize(p.XldLengthSortDirection);
+                DockXldLengthSelectionModeComboBox.SelectedValue = VmXldLengthSelectionMode.Normalize(p.XldLengthSelectionMode);
+                DockXldLengthStartRankTextBox.Text = p.XldLengthStartRank.ToString(CultureInfo.InvariantCulture);
+                DockXldLengthEndRankTextBox.Text = p.XldLengthEndRank.ToString(CultureInfo.InvariantCulture);
                 DockXldSegmentModeComboBox.SelectedValue = VmXldSegmentMode.Normalize(p.XldSegmentMode);
                 DockXldSegmentSmoothTextBox.Text = p.XldSegmentSmooth.ToString(CultureInfo.InvariantCulture);
                 DockXldSegmentDistance1TextBox.Text = p.XldSegmentMaxLineDistance1.ToString("0.###", CultureInfo.InvariantCulture);
@@ -6889,6 +9067,11 @@ namespace HalconWinFormsDemo
             {
                 RefreshMeasurementDomainPreviewFromDock();
             }
+            if (tool != null && tool.Kind == VmToolKind.ImageProjectiveTransform && projectiveGeometryEditActive &&
+                FlowToolList != null && ReferenceEquals(FlowToolList.SelectedItem, tool))
+            {
+                RefreshProjectiveGeometryPreviewFromDock();
+            }
         }
 
         private void SetDockPanelVisibility(VmToolInstance tool)
@@ -6901,6 +9084,9 @@ namespace HalconWinFormsDemo
             DockImageResizePanel.Visibility = kind == VmToolKind.ImageResize ? Visibility.Visible : Visibility.Collapsed;
             DockImageMirrorPanel.Visibility = kind == VmToolKind.ImageMirror ? Visibility.Visible : Visibility.Collapsed;
             DockImageRotatePanel.Visibility = kind == VmToolKind.ImageRotate ? Visibility.Visible : Visibility.Collapsed;
+            DockImageAffineTransformPanel.Visibility = kind == VmToolKind.ImageAffineTransform ? Visibility.Visible : Visibility.Collapsed;
+            DockImageProjectiveTransformPanel.Visibility = kind == VmToolKind.ImageProjectiveTransform ? Visibility.Visible : Visibility.Collapsed;
+            DockSubpixelEdgeExtractionPanel.Visibility = kind == VmToolKind.SubpixelEdgeExtraction ? Visibility.Visible : Visibility.Collapsed;
             DockPolarImageUnwrapPanel.Visibility = kind == VmToolKind.PolarImageUnwrap ? Visibility.Visible : Visibility.Collapsed;
             DockRoiImageExtractionPanel.Visibility = kind == VmToolKind.RoiImageExtraction ? Visibility.Visible : Visibility.Collapsed;
             DockImageDifferencePanel.Visibility = kind == VmToolKind.ImageDifference ? Visibility.Visible : Visibility.Collapsed;
@@ -6911,6 +9097,13 @@ namespace HalconWinFormsDemo
             DockRegionSetOperationPanel.Visibility = kind == VmToolKind.RegionSetOperation ? Visibility.Visible : Visibility.Collapsed;
             DockRegionContourPanel.Visibility = kind == VmToolKind.RegionContourMeasurement ? Visibility.Visible : Visibility.Collapsed;
             DockXldContourFilterPanel.Visibility = kind == VmToolKind.XldContourFilter ? Visibility.Visible : Visibility.Collapsed;
+            DockXldAdjacentContourUnionPanel.Visibility = kind == VmToolKind.XldAdjacentContourUnion ? Visibility.Visible : Visibility.Collapsed;
+            DockXldContourSmoothingPanel.Visibility = kind == VmToolKind.XldContourSmoothing ? Visibility.Visible : Visibility.Collapsed;
+            DockXldAffineTransformPanel.Visibility = kind == VmToolKind.XldAffineTransform ? Visibility.Visible : Visibility.Collapsed;
+            DockXldProjectiveTransformPanel.Visibility = kind == VmToolKind.XldProjectiveTransform ? Visibility.Visible : Visibility.Collapsed;
+            DockXldContourCropPanel.Visibility = kind == VmToolKind.XldContourCrop ? Visibility.Visible : Visibility.Collapsed;
+            DockXldLengthClassificationPanel.Visibility = kind == VmToolKind.XldLengthClassification ? Visibility.Visible : Visibility.Collapsed;
+            DockXldLengthSortSelectionPanel.Visibility = kind == VmToolKind.XldLengthSortSelection ? Visibility.Visible : Visibility.Collapsed;
             DockXldContourSegmentationPanel.Visibility = kind == VmToolKind.XldContourSegmentation ? Visibility.Visible : Visibility.Collapsed;
             DockXldLineFittingPanel.Visibility = kind == VmToolKind.XldLineFitting ? Visibility.Visible : Visibility.Collapsed;
             DockXldCircleFittingPanel.Visibility = kind == VmToolKind.XldCircleFitting ? Visibility.Visible : Visibility.Collapsed;
@@ -6979,6 +9172,10 @@ namespace HalconWinFormsDemo
             {
                 RefreshMeasurementDomainPreviewFromDock();
             }
+            if (dockEditingTool.Kind == VmToolKind.ImageProjectiveTransform)
+            {
+                RefreshProjectiveGeometryPreviewFromDock();
+            }
         }
 
         private void UpdateDockImageFilterParameterState()
@@ -7010,6 +9207,369 @@ namespace HalconWinFormsDemo
             if (DockImageDifferenceModeComboBox == null) return;
             bool directional = VmImageDifferenceMode.Normalize(DockImageDifferenceModeComboBox.SelectedValue as string) != VmImageDifferenceMode.AbsoluteDifference;
             DockImageDifferenceAddTextBox.IsEnabled = directional;
+        }
+
+        private void DockProjectiveOutputModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateDockProjectiveOutputSizeState();
+            DockDraftValue_Changed(sender, e);
+        }
+
+        private void UpdateDockProjectiveOutputSizeState()
+        {
+            if (DockProjectiveOutputModeComboBox == null) return;
+            bool explicitSize = VmProjectiveOutputMode.Normalize(DockProjectiveOutputModeComboBox.SelectedValue as string) == VmProjectiveOutputMode.ExplicitSize;
+            DockProjectiveOutputWidthTextBox.IsEnabled = explicitSize;
+            DockProjectiveOutputHeightTextBox.IsEnabled = explicitSize;
+        }
+
+        private void SynchronizeProjectiveGeometryContext(VmToolInstance tool)
+        {
+            bool projective = tool != null && tool.Kind == VmToolKind.ImageProjectiveTransform;
+            if (!projective)
+            {
+                projectiveGeometryEditActive = false;
+                projectiveGeometryDragging = false;
+                projectiveGeometryDragSide = null;
+                projectiveGeometryDragPointIndex = -1;
+                projectiveGeometryPreview = null;
+                if (DockProjectiveImageEditToggleButton != null)
+                {
+                    DockProjectiveImageEditToggleButton.IsChecked = false;
+                    DockProjectiveImageEditToggleButton.Content = "在图像中编辑四点";
+                }
+                return;
+            }
+
+            if (projectiveGeometryEditActive)
+            {
+                RefreshProjectiveGeometryPreviewFromDock();
+            }
+        }
+
+        private void DockProjectiveImageEditToggleButton_Click(object sender, RoutedEventArgs e)
+        {
+            bool enable = DockProjectiveImageEditToggleButton.IsChecked == true;
+            VmToolInstance tool = dockEditingTool;
+            if (enable && (tool == null || tool.Kind != VmToolKind.ImageProjectiveTransform))
+            {
+                DockProjectiveImageEditToggleButton.IsChecked = false;
+                HeaderStatusText.Text = "请先选中透视图像校正模块。";
+                return;
+            }
+
+            projectiveGeometryEditActive = enable;
+            projectiveGeometryDragging = false;
+            projectiveGeometryDragSide = null;
+            projectiveGeometryDragPointIndex = -1;
+            DockProjectiveImageEditToggleButton.Content = enable ? "结束图像四点编辑" : "在图像中编辑四点";
+            if (enable)
+            {
+                if (xldContourSelectionMode) SetXldContourSelectionMode(false, false);
+                if (!dualImageMode) SetDualImageMode(true);
+                SetImageContextSelection(VmImageContextOption.ModuleOutput);
+                RefreshDualImageInputOptions(tool);
+                UpdateImageContextViewport(true);
+                RefreshProjectiveGeometryPreviewFromDock();
+                HeaderStatusText.Text = "透视四点编辑已开启：左侧拖动源点，右侧拖动目标点；更改只写入配置草稿。";
+            }
+            else
+            {
+                projectiveGeometryPreview = null;
+                DockProjectiveGeometryStatusText.Text = "图像编辑未开启；数值参数仍可在下方编辑。";
+                DockProjectiveGeometryStatusText.Foreground = System.Windows.Media.Brushes.SlateGray;
+                HeaderStatusText.Text = "透视四点图像编辑已结束；未应用草稿仍保留。";
+            }
+            ScheduleRefreshDisplay();
+        }
+
+        private void DockProjectiveResetCornersButton_Click(object sender, RoutedEventArgs e)
+        {
+            VmToolParameterData preview;
+            string parseError = null;
+            if (dockEditingTool == null || dockEditingTool.Kind != VmToolKind.ImageProjectiveTransform ||
+                !TryBuildProjectiveGeometryPreviewFromDock(out preview, out parseError))
+            {
+                FailDockDraft(string.IsNullOrWhiteSpace(parseError) ? "请先选中透视图像校正模块。" : parseError);
+                return;
+            }
+
+            int sourceWidth;
+            int sourceHeight;
+            int targetWidth;
+            int targetHeight;
+            string dimensionState;
+            if (!TryGetProjectiveEditDimensions(preview, out sourceWidth, out sourceHeight, out targetWidth, out targetHeight, out dimensionState))
+            {
+                FailDockDraft(dimensionState);
+                return;
+            }
+
+            SetProjectiveRectangle(preview, true, sourceWidth, sourceHeight);
+            SetProjectiveRectangle(preview, false, targetWidth, targetHeight);
+            WriteProjectiveGeometryPreviewToDock(preview);
+            MarkProjectiveGeometryDraftChanged("源/目标四边形已恢复为各自坐标系的完整四角。" );
+        }
+
+        private void DockProjectiveCopySourceToTargetButton_Click(object sender, RoutedEventArgs e)
+        {
+            VmToolParameterData preview;
+            string parseError;
+            if (!TryBuildProjectiveGeometryPreviewFromDock(out preview, out parseError))
+            {
+                FailDockDraft(parseError);
+                return;
+            }
+            for (int index = 0; index < 4; index++)
+            {
+                SetProjectivePoint(preview, false, index, GetProjectiveRow(preview, true, index), GetProjectiveColumn(preview, true, index));
+            }
+            WriteProjectiveGeometryPreviewToDock(preview);
+            MarkProjectiveGeometryDraftChanged("已把四个源点复制到目标点；目标坐标边界会单独校验。" );
+        }
+
+        private void MarkProjectiveGeometryDraftChanged(string status)
+        {
+            dockDraftDirty = true;
+            DockDraftStateText.Text = "未应用";
+            DockFooterText.Text = "透视几何草稿已修改；试运行不会自动应用";
+            DockValidationText.Text = string.Empty;
+            RefreshProjectiveGeometryPreviewFromDock();
+            HeaderStatusText.Text = status;
+        }
+
+        private void RefreshProjectiveGeometryPreviewFromDock()
+        {
+            if (dockEditingTool == null || dockEditingTool.Kind != VmToolKind.ImageProjectiveTransform)
+            {
+                projectiveGeometryPreview = null;
+                return;
+            }
+
+            VmToolParameterData preview;
+            string error;
+            if (!TryBuildProjectiveGeometryPreviewFromDock(out preview, out error))
+            {
+                projectiveGeometryPreview = null;
+                DockProjectiveGeometryStatusText.Text = "草稿无效：" + error;
+                DockProjectiveGeometryStatusText.Foreground = System.Windows.Media.Brushes.Red;
+                ScheduleRefreshDisplay();
+                return;
+            }
+
+            projectiveGeometryPreview = preview;
+            int sourceWidth;
+            int sourceHeight;
+            int targetWidth;
+            int targetHeight;
+            string dimensionState;
+            bool dimensionsReady = TryGetProjectiveEditDimensions(preview, out sourceWidth, out sourceHeight, out targetWidth, out targetHeight, out dimensionState);
+            string geometryError = preview.Validate(VmToolKind.ImageProjectiveTransform);
+            if (string.IsNullOrWhiteSpace(geometryError) && dimensionsReady)
+            {
+                geometryError = ValidateProjectiveEditBounds(preview, sourceWidth, sourceHeight, targetWidth, targetHeight);
+            }
+
+            if (!string.IsNullOrWhiteSpace(geometryError))
+            {
+                DockProjectiveGeometryStatusText.Text = "几何校验：" + geometryError;
+                DockProjectiveGeometryStatusText.Foreground = System.Windows.Media.Brushes.Red;
+            }
+            else if (!dimensionsReady)
+            {
+                DockProjectiveGeometryStatusText.Text = dimensionState;
+                DockProjectiveGeometryStatusText.Foreground = System.Windows.Media.Brushes.DarkOrange;
+            }
+            else
+            {
+                DockProjectiveGeometryStatusText.Text = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "几何有效 · 左输入 {0}×{1} · 右目标 {2}×{3} · 点序 1→2→3→4 · {4}",
+                    sourceWidth,
+                    sourceHeight,
+                    targetWidth,
+                    targetHeight,
+                    dockDraftDirty ? "草稿未应用" : "已应用参数");
+                DockProjectiveGeometryStatusText.Foreground = System.Windows.Media.Brushes.SeaGreen;
+            }
+            ScheduleRefreshDisplay();
+        }
+
+        private bool TryBuildProjectiveGeometryPreviewFromDock(out VmToolParameterData preview, out string error)
+        {
+            preview = dockEditingTool == null
+                ? new VmToolParameterData()
+                : (dockEditingTool.Parameters ?? new VmToolParameterData()).Clone();
+            error = null;
+            TextBox[] sourceRows = { DockProjectiveSourceRow1TextBox, DockProjectiveSourceRow2TextBox, DockProjectiveSourceRow3TextBox, DockProjectiveSourceRow4TextBox };
+            TextBox[] sourceColumns = { DockProjectiveSourceColumn1TextBox, DockProjectiveSourceColumn2TextBox, DockProjectiveSourceColumn3TextBox, DockProjectiveSourceColumn4TextBox };
+            TextBox[] targetRows = { DockProjectiveTargetRow1TextBox, DockProjectiveTargetRow2TextBox, DockProjectiveTargetRow3TextBox, DockProjectiveTargetRow4TextBox };
+            TextBox[] targetColumns = { DockProjectiveTargetColumn1TextBox, DockProjectiveTargetColumn2TextBox, DockProjectiveTargetColumn3TextBox, DockProjectiveTargetColumn4TextBox };
+            for (int index = 0; index < 4; index++)
+            {
+                double sourceRow;
+                double sourceColumn;
+                double targetRow;
+                double targetColumn;
+                if (!TryParseUiDouble(sourceRows[index].Text, out sourceRow) || !TryParseUiDouble(sourceColumns[index].Text, out sourceColumn) ||
+                    !TryParseUiDouble(targetRows[index].Text, out targetRow) || !TryParseUiDouble(targetColumns[index].Text, out targetColumn))
+                {
+                    error = "四个源点和目标点的 Row/Column 必须全部是数值。";
+                    return false;
+                }
+                SetProjectivePoint(preview, true, index, sourceRow, sourceColumn);
+                SetProjectivePoint(preview, false, index, targetRow, targetColumn);
+            }
+            preview.ImageProjectiveInterpolation = VmProjectiveInterpolation.Normalize(DockProjectiveInterpolationComboBox.SelectedValue as string);
+            preview.ImageProjectiveOutputMode = VmProjectiveOutputMode.Normalize(DockProjectiveOutputModeComboBox.SelectedValue as string);
+            int width;
+            int height;
+            if (!int.TryParse(DockProjectiveOutputWidthTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out width) ||
+                !int.TryParse(DockProjectiveOutputHeightTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out height))
+            {
+                error = "显式输出宽度和高度必须是整数。";
+                return false;
+            }
+            preview.ImageProjectiveOutputWidth = width;
+            preview.ImageProjectiveOutputHeight = height;
+            preview.ImageProjectiveTransformDomain = DockProjectiveTransformDomainCheckBox.IsChecked == true;
+            return true;
+        }
+
+        private bool TryGetProjectiveEditDimensions(VmToolParameterData preview, out int sourceWidth, out int sourceHeight, out int targetWidth, out int targetHeight, out string state)
+        {
+            sourceWidth = sourceHeight = targetWidth = targetHeight = 0;
+            ResolvedImageContext sourceContext = ResolveDualInputImageContext();
+            if (!sourceContext.HasImage)
+            {
+                state = "左侧源坐标暂无真实输入图像；请先打开图像或运行上游 Image。";
+                return false;
+            }
+            sourceWidth = sourceContext.Width;
+            sourceHeight = sourceContext.Height;
+
+            string mode = VmProjectiveOutputMode.Normalize(preview.ImageProjectiveOutputMode);
+            VmImageSnapshot outputSnapshot = dockEditingTool == null ? null : GetImageSnapshot(dockEditingTool, "Image");
+            if (mode == VmProjectiveOutputMode.ExplicitSize)
+            {
+                targetWidth = preview.ImageProjectiveOutputWidth;
+                targetHeight = preview.ImageProjectiveOutputHeight;
+                state = "右侧使用显式输出草稿坐标；试运行后显示对应输出图像。";
+                return targetWidth > 1 && targetHeight > 1;
+            }
+            if (outputSnapshot != null && !outputSnapshot.IsDisposed)
+            {
+                targetWidth = outputSnapshot.Width;
+                targetHeight = outputSnapshot.Height;
+                state = "右侧使用当前模块真实输出坐标。";
+                return true;
+            }
+            targetWidth = sourceWidth;
+            targetHeight = sourceHeight;
+            state = mode == VmProjectiveOutputMode.AdaptImageSize
+                ? "右侧尚无试运行输出；目标坐标暂按输入尺寸预览，自适应实际尺寸以试运行为准。"
+                : "右侧尚无试运行输出；目标坐标按所选输出尺寸预览。";
+            return targetWidth > 1 && targetHeight > 1;
+        }
+
+        private static string ValidateProjectiveEditBounds(VmToolParameterData preview, int sourceWidth, int sourceHeight, int targetWidth, int targetHeight)
+        {
+            for (int index = 0; index < 4; index++)
+            {
+                double sourceRow = GetProjectiveRow(preview, true, index);
+                double sourceColumn = GetProjectiveColumn(preview, true, index);
+                if (sourceRow < 0 || sourceRow > sourceHeight - 1 || sourceColumn < 0 || sourceColumn > sourceWidth - 1)
+                {
+                    return string.Format(CultureInfo.InvariantCulture, "源点 {0} 超出输入坐标范围 Row 0..{1} / Column 0..{2}。", index + 1, sourceHeight - 1, sourceWidth - 1);
+                }
+                double targetRow = GetProjectiveRow(preview, false, index);
+                double targetColumn = GetProjectiveColumn(preview, false, index);
+                if (targetRow < 0 || targetRow > targetHeight - 1 || targetColumn < 0 || targetColumn > targetWidth - 1)
+                {
+                    return string.Format(CultureInfo.InvariantCulture, "目标点 {0} 超出输出坐标范围 Row 0..{1} / Column 0..{2}。", index + 1, targetHeight - 1, targetWidth - 1);
+                }
+            }
+            return string.Empty;
+        }
+
+        private static void SetProjectiveRectangle(VmToolParameterData preview, bool source, int width, int height)
+        {
+            SetProjectivePoint(preview, source, 0, 0, 0);
+            SetProjectivePoint(preview, source, 1, 0, Math.Max(1, width - 1));
+            SetProjectivePoint(preview, source, 2, Math.Max(1, height - 1), Math.Max(1, width - 1));
+            SetProjectivePoint(preview, source, 3, Math.Max(1, height - 1), 0);
+        }
+
+        private void WriteProjectiveGeometryPreviewToDock(VmToolParameterData preview)
+        {
+            TextBox[] sourceRows = { DockProjectiveSourceRow1TextBox, DockProjectiveSourceRow2TextBox, DockProjectiveSourceRow3TextBox, DockProjectiveSourceRow4TextBox };
+            TextBox[] sourceColumns = { DockProjectiveSourceColumn1TextBox, DockProjectiveSourceColumn2TextBox, DockProjectiveSourceColumn3TextBox, DockProjectiveSourceColumn4TextBox };
+            TextBox[] targetRows = { DockProjectiveTargetRow1TextBox, DockProjectiveTargetRow2TextBox, DockProjectiveTargetRow3TextBox, DockProjectiveTargetRow4TextBox };
+            TextBox[] targetColumns = { DockProjectiveTargetColumn1TextBox, DockProjectiveTargetColumn2TextBox, DockProjectiveTargetColumn3TextBox, DockProjectiveTargetColumn4TextBox };
+            dockDraftUpdating = true;
+            try
+            {
+                for (int index = 0; index < 4; index++)
+                {
+                    sourceRows[index].Text = GetProjectiveRow(preview, true, index).ToString("0.###", CultureInfo.InvariantCulture);
+                    sourceColumns[index].Text = GetProjectiveColumn(preview, true, index).ToString("0.###", CultureInfo.InvariantCulture);
+                    targetRows[index].Text = GetProjectiveRow(preview, false, index).ToString("0.###", CultureInfo.InvariantCulture);
+                    targetColumns[index].Text = GetProjectiveColumn(preview, false, index).ToString("0.###", CultureInfo.InvariantCulture);
+                }
+            }
+            finally
+            {
+                dockDraftUpdating = false;
+            }
+            projectiveGeometryPreview = preview.Clone();
+        }
+
+        private static double GetProjectiveRow(VmToolParameterData value, bool source, int index)
+        {
+            if (source)
+            {
+                if (index == 0) return value.ImageProjectiveSourceRow1;
+                if (index == 1) return value.ImageProjectiveSourceRow2;
+                if (index == 2) return value.ImageProjectiveSourceRow3;
+                return value.ImageProjectiveSourceRow4;
+            }
+            if (index == 0) return value.ImageProjectiveTargetRow1;
+            if (index == 1) return value.ImageProjectiveTargetRow2;
+            if (index == 2) return value.ImageProjectiveTargetRow3;
+            return value.ImageProjectiveTargetRow4;
+        }
+
+        private static double GetProjectiveColumn(VmToolParameterData value, bool source, int index)
+        {
+            if (source)
+            {
+                if (index == 0) return value.ImageProjectiveSourceColumn1;
+                if (index == 1) return value.ImageProjectiveSourceColumn2;
+                if (index == 2) return value.ImageProjectiveSourceColumn3;
+                return value.ImageProjectiveSourceColumn4;
+            }
+            if (index == 0) return value.ImageProjectiveTargetColumn1;
+            if (index == 1) return value.ImageProjectiveTargetColumn2;
+            if (index == 2) return value.ImageProjectiveTargetColumn3;
+            return value.ImageProjectiveTargetColumn4;
+        }
+
+        private static void SetProjectivePoint(VmToolParameterData value, bool source, int index, double row, double column)
+        {
+            if (source)
+            {
+                if (index == 0) { value.ImageProjectiveSourceRow1 = row; value.ImageProjectiveSourceColumn1 = column; }
+                else if (index == 1) { value.ImageProjectiveSourceRow2 = row; value.ImageProjectiveSourceColumn2 = column; }
+                else if (index == 2) { value.ImageProjectiveSourceRow3 = row; value.ImageProjectiveSourceColumn3 = column; }
+                else { value.ImageProjectiveSourceRow4 = row; value.ImageProjectiveSourceColumn4 = column; }
+            }
+            else
+            {
+                if (index == 0) { value.ImageProjectiveTargetRow1 = row; value.ImageProjectiveTargetColumn1 = column; }
+                else if (index == 1) { value.ImageProjectiveTargetRow2 = row; value.ImageProjectiveTargetColumn2 = column; }
+                else if (index == 2) { value.ImageProjectiveTargetRow3 = row; value.ImageProjectiveTargetColumn3 = column; }
+                else { value.ImageProjectiveTargetRow4 = row; value.ImageProjectiveTargetColumn4 = column; }
+            }
         }
 
         private bool TryReadDockConfigurationDraft(
@@ -7109,6 +9669,58 @@ namespace HalconWinFormsDemo
                 parameters.ImageRotateAngleDegrees = number;
                 parameters.ImageRotateInterpolation = VmImageResizeInterpolation.Normalize(DockImageRotateInterpolationComboBox.SelectedValue as string);
             }
+            else if (tool.Kind == VmToolKind.ImageAffineTransform)
+            {
+                if (!TryParseUiDouble(DockImageAffineTranslateRowTextBox.Text, out number)) return FailDockDraft("仿射平移 Row 必须是数值。");
+                parameters.ImageAffineTranslateRow = number;
+                if (!TryParseUiDouble(DockImageAffineTranslateColumnTextBox.Text, out number)) return FailDockDraft("仿射平移 Column 必须是数值。");
+                parameters.ImageAffineTranslateColumn = number;
+                if (!TryParseUiDouble(DockImageAffineScaleRowTextBox.Text, out number)) return FailDockDraft("仿射行缩放必须是数值。");
+                parameters.ImageAffineScaleRow = number;
+                if (!TryParseUiDouble(DockImageAffineScaleColumnTextBox.Text, out number)) return FailDockDraft("仿射列缩放必须是数值。");
+                parameters.ImageAffineScaleColumn = number;
+                if (!TryParseUiDouble(DockImageAffineRotationTextBox.Text, out number)) return FailDockDraft("仿射旋转角必须是数值。");
+                parameters.ImageAffineRotationDegrees = number;
+                if (!TryParseUiDouble(DockImageAffineSlantTextBox.Text, out number)) return FailDockDraft("仿射行斜切角必须是数值。");
+                parameters.ImageAffineSlantDegrees = number;
+                parameters.ImageAffineInterpolation = VmImageResizeInterpolation.Normalize(DockImageAffineInterpolationComboBox.SelectedValue as string);
+                parameters.ImageAffineAdaptImageSize = DockImageAffineAdaptSizeCheckBox.IsChecked == true;
+            }
+            else if (tool.Kind == VmToolKind.ImageProjectiveTransform)
+            {
+                if (!TryParseUiDouble(DockProjectiveSourceRow1TextBox.Text, out number)) return FailDockDraft("透视源点 1 Row 必须是数值。"); parameters.ImageProjectiveSourceRow1 = number;
+                if (!TryParseUiDouble(DockProjectiveSourceColumn1TextBox.Text, out number)) return FailDockDraft("透视源点 1 Column 必须是数值。"); parameters.ImageProjectiveSourceColumn1 = number;
+                if (!TryParseUiDouble(DockProjectiveSourceRow2TextBox.Text, out number)) return FailDockDraft("透视源点 2 Row 必须是数值。"); parameters.ImageProjectiveSourceRow2 = number;
+                if (!TryParseUiDouble(DockProjectiveSourceColumn2TextBox.Text, out number)) return FailDockDraft("透视源点 2 Column 必须是数值。"); parameters.ImageProjectiveSourceColumn2 = number;
+                if (!TryParseUiDouble(DockProjectiveSourceRow3TextBox.Text, out number)) return FailDockDraft("透视源点 3 Row 必须是数值。"); parameters.ImageProjectiveSourceRow3 = number;
+                if (!TryParseUiDouble(DockProjectiveSourceColumn3TextBox.Text, out number)) return FailDockDraft("透视源点 3 Column 必须是数值。"); parameters.ImageProjectiveSourceColumn3 = number;
+                if (!TryParseUiDouble(DockProjectiveSourceRow4TextBox.Text, out number)) return FailDockDraft("透视源点 4 Row 必须是数值。"); parameters.ImageProjectiveSourceRow4 = number;
+                if (!TryParseUiDouble(DockProjectiveSourceColumn4TextBox.Text, out number)) return FailDockDraft("透视源点 4 Column 必须是数值。"); parameters.ImageProjectiveSourceColumn4 = number;
+                if (!TryParseUiDouble(DockProjectiveTargetRow1TextBox.Text, out number)) return FailDockDraft("透视目标点 1 Row 必须是数值。"); parameters.ImageProjectiveTargetRow1 = number;
+                if (!TryParseUiDouble(DockProjectiveTargetColumn1TextBox.Text, out number)) return FailDockDraft("透视目标点 1 Column 必须是数值。"); parameters.ImageProjectiveTargetColumn1 = number;
+                if (!TryParseUiDouble(DockProjectiveTargetRow2TextBox.Text, out number)) return FailDockDraft("透视目标点 2 Row 必须是数值。"); parameters.ImageProjectiveTargetRow2 = number;
+                if (!TryParseUiDouble(DockProjectiveTargetColumn2TextBox.Text, out number)) return FailDockDraft("透视目标点 2 Column 必须是数值。"); parameters.ImageProjectiveTargetColumn2 = number;
+                if (!TryParseUiDouble(DockProjectiveTargetRow3TextBox.Text, out number)) return FailDockDraft("透视目标点 3 Row 必须是数值。"); parameters.ImageProjectiveTargetRow3 = number;
+                if (!TryParseUiDouble(DockProjectiveTargetColumn3TextBox.Text, out number)) return FailDockDraft("透视目标点 3 Column 必须是数值。"); parameters.ImageProjectiveTargetColumn3 = number;
+                if (!TryParseUiDouble(DockProjectiveTargetRow4TextBox.Text, out number)) return FailDockDraft("透视目标点 4 Row 必须是数值。"); parameters.ImageProjectiveTargetRow4 = number;
+                if (!TryParseUiDouble(DockProjectiveTargetColumn4TextBox.Text, out number)) return FailDockDraft("透视目标点 4 Column 必须是数值。"); parameters.ImageProjectiveTargetColumn4 = number;
+                parameters.ImageProjectiveInterpolation = VmProjectiveInterpolation.Normalize(DockProjectiveInterpolationComboBox.SelectedValue as string);
+                parameters.ImageProjectiveOutputMode = VmProjectiveOutputMode.Normalize(DockProjectiveOutputModeComboBox.SelectedValue as string);
+                if (!int.TryParse(DockProjectiveOutputWidthTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("透视显式输出宽度必须是整数。"); parameters.ImageProjectiveOutputWidth = integer;
+                if (!int.TryParse(DockProjectiveOutputHeightTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("透视显式输出高度必须是整数。"); parameters.ImageProjectiveOutputHeight = integer;
+                parameters.ImageProjectiveTransformDomain = DockProjectiveTransformDomainCheckBox.IsChecked == true;
+            }
+            else if (tool.Kind == VmToolKind.SubpixelEdgeExtraction)
+            {
+                parameters.SubpixelEdgeFilter = VmSubpixelEdgeFilter.Normalize(DockSubpixelEdgeFilterComboBox.SelectedValue as string);
+                if (!TryParseUiDouble(DockSubpixelEdgeAlphaTextBox.Text, out number)) return FailDockDraft("亚像素边缘 Alpha 必须是数值。");
+                parameters.SubpixelEdgeAlpha = number;
+                if (!int.TryParse(DockSubpixelEdgeLowTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("亚像素边缘低阈值必须是整数。");
+                parameters.SubpixelEdgeLow = integer;
+                if (!int.TryParse(DockSubpixelEdgeHighTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("亚像素边缘高阈值必须是整数。");
+                parameters.SubpixelEdgeHigh = integer;
+                parameters.SubpixelEdgeColorPolicy = VmSubpixelEdgeColorPolicy.Normalize(DockSubpixelEdgeColorPolicyComboBox.SelectedValue as string);
+            }
             else if (tool.Kind == VmToolKind.PolarImageUnwrap)
             {
                 if (!TryParseUiDouble(DockPolarCenterRowTextBox.Text, out number)) return FailDockDraft("极坐标展开中心 Row 必须是数值。");
@@ -7183,6 +9795,85 @@ namespace HalconWinFormsDemo
                 parameters.XldContourMin = number;
                 if (!TryParseUiDouble(DockXldContourMaxTextBox.Text, out number)) return FailDockDraft("XLD 轮廓筛选上限必须是数值。");
                 parameters.XldContourMax = number;
+            }
+            else if (tool.Kind == VmToolKind.XldAdjacentContourUnion)
+            {
+                if (!TryParseUiDouble(DockXldAdjacentMaxDistAbsTextBox.Text, out number)) return FailDockDraft("相邻轮廓连接最大绝对距离必须是数值。");
+                parameters.XldAdjacentMaxDistAbs = number;
+                if (!TryParseUiDouble(DockXldAdjacentMaxDistRelTextBox.Text, out number)) return FailDockDraft("相邻轮廓连接最大相对距离必须是数值。");
+                parameters.XldAdjacentMaxDistRel = number;
+                parameters.XldAdjacentAttributeMode = VmXldAdjacentAttributeMode.Normalize(DockXldAdjacentAttributeModeComboBox.SelectedValue as string);
+            }
+            else if (tool.Kind == VmToolKind.XldContourSmoothing)
+            {
+                if (!int.TryParse(DockXldSmoothNumRegrPointsTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("XLD 轮廓平滑回归点数必须是整数。");
+                parameters.XldSmoothNumRegrPoints = integer;
+            }
+            else if (tool.Kind == VmToolKind.XldAffineTransform)
+            {
+                parameters.XldAffineCenterMode = VmXldAffineCenterMode.Normalize(DockXldAffineCenterModeComboBox.SelectedValue as string);
+                if (!TryParseUiDouble(DockXldAffineCenterRowTextBox.Text, out number)) return FailDockDraft("XLD 仿射中心 Row 必须是数值。");
+                parameters.XldAffineCenterRow = number;
+                if (!TryParseUiDouble(DockXldAffineCenterColumnTextBox.Text, out number)) return FailDockDraft("XLD 仿射中心 Column 必须是数值。");
+                parameters.XldAffineCenterColumn = number;
+                if (!TryParseUiDouble(DockXldAffineTranslateRowTextBox.Text, out number)) return FailDockDraft("XLD 仿射 Row 平移必须是数值。");
+                parameters.XldAffineTranslateRow = number;
+                if (!TryParseUiDouble(DockXldAffineTranslateColumnTextBox.Text, out number)) return FailDockDraft("XLD 仿射 Column 平移必须是数值。");
+                parameters.XldAffineTranslateColumn = number;
+                if (!TryParseUiDouble(DockXldAffineScaleRowTextBox.Text, out number)) return FailDockDraft("XLD 仿射 Row 缩放必须是数值。");
+                parameters.XldAffineScaleRow = number;
+                if (!TryParseUiDouble(DockXldAffineScaleColumnTextBox.Text, out number)) return FailDockDraft("XLD 仿射 Column 缩放必须是数值。");
+                parameters.XldAffineScaleColumn = number;
+                if (!TryParseUiDouble(DockXldAffineRotationTextBox.Text, out number)) return FailDockDraft("XLD 仿射旋转角必须是数值。");
+                parameters.XldAffineRotationDegrees = number;
+                if (!TryParseUiDouble(DockXldAffineSlantTextBox.Text, out number)) return FailDockDraft("XLD 仿射斜切角必须是数值。");
+                parameters.XldAffineSlantDegrees = number;
+                parameters.XldAffineTransformOrder = VmXldAffineTransformOrder.Normalize(DockXldAffineOrderComboBox.SelectedValue as string);
+                parameters.XldAffineCoordinatePolicy = VmXldAffineCoordinatePolicy.Normalize(DockXldAffineCoordinatePolicyComboBox.SelectedValue as string);
+            }
+            else if (tool.Kind == VmToolKind.XldProjectiveTransform)
+            {
+                if (!TryParseUiDouble(DockXldProjectiveSourceRow1TextBox.Text, out number)) return FailDockDraft("XLD 透视源点 1 Row 必须是数值。"); parameters.XldProjectiveSourceRow1 = number;
+                if (!TryParseUiDouble(DockXldProjectiveSourceColumn1TextBox.Text, out number)) return FailDockDraft("XLD 透视源点 1 Column 必须是数值。"); parameters.XldProjectiveSourceColumn1 = number;
+                if (!TryParseUiDouble(DockXldProjectiveSourceRow2TextBox.Text, out number)) return FailDockDraft("XLD 透视源点 2 Row 必须是数值。"); parameters.XldProjectiveSourceRow2 = number;
+                if (!TryParseUiDouble(DockXldProjectiveSourceColumn2TextBox.Text, out number)) return FailDockDraft("XLD 透视源点 2 Column 必须是数值。"); parameters.XldProjectiveSourceColumn2 = number;
+                if (!TryParseUiDouble(DockXldProjectiveSourceRow3TextBox.Text, out number)) return FailDockDraft("XLD 透视源点 3 Row 必须是数值。"); parameters.XldProjectiveSourceRow3 = number;
+                if (!TryParseUiDouble(DockXldProjectiveSourceColumn3TextBox.Text, out number)) return FailDockDraft("XLD 透视源点 3 Column 必须是数值。"); parameters.XldProjectiveSourceColumn3 = number;
+                if (!TryParseUiDouble(DockXldProjectiveSourceRow4TextBox.Text, out number)) return FailDockDraft("XLD 透视源点 4 Row 必须是数值。"); parameters.XldProjectiveSourceRow4 = number;
+                if (!TryParseUiDouble(DockXldProjectiveSourceColumn4TextBox.Text, out number)) return FailDockDraft("XLD 透视源点 4 Column 必须是数值。"); parameters.XldProjectiveSourceColumn4 = number;
+                if (!TryParseUiDouble(DockXldProjectiveTargetRow1TextBox.Text, out number)) return FailDockDraft("XLD 透视目标点 1 Row 必须是数值。"); parameters.XldProjectiveTargetRow1 = number;
+                if (!TryParseUiDouble(DockXldProjectiveTargetColumn1TextBox.Text, out number)) return FailDockDraft("XLD 透视目标点 1 Column 必须是数值。"); parameters.XldProjectiveTargetColumn1 = number;
+                if (!TryParseUiDouble(DockXldProjectiveTargetRow2TextBox.Text, out number)) return FailDockDraft("XLD 透视目标点 2 Row 必须是数值。"); parameters.XldProjectiveTargetRow2 = number;
+                if (!TryParseUiDouble(DockXldProjectiveTargetColumn2TextBox.Text, out number)) return FailDockDraft("XLD 透视目标点 2 Column 必须是数值。"); parameters.XldProjectiveTargetColumn2 = number;
+                if (!TryParseUiDouble(DockXldProjectiveTargetRow3TextBox.Text, out number)) return FailDockDraft("XLD 透视目标点 3 Row 必须是数值。"); parameters.XldProjectiveTargetRow3 = number;
+                if (!TryParseUiDouble(DockXldProjectiveTargetColumn3TextBox.Text, out number)) return FailDockDraft("XLD 透视目标点 3 Column 必须是数值。"); parameters.XldProjectiveTargetColumn3 = number;
+                if (!TryParseUiDouble(DockXldProjectiveTargetRow4TextBox.Text, out number)) return FailDockDraft("XLD 透视目标点 4 Row 必须是数值。"); parameters.XldProjectiveTargetRow4 = number;
+                if (!TryParseUiDouble(DockXldProjectiveTargetColumn4TextBox.Text, out number)) return FailDockDraft("XLD 透视目标点 4 Column 必须是数值。"); parameters.XldProjectiveTargetColumn4 = number;
+                parameters.XldProjectiveCoordinatePolicy = VmXldAffineCoordinatePolicy.Normalize(DockXldProjectiveCoordinatePolicyComboBox.SelectedValue as string);
+            }
+            else if (tool.Kind == VmToolKind.XldContourCrop)
+            {
+                if (!TryParseUiDouble(DockXldCropRow1TextBox.Text, out number)) return FailDockDraft("裁剪框 Row1 必须是数值。"); parameters.XldCropRow1 = number;
+                if (!TryParseUiDouble(DockXldCropColumn1TextBox.Text, out number)) return FailDockDraft("裁剪框 Column1 必须是数值。"); parameters.XldCropColumn1 = number;
+                if (!TryParseUiDouble(DockXldCropRow2TextBox.Text, out number)) return FailDockDraft("裁剪框 Row2 必须是数值。"); parameters.XldCropRow2 = number;
+                if (!TryParseUiDouble(DockXldCropColumn2TextBox.Text, out number)) return FailDockDraft("裁剪框 Column2 必须是数值。"); parameters.XldCropColumn2 = number;
+                parameters.XldCropCloseContours = DockXldCropCloseContoursCheckBox.IsChecked == true;
+            }
+            else if (tool.Kind == VmToolKind.XldLengthClassification)
+            {
+                if (!TryParseUiDouble(DockXldLengthShortMaximumTextBox.Text, out number)) return FailDockDraft("短轮廓上限必须是数值。");
+                parameters.XldLengthShortMaximum = number;
+                if (!TryParseUiDouble(DockXldLengthMediumMaximumTextBox.Text, out number)) return FailDockDraft("中轮廓上限必须是数值。");
+                parameters.XldLengthMediumMaximum = number;
+            }
+            else if (tool.Kind == VmToolKind.XldLengthSortSelection)
+            {
+                parameters.XldLengthSortDirection = VmXldLengthSortDirection.Normalize(DockXldLengthSortDirectionComboBox.SelectedValue as string);
+                parameters.XldLengthSelectionMode = VmXldLengthSelectionMode.Normalize(DockXldLengthSelectionModeComboBox.SelectedValue as string);
+                if (!int.TryParse(DockXldLengthStartRankTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("起始排名 / N 必须是整数。");
+                parameters.XldLengthStartRank = integer;
+                if (!int.TryParse(DockXldLengthEndRankTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("结束排名必须是整数。");
+                parameters.XldLengthEndRank = integer;
             }
             else if (tool.Kind == VmToolKind.XldContourSegmentation)
             {
@@ -7654,6 +10345,8 @@ namespace HalconWinFormsDemo
                        tool.Kind == VmToolKind.ImageResize ||
                        tool.Kind == VmToolKind.ImageMirror ||
                        tool.Kind == VmToolKind.ImageRotate ||
+                       tool.Kind == VmToolKind.ImageAffineTransform ||
+                       tool.Kind == VmToolKind.ImageProjectiveTransform ||
                        tool.Kind == VmToolKind.PolarImageUnwrap ||
                        tool.Kind == VmToolKind.RoiImageExtraction ||
                        tool.Kind == VmToolKind.ImageThreshold ||
@@ -7681,7 +10374,7 @@ namespace HalconWinFormsDemo
                 return true;
             }
 
-            if (port.PortName == "XLD" && (tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting))
+            if (port.PortName == "XLD" && (tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldAdjacentContourUnion || tool.Kind == VmToolKind.XldContourSmoothing || tool.Kind == VmToolKind.XldAffineTransform || tool.Kind == VmToolKind.XldProjectiveTransform || tool.Kind == VmToolKind.XldContourCrop || tool.Kind == VmToolKind.XldLengthClassification || tool.Kind == VmToolKind.XldLengthSortSelection || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting))
             {
                 return true;
             }
@@ -7771,7 +10464,7 @@ namespace HalconWinFormsDemo
                     return dockEditingTool.DisplayType + "必须选择一个位于当前模块之前的 Region 输出。";
                 }
 
-                if (dockEditingTool != null && (dockEditingTool.Kind == VmToolKind.XldContourFilter || dockEditingTool.Kind == VmToolKind.XldContourSegmentation || dockEditingTool.Kind == VmToolKind.XldLineFitting || dockEditingTool.Kind == VmToolKind.XldCircleFitting || dockEditingTool.Kind == VmToolKind.XldEllipseFitting || dockEditingTool.Kind == VmToolKind.XldRectangleFitting) && row.PortName == "XLD" && selected.IsDefault)
+                if (dockEditingTool != null && (dockEditingTool.Kind == VmToolKind.XldContourFilter || dockEditingTool.Kind == VmToolKind.XldAdjacentContourUnion || dockEditingTool.Kind == VmToolKind.XldContourSmoothing || dockEditingTool.Kind == VmToolKind.XldAffineTransform || dockEditingTool.Kind == VmToolKind.XldProjectiveTransform || dockEditingTool.Kind == VmToolKind.XldContourCrop || dockEditingTool.Kind == VmToolKind.XldLengthClassification || dockEditingTool.Kind == VmToolKind.XldLengthSortSelection || dockEditingTool.Kind == VmToolKind.XldContourSegmentation || dockEditingTool.Kind == VmToolKind.XldLineFitting || dockEditingTool.Kind == VmToolKind.XldCircleFitting || dockEditingTool.Kind == VmToolKind.XldEllipseFitting || dockEditingTool.Kind == VmToolKind.XldRectangleFitting) && row.PortName == "XLD" && selected.IsDefault)
                 {
                     return dockEditingTool.DisplayType + "必须选择一个位于当前模块之前的 XLD 输出。";
                 }
@@ -7955,10 +10648,34 @@ namespace HalconWinFormsDemo
                 return;
             }
 
-            List<string> names = dockRoiBindingRows.Where(item => item.IsBound).Select(item => item.Name).ToList();
+            List<VmRoiBindingItem> boundRows = dockRoiBindingRows.Where(item => item.IsBound).ToList();
+            List<string> names = boundRows.Select(item => item.Name).ToList();
+            int detectionCount = boundRows.Count(item => item.Layer != null && item.Layer.IsEnabled && !item.Layer.IsMask);
+            int maskCount = boundRows.Count(item => item.Layer != null && item.Layer.IsEnabled && item.Layer.IsMask);
             string summary = names.Count == 0
                 ? "未绑定 ROI"
-                : "已绑定 " + names.Count.ToString(CultureInfo.InvariantCulture) + " 个：" + string.Join("、", names);
+                : "已启用检测区 " + detectionCount.ToString(CultureInfo.InvariantCulture) + " 个 - 屏蔽区 " + maskCount.ToString(CultureInfo.InvariantCulture) + " 个：" + string.Join("、", names);
+            if (names.Count > 0 && detectionCount == 0 && dockEditingTool.GetInputBinding("ROI") == null)
+            {
+                summary += " · 无有效运行域（屏蔽区不能单独运行）";
+            }
+            else if (detectionCount > 0 && dockEditingTool.GetInputBinding("ROI") == null)
+            {
+                try
+                {
+                    List<VmRoiLayer> draftDetections = boundRows.Select(item => item.Layer).Where(item => item != null && !item.IsMask && item.IsEnabled).ToList();
+                    List<VmRoiLayer> draftMasks = boundRows.Select(item => item.Layer).Where(item => item != null && item.IsMask && item.IsEnabled).ToList();
+                    using (HRegion baseRegion = CreateUnionRoiRegion(draftDetections))
+                    using (HRegion effectiveRegion = CreateEffectiveRegionFromBase(dockEditingTool, baseRegion, new List<VmRoiLayer>(), draftMasks, false))
+                    {
+                        summary += " · 有效面积 " + GetRegionArea(effectiveRegion).ToString("0", CultureInfo.InvariantCulture) + " px";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    summary += " · " + ex.Message;
+                }
+            }
             if (dockEditingTool.Kind == VmToolKind.Blob || dockEditingTool.Kind == VmToolKind.GrayStat || dockEditingTool.Kind == VmToolKind.EdgeMeasure)
             {
                 summary += "；" + VmRoiExecutionMode.GetDisplayText(DockRoiExecutionModeComboBox.SelectedValue as string);
@@ -8453,6 +11170,7 @@ namespace HalconWinFormsDemo
 
         private void SelectImageToolButton_Click(object sender, RoutedEventArgs e)
         {
+            if (xldContourSelectionMode) SetXldContourSelectionMode(false, false);
             FinishRoiGeometryEdit(false);
             ClearPendingRoi();
             roiEditor.Cancel();
@@ -8464,6 +11182,7 @@ namespace HalconWinFormsDemo
 
         private void PanImageToolButton_Click(object sender, RoutedEventArgs e)
         {
+            if (xldContourSelectionMode) SetXldContourSelectionMode(false, false);
             FinishRoiGeometryEdit(false);
             ClearPendingRoi();
             roiEditor.Cancel();
@@ -8945,7 +11664,15 @@ namespace HalconWinFormsDemo
 
         private void RoiLayerList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            SelectRoiLayer(RoiLayerList.SelectedItem as VmRoiLayer);
+            VmRoiLayer selectedLayer = RoiLayerList.SelectedItem as VmRoiLayer;
+            SelectRoiLayer(selectedLayer);
+            if (!unifiedLayerUiUpdating && UnifiedLayerList != null && selectedLayer != null)
+            {
+                unifiedLayerUiUpdating = true;
+                UnifiedLayerList.SelectedItem = unifiedLayers.FirstOrDefault(item => ReferenceEquals(item.RoiLayer, selectedLayer));
+                unifiedLayerUiUpdating = false;
+                LoadUnifiedLayerEditor(UnifiedLayerList.SelectedItem as VmUnifiedLayerItem);
+            }
             RefreshRoiBindingEditor();
             RefreshUiState();
             ScheduleRefreshDisplay();
@@ -8958,6 +11685,7 @@ namespace HalconWinFormsDemo
             if (layer != null)
             {
                 layer.IsVisible = checkBox.IsChecked == true;
+                RefreshUnifiedLayers();
                 ScheduleRefreshDisplay();
             }
         }
@@ -8971,6 +11699,7 @@ namespace HalconWinFormsDemo
                 layer.IsEnabled = checkBox.IsChecked == true;
                 InvalidateRoiDependentResults(layer.RoiId, "ROI 启停已变化");
                 RefreshRoiLayerBindingSummaries();
+                RefreshUnifiedLayers();
                 RefreshUiState();
                 ScheduleRefreshDisplay();
             }
@@ -9024,6 +11753,7 @@ namespace HalconWinFormsDemo
             HeaderStatusText.Text = layer.Name + (locked ? " 已锁定，几何和删除受保护。" : " 已解锁，可在选择模式中编辑。");
             LogInfo(HeaderStatusText.Text);
             SelectRoiLayer(layer);
+            RefreshUnifiedLayers();
             ScheduleRecipeStateCheck();
             RefreshUiState();
             ScheduleRefreshDisplay();
@@ -9046,6 +11776,11 @@ namespace HalconWinFormsDemo
                     copy.IsEnabled = source.IsEnabled;
                     copy.IsVisible = source.IsVisible;
                     copy.IsLocked = false;
+                    copy.IsMask = source.IsMask;
+                    copy.DisplayColor = source.DisplayColor;
+                    copy.DisplayLineWidth = source.DisplayLineWidth;
+                    copy.DisplayOpacity = source.DisplayOpacity;
+                    copy.ViewportScope = source.ViewportScope;
                     foreach (VmToolInstance tool in flowTools.Where(item => item.IsRoiBound(source.RoiId)))
                     {
                         tool.BindRoi(copy.RoiId);
@@ -9059,6 +11794,84 @@ namespace HalconWinFormsDemo
                     ScheduleRefreshDisplay();
                 }
             });
+        }
+
+        private void ToggleSelectedRoiRoleButton_Click(object sender, RoutedEventArgs e)
+        {
+            VmRoiLayer layer = RoiLayerList == null ? null : RoiLayerList.SelectedItem as VmRoiLayer;
+            if (layer == null || layer.Geometry == null)
+            {
+                HeaderStatusText.Text = "请先选择要切换角色的 ROI 图层。";
+                return;
+            }
+            if (layer.IsLocked)
+            {
+                HeaderStatusText.Text = "ROI 已锁定，解锁后才能切换检测区/屏蔽区：" + layer.Name;
+                return;
+            }
+            if (!IsAreaRoiShape(layer.Geometry.ShapeType))
+            {
+                HeaderStatusText.Text = "线 ROI 和点 ROI 不能作为屏蔽区；请选择一个面 ROI。";
+                return;
+            }
+
+            FlowEditSnapshot before = CaptureFlowEditSnapshot();
+            layer.IsMask = !layer.IsMask;
+            InvalidateRoiDependentResults(layer.RoiId, "ROI 角色已变化");
+            RefreshRoiLayerBindingSummaries();
+            SelectRoiLayer(layer);
+            CommitFlowEditHistory((layer.IsMask ? "设为屏蔽区：" : "恢复检测区：") + layer.Name, before);
+            HeaderStatusText.Text = layer.Name + " 已切换为" + layer.RoleText + "；屏蔽区只在已启用且绑定到工具时参与差集。";
+            LogInfo(HeaderStatusText.Text);
+            RefreshUiState();
+            ScheduleRefreshDisplay();
+        }
+
+        private static bool IsAreaRoiShape(RoiShapeType shapeType)
+        {
+            return shapeType != RoiShapeType.Line && shapeType != RoiShapeType.Point;
+        }
+
+        private void MoveSelectedRoiUpButton_Click(object sender, RoutedEventArgs e)
+        {
+            MoveSelectedRoiLayer(-1);
+        }
+
+        private void MoveSelectedRoiDownButton_Click(object sender, RoutedEventArgs e)
+        {
+            MoveSelectedRoiLayer(1);
+        }
+
+        private void MoveSelectedRoiLayer(int direction)
+        {
+            VmRoiLayer layer = RoiLayerList == null ? null : RoiLayerList.SelectedItem as VmRoiLayer;
+            if (layer == null)
+            {
+                HeaderStatusText.Text = "请先选择要调整顺序的 ROI 图层。";
+                return;
+            }
+
+            int oldIndex = roiLayers.IndexOf(layer);
+            int newIndex = oldIndex + direction;
+            if (newIndex < 0 || newIndex >= roiLayers.Count)
+            {
+                return;
+            }
+
+            FlowEditSnapshot before = CaptureFlowEditSnapshot();
+            roiLayers.Move(oldIndex, newIndex);
+            int oldLayerOrder = layer.LayerOrder;
+            layer.LayerOrder = roiLayers[oldIndex].LayerOrder;
+            roiLayers[oldIndex].LayerOrder = oldLayerOrder;
+            RefreshRoiLayerSequence();
+            RefreshUnifiedLayers();
+            RoiLayerList.SelectedItem = layer;
+            RoiLayerList.ScrollIntoView(layer);
+            CommitFlowEditHistory("调整 ROI 图层顺序：" + layer.Name, before);
+            HeaderStatusText.Text = layer.Name + " 已移动到第 " + (newIndex + 1).ToString(CultureInfo.InvariantCulture) + " 层。";
+            RefreshRoiLayerBindingSummaries();
+            RefreshUiState();
+            ScheduleRefreshDisplay();
         }
 
         private void RoiBindingCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -9110,7 +11923,7 @@ namespace HalconWinFormsDemo
 
             layer.Name = name;
             InvalidateRoiDependentResults(layer.RoiId, "ROI 名称已变化");
-            RoiSelectedLayerText.Text = layer.SequenceText + "  " + layer.Name + " · " + layer.ShapeText;
+            RoiSelectedLayerText.Text = layer.SequenceText + "  " + layer.Name + " · " + layer.RoleText + " · " + layer.ShapeText;
             RefreshRoiLayerBindingSummaries();
             RefreshUiState();
         }
@@ -9779,6 +12592,7 @@ namespace HalconWinFormsDemo
 
             UpdateComparisonImageViewport(fit);
             LoadCrosshairEditor();
+            if (xldContourSelection != null) EnsureXldContourSelectionValid(true);
         }
 
         private void UpdateComparisonImageViewport(bool fit)
@@ -9804,6 +12618,7 @@ namespace HalconWinFormsDemo
             {
                 comparisonViewport.SynchronizeNormalizedViewFrom(viewport);
             }
+            if (xldContourSelection != null) EnsureXldContourSelectionValid(true);
         }
 
         private bool AreDualImageViewsLinked()
@@ -9823,7 +12638,8 @@ namespace HalconWinFormsDemo
         {
             return kind == VmToolKind.CaliperEdgePairMeasurement ||
                    kind == VmToolKind.LinearCaliperArrayMeasurement ||
-                   kind == VmToolKind.CircularCaliperCircleFinder;
+                   kind == VmToolKind.CircularCaliperCircleFinder ||
+                   kind == VmToolKind.XldContourCrop;
         }
 
         private void SynchronizeMeasurementDomainContext(VmToolInstance tool)
@@ -9850,7 +12666,7 @@ namespace HalconWinFormsDemo
                 circularCaliperDragOriginal = null;
             }
             measurementDomainToolId = tool.ToolId;
-            SetImageContextSelection(VmImageContextOption.ModuleInput);
+            SetImageContextSelection(tool.Kind == VmToolKind.XldContourCrop ? VmImageContextOption.GlobalInput : VmImageContextOption.ModuleInput);
             if (MeasurementDomainEditorBar != null)
             {
                 MeasurementDomainEditorBar.Visibility = measurementDomainEditActive ? Visibility.Visible : Visibility.Collapsed;
@@ -9861,7 +12677,7 @@ namespace HalconWinFormsDemo
                     ? "编辑中"
                     : (tool.Kind == VmToolKind.LinearCaliperArrayMeasurement
                         ? "阵列域"
-                        : (tool.Kind == VmToolKind.CircularCaliperCircleFinder ? "圆周域" : "卡尺域"));
+                        : (tool.Kind == VmToolKind.CircularCaliperCircleFinder ? "圆周域" : (tool.Kind == VmToolKind.XldContourCrop ? "裁剪框" : "卡尺域")));
             }
 
             if (ReferenceEquals(dockEditingTool, tool))
@@ -9880,7 +12696,9 @@ namespace HalconWinFormsDemo
                 }
                 else
                 {
-                    ReplaceMeasurementDomainPreview(CreateMeasurementDomainRoi(tool.Parameters ?? new VmToolParameterData()));
+                    ReplaceMeasurementDomainPreview(tool.Kind == VmToolKind.XldContourCrop
+                        ? CreateXldCropRoi(tool.Parameters ?? new VmToolParameterData())
+                        : CreateMeasurementDomainRoi(tool.Parameters ?? new VmToolParameterData()));
                 }
             }
         }
@@ -9931,6 +12749,12 @@ namespace HalconWinFormsDemo
                 value.CaliperPhiDegrees * Math.PI / 180.0,
                 value.CaliperLength1,
                 value.CaliperLength2);
+        }
+
+        private static RoiData CreateXldCropRoi(VmToolParameterData parameters)
+        {
+            VmToolParameterData value = parameters ?? new VmToolParameterData();
+            return RoiData.CreateRectangle(value.XldCropRow1, value.XldCropColumn1, value.XldCropRow2, value.XldCropColumn2);
         }
 
         private static LinearCaliperArrayEditGeometry CreateLinearCaliperArrayGeometry(VmToolParameterData parameters)
@@ -10018,7 +12842,7 @@ namespace HalconWinFormsDemo
                     ? "测量域编辑"
                     : (tool.Kind == VmToolKind.LinearCaliperArrayMeasurement
                         ? "阵列域编辑 · "
-                        : (tool.Kind == VmToolKind.CircularCaliperCircleFinder ? "圆周域编辑 · " : "测量域编辑 · ")) + tool.InstanceName;
+                        : (tool.Kind == VmToolKind.CircularCaliperCircleFinder ? "圆周域编辑 · " : (tool.Kind == VmToolKind.XldContourCrop ? "XLD 裁剪框编辑 · " : "测量域编辑 · "))) + tool.InstanceName;
             }
             if (MeasurementDomainEditorHintText != null && linearCaliperArrayPreview != null)
             {
@@ -10054,6 +12878,13 @@ namespace HalconWinFormsDemo
             }
             else if (MeasurementDomainEditorHintText != null && measurementDomainPreview != null)
             {
+                if (tool != null && tool.Kind == VmToolKind.XldContourCrop)
+                {
+                    MeasurementDomainEditorHintText.Text = string.Format(CultureInfo.InvariantCulture,
+                        "草稿矩形 Row={0:0.###}..{1:0.###}, Column={2:0.###}..{3:0.###}；可拖动四角、四边或整体，应用后才写入方案。",
+                        measurementDomainPreview.Row1, measurementDomainPreview.Row2, measurementDomainPreview.Column1, measurementDomainPreview.Column2);
+                    return;
+                }
                 MeasurementDomainEditorHintText.Text = string.Format(
                     CultureInfo.InvariantCulture,
                     "草稿 R={0:0.###}, C={1:0.###}, Phi={2:0.###}°, L1={3:0.###}, L2={4:0.###}；拖动后试运行，应用才写入配方。",
@@ -10069,6 +12900,28 @@ namespace HalconWinFormsDemo
         {
             geometry = null;
             error = string.Empty;
+            if (dockEditingTool != null && dockEditingTool.Kind == VmToolKind.XldContourCrop)
+            {
+                double row1;
+                double column1;
+                double row2;
+                double column2;
+                if (!TryParseUiDouble(DockXldCropRow1TextBox.Text, out row1) ||
+                    !TryParseUiDouble(DockXldCropColumn1TextBox.Text, out column1) ||
+                    !TryParseUiDouble(DockXldCropRow2TextBox.Text, out row2) ||
+                    !TryParseUiDouble(DockXldCropColumn2TextBox.Text, out column2))
+                {
+                    error = "裁剪框四个边界必须是有效数值。";
+                    return false;
+                }
+                if (row2 - row1 < 1 || column2 - column1 < 1)
+                {
+                    error = "裁剪框要求 Row2-Row1 与 Column2-Column1 均不小于 1 像素。";
+                    return false;
+                }
+                geometry = RoiData.CreateRectangle(row1, column1, row2, column2);
+                return true;
+            }
             double row;
             double column;
             double phi;
@@ -10261,11 +13114,15 @@ namespace HalconWinFormsDemo
                 return;
             }
 
-            SetImageContextSelection(VmImageContextOption.ModuleInput);
+            if (xldContourSelectionMode) SetXldContourSelectionMode(false, false);
+
+            SetImageContextSelection(tool.Kind == VmToolKind.XldContourCrop ? VmImageContextOption.GlobalInput : VmImageContextOption.ModuleInput);
             ResolvedImageContext context = ResolveImageContext();
             if (!context.HasImage)
             {
-                HeaderStatusText.Text = "卡尺域编辑需要可用图像；请先运行上游图像源或打开图片。";
+                HeaderStatusText.Text = tool.Kind == VmToolKind.XldContourCrop
+                    ? "裁剪框图像编辑需要兼容图像上下文；当前仍可在右侧使用数值配置。"
+                    : "卡尺域编辑需要可用图像；请先运行上游图像源或打开图片。";
                 return;
             }
 
@@ -10335,15 +13192,12 @@ namespace HalconWinFormsDemo
                     return;
                 }
 
-                double sigma;
-                if (!TryParseUiDouble(DockCaliperSigmaTextBox.Text, out sigma))
-                {
-                    sigma = 0.4;
-                }
+                double sigma = 0.4;
+                if (tool.Kind != VmToolKind.XldContourCrop && !TryParseUiDouble(DockCaliperSigmaTextBox.Text, out sigma)) sigma = 0.4;
                 RoiData constrained = null;
                 try
                 {
-                    constrained = ConstrainMeasurementDomainGeometry(draft, context.Width, context.Height, Math.Max(1, sigma * 2.0));
+                    constrained = ConstrainMeasurementDomainGeometry(draft, context.Width, context.Height, tool.Kind == VmToolKind.XldContourCrop ? 1 : Math.Max(1, sigma * 2.0));
                     autoAdjusted =
                         Math.Abs(constrained.Row - draft.Row) > 0.0005 ||
                         Math.Abs(constrained.Column - draft.Column) > 0.0005 ||
@@ -10442,7 +13296,7 @@ namespace HalconWinFormsDemo
                 EditMeasurementDomainButton.Content =
                     dockEditingTool != null && dockEditingTool.Kind == VmToolKind.LinearCaliperArrayMeasurement
                         ? "阵列域"
-                        : "卡尺域";
+                        : (dockEditingTool != null && dockEditingTool.Kind == VmToolKind.XldContourCrop ? "裁剪框" : "卡尺域");
             }
             RefreshMeasurementDomainPreviewFromDock();
             HeaderStatusText.Text = message;
@@ -10593,12 +13447,10 @@ namespace HalconWinFormsDemo
                     imagePoint,
                     context.Width,
                     context.Height);
-                double sigma;
-                if (!TryParseUiDouble(DockCaliperSigmaTextBox.Text, out sigma))
-                {
-                    sigma = 0.4;
-                }
-                constrained = ConstrainMeasurementDomainGeometry(transformed, context.Width, context.Height, Math.Max(1, sigma * 2.0));
+                double sigma = 0.4;
+                bool isCrop = dockEditingTool != null && dockEditingTool.Kind == VmToolKind.XldContourCrop;
+                if (!isCrop && !TryParseUiDouble(DockCaliperSigmaTextBox.Text, out sigma)) sigma = 0.4;
+                constrained = ConstrainMeasurementDomainGeometry(transformed, context.Width, context.Height, isCrop ? 1 : Math.Max(1, sigma * 2.0));
                 transformed.Dispose();
                 transformed = null;
                 ReplaceMeasurementDomainPreview(constrained);
@@ -10678,6 +13530,13 @@ namespace HalconWinFormsDemo
                     DockCaliperPhiTextBox.Text = NormalizeDegrees(measurementDomainPreview.Phi * 180.0 / Math.PI).ToString("0.###", CultureInfo.InvariantCulture);
                     DockCaliperLength1TextBox.Text = measurementDomainPreview.Length1.ToString("0.###", CultureInfo.InvariantCulture);
                     DockCaliperLength2TextBox.Text = measurementDomainPreview.Length2.ToString("0.###", CultureInfo.InvariantCulture);
+                }
+                else if (dockEditingTool.Kind == VmToolKind.XldContourCrop && measurementDomainPreview != null)
+                {
+                    DockXldCropRow1TextBox.Text = measurementDomainPreview.Row1.ToString("0.###", CultureInfo.InvariantCulture);
+                    DockXldCropColumn1TextBox.Text = measurementDomainPreview.Column1.ToString("0.###", CultureInfo.InvariantCulture);
+                    DockXldCropRow2TextBox.Text = measurementDomainPreview.Row2.ToString("0.###", CultureInfo.InvariantCulture);
+                    DockXldCropColumn2TextBox.Text = measurementDomainPreview.Column2.ToString("0.###", CultureInfo.InvariantCulture);
                 }
                 else
                 {
@@ -11646,6 +14505,153 @@ namespace HalconWinFormsDemo
                    (settings.Guide2 != null && settings.Guide2.IsEnabled ? 1 : 0);
         }
 
+        private bool BeginProjectiveGeometryDrag(bool source, PointF imagePoint, System.Drawing.Point windowPoint, ImageViewportController controller, HWindowControl control)
+        {
+            if (!projectiveGeometryEditActive || projectiveGeometryPreview == null || control == null)
+            {
+                return false;
+            }
+            PointF origin = controller.WindowToImage(windowPoint, control);
+            PointF horizontal = controller.WindowToImage(new System.Drawing.Point(windowPoint.X + 12, windowPoint.Y), control);
+            PointF vertical = controller.WindowToImage(new System.Drawing.Point(windowPoint.X, windowPoint.Y + 12), control);
+            double tolerance = Math.Max(3, Math.Max(Math.Abs(horizontal.X - origin.X), Math.Abs(vertical.Y - origin.Y)));
+            int hitIndex = -1;
+            double bestDistance = tolerance * tolerance;
+            for (int index = 0; index < 4; index++)
+            {
+                double dx = GetProjectiveColumn(projectiveGeometryPreview, source, index) - imagePoint.X;
+                double dy = GetProjectiveRow(projectiveGeometryPreview, source, index) - imagePoint.Y;
+                double distance = dx * dx + dy * dy;
+                if (distance <= bestDistance)
+                {
+                    hitIndex = index;
+                    bestDistance = distance;
+                }
+            }
+            if (hitIndex < 0)
+            {
+                return false;
+            }
+            projectiveGeometryDragging = true;
+            projectiveGeometryDragSide = source ? "Source" : "Target";
+            projectiveGeometryDragPointIndex = hitIndex;
+            control.Capture = true;
+            HeaderStatusText.Text = string.Format(CultureInfo.InvariantCulture, "拖动{0}点 {1}：仅更新参数草稿。", source ? "源" : "目标", hitIndex + 1);
+            return true;
+        }
+
+        private bool UpdateProjectiveGeometryDrag(bool source, PointF imagePoint)
+        {
+            if (!projectiveGeometryDragging || projectiveGeometryPreview == null || projectiveGeometryDragPointIndex < 0 ||
+                !string.Equals(projectiveGeometryDragSide, source ? "Source" : "Target", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            SetProjectivePoint(projectiveGeometryPreview, source, projectiveGeometryDragPointIndex, imagePoint.Y, imagePoint.X);
+            WriteProjectiveGeometryPreviewToDock(projectiveGeometryPreview);
+            dockDraftDirty = true;
+            DockDraftStateText.Text = "未应用";
+            DockFooterText.Text = "透视几何拖动已写入草稿；请试运行或应用";
+            RefreshProjectiveGeometryPreviewFromDock();
+            return true;
+        }
+
+        private bool FinishProjectiveGeometryDrag(bool source, HWindowControl control)
+        {
+            if (!projectiveGeometryDragging || !string.Equals(projectiveGeometryDragSide, source ? "Source" : "Target", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            int pointIndex = projectiveGeometryDragPointIndex;
+            projectiveGeometryDragging = false;
+            projectiveGeometryDragSide = null;
+            projectiveGeometryDragPointIndex = -1;
+            if (control != null) control.Capture = false;
+            HeaderStatusText.Text = string.Format(CultureInfo.InvariantCulture, "{0}点 {1} 草稿已更新；应用前可继续拖动、试运行或撤销草稿。", source ? "源" : "目标", pointIndex + 1);
+            RefreshProjectiveGeometryPreviewFromDock();
+            return true;
+        }
+
+        private void DrawProjectiveGeometryEditor(HWindow window, bool source)
+        {
+            if (!projectiveGeometryEditActive || projectiveGeometryPreview == null || window == null)
+            {
+                return;
+            }
+            int sourceWidth;
+            int sourceHeight;
+            int targetWidth;
+            int targetHeight;
+            string state;
+            string error = projectiveGeometryPreview.Validate(VmToolKind.ImageProjectiveTransform);
+            if (string.IsNullOrWhiteSpace(error) && TryGetProjectiveEditDimensions(projectiveGeometryPreview, out sourceWidth, out sourceHeight, out targetWidth, out targetHeight, out state))
+            {
+                error = ValidateProjectiveEditBounds(projectiveGeometryPreview, sourceWidth, sourceHeight, targetWidth, targetHeight);
+            }
+            string color = string.IsNullOrWhiteSpace(error) ? (source ? "cyan" : "magenta") : "red";
+            try
+            {
+                window.SetDraw("margin");
+                window.SetLineWidth(3);
+                window.SetColor(color);
+                double centerRow = 0;
+                double centerColumn = 0;
+                for (int index = 0; index < 4; index++)
+                {
+                    int next = (index + 1) % 4;
+                    double row = GetProjectiveRow(projectiveGeometryPreview, source, index);
+                    double column = GetProjectiveColumn(projectiveGeometryPreview, source, index);
+                    double nextRow = GetProjectiveRow(projectiveGeometryPreview, source, next);
+                    double nextColumn = GetProjectiveColumn(projectiveGeometryPreview, source, next);
+                    window.DispLine(row, column, nextRow, nextColumn);
+                    window.DispCircle(row, column, 6);
+                    window.DispCross(row, column, 14, 0);
+                    centerRow += row;
+                    centerColumn += column;
+                }
+                for (int index = 0; index < 4; index++)
+                {
+                    DrawProjectiveGeometryLabel(
+                        window,
+                        (index + 1).ToString(CultureInfo.InvariantCulture),
+                        (int)Math.Max(0, GetProjectiveRow(projectiveGeometryPreview, source, index) - 22),
+                        (int)Math.Max(0, GetProjectiveColumn(projectiveGeometryPreview, source, index) + 8),
+                        color);
+                }
+                DrawProjectiveGeometryLabel(
+                    window,
+                    source ? "SOURCE / INPUT / 1-2-3-4" : "TARGET / OUTPUT / 1-2-3-4",
+                    (int)Math.Max(0, centerRow / 4.0),
+                    (int)Math.Max(0, centerColumn / 4.0),
+                    color);
+            }
+            catch (HalconException)
+            {
+                // 图像切换或运行输出失效时，下一次刷新会重建编辑叠加。
+            }
+        }
+
+        private static void DrawProjectiveGeometryLabel(HWindow window, string text, int row, int column, string color)
+        {
+            try
+            {
+                window.DispText(text, "image", row, column, color, "box", "false");
+            }
+            catch (HalconException)
+            {
+                try
+                {
+                    window.SetColor(color);
+                    window.SetTposition(row, column);
+                    window.WriteString(text);
+                }
+                catch (HalconException)
+                {
+                    // Labels are secondary; quadrilateral lines and handles remain visible.
+                }
+            }
+        }
+
         private void ImageWindow_MouseDown(object sender, Forms.MouseEventArgs e)
         {
             if (!ResolveImageContext().HasImage)
@@ -11668,6 +14674,20 @@ namespace HalconWinFormsDemo
             }
 
             PointF imagePoint = viewport.WindowToImage(e.Location, imageWindow);
+            if (xldContourSelectionMode)
+            {
+                TryPickXldContour(false, imagePoint, GetXldHitTolerance(viewport, imageWindow, e.Location));
+                return;
+            }
+            if (BeginProjectiveGeometryDrag(false, imagePoint, e.Location, viewport, imageWindow))
+            {
+                return;
+            }
+            if (projectiveGeometryEditActive)
+            {
+                HeaderStatusText.Text = "透视编辑模式：请拖动右侧目标四边形的 1–4 号控制点。";
+                return;
+            }
             if (TryBeginCrosshairDrag("Right", imagePoint, e.Location, viewport, imageWindow))
             {
                 return;
@@ -11743,8 +14763,24 @@ namespace HalconWinFormsDemo
                 return;
             }
 
+            if (xldContourSelectionMode)
+            {
+                imageWindow.Cursor = Forms.Cursors.Cross;
+                return;
+            }
+
             if (UpdateCrosshairDrag("Right", imagePoint))
             {
+                return;
+            }
+
+            if (UpdateProjectiveGeometryDrag(false, imagePoint))
+            {
+                return;
+            }
+            if (projectiveGeometryEditActive)
+            {
+                imageWindow.Cursor = Forms.Cursors.Cross;
                 return;
             }
 
@@ -11858,6 +14894,11 @@ namespace HalconWinFormsDemo
                 return;
             }
 
+            if (e.Button == Forms.MouseButtons.Left && FinishProjectiveGeometryDrag(false, imageWindow))
+            {
+                return;
+            }
+
             if (e.Button == Forms.MouseButtons.Left && FinishCrosshairDrag("Right", imageWindow))
             {
                 return;
@@ -11955,6 +14996,20 @@ namespace HalconWinFormsDemo
             if (e.Button == Forms.MouseButtons.Left)
             {
                 PointF imagePoint = comparisonViewport.WindowToImage(e.Location, comparisonImageWindow);
+                if (xldContourSelectionMode)
+                {
+                    TryPickXldContour(true, imagePoint, GetXldHitTolerance(comparisonViewport, comparisonImageWindow, e.Location));
+                    return;
+                }
+                if (BeginProjectiveGeometryDrag(true, imagePoint, e.Location, comparisonViewport, comparisonImageWindow))
+                {
+                    return;
+                }
+                if (projectiveGeometryEditActive)
+                {
+                    HeaderStatusText.Text = "透视编辑模式：请拖动左侧源四边形的 1–4 号控制点。";
+                    return;
+                }
                 TryBeginCrosshairDrag("Left", imagePoint, e.Location, comparisonViewport, comparisonImageWindow);
             }
         }
@@ -12001,14 +15056,34 @@ namespace HalconWinFormsDemo
                 return;
             }
 
+            if (xldContourSelectionMode)
+            {
+                comparisonImageWindow.Cursor = Forms.Cursors.Cross;
+                return;
+            }
+
             if (UpdateCrosshairDrag("Left", imagePoint))
             {
+                return;
+            }
+
+            if (UpdateProjectiveGeometryDrag(true, imagePoint))
+            {
+                return;
+            }
+            if (projectiveGeometryEditActive)
+            {
+                comparisonImageWindow.Cursor = Forms.Cursors.Cross;
                 return;
             }
         }
 
         private void ComparisonImageWindow_MouseUp(object sender, Forms.MouseEventArgs e)
         {
+            if (e.Button == Forms.MouseButtons.Left && FinishProjectiveGeometryDrag(true, comparisonImageWindow))
+            {
+                return;
+            }
             if (e.Button == Forms.MouseButtons.Left && FinishCrosshairDrag("Left", comparisonImageWindow))
             {
                 return;
@@ -12064,8 +15139,12 @@ namespace HalconWinFormsDemo
                 return;
             }
 
-            imageIndex = (imageIndex + 1) % imageFiles.Count;
-            LoadImage(imageFiles[imageIndex], false);
+            if (!TryAdvanceImageQueue(1, false, false))
+            {
+                StopPlayback();
+                HeaderStatusText.Text = "图片播放已停止：队列中没有其他可读取图片。";
+                AppendAlarm("图片播放停止：其余队列项均损坏、被删除或无法读取。");
+            }
         }
 
         private async void RunTimer_Tick(object sender, EventArgs e)
@@ -12078,25 +15157,78 @@ namespace HalconWinFormsDemo
             await RunInspectionRangeAsync(VmFlowRunRequestMode.Full, "连续运行");
             if (isContinuousRunning && !isStopRequested && imageFiles.Count > 1)
             {
-                imageIndex = (imageIndex + 1) % imageFiles.Count;
-                LoadImage(imageFiles[imageIndex], false);
+                if (!TryAdvanceImageQueue(1, false, false))
+                {
+                    StopContinuousRun();
+                    HeaderStatusText.Text = "连续运行已停止：图片队列中没有其他可读取图片。";
+                }
             }
         }
 
         private void LoadImageQueue(IEnumerable<string> files)
         {
+            string[] requested = files == null ? new string[0] : files.Where(path => !string.IsNullOrWhiteSpace(path)).ToArray();
+            string commonDirectory = requested.Length == 0 ? null : Path.GetDirectoryName(requested[0]);
+            if (requested.Any(path => !string.Equals(Path.GetDirectoryName(path), commonDirectory, StringComparison.OrdinalIgnoreCase)))
+            {
+                commonDirectory = null;
+            }
+            LoadImageQueue(requested, commonDirectory, null);
+        }
+
+        private void LoadImageQueue(IEnumerable<string> files, string directory, string preferredPath)
+        {
             StopPlayback();
             StopContinuousRun();
+            ClearImageQueueThumbnailCache();
             imageFiles.Clear();
-            imageFiles.AddRange(files.Where(IsImageFile).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+            imageQueueItems.Clear();
+            imageFiles.AddRange((files ?? Enumerable.Empty<string>())
+                .Where(path => !string.IsNullOrWhiteSpace(path) && HasSupportedImageExtension(path))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
             if (imageFiles.Count == 0)
             {
                 throw new InvalidOperationException("没有可读取的图片。");
             }
 
-            imageIndex = 0;
-            LoadImage(imageFiles[0], true);
-            LogInfo("图片队列已加载：" + imageFiles.Count + " 张。");
+            imageQueueDirectory = string.IsNullOrWhiteSpace(directory) ? null : directory;
+            imageIndex = -1;
+            imageQueueBatchProcessed = 0;
+            imageQueueBatchTotal = 0;
+            imageQueueBatchSummary = "批次：未运行";
+            for (int index = 0; index < imageFiles.Count; index++)
+            {
+                string path = imageFiles[index];
+                imageQueueItems.Add(new ImageQueueItem
+                {
+                    Path = path,
+                    FileName = Path.GetFileName(path),
+                    Index = index
+                });
+            }
+
+            int preferredIndex = string.IsNullOrWhiteSpace(preferredPath)
+                ? -1
+                : imageFiles.FindIndex(path => string.Equals(path, preferredPath, StringComparison.OrdinalIgnoreCase));
+            bool loaded = preferredIndex >= 0 && TryLoadImageAtIndex(preferredIndex, true);
+            for (int offset = 0; !loaded && offset < imageFiles.Count; offset++)
+            {
+                if (offset == preferredIndex) continue;
+                loaded = TryLoadImageAtIndex(offset, offset == 0);
+            }
+
+            ImageQueuePanelToggleButton.IsChecked = true;
+            ImageQueuePanel.Visibility = Visibility.Visible;
+            ImageQueuePanelToggleButton.Content = "▤ 收起队列";
+            EnsureImageQueueThumbnailsAroundCurrent();
+            RefreshImageQueueUi();
+            if (!loaded)
+            {
+                throw new InvalidOperationException("队列中的图片均无法读取；失败原因已显示在缩略队列中。");
+            }
+
+            LogInfo("图片队列已加载：" + imageFiles.Count + " 张。" + (string.IsNullOrWhiteSpace(imageQueueDirectory) ? string.Empty : " 目录：" + imageQueueDirectory));
         }
 
         private void MoveImage(int direction)
@@ -12107,29 +15239,369 @@ namespace HalconWinFormsDemo
             }
 
             StopPlayback();
-            imageIndex = Math.Max(0, Math.Min(imageFiles.Count - 1, imageIndex + direction));
-            LoadImage(imageFiles[imageIndex], true);
+            if (!TryAdvanceImageQueue(direction < 0 ? -1 : 1, false, true))
+            {
+                HeaderStatusText.Text = direction < 0 ? "已经到达队列中第一张可读图片。" : "已经到达队列中最后一张可读图片。";
+                RefreshUiState();
+            }
         }
 
         private void LoadImage(string path, bool log)
         {
-            HImage image = imageService.ReadImage(path);
-            HImage original = image.CopyImage();
-            DisposeCurrentImage();
-            currentImage = image;
-            originalImage = original;
-            currentImagePath = path;
-            currentMatches.Clear();
-            DisposeToolOverlays();
-            UpdateImageContextViewport(true);
-            HeaderStatusText.Text = "已打开：" + Path.GetFileName(path);
-            if (log)
+            int index = imageFiles.FindIndex(item => string.Equals(item, path, StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
             {
-                LogInfo("打开图片：" + path);
+                LoadImageQueue(new[] { path }, Path.GetDirectoryName(path), path);
+                ImageQueuePanelToggleButton.IsChecked = false;
+                ImageQueuePanel.Visibility = Visibility.Collapsed;
+                ImageQueuePanelToggleButton.Content = "▤ 图像队列";
+                return;
+            }
+            if (!TryLoadImageAtIndex(index, log))
+            {
+                throw new InvalidOperationException("无法读取图片：" + path);
+            }
+        }
+
+        private bool TryLoadImageAtIndex(int index, bool log)
+        {
+            if (index < 0 || index >= imageFiles.Count)
+            {
+                return false;
             }
 
+            string path = imageFiles[index];
+            ImageQueueItem queueItem = index < imageQueueItems.Count ? imageQueueItems[index] : null;
+            HImage image = null;
+            HImage original = null;
+            try
+            {
+                if (!File.Exists(path))
+                {
+                    throw new FileNotFoundException("图片文件已被删除或移动。", path);
+                }
+
+                image = imageService.ReadImage(path);
+                original = image.CopyImage();
+                int width = GetImageWidth(image);
+                int height = GetImageHeight(image);
+                DisposeCurrentImage();
+                currentImage = image;
+                originalImage = original;
+                image = null;
+                original = null;
+                currentImagePath = path;
+                imageIndex = index;
+                if (queueItem != null)
+                {
+                    queueItem.Width = width;
+                    queueItem.Height = height;
+                    queueItem.IsFailed = false;
+                    queueItem.FailureMessage = null;
+                    queueItem.IsViewed = true;
+                }
+                MarkImageQueueCurrent(index);
+                currentMatches.Clear();
+                DisposeToolOverlays();
+                InvalidateGlobalImageDependentResults("全局图片已切换");
+                UpdateImageContextViewport(true);
+                HeaderStatusText.Text = string.Format(CultureInfo.InvariantCulture, "已打开：{0}（{1}/{2}，{3}×{4}）", Path.GetFileName(path), index + 1, imageFiles.Count, width, height);
+                if (log)
+                {
+                    LogInfo("打开图片：" + path);
+                }
+
+                EnsureImageQueueThumbnail(queueItem);
+                RefreshUiState();
+                ScheduleRefreshDisplay();
+                ScrollCurrentImageQueueItemIntoView();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (image != null) image.Dispose();
+                if (original != null) original.Dispose();
+                MarkImageQueueFailure(queueItem, ex.Message);
+                HeaderStatusText.Text = "图片读取失败：" + Path.GetFileName(path) + " · " + ex.Message;
+                LogInfo("图片读取失败：" + path + " · " + ex.Message);
+                RefreshImageQueueUi();
+                return false;
+            }
+        }
+
+        private bool TryAdvanceImageQueue(int direction, bool wrap, bool log)
+        {
+            if (imageFiles.Count == 0)
+            {
+                return false;
+            }
+
+            int normalizedDirection = direction < 0 ? -1 : 1;
+            int start = imageIndex;
+            if (start < 0) start = normalizedDirection > 0 ? -1 : imageFiles.Count;
+            for (int step = 1; step <= imageFiles.Count; step++)
+            {
+                int candidate = start + normalizedDirection * step;
+                if (wrap)
+                {
+                    candidate = ((candidate % imageFiles.Count) + imageFiles.Count) % imageFiles.Count;
+                }
+                else if (candidate < 0 || candidate >= imageFiles.Count)
+                {
+                    break;
+                }
+
+                if (candidate == imageIndex)
+                {
+                    continue;
+                }
+                if (TryLoadImageAtIndex(candidate, log))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void MarkImageQueueCurrent(int index)
+        {
+            foreach (ImageQueueItem item in imageQueueItems)
+            {
+                item.IsCurrent = item.Index == index;
+            }
+        }
+
+        private void MarkImageQueueFailure(ImageQueueItem item, string message)
+        {
+            if (item == null) return;
+            item.IsFailed = true;
+            item.FailureMessage = string.IsNullOrWhiteSpace(message) ? "无法读取图片" : message;
+            item.Thumbnail = null;
+        }
+
+        private void EnsureImageQueueThumbnail(ImageQueueItem item)
+        {
+            if (item == null || item.Thumbnail != null || item.IsFailed)
+            {
+                return;
+            }
+
+            BitmapSource cached;
+            if (imageQueueThumbnailCache.TryGetValue(item.Path, out cached))
+            {
+                item.Thumbnail = cached;
+                TouchImageQueueThumbnail(item.Path);
+                return;
+            }
+
+            try
+            {
+                if (!File.Exists(item.Path))
+                {
+                    throw new FileNotFoundException("文件已被删除或移动。", item.Path);
+                }
+                using (FileStream metadataStream = new FileStream(item.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    BitmapDecoder decoder = BitmapDecoder.Create(metadataStream, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None);
+                    BitmapFrame frame = decoder.Frames[0];
+                    item.Width = frame.PixelWidth;
+                    item.Height = frame.PixelHeight;
+                }
+                BitmapImage thumbnail = new BitmapImage();
+                using (FileStream stream = new FileStream(item.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    thumbnail.BeginInit();
+                    thumbnail.CacheOption = BitmapCacheOption.OnLoad;
+                    thumbnail.DecodePixelWidth = 96;
+                    thumbnail.StreamSource = stream;
+                    thumbnail.EndInit();
+                }
+                thumbnail.Freeze();
+                imageQueueThumbnailCache[item.Path] = thumbnail;
+                TouchImageQueueThumbnail(item.Path);
+                item.Thumbnail = thumbnail;
+                TrimImageQueueThumbnailCache();
+            }
+            catch (Exception ex)
+            {
+                if (item.IsViewed && string.Equals(item.Path, currentImagePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    item.Thumbnail = null;
+                    item.IsFailed = false;
+                    item.FailureMessage = "缩略图不可用：" + ex.Message;
+                }
+                else
+                {
+                    MarkImageQueueFailure(item, ex.Message);
+                }
+            }
+        }
+
+        private void TouchImageQueueThumbnail(string path)
+        {
+            LinkedListNode<string> node;
+            if (imageQueueThumbnailLruNodes.TryGetValue(path, out node))
+            {
+                imageQueueThumbnailLru.Remove(node);
+            }
+            node = imageQueueThumbnailLru.AddLast(path);
+            imageQueueThumbnailLruNodes[path] = node;
+        }
+
+        private void TrimImageQueueThumbnailCache()
+        {
+            while (imageQueueThumbnailCache.Count > ImageQueueThumbnailCacheLimit && imageQueueThumbnailLru.First != null)
+            {
+                string path = imageQueueThumbnailLru.First.Value;
+                if (string.Equals(path, currentImagePath, StringComparison.OrdinalIgnoreCase) && imageQueueThumbnailLru.Count > 1)
+                {
+                    TouchImageQueueThumbnail(path);
+                    continue;
+                }
+                imageQueueThumbnailLru.RemoveFirst();
+                imageQueueThumbnailLruNodes.Remove(path);
+                imageQueueThumbnailCache.Remove(path);
+                ImageQueueItem item = imageQueueItems.FirstOrDefault(candidate => string.Equals(candidate.Path, path, StringComparison.OrdinalIgnoreCase));
+                if (item != null) item.Thumbnail = null;
+            }
+        }
+
+        private void EnsureImageQueueThumbnailsAroundCurrent()
+        {
+            if (imageQueueItems.Count == 0) return;
+            int center = imageIndex < 0 ? 0 : imageIndex;
+            int half = Math.Max(2, ImageQueueThumbnailCacheLimit / 2);
+            int start = Math.Max(0, center - half);
+            int end = Math.Min(imageQueueItems.Count - 1, start + ImageQueueThumbnailCacheLimit - 1);
+            start = Math.Max(0, end - ImageQueueThumbnailCacheLimit + 1);
+            for (int index = start; index <= end; index++) EnsureImageQueueThumbnail(imageQueueItems[index]);
+        }
+
+        private void ClearImageQueueThumbnailCache()
+        {
+            foreach (ImageQueueItem item in imageQueueItems) item.Thumbnail = null;
+            imageQueueThumbnailCache.Clear();
+            imageQueueThumbnailLru.Clear();
+            imageQueueThumbnailLruNodes.Clear();
+        }
+
+        private void ScrollCurrentImageQueueItemIntoView()
+        {
+            if (ImageQueueList == null || imageIndex < 0 || imageIndex >= imageQueueItems.Count) return;
+            ImageQueueItem current = imageQueueItems[imageIndex];
+            ImageQueueList.ScrollIntoView(current);
+        }
+
+        private void RefreshImageQueueUi()
+        {
+            if (ImageQueueCountText == null) return;
+            int failed = imageQueueItems.Count(item => item.IsFailed);
+            int viewed = imageQueueItems.Count(item => item.IsViewed);
+            int selected = imageQueueItems.Count(item => item.IsRunSelected);
+            ImageQueueCountText.Text = imageQueueItems.Count.ToString(CultureInfo.InvariantCulture) + " 张";
+            ImageQueueStateText.Text = imageQueueItems.Count == 0
+                ? "尚未加载图片"
+                : string.Format(CultureInfo.InvariantCulture, "已选 {0} · 已读 {1} · 失败 {2} · 缓存 {3}/{4}", selected, viewed, failed, imageQueueThumbnailCache.Count, ImageQueueThumbnailCacheLimit);
+            ImageQueueBatchSummaryText.Text = imageQueueBatchSummary;
+            if (isImageQueueBatchRunning)
+            {
+                ImageQueueProgressBar.Maximum = Math.Max(1, imageQueueBatchTotal);
+                ImageQueueProgressBar.Value = Math.Min(imageQueueBatchTotal, imageQueueBatchProcessed);
+                ImageQueueProgressText.Text = string.Format(CultureInfo.InvariantCulture, "批次 {0} / {1}", imageQueueBatchProcessed, imageQueueBatchTotal);
+            }
+            else
+            {
+                ImageQueueProgressBar.Maximum = Math.Max(1, imageQueueItems.Count);
+                ImageQueueProgressBar.Value = imageIndex < 0 ? 0 : imageIndex + 1;
+                ImageQueueProgressText.Text = imageIndex < 0
+                    ? "0 / " + imageQueueItems.Count.ToString(CultureInfo.InvariantCulture)
+                    : string.Format(CultureInfo.InvariantCulture, "{0} / {1}", imageIndex + 1, imageQueueItems.Count);
+            }
+            ImageQueuePlayPauseButton.Content = playbackTimer.IsEnabled ? "Ⅱ 暂停" : "▶ 播放";
+            bool queueBusy = isImageQueueBatchRunning || isContinuousRunning || isFlowExecutionActive;
+            ImageQueuePreviousButton.IsEnabled = imageFiles.Count > 1 && imageIndex > 0 && !playbackTimer.IsEnabled && !queueBusy;
+            ImageQueueNextButton.IsEnabled = imageFiles.Count > 1 && imageIndex < imageFiles.Count - 1 && !playbackTimer.IsEnabled && !queueBusy;
+            ImageQueueFirstButton.IsEnabled = imageFiles.Count > 0 && !playbackTimer.IsEnabled && !queueBusy;
+            ImageQueueLastButton.IsEnabled = imageFiles.Count > 0 && !playbackTimer.IsEnabled && !queueBusy;
+            ImageQueueSelectAllButton.IsEnabled = imageFiles.Count > 0 && !queueBusy;
+            ImageQueueClearSelectionButton.IsEnabled = selected > 0 && !queueBusy;
+            ImageQueueRunScopeComboBox.IsEnabled = imageFiles.Count > 0 && !queueBusy;
+            ImageQueueRunButton.IsEnabled = imageFiles.Count > 0 && flowTools.Any(tool => tool.IsEnabled) && !queueBusy && !playbackTimer.IsEnabled;
+            ImageQueueStopButton.IsEnabled = isImageQueueBatchRunning;
+            ImageQueuePlayPauseButton.IsEnabled = imageFiles.Count > 1 && !queueBusy;
+            ImageQueueReloadButton.IsEnabled = !string.IsNullOrWhiteSpace(imageQueueDirectory) && Directory.Exists(imageQueueDirectory) && !playbackTimer.IsEnabled && !queueBusy;
+            ImageQueueClearButton.IsEnabled = imageFiles.Count > 0 && !playbackTimer.IsEnabled && !queueBusy;
+            ImageQueueList.IsEnabled = !queueBusy;
+            imageQueueSelectionUpdating = true;
+            try
+            {
+                ImageQueueList.SelectedItem = imageIndex >= 0 && imageIndex < imageQueueItems.Count ? imageQueueItems[imageIndex] : null;
+            }
+            finally
+            {
+                imageQueueSelectionUpdating = false;
+            }
+            RefreshProductionRunView();
+        }
+
+        private void ClearImageQueue(bool clearImage)
+        {
+            StopPlayback();
+            StopContinuousRun();
+            ClearImageQueueThumbnailCache();
+            imageFiles.Clear();
+            imageQueueItems.Clear();
+            imageQueueDirectory = null;
+            imageIndex = -1;
+            imageQueueBatchProcessed = 0;
+            imageQueueBatchTotal = 0;
+            imageQueueBatchSummary = "批次：未运行";
+            if (clearImage)
+            {
+                DisposeCurrentImage();
+                currentImagePath = null;
+                currentMatches.Clear();
+                DisposeToolOverlays();
+                InvalidateGlobalImageDependentResults("图片队列已清空");
+                UpdateImageContextViewport(true);
+                ScheduleRefreshDisplay();
+            }
             RefreshUiState();
-            ScheduleRefreshDisplay();
+        }
+
+        private void InvalidateGlobalImageDependentResults(string reason)
+        {
+            HashSet<string> invalidIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (VmToolInstance tool in flowTools)
+            {
+                bool usesGlobalImage = ToolMetadata.GetInputPorts(tool.Kind)
+                    .Where(port => string.Equals(port.DataType, "Image", StringComparison.OrdinalIgnoreCase))
+                    .Any(port => tool.GetInputBinding(port.PortName) == null);
+                if (usesGlobalImage)
+                {
+                    InvalidateToolRunResult(tool, reason);
+                    invalidIds.Add(tool.ToolId);
+                }
+            }
+            bool changed;
+            do
+            {
+                changed = false;
+                foreach (VmToolInstance tool in flowTools.Where(item => !invalidIds.Contains(item.ToolId)))
+                {
+                    if (tool.InputBindings.Any(binding => invalidIds.Contains(binding.SourceToolId)) ||
+                        tool.Kind == VmToolKind.NumericJudge && invalidIds.Contains(tool.InputToolId ?? string.Empty))
+                    {
+                        InvalidateToolRunResult(tool, reason);
+                        invalidIds.Add(tool.ToolId);
+                        changed = true;
+                    }
+                }
+            }
+            while (changed);
+
+            RefreshResultOverlayLayers();
         }
 
         private void ReplaceCurrentImage(HImage image, bool replaceOriginal)
@@ -12174,6 +15646,11 @@ namespace HalconWinFormsDemo
         {
             try
             {
+                if (isImageQueueBatchRunning)
+                {
+                    HeaderStatusText.Text = "图片队列批次正在运行，请先停止或等待完成。";
+                    return;
+                }
                 if (isContinuousRunning)
                 {
                     StopContinuousRun();
@@ -12218,11 +15695,15 @@ namespace HalconWinFormsDemo
             RefreshFlowDebugMonitor();
         }
 
-        private async Task RunInspectionRangeAsync(VmFlowRunRequestMode mode, string source)
+        private async Task<FlowRunOutcome> RunInspectionRangeAsync(VmFlowRunRequestMode mode, string source)
         {
+            if (historicalImageMode)
+            {
+                return new FlowRunOutcome { ResultCode = "READ_ONLY", StopReason = "历史结果回看期间禁止运行，请先返回实时图像", ElapsedMilliseconds = 0, ExecutionError = true };
+            }
             if (isFlowExecutionActive)
             {
-                return;
+                return new FlowRunOutcome { ResultCode = "BUSY", StopReason = "已有流程正在运行", ElapsedMilliseconds = 0, ExecutionError = true };
             }
 
             VmToolInstance selected = FlowToolList.SelectedItem as VmToolInstance;
@@ -12449,6 +15930,13 @@ namespace HalconWinFormsDemo
                 RefreshUiState();
                 ScheduleRefreshDisplay();
             }
+            return new FlowRunOutcome
+            {
+                ResultCode = resultCode,
+                StopReason = stopReason,
+                ElapsedMilliseconds = stopwatch.Elapsed.TotalMilliseconds,
+                ExecutionError = executionError
+            };
         }
 
         private VmFlowRunPolicy ReadFlowRunPolicyFromUi()
@@ -12489,7 +15977,7 @@ namespace HalconWinFormsDemo
         {
             RunUiAction(source, delegate
             {
-                if (isContinuousRunning || isFlowExecutionActive)
+                if (isContinuousRunning || isFlowExecutionActive || isImageQueueBatchRunning)
                 {
                     throw new InvalidOperationException("流程正在运行，请先停止或等待完成。");
                 }
@@ -12615,6 +16103,32 @@ namespace HalconWinFormsDemo
                             tool.OutputSummary = record.Message;
                         }
                         break;
+                    case VmToolKind.ImageAffineTransform:
+                        using (HImage inputImage = CreateToolInputImage(tool))
+                        {
+                            record = RunImageAffineTransformTool(tool, inputImage);
+                            tool.InputSummary = GetImageInputSummary(tool);
+                            tool.OutputSummary = record.Message;
+                        }
+                        break;
+                    case VmToolKind.ImageProjectiveTransform:
+                        using (HImage inputImage = CreateToolInputImage(tool))
+                        {
+                            record = RunImageProjectiveTransformTool(tool, inputImage);
+                            tool.InputSummary = GetImageInputSummary(tool);
+                            tool.OutputSummary = record.Message;
+                        }
+                        break;
+                    case VmToolKind.SubpixelEdgeExtraction:
+                        using (HImage inputImage = CreateToolInputImage(tool))
+                        using (HRegion roiRegion = CreateEffectiveRoiRegion(tool, false))
+                        {
+                            record = RunSubpixelEdgeExtractionTool(tool, inputImage, roiRegion);
+                            ApplyRecordImage(record, tool, inputImage);
+                            tool.InputSummary = GetImageInputSummary(tool) + " + " + GetRoiInputSummary(tool);
+                            tool.OutputSummary = record.Message;
+                        }
+                        break;
                     case VmToolKind.PolarImageUnwrap:
                         using (HImage inputImage = CreateToolInputImage(tool))
                         {
@@ -12715,6 +16229,84 @@ namespace HalconWinFormsDemo
                             tool.InputSummary = xldSource == null || xldBinding == null
                                 ? "XLD ← 无效来源"
                                 : xldSource.InstanceName + "." + xldBinding.SourcePortName;
+                            tool.OutputSummary = record.Message;
+                        }
+                        break;
+                    case VmToolKind.XldAdjacentContourUnion:
+                        using (HObject inputXld = CreateToolInputXld(tool, "XLD"))
+                        {
+                            record = RunXldAdjacentContourUnionTool(tool, inputXld);
+                            VmToolInputBindingData xldBinding = tool.GetInputBinding("XLD");
+                            VmToolInstance xldSource = GetInputSourceTool(xldBinding);
+                            tool.InputSummary = xldSource == null || xldBinding == null
+                                ? "XLD ← 无效来源"
+                                : xldSource.InstanceName + "." + xldBinding.SourcePortName;
+                            tool.OutputSummary = record.Message;
+                        }
+                        break;
+                    case VmToolKind.XldContourSmoothing:
+                        using (HObject inputXld = CreateToolInputXld(tool, "XLD"))
+                        {
+                            record = RunXldContourSmoothingTool(tool, inputXld);
+                            VmToolInputBindingData xldBinding = tool.GetInputBinding("XLD");
+                            VmToolInstance xldSource = GetInputSourceTool(xldBinding);
+                            tool.InputSummary = xldSource == null || xldBinding == null
+                                ? "XLD ← 无效来源"
+                                : xldSource.InstanceName + "." + xldBinding.SourcePortName;
+                            tool.OutputSummary = record.Message;
+                        }
+                        break;
+                    case VmToolKind.XldAffineTransform:
+                        using (HObject inputXld = CreateToolInputXld(tool, "XLD"))
+                        {
+                            record = RunXldAffineTransformTool(tool, inputXld);
+                            VmToolInputBindingData xldBinding = tool.GetInputBinding("XLD");
+                            VmToolInstance xldSource = GetInputSourceTool(xldBinding);
+                            tool.InputSummary = xldSource == null || xldBinding == null
+                                ? "XLD ← 无效来源"
+                                : xldSource.InstanceName + "." + xldBinding.SourcePortName;
+                            tool.OutputSummary = record.Message;
+                        }
+                        break;
+                    case VmToolKind.XldProjectiveTransform:
+                        using (HObject inputXld = CreateToolInputXld(tool, "XLD"))
+                        {
+                            record = RunXldProjectiveTransformTool(tool, inputXld);
+                            VmToolInputBindingData xldBinding = tool.GetInputBinding("XLD");
+                            VmToolInstance xldSource = GetInputSourceTool(xldBinding);
+                            tool.InputSummary = xldSource == null || xldBinding == null
+                                ? "XLD ← 无效来源"
+                                : xldSource.InstanceName + "." + xldBinding.SourcePortName;
+                            tool.OutputSummary = record.Message;
+                        }
+                        break;
+                    case VmToolKind.XldContourCrop:
+                        using (HObject inputXld = CreateToolInputXld(tool, "XLD"))
+                        {
+                            record = RunXldContourCropTool(tool, inputXld);
+                            VmToolInputBindingData xldBinding = tool.GetInputBinding("XLD");
+                            VmToolInstance xldSource = GetInputSourceTool(xldBinding);
+                            tool.InputSummary = xldSource == null || xldBinding == null ? "XLD → 无效来源" : xldSource.InstanceName + "." + xldBinding.SourcePortName;
+                            tool.OutputSummary = record.Message;
+                        }
+                        break;
+                    case VmToolKind.XldLengthClassification:
+                        using (HObject inputXld = CreateToolInputXld(tool, "XLD"))
+                        {
+                            record = RunXldLengthClassificationTool(tool, inputXld);
+                            VmToolInputBindingData xldBinding = tool.GetInputBinding("XLD");
+                            VmToolInstance xldSource = GetInputSourceTool(xldBinding);
+                            tool.InputSummary = xldSource == null || xldBinding == null ? "XLD ← 无效来源" : xldSource.InstanceName + "." + xldBinding.SourcePortName;
+                            tool.OutputSummary = record.Message;
+                        }
+                        break;
+                    case VmToolKind.XldLengthSortSelection:
+                        using (HObject inputXld = CreateToolInputXld(tool, "XLD"))
+                        {
+                            record = RunXldLengthSortSelectionTool(tool, inputXld);
+                            VmToolInputBindingData xldBinding = tool.GetInputBinding("XLD");
+                            VmToolInstance xldSource = GetInputSourceTool(xldBinding);
+                            tool.InputSummary = xldSource == null || xldBinding == null ? "XLD ← 无效来源" : xldSource.InstanceName + "." + xldBinding.SourcePortName;
                             tool.OutputSummary = record.Message;
                         }
                         break;
@@ -12870,7 +16462,7 @@ namespace HalconWinFormsDemo
                 PublishToolOutputs(tool, record);
                 tool.ResultCode = record.ResultCode;
                 tool.RunStatus = string.Equals(record.ResultCode, "OK", StringComparison.OrdinalIgnoreCase) ? "完成" : "异常";
-                if (tool.Kind == VmToolKind.ImageSource || tool.Kind == VmToolKind.ImageChannel || tool.Kind == VmToolKind.ImageFilter || tool.Kind == VmToolKind.ImageEnhancement || tool.Kind == VmToolKind.ImageResize || tool.Kind == VmToolKind.ImageMirror || tool.Kind == VmToolKind.ImageRotate || tool.Kind == VmToolKind.PolarImageUnwrap || tool.Kind == VmToolKind.RoiImageExtraction || tool.Kind == VmToolKind.ImageDifference || tool.Kind == VmToolKind.DynamicThreshold || tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.RegionMorphology || tool.Kind == VmToolKind.RegionFeatureFilter || tool.Kind == VmToolKind.RegionSetOperation || tool.Kind == VmToolKind.RegionContourMeasurement || tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting || tool.Kind == VmToolKind.XldLineRelationMeasurement || tool.Kind == VmToolKind.CaliperEdgePairMeasurement || tool.Kind == VmToolKind.LinearCaliperArrayMeasurement || tool.Kind == VmToolKind.CircularCaliperCircleFinder || tool.Kind == VmToolKind.RingWallThicknessMeasurement)
+                if (tool.Kind == VmToolKind.ImageSource || tool.Kind == VmToolKind.ImageChannel || tool.Kind == VmToolKind.ImageFilter || tool.Kind == VmToolKind.ImageEnhancement || tool.Kind == VmToolKind.ImageResize || tool.Kind == VmToolKind.ImageMirror || tool.Kind == VmToolKind.ImageRotate || tool.Kind == VmToolKind.ImageAffineTransform || tool.Kind == VmToolKind.ImageProjectiveTransform || tool.Kind == VmToolKind.SubpixelEdgeExtraction || tool.Kind == VmToolKind.PolarImageUnwrap || tool.Kind == VmToolKind.RoiImageExtraction || tool.Kind == VmToolKind.ImageDifference || tool.Kind == VmToolKind.DynamicThreshold || tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.RegionMorphology || tool.Kind == VmToolKind.RegionFeatureFilter || tool.Kind == VmToolKind.RegionSetOperation || tool.Kind == VmToolKind.RegionContourMeasurement || tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldAdjacentContourUnion || tool.Kind == VmToolKind.XldContourSmoothing || tool.Kind == VmToolKind.XldAffineTransform || tool.Kind == VmToolKind.XldProjectiveTransform || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting || tool.Kind == VmToolKind.XldLineRelationMeasurement || tool.Kind == VmToolKind.CaliperEdgePairMeasurement || tool.Kind == VmToolKind.LinearCaliperArrayMeasurement || tool.Kind == VmToolKind.CircularCaliperCircleFinder || tool.Kind == VmToolKind.RingWallThicknessMeasurement)
                 {
                     UpdateImageContextViewport(true);
                     ScheduleRefreshDisplay();
@@ -14744,6 +18336,326 @@ namespace HalconWinFormsDemo
             }
         }
 
+        private InspectionRecord RunImageAffineTransformTool(VmToolInstance tool, HImage inputImage)
+        {
+            if (inputImage == null)
+            {
+                throw new InvalidOperationException("仿射图像变换需要有效的 Image 输入。");
+            }
+
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            parameters.Normalize();
+            string error = parameters.Validate(VmToolKind.ImageAffineTransform);
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                throw new InvalidOperationException(error);
+            }
+
+            int inputWidth = GetImageWidth(inputImage);
+            int inputHeight = GetImageHeight(inputImage);
+            int inputChannels = imageService.GetChannelCount(inputImage);
+            if (inputWidth <= 0 || inputHeight <= 0 || inputChannels <= 0)
+            {
+                throw new InvalidOperationException("仿射图像变换的输入图像为空或通道无效。");
+            }
+
+            double centerRow = (inputHeight - 1.0) * 0.5;
+            double centerColumn = (inputWidth - 1.0) * 0.5;
+            double rotationRadians = parameters.ImageAffineRotationDegrees * Math.PI / 180.0;
+            double slantRadians = parameters.ImageAffineSlantDegrees * Math.PI / 180.0;
+            HHomMat2D homMat = new HHomMat2D();
+            homMat.HomMat2dIdentity();
+            homMat = homMat.HomMat2dScale(parameters.ImageAffineScaleRow, parameters.ImageAffineScaleColumn, centerRow, centerColumn);
+            homMat = homMat.HomMat2dSlant(slantRadians, "x", centerRow, centerColumn);
+            homMat = homMat.HomMat2dRotate(rotationRadians, centerRow, centerColumn);
+            homMat = homMat.HomMat2dTranslate(parameters.ImageAffineTranslateRow, parameters.ImageAffineTranslateColumn);
+
+            // affine_trans_image uses the upper-left pixel corner as origin. The public parameters
+            // use HALCON's standard pixel-center coordinates, so apply the documented ±0.5 correction.
+            HHomMat2D adaptedHomMat = homMat.HomMat2dTranslate(0.5, 0.5).HomMat2dTranslateLocal(-0.5, -0.5);
+            ValidateAffineOutputSize(adaptedHomMat, inputWidth, inputHeight, parameters.ImageAffineAdaptImageSize);
+            string interpolation = VmImageResizeInterpolation.Normalize(parameters.ImageAffineInterpolation);
+            string adaptImageSize = parameters.ImageAffineAdaptImageSize ? "true" : "false";
+            using (HImage outputImage = inputImage.AffineTransImage(adaptedHomMat, interpolation, adaptImageSize))
+            {
+                int outputWidth = GetImageWidth(outputImage);
+                int outputHeight = GetImageHeight(outputImage);
+                int outputChannels = imageService.GetChannelCount(outputImage);
+                if (outputWidth <= 0 || outputHeight <= 0 || outputChannels != inputChannels)
+                {
+                    throw new InvalidOperationException("HALCON 仿射图像变换返回了无效尺寸或通道数。");
+                }
+                if ((long)outputWidth * outputHeight > 67108864L)
+                {
+                    throw new InvalidOperationException("仿射输出超过 67108864 像素安全上限，请减小缩放、平移或关闭自适应尺寸。");
+                }
+
+                double[] matrixValues = adaptedHomMat.RawData.ToDArr();
+                string matrixText = "[" + string.Join(", ", matrixValues.Select(value => value.ToString("0.########", CultureInfo.InvariantCulture))) + "]";
+                double determinant = adaptedHomMat.HomMat2dDeterminant();
+                string parameterSummary = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Input={0}×{1}, Output={2}×{3}, Center=({4:0.###},{5:0.###}), Translate=({6:0.###},{7:0.###}), Scale=({8:0.###},{9:0.###}), Rotation={10:0.###}°, RowSlant={11:0.###}°, Interpolation={12}, AdaptImageSize={13}, PixelCenterCorrection=+0.5/global,-0.5/local, InputDomain=ignored, CoordinateSystem=affine transformed",
+                    inputWidth,
+                    inputHeight,
+                    outputWidth,
+                    outputHeight,
+                    centerRow,
+                    centerColumn,
+                    parameters.ImageAffineTranslateRow,
+                    parameters.ImageAffineTranslateColumn,
+                    parameters.ImageAffineScaleRow,
+                    parameters.ImageAffineScaleColumn,
+                    parameters.ImageAffineRotationDegrees,
+                    parameters.ImageAffineSlantDegrees,
+                    interpolation,
+                    adaptImageSize);
+
+                string sourcePath;
+                string serialNumber;
+                GetToolImageMetadata(tool, out sourcePath, out serialNumber);
+                tool.SetOutputValue("Image", VmImageSnapshot.Create(outputImage, tool.ToolId, tool.InstanceName, "Image", sourcePath, serialNumber));
+                tool.SetOutputValue("Width", (double)outputWidth);
+                tool.SetOutputValue("Height", (double)outputHeight);
+                tool.SetOutputValue("Channels", (double)outputChannels);
+                tool.SetOutputValue("HomMat2D", matrixText);
+                tool.SetOutputValue("Interpolation", interpolation);
+                tool.SetOutputValue("AdaptImageSize", adaptImageSize);
+                tool.SetOutputValue("Parameters", parameterSummary);
+
+                string message = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "HALCON 仿射变换完成：平移({0:0.###},{1:0.###})，缩放({2:0.###},{3:0.###})，旋转 {4:0.###}°，行斜切 {5:0.###}°，{6}×{7} → {8}×{9}，自适应尺寸={10}",
+                    parameters.ImageAffineTranslateRow,
+                    parameters.ImageAffineTranslateColumn,
+                    parameters.ImageAffineScaleRow,
+                    parameters.ImageAffineScaleColumn,
+                    parameters.ImageAffineRotationDegrees,
+                    parameters.ImageAffineSlantDegrees,
+                    inputWidth,
+                    inputHeight,
+                    outputWidth,
+                    outputHeight,
+                    parameters.ImageAffineAdaptImageSize ? "是" : "否");
+                InspectionRecord record = CreateRecord("ImageAffineTransform", "OK", determinant, message, tool);
+                ApplyRecordImage(record, tool, outputImage);
+                resultStore.Add(record);
+                LogInfo(tool.InstanceName + " 完成：" + message);
+                return record;
+            }
+        }
+
+        private static void ValidateAffineOutputSize(HHomMat2D homMat, int inputWidth, int inputHeight, bool adaptImageSize)
+        {
+            if (!adaptImageSize)
+            {
+                return;
+            }
+
+            double maxRow = double.MinValue;
+            double maxColumn = double.MinValue;
+            double[] rows = { 0.0, 0.0, inputHeight - 1.0, inputHeight - 1.0 };
+            double[] columns = { 0.0, inputWidth - 1.0, 0.0, inputWidth - 1.0 };
+            for (int index = 0; index < rows.Length; index++)
+            {
+                double transformedColumn;
+                double transformedRow = homMat.AffineTransPoint2d(rows[index], columns[index], out transformedColumn);
+                maxRow = Math.Max(maxRow, transformedRow);
+                maxColumn = Math.Max(maxColumn, transformedColumn);
+            }
+
+            long estimatedHeight = Math.Max(inputHeight, (long)Math.Ceiling(maxRow + 1.0));
+            long estimatedWidth = Math.Max(inputWidth, (long)Math.Ceiling(maxColumn + 1.0));
+            if (estimatedWidth > 16384 || estimatedHeight > 16384 || estimatedWidth * estimatedHeight > 67108864L)
+            {
+                throw new InvalidOperationException(string.Format(
+                    CultureInfo.InvariantCulture,
+                    "自适应仿射输出预计为 {0}×{1}，超过 16384 单边或 67108864 总像素安全上限。请减小缩放/正向平移，或关闭自适应尺寸。",
+                    estimatedWidth,
+                    estimatedHeight));
+            }
+        }
+
+        private InspectionRecord RunImageProjectiveTransformTool(VmToolInstance tool, HImage inputImage)
+        {
+            if (inputImage == null)
+            {
+                throw new InvalidOperationException("透视图像校正需要有效的 Image 输入。");
+            }
+
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            parameters.Normalize();
+            string error = parameters.Validate(VmToolKind.ImageProjectiveTransform);
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                throw new InvalidOperationException(error);
+            }
+
+            int inputWidth = GetImageWidth(inputImage);
+            int inputHeight = GetImageHeight(inputImage);
+            int inputChannels = imageService.GetChannelCount(inputImage);
+            if (inputWidth <= 0 || inputHeight <= 0 || inputChannels <= 0)
+            {
+                throw new InvalidOperationException("透视图像校正的输入图像为空或通道无效。");
+            }
+
+            double[] sourceRows = { parameters.ImageProjectiveSourceRow1, parameters.ImageProjectiveSourceRow2, parameters.ImageProjectiveSourceRow3, parameters.ImageProjectiveSourceRow4 };
+            double[] sourceColumns = { parameters.ImageProjectiveSourceColumn1, parameters.ImageProjectiveSourceColumn2, parameters.ImageProjectiveSourceColumn3, parameters.ImageProjectiveSourceColumn4 };
+            double[] targetRows = { parameters.ImageProjectiveTargetRow1, parameters.ImageProjectiveTargetRow2, parameters.ImageProjectiveTargetRow3, parameters.ImageProjectiveTargetRow4 };
+            double[] targetColumns = { parameters.ImageProjectiveTargetColumn1, parameters.ImageProjectiveTargetColumn2, parameters.ImageProjectiveTargetColumn3, parameters.ImageProjectiveTargetColumn4 };
+            for (int index = 0; index < 4; index++)
+            {
+                if (sourceRows[index] > inputHeight - 1.0 || sourceColumns[index] > inputWidth - 1.0)
+                {
+                    throw new InvalidOperationException(string.Format(
+                        CultureInfo.InvariantCulture,
+                        "透视源点 {0} ({1:0.###},{2:0.###}) 超出输入图像 {3}×{4} 的 Row/Column 范围。",
+                        index + 1,
+                        sourceRows[index],
+                        sourceColumns[index],
+                        inputWidth,
+                        inputHeight));
+                }
+            }
+
+            HHomMat2D homMat = new HHomMat2D();
+                HTuple sourceRowsTuple = new HTuple(sourceRows.Select(value => value + 0.5).ToArray());
+                HTuple sourceColumnsTuple = new HTuple(sourceColumns.Select(value => value + 0.5).ToArray());
+                HTuple targetRowsTuple = new HTuple(targetRows.Select(value => value + 0.5).ToArray());
+                HTuple targetColumnsTuple = new HTuple(targetColumns.Select(value => value + 0.5).ToArray());
+                HTuple emptyCovariance = new HTuple();
+                homMat.VectorToProjHomMat2d(
+                    sourceRowsTuple,
+                    sourceColumnsTuple,
+                    targetRowsTuple,
+                    targetColumnsTuple,
+                    "normalized_dlt",
+                    emptyCovariance,
+                    emptyCovariance,
+                    emptyCovariance,
+                    emptyCovariance,
+                    emptyCovariance,
+                    emptyCovariance);
+
+                double determinant = homMat.HomMat2dDeterminant();
+                if (double.IsNaN(determinant) || double.IsInfinity(determinant) || Math.Abs(determinant) < 1e-12)
+                {
+                    throw new InvalidOperationException("透视四点生成的 HomMat2D 为奇异或近奇异矩阵，请增大四边形面积并检查点序。");
+                }
+
+                double maxPointError = 0;
+                for (int index = 0; index < 4; index++)
+                {
+                    double qColumn;
+                    double qWeight;
+                    double qRow = homMat.ProjectiveTransPoint2d(sourceRows[index] + 0.5, sourceColumns[index] + 0.5, 1.0, out qColumn, out qWeight);
+                    if (double.IsNaN(qWeight) || double.IsInfinity(qWeight) || Math.Abs(qWeight) < 1e-10)
+                    {
+                        throw new InvalidOperationException("透视四点在投影无穷远处产生了零齐次分母，请检查点序和目标几何。");
+                    }
+                    double mappedRow = qRow / qWeight;
+                    double mappedColumn = qColumn / qWeight;
+                    double dr = mappedRow - (targetRows[index] + 0.5);
+                    double dc = mappedColumn - (targetColumns[index] + 0.5);
+                    maxPointError = Math.Max(maxPointError, Math.Sqrt(dr * dr + dc * dc));
+                }
+                if (maxPointError > 0.01)
+                {
+                    throw new InvalidOperationException("透视四点映射误差超过 0.01 像素，矩阵数值条件不安全。");
+                }
+
+                string outputMode = VmProjectiveOutputMode.Normalize(parameters.ImageProjectiveOutputMode);
+                ValidateProjectiveOutputSafety(homMat, inputWidth, inputHeight, outputMode, parameters.ImageProjectiveOutputWidth, parameters.ImageProjectiveOutputHeight);
+                string interpolation = VmProjectiveInterpolation.Normalize(parameters.ImageProjectiveInterpolation);
+                string transformDomain = parameters.ImageProjectiveTransformDomain ? "true" : "false";
+                HImage transformed = outputMode == VmProjectiveOutputMode.ExplicitSize
+                    ? inputImage.ProjectiveTransImageSize(homMat, interpolation, parameters.ImageProjectiveOutputWidth, parameters.ImageProjectiveOutputHeight, transformDomain)
+                    : inputImage.ProjectiveTransImage(homMat, interpolation, outputMode == VmProjectiveOutputMode.AdaptImageSize ? "true" : "false", transformDomain);
+                using (HImage outputImage = transformed)
+                {
+                    int outputWidth = GetImageWidth(outputImage);
+                    int outputHeight = GetImageHeight(outputImage);
+                    int outputChannels = imageService.GetChannelCount(outputImage);
+                    if (outputWidth <= 0 || outputHeight <= 0 || outputChannels != inputChannels ||
+                        outputWidth > 16384 || outputHeight > 16384 || (long)outputWidth * outputHeight > 67108864L)
+                    {
+                        throw new InvalidOperationException("HALCON 透视校正返回了无效或超过安全上限的输出尺寸/通道。");
+                    }
+
+                    double[] matrixValues = homMat.RawData.ToDArr();
+                    string matrixText = "[" + string.Join(", ", matrixValues.Select(value => value.ToString("0.########", CultureInfo.InvariantCulture))) + "]";
+                    string pointsText = string.Join("; ", Enumerable.Range(0, 4).Select(index => string.Format(
+                        CultureInfo.InvariantCulture,
+                        "({0:0.###},{1:0.###})->({2:0.###},{3:0.###})",
+                        sourceRows[index], sourceColumns[index], targetRows[index], targetColumns[index])));
+                    string parameterSummary = string.Format(
+                        CultureInfo.InvariantCulture,
+                        "Input={0}×{1}, Output={2}×{3}, Points={4}, Method=normalized_dlt, PixelCenterCorrection=+0.5 source/target, Interpolation={5}, OutputMode={6}, TransformDomain={7}, CoordinateSystem=projective transformed",
+                        inputWidth, inputHeight, outputWidth, outputHeight, pointsText, interpolation, outputMode, transformDomain);
+
+                    string sourcePath;
+                    string serialNumber;
+                    GetToolImageMetadata(tool, out sourcePath, out serialNumber);
+                    tool.SetOutputValue("Image", VmImageSnapshot.Create(outputImage, tool.ToolId, tool.InstanceName, "Image", sourcePath, serialNumber));
+                    tool.SetOutputValue("Width", (double)outputWidth);
+                    tool.SetOutputValue("Height", (double)outputHeight);
+                    tool.SetOutputValue("Channels", (double)outputChannels);
+                    tool.SetOutputValue("HomMat2D", matrixText);
+                    tool.SetOutputValue("Interpolation", interpolation);
+                    tool.SetOutputValue("OutputMode", outputMode);
+                    tool.SetOutputValue("TransformDomain", transformDomain);
+                    tool.SetOutputValue("PointError", maxPointError);
+                    tool.SetOutputValue("Parameters", parameterSummary);
+
+                    string message = string.Format(
+                        CultureInfo.InvariantCulture,
+                        "HALCON 透视校正完成：四点 normalized_dlt，{0}×{1} → {2}×{3}，{4}，最大映射误差 {5:0.######} px",
+                        inputWidth, inputHeight, outputWidth, outputHeight, VmProjectiveOutputMode.GetDisplayText(outputMode), maxPointError);
+                    InspectionRecord record = CreateRecord("ImageProjectiveTransform", "OK", maxPointError, message, tool);
+                    ApplyRecordImage(record, tool, outputImage);
+                    resultStore.Add(record);
+                    LogInfo(tool.InstanceName + " 完成：" + message);
+                    return record;
+                }
+        }
+
+        private static void ValidateProjectiveOutputSafety(HHomMat2D homMat, int inputWidth, int inputHeight, string outputMode, int explicitWidth, int explicitHeight)
+        {
+            if (outputMode == VmProjectiveOutputMode.ExplicitSize)
+            {
+                if (explicitWidth < 2 || explicitHeight < 2 || explicitWidth > 16384 || explicitHeight > 16384 || (long)explicitWidth * explicitHeight > 67108864L)
+                    throw new InvalidOperationException("透视校正显式输出尺寸超过安全上限。");
+                return;
+            }
+            if (outputMode != VmProjectiveOutputMode.AdaptImageSize) return;
+
+            double maxRow = double.MinValue;
+            double maxColumn = double.MinValue;
+            double[] rows = { 0.5, 0.5, inputHeight - 0.5, inputHeight - 0.5 };
+            double[] columns = { 0.5, inputWidth - 0.5, inputWidth - 0.5, 0.5 };
+            double? denominatorSign = null;
+            for (int index = 0; index < 4; index++)
+            {
+                double qColumn;
+                double qWeight;
+                double qRow = homMat.ProjectiveTransPoint2d(rows[index], columns[index], 1.0, out qColumn, out qWeight);
+                if (double.IsNaN(qWeight) || double.IsInfinity(qWeight) || Math.Abs(qWeight) < 1e-8)
+                    throw new InvalidOperationException("自适应透视输出穿过投影无穷远边界，无法安全确定尺寸。");
+                double currentSign = Math.Sign(qWeight);
+                if (denominatorSign.HasValue && Math.Sign(denominatorSign.Value) != Math.Sign(currentSign))
+                    throw new InvalidOperationException("自适应透视输出的齐次分母发生符号变化，图像平面穿过无穷远边界。");
+                denominatorSign = currentSign;
+                maxRow = Math.Max(maxRow, qRow / qWeight - 0.5);
+                maxColumn = Math.Max(maxColumn, qColumn / qWeight - 0.5);
+            }
+            long estimatedHeight = Math.Max(inputHeight, (long)Math.Ceiling(maxRow + 1.0));
+            long estimatedWidth = Math.Max(inputWidth, (long)Math.Ceiling(maxColumn + 1.0));
+            if (estimatedWidth > 16384 || estimatedHeight > 16384 || estimatedWidth * estimatedHeight > 67108864L)
+            {
+                throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture, "自适应透视输出预计为 {0}×{1}，超过安全上限。请改用显式尺寸或调整目标点。", estimatedWidth, estimatedHeight));
+            }
+        }
+
         private InspectionRecord RunPolarImageUnwrapTool(VmToolInstance tool, HImage inputImage)
         {
             VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
@@ -15553,6 +19465,102 @@ namespace HalconWinFormsDemo
             }
         }
 
+        private InspectionRecord RunSubpixelEdgeExtractionTool(VmToolInstance tool, HImage inputImage, HRegion roiRegion)
+        {
+            if (inputImage == null)
+            {
+                throw new InvalidOperationException("亚像素边缘提取需要有效的 Image 输入。");
+            }
+
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            parameters.Normalize();
+            string error = parameters.Validate(VmToolKind.SubpixelEdgeExtraction);
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                throw new InvalidOperationException(error);
+            }
+
+            int channels = imageService.GetChannelCount(inputImage);
+            if (channels <= 0)
+            {
+                throw new InvalidOperationException("亚像素边缘输入图像为空或通道无效。");
+            }
+            string colorPolicy = VmSubpixelEdgeColorPolicy.Normalize(parameters.SubpixelEdgeColorPolicy);
+            if (colorPolicy == VmSubpixelEdgeColorPolicy.RequireSingleChannel && channels != 1)
+            {
+                throw new InvalidOperationException("当前彩色策略仅允许单通道图像；请改为“彩色自动转灰”或在上游完成通道转换。");
+            }
+
+            HImage gray = null;
+            HObject reduced = null;
+            HObject edges = null;
+            try
+            {
+                gray = channels == 1 ? inputImage.CopyImage() : CreateGrayImage(inputImage);
+                HObject edgeInput = gray;
+                if (roiRegion != null)
+                {
+                    HOperatorSet.ReduceDomain(gray, roiRegion, out reduced);
+                    edgeInput = reduced;
+                }
+
+                string filter = VmSubpixelEdgeFilter.Normalize(parameters.SubpixelEdgeFilter);
+                HOperatorSet.EdgesSubPix(
+                    edgeInput,
+                    out edges,
+                    filter,
+                    parameters.SubpixelEdgeAlpha,
+                    parameters.SubpixelEdgeLow,
+                    parameters.SubpixelEdgeHigh);
+
+                HTuple countTuple;
+                HOperatorSet.CountObj(edges, out countTuple);
+                int contourCount = countTuple == null || countTuple.Length == 0 ? 0 : countTuple.I;
+                double totalLength = 0;
+                if (contourCount > 0)
+                {
+                    HTuple lengths;
+                    HOperatorSet.LengthXld(edges, out lengths);
+                    totalLength = SumTuple(lengths);
+                }
+
+                string resultCode = contourCount > 0 && totalLength > 0 ? "OK" : "NG";
+                string parameterSummary = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Filter={0}, Alpha={1:0.###}, Low={2}, High={3}, ColorPolicy={4}, Channels={5}->1, Domain={6}",
+                    filter,
+                    parameters.SubpixelEdgeAlpha,
+                    parameters.SubpixelEdgeLow,
+                    parameters.SubpixelEdgeHigh,
+                    colorPolicy,
+                    channels,
+                    roiRegion == null ? "FullImage" : "ReducedDomain(ROI-Mask)");
+
+                tool.SetOutputValue("XLD", VmXldSnapshot.Create(edges, tool.ToolId, tool.InstanceName, "XLD"));
+                tool.SetOutputValue("TotalLength", totalLength);
+                tool.SetOutputValue("ContourCount", (double)contourCount);
+                tool.SetOutputValue("Filter", filter);
+                tool.SetOutputValue("ColorPolicy", VmSubpixelEdgeColorPolicy.GetDisplayText(colorPolicy));
+                tool.SetOutputValue("Parameters", parameterSummary);
+                ReplaceToolOverlayContours(edges, tool, "XLD", contourCount, resultCode, totalLength);
+                edges = null;
+
+                string message = contourCount == 0
+                    ? string.Format(CultureInfo.InvariantCulture, "HALCON 亚像素边缘未检出轮廓：{0}，请检查阈值、滤波器与运行域。", parameterSummary)
+                    : string.Format(CultureInfo.InvariantCulture, "HALCON 亚像素边缘完成：Filter={0}，XLD={1}，总长度={2:0.###}，运行域={3}", filter, contourCount, totalLength, GetRoiInputSummary(tool));
+                InspectionRecord record = CreateRecord("SubpixelEdgeExtraction", resultCode, totalLength, message, tool);
+                resultStore.Add(record);
+                LogInfo(tool.InstanceName + " 完成：" + message);
+                return record;
+            }
+            finally
+            {
+                DisposeObject(edges);
+                DisposeObject(reduced);
+                if (gray != null) gray.Dispose();
+            }
+        }
+
         private InspectionRecord RunXldContourFilterTool(VmToolInstance tool, HObject inputXld)
         {
             VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
@@ -15602,6 +19610,781 @@ namespace HalconWinFormsDemo
                     contourCount,
                     totalLength);
                 InspectionRecord record = CreateRecord("XldContourFilter", resultCode, totalLength, message, tool);
+                resultStore.Add(record);
+                LogInfo(tool.InstanceName + " 完成：" + message);
+                return record;
+            }
+            finally
+            {
+                DisposeObject(selectedContours);
+            }
+        }
+
+        private InspectionRecord RunXldAdjacentContourUnionTool(VmToolInstance tool, HObject inputXld)
+        {
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            parameters.Normalize();
+            string error = parameters.Validate(VmToolKind.XldAdjacentContourUnion);
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                throw new InvalidOperationException(error);
+            }
+
+            HTuple inputCountTuple;
+            HOperatorSet.CountObj(inputXld, out inputCountTuple);
+            int inputContourCount = inputCountTuple == null || inputCountTuple.Length == 0 ? 0 : inputCountTuple.I;
+            string attributeMode = VmXldAdjacentAttributeMode.Normalize(parameters.XldAdjacentAttributeMode);
+            string halconMode = VmXldAdjacentAttributeMode.GetHalconValue(attributeMode);
+            HObject unionContours = null;
+            try
+            {
+                unionContours = imageService.UnionAdjacentXldContours(
+                    inputXld,
+                    parameters.XldAdjacentMaxDistAbs,
+                    parameters.XldAdjacentMaxDistRel,
+                    attributeMode);
+                HTuple outputCountTuple;
+                HOperatorSet.CountObj(unionContours, out outputCountTuple);
+                int contourCount = outputCountTuple == null || outputCountTuple.Length == 0 ? 0 : outputCountTuple.I;
+                int joinedCount = Math.Max(0, inputContourCount - contourCount);
+                double totalLength = 0;
+                if (contourCount > 0)
+                {
+                    HTuple lengths;
+                    HOperatorSet.LengthXld(unionContours, out lengths);
+                    totalLength = SumTuple(lengths);
+                }
+
+                string parametersText = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "MaxDistAbs={0:0.###}px, MaxDistRel={1:0.###}, Mode={2}",
+                    parameters.XldAdjacentMaxDistAbs,
+                    parameters.XldAdjacentMaxDistRel,
+                    halconMode);
+                string resultCode = contourCount > 0 && totalLength > 0 ? "OK" : "NG";
+                tool.SetOutputValue("XLD", VmXldSnapshot.Create(unionContours, tool.ToolId, tool.InstanceName, "XLD"));
+                tool.SetOutputValue("InputContourCount", (double)inputContourCount);
+                tool.SetOutputValue("ContourCount", (double)contourCount);
+                tool.SetOutputValue("JoinedCount", (double)joinedCount);
+                tool.SetOutputValue("TotalLength", totalLength);
+                tool.SetOutputValue("Mode", halconMode);
+                tool.SetOutputValue("Parameters", parametersText);
+                ReplaceToolOverlayContours(unionContours, tool, "XLD", contourCount, resultCode, totalLength);
+                unionContours = null;
+
+                string message = inputContourCount == 0
+                    ? "HALCON 相邻轮廓连接：输入为空，输出 XLD=0；" + parametersText
+                    : string.Format(
+                        CultureInfo.InvariantCulture,
+                        "HALCON 相邻轮廓连接：输入={0}，输出={1}，已连接={2}，总长度={3:0.###}px；{4}",
+                        inputContourCount,
+                        contourCount,
+                        joinedCount,
+                        totalLength,
+                        parametersText);
+                InspectionRecord record = CreateRecord("XldAdjacentContourUnion", resultCode, totalLength, message, tool);
+                resultStore.Add(record);
+                LogInfo(tool.InstanceName + " 完成：" + message);
+                return record;
+            }
+            finally
+            {
+                DisposeObject(unionContours);
+            }
+        }
+
+        private InspectionRecord RunXldContourSmoothingTool(VmToolInstance tool, HObject inputXld)
+        {
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            parameters.Normalize();
+            string error = parameters.Validate(VmToolKind.XldContourSmoothing);
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                throw new InvalidOperationException(error);
+            }
+
+            HTuple inputCountTuple;
+            HOperatorSet.CountObj(inputXld, out inputCountTuple);
+            int inputContourCount = inputCountTuple == null || inputCountTuple.Length == 0 ? 0 : inputCountTuple.I;
+            double inputTotalLength = 0;
+            if (inputContourCount > 0)
+            {
+                HTuple inputLengths;
+                HOperatorSet.LengthXld(inputXld, out inputLengths);
+                inputTotalLength = SumTuple(inputLengths);
+            }
+
+            HObject smoothedContours = null;
+            try
+            {
+                smoothedContours = imageService.SmoothXldContours(inputXld, parameters.XldSmoothNumRegrPoints);
+                HTuple outputCountTuple;
+                HOperatorSet.CountObj(smoothedContours, out outputCountTuple);
+                int contourCount = outputCountTuple == null || outputCountTuple.Length == 0 ? 0 : outputCountTuple.I;
+                double totalLength = 0;
+                if (contourCount > 0)
+                {
+                    HTuple outputLengths;
+                    HOperatorSet.LengthXld(smoothedContours, out outputLengths);
+                    totalLength = SumTuple(outputLengths);
+                }
+
+                double lengthDelta = totalLength - inputTotalLength;
+                string parametersText = "NumRegrPoints=" + parameters.XldSmoothNumRegrPoints.ToString(CultureInfo.InvariantCulture);
+                const string attributePolicy = "点属性不保留（HALCON smooth_contours_xld）";
+                string resultCode = contourCount > 0 ? "OK" : "NG";
+                tool.SetOutputValue("XLD", VmXldSnapshot.Create(smoothedContours, tool.ToolId, tool.InstanceName, "XLD"));
+                tool.SetOutputValue("InputContourCount", (double)inputContourCount);
+                tool.SetOutputValue("ContourCount", (double)contourCount);
+                tool.SetOutputValue("InputTotalLength", inputTotalLength);
+                tool.SetOutputValue("TotalLength", totalLength);
+                tool.SetOutputValue("LengthDelta", lengthDelta);
+                tool.SetOutputValue("NumRegrPoints", (double)parameters.XldSmoothNumRegrPoints);
+                tool.SetOutputValue("AttributePolicy", attributePolicy);
+                tool.SetOutputValue("Parameters", parametersText);
+                ReplaceToolOverlayContours(smoothedContours, tool, "XLD", contourCount, resultCode, totalLength);
+                smoothedContours = null;
+
+                string message = inputContourCount == 0
+                    ? "HALCON XLD 轮廓平滑：输入为空，输出 XLD=0；" + parametersText
+                    : string.Format(
+                        CultureInfo.InvariantCulture,
+                        "HALCON XLD 轮廓平滑：输入 {0}，输出 {1}，长度 {2:0.###} → {3:0.###}px；{4}；{5}",
+                        inputContourCount,
+                        contourCount,
+                        inputTotalLength,
+                        totalLength,
+                        parametersText,
+                        attributePolicy);
+                InspectionRecord record = CreateRecord("XldContourSmoothing", resultCode, totalLength, message, tool);
+                resultStore.Add(record);
+                LogInfo(tool.InstanceName + " 完成：" + message);
+                return record;
+            }
+            finally
+            {
+                DisposeObject(smoothedContours);
+            }
+        }
+
+        private sealed class XldGeometryMetrics
+        {
+            public int ContourCount { get; set; }
+            public double TotalLength { get; set; }
+            public bool HasPoints { get; set; }
+            public double MinRow { get; set; }
+            public double MinColumn { get; set; }
+            public double MaxRow { get; set; }
+            public double MaxColumn { get; set; }
+        }
+
+        private static XldGeometryMetrics MeasureXldGeometry(HObject contours)
+        {
+            XldGeometryMetrics metrics = new XldGeometryMetrics
+            {
+                MinRow = double.NaN,
+                MinColumn = double.NaN,
+                MaxRow = double.NaN,
+                MaxColumn = double.NaN
+            };
+            HTuple countTuple;
+            HOperatorSet.CountObj(contours, out countTuple);
+            metrics.ContourCount = countTuple == null || countTuple.Length == 0 ? 0 : countTuple.I;
+            if (metrics.ContourCount == 0) return metrics;
+
+            HTuple lengths;
+            HOperatorSet.LengthXld(contours, out lengths);
+            metrics.TotalLength = SumTuple(lengths);
+            double minRow = double.MaxValue;
+            double minColumn = double.MaxValue;
+            double maxRow = double.MinValue;
+            double maxColumn = double.MinValue;
+            for (int index = 1; index <= metrics.ContourCount; index++)
+            {
+                HObject contour = null;
+                try
+                {
+                    HOperatorSet.SelectObj(contours, out contour, index);
+                    HTuple rows;
+                    HTuple columns;
+                    HOperatorSet.GetContourXld(contour, out rows, out columns);
+                    double[] rowValues = rows == null ? new double[0] : rows.ToDArr();
+                    double[] columnValues = columns == null ? new double[0] : columns.ToDArr();
+                    int pointCount = Math.Min(rowValues.Length, columnValues.Length);
+                    for (int pointIndex = 0; pointIndex < pointCount; pointIndex++)
+                    {
+                        double row = rowValues[pointIndex];
+                        double column = columnValues[pointIndex];
+                        if (double.IsNaN(row) || double.IsInfinity(row) || double.IsNaN(column) || double.IsInfinity(column))
+                        {
+                            throw new InvalidOperationException("XLD 轮廓包含非有限 Row/Column 坐标。");
+                        }
+                        minRow = Math.Min(minRow, row);
+                        minColumn = Math.Min(minColumn, column);
+                        maxRow = Math.Max(maxRow, row);
+                        maxColumn = Math.Max(maxColumn, column);
+                        metrics.HasPoints = true;
+                    }
+                }
+                finally
+                {
+                    DisposeObject(contour);
+                }
+            }
+
+            if (metrics.HasPoints)
+            {
+                metrics.MinRow = minRow;
+                metrics.MinColumn = minColumn;
+                metrics.MaxRow = maxRow;
+                metrics.MaxColumn = maxColumn;
+            }
+            return metrics;
+        }
+
+        private static HHomMat2D BuildXldAffineTransformMatrix(VmToolParameterData parameters, double centerRow, double centerColumn)
+        {
+            double rotationRadians = parameters.XldAffineRotationDegrees * Math.PI / 180.0;
+            double slantRadians = parameters.XldAffineSlantDegrees * Math.PI / 180.0;
+            string order = VmXldAffineTransformOrder.Normalize(parameters.XldAffineTransformOrder);
+            HHomMat2D matrix = new HHomMat2D();
+            matrix.HomMat2dIdentity();
+
+            if (order == VmXldAffineTransformOrder.ScaleRotateSlantTranslate)
+            {
+                matrix = matrix.HomMat2dScale(parameters.XldAffineScaleRow, parameters.XldAffineScaleColumn, centerRow, centerColumn);
+                matrix = matrix.HomMat2dRotate(rotationRadians, centerRow, centerColumn);
+                matrix = matrix.HomMat2dSlant(slantRadians, "x", centerRow, centerColumn);
+            }
+            else if (order == VmXldAffineTransformOrder.RotateScaleSlantTranslate)
+            {
+                matrix = matrix.HomMat2dRotate(rotationRadians, centerRow, centerColumn);
+                matrix = matrix.HomMat2dScale(parameters.XldAffineScaleRow, parameters.XldAffineScaleColumn, centerRow, centerColumn);
+                matrix = matrix.HomMat2dSlant(slantRadians, "x", centerRow, centerColumn);
+            }
+            else if (order == VmXldAffineTransformOrder.RotateSlantScaleTranslate)
+            {
+                matrix = matrix.HomMat2dRotate(rotationRadians, centerRow, centerColumn);
+                matrix = matrix.HomMat2dSlant(slantRadians, "x", centerRow, centerColumn);
+                matrix = matrix.HomMat2dScale(parameters.XldAffineScaleRow, parameters.XldAffineScaleColumn, centerRow, centerColumn);
+            }
+            else
+            {
+                matrix = matrix.HomMat2dScale(parameters.XldAffineScaleRow, parameters.XldAffineScaleColumn, centerRow, centerColumn);
+                matrix = matrix.HomMat2dSlant(slantRadians, "x", centerRow, centerColumn);
+                matrix = matrix.HomMat2dRotate(rotationRadians, centerRow, centerColumn);
+            }
+            return matrix.HomMat2dTranslate(parameters.XldAffineTranslateRow, parameters.XldAffineTranslateColumn);
+        }
+
+        private InspectionRecord RunXldAffineTransformTool(VmToolInstance tool, HObject inputXld)
+        {
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            parameters.Normalize();
+            string error = parameters.Validate(VmToolKind.XldAffineTransform);
+            if (!string.IsNullOrWhiteSpace(error)) throw new InvalidOperationException(error);
+
+            XldGeometryMetrics inputMetrics = MeasureXldGeometry(inputXld);
+            string centerMode = VmXldAffineCenterMode.Normalize(parameters.XldAffineCenterMode);
+            double centerRow = centerMode == VmXldAffineCenterMode.InputBounds && inputMetrics.HasPoints
+                ? (inputMetrics.MinRow + inputMetrics.MaxRow) * 0.5
+                : parameters.XldAffineCenterRow;
+            double centerColumn = centerMode == VmXldAffineCenterMode.InputBounds && inputMetrics.HasPoints
+                ? (inputMetrics.MinColumn + inputMetrics.MaxColumn) * 0.5
+                : parameters.XldAffineCenterColumn;
+            if (!inputMetrics.HasPoints && centerMode == VmXldAffineCenterMode.InputBounds)
+            {
+                centerRow = 0;
+                centerColumn = 0;
+            }
+
+            HHomMat2D publicMatrix = BuildXldAffineTransformMatrix(parameters, centerRow, centerColumn);
+            string coordinatePolicy = VmXldAffineCoordinatePolicy.Normalize(parameters.XldAffineCoordinatePolicy);
+            HHomMat2D operatorMatrix = coordinatePolicy == VmXldAffineCoordinatePolicy.StandardPixelCenter
+                ? publicMatrix.HomMat2dTranslate(0.5, 0.5).HomMat2dTranslateLocal(-0.5, -0.5)
+                : publicMatrix;
+            double determinant = operatorMatrix.HomMat2dDeterminant();
+            if (double.IsNaN(determinant) || double.IsInfinity(determinant) || Math.Abs(determinant) < 1e-12)
+            {
+                throw new InvalidOperationException("XLD 仿射矩阵无效或不可逆，请检查缩放和组合参数。");
+            }
+
+            HObject transformedContours = null;
+            try
+            {
+                transformedContours = imageService.AffineTransformXldContours(inputXld, operatorMatrix.RawData);
+                XldGeometryMetrics outputMetrics = MeasureXldGeometry(transformedContours);
+                string order = VmXldAffineTransformOrder.Normalize(parameters.XldAffineTransformOrder);
+                string orderText = VmXldAffineTransformOrder.GetDisplayText(order);
+                string coordinateText = coordinatePolicy == VmXldAffineCoordinatePolicy.StandardPixelCenter
+                    ? "标准像素中心（+0.5/global，-0.5/local）"
+                    : "affine_trans_pixel 原点（不补偿）";
+                const string attributePolicy = "属性由 HALCON affine_trans_contour_xld 处理；本工具不额外复制或改写";
+                double[] matrixValues = operatorMatrix.RawData.ToDArr();
+                string matrixText = "[" + string.Join(", ", matrixValues.Select(value => value.ToString("0.########", CultureInfo.InvariantCulture))) + "]";
+                string parametersText = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "CenterMode={0}, Center=({1:0.###},{2:0.###}), Translate=({3:0.###},{4:0.###}), Scale=({5:0.###},{6:0.###}), Rotation={7:0.###}°, RowSlant={8:0.###}°, Order={9}, CoordinatePolicy={10}",
+                    centerMode,
+                    centerRow,
+                    centerColumn,
+                    parameters.XldAffineTranslateRow,
+                    parameters.XldAffineTranslateColumn,
+                    parameters.XldAffineScaleRow,
+                    parameters.XldAffineScaleColumn,
+                    parameters.XldAffineRotationDegrees,
+                    parameters.XldAffineSlantDegrees,
+                    order,
+                    coordinatePolicy);
+                string resultCode = outputMetrics.ContourCount > 0 ? "OK" : "NG";
+                tool.SetOutputValue("XLD", VmXldSnapshot.Create(transformedContours, tool.ToolId, tool.InstanceName, "XLD"));
+                tool.SetOutputValue("ContourCount", (double)outputMetrics.ContourCount);
+                tool.SetOutputValue("InputTotalLength", inputMetrics.TotalLength);
+                tool.SetOutputValue("TotalLength", outputMetrics.TotalLength);
+                tool.SetOutputValue("MinRow", outputMetrics.MinRow);
+                tool.SetOutputValue("MinColumn", outputMetrics.MinColumn);
+                tool.SetOutputValue("MaxRow", outputMetrics.MaxRow);
+                tool.SetOutputValue("MaxColumn", outputMetrics.MaxColumn);
+                tool.SetOutputValue("CenterRow", centerRow);
+                tool.SetOutputValue("CenterColumn", centerColumn);
+                tool.SetOutputValue("HomMat2D", matrixText);
+                tool.SetOutputValue("TransformOrder", orderText);
+                tool.SetOutputValue("CoordinatePolicy", coordinateText);
+                tool.SetOutputValue("AttributePolicy", attributePolicy);
+                tool.SetOutputValue("Parameters", parametersText);
+                ReplaceToolOverlayContours(transformedContours, tool, "XLD", outputMetrics.ContourCount, resultCode, outputMetrics.TotalLength);
+                transformedContours = null;
+
+                string message = outputMetrics.ContourCount == 0
+                    ? "HALCON XLD 仿射变换：输入为空，输出 XLD=0；" + parametersText
+                    : string.Format(
+                        CultureInfo.InvariantCulture,
+                        "HALCON XLD 仿射变换：{0} 条轮廓，长度 {1:0.###} → {2:0.###}px，输出边界 Row[{3:0.###},{4:0.###}] / Column[{5:0.###},{6:0.###}]；{7}；{8}",
+                        outputMetrics.ContourCount,
+                        inputMetrics.TotalLength,
+                        outputMetrics.TotalLength,
+                        outputMetrics.MinRow,
+                        outputMetrics.MaxRow,
+                        outputMetrics.MinColumn,
+                        outputMetrics.MaxColumn,
+                        orderText,
+                        coordinateText);
+                InspectionRecord record = CreateRecord("XldAffineTransform", resultCode, outputMetrics.TotalLength, message, tool);
+                resultStore.Add(record);
+                LogInfo(tool.InstanceName + " 完成：" + message);
+                return record;
+            }
+            finally
+            {
+                DisposeObject(transformedContours);
+            }
+        }
+
+        private static HHomMat2D BuildXldProjectiveTransformMatrix(VmToolParameterData parameters, out double maxPointError)
+        {
+            double[] sourceRows = { parameters.XldProjectiveSourceRow1, parameters.XldProjectiveSourceRow2, parameters.XldProjectiveSourceRow3, parameters.XldProjectiveSourceRow4 };
+            double[] sourceColumns = { parameters.XldProjectiveSourceColumn1, parameters.XldProjectiveSourceColumn2, parameters.XldProjectiveSourceColumn3, parameters.XldProjectiveSourceColumn4 };
+            double[] targetRows = { parameters.XldProjectiveTargetRow1, parameters.XldProjectiveTargetRow2, parameters.XldProjectiveTargetRow3, parameters.XldProjectiveTargetRow4 };
+            double[] targetColumns = { parameters.XldProjectiveTargetColumn1, parameters.XldProjectiveTargetColumn2, parameters.XldProjectiveTargetColumn3, parameters.XldProjectiveTargetColumn4 };
+            HHomMat2D matrix = new HHomMat2D();
+            HTuple emptyCovariance = new HTuple();
+            matrix.VectorToProjHomMat2d(
+                new HTuple(sourceRows),
+                new HTuple(sourceColumns),
+                new HTuple(targetRows),
+                new HTuple(targetColumns),
+                "normalized_dlt",
+                emptyCovariance,
+                emptyCovariance,
+                emptyCovariance,
+                emptyCovariance,
+                emptyCovariance,
+                emptyCovariance);
+
+            double determinant = matrix.HomMat2dDeterminant();
+            if (double.IsNaN(determinant) || double.IsInfinity(determinant) || Math.Abs(determinant) < 1e-12)
+            {
+                throw new InvalidOperationException("XLD 透视四点生成的 HomMat2D 为奇异或近奇异矩阵，请增大四边形面积并检查点序。");
+            }
+
+            maxPointError = 0;
+            for (int index = 0; index < 4; index++)
+            {
+                double mappedColumn;
+                double weight;
+                double weightedRow = matrix.ProjectiveTransPoint2d(sourceRows[index], sourceColumns[index], 1.0, out mappedColumn, out weight);
+                if (double.IsNaN(weight) || double.IsInfinity(weight) || Math.Abs(weight) < 1e-10)
+                {
+                    throw new InvalidOperationException("XLD 透视四点在投影无穷远处产生了零齐次分母，请检查源/目标点序和几何。");
+                }
+                double mappedRow = weightedRow / weight;
+                mappedColumn /= weight;
+                if (double.IsNaN(mappedRow) || double.IsInfinity(mappedRow) || double.IsNaN(mappedColumn) || double.IsInfinity(mappedColumn))
+                {
+                    throw new InvalidOperationException("XLD 透视四点产生了非有限映射坐标。");
+                }
+                double rowError = mappedRow - targetRows[index];
+                double columnError = mappedColumn - targetColumns[index];
+                maxPointError = Math.Max(maxPointError, Math.Sqrt(rowError * rowError + columnError * columnError));
+            }
+            if (maxPointError > 0.01)
+            {
+                throw new InvalidOperationException("XLD 透视四点最大映射误差超过 0.01 像素，矩阵数值条件不安全。");
+            }
+            return matrix;
+        }
+
+        private InspectionRecord RunXldProjectiveTransformTool(VmToolInstance tool, HObject inputXld)
+        {
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            parameters.Normalize();
+            string error = parameters.Validate(VmToolKind.XldProjectiveTransform);
+            if (!string.IsNullOrWhiteSpace(error)) throw new InvalidOperationException(error);
+
+            XldGeometryMetrics inputMetrics = MeasureXldGeometry(inputXld);
+            double maxPointError;
+            HHomMat2D publicMatrix = BuildXldProjectiveTransformMatrix(parameters, out maxPointError);
+            string coordinatePolicy = VmXldAffineCoordinatePolicy.Normalize(parameters.XldProjectiveCoordinatePolicy);
+            HHomMat2D operatorMatrix = coordinatePolicy == VmXldAffineCoordinatePolicy.StandardPixelCenter
+                ? publicMatrix.HomMat2dTranslate(0.5, 0.5).HomMat2dTranslateLocal(-0.5, -0.5)
+                : publicMatrix;
+            double[] operatorValues = operatorMatrix.RawData.ToDArr();
+            if (operatorValues.Length != 9 || operatorValues.Any(value => double.IsNaN(value) || double.IsInfinity(value)))
+            {
+                throw new InvalidOperationException("XLD 透视变换生成了无效的 9 元投影矩阵。");
+            }
+
+            HObject transformedContours = null;
+            try
+            {
+                transformedContours = imageService.ProjectiveTransformXldContours(inputXld, operatorMatrix.RawData);
+                XldGeometryMetrics outputMetrics = MeasureXldGeometry(transformedContours);
+                string coordinateText = coordinatePolicy == VmXldAffineCoordinatePolicy.StandardPixelCenter
+                    ? "标准像素中心（+0.5/global，-0.5/local）"
+                    : "affine_trans_pixel 原点（不补偿）";
+                const string attributePolicy = "属性由 HALCON projective_trans_contour_xld 处理；本工具不额外复制或改写";
+                string matrixText = "[" + string.Join(", ", operatorValues.Select(value => value.ToString("0.########", CultureInfo.InvariantCulture))) + "]";
+                string parametersText = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "Source=({0:0.###},{1:0.###})/({2:0.###},{3:0.###})/({4:0.###},{5:0.###})/({6:0.###},{7:0.###}), Target=({8:0.###},{9:0.###})/({10:0.###},{11:0.###})/({12:0.###},{13:0.###})/({14:0.###},{15:0.###}), Method=normalized_dlt, CoordinatePolicy={16}",
+                    parameters.XldProjectiveSourceRow1, parameters.XldProjectiveSourceColumn1,
+                    parameters.XldProjectiveSourceRow2, parameters.XldProjectiveSourceColumn2,
+                    parameters.XldProjectiveSourceRow3, parameters.XldProjectiveSourceColumn3,
+                    parameters.XldProjectiveSourceRow4, parameters.XldProjectiveSourceColumn4,
+                    parameters.XldProjectiveTargetRow1, parameters.XldProjectiveTargetColumn1,
+                    parameters.XldProjectiveTargetRow2, parameters.XldProjectiveTargetColumn2,
+                    parameters.XldProjectiveTargetRow3, parameters.XldProjectiveTargetColumn3,
+                    parameters.XldProjectiveTargetRow4, parameters.XldProjectiveTargetColumn4,
+                    coordinatePolicy);
+                string resultCode = outputMetrics.ContourCount > 0 ? "OK" : "NG";
+                tool.SetOutputValue("XLD", VmXldSnapshot.Create(transformedContours, tool.ToolId, tool.InstanceName, "XLD"));
+                tool.SetOutputValue("ContourCount", (double)outputMetrics.ContourCount);
+                tool.SetOutputValue("InputTotalLength", inputMetrics.TotalLength);
+                tool.SetOutputValue("TotalLength", outputMetrics.TotalLength);
+                tool.SetOutputValue("MinRow", outputMetrics.MinRow);
+                tool.SetOutputValue("MinColumn", outputMetrics.MinColumn);
+                tool.SetOutputValue("MaxRow", outputMetrics.MaxRow);
+                tool.SetOutputValue("MaxColumn", outputMetrics.MaxColumn);
+                tool.SetOutputValue("HomMat2D", matrixText);
+                tool.SetOutputValue("PointError", maxPointError);
+                tool.SetOutputValue("CoordinatePolicy", coordinateText);
+                tool.SetOutputValue("AttributePolicy", attributePolicy);
+                tool.SetOutputValue("Parameters", parametersText);
+                ReplaceToolOverlayContours(transformedContours, tool, "XLD", outputMetrics.ContourCount, resultCode, outputMetrics.TotalLength);
+                transformedContours = null;
+
+                string message = outputMetrics.ContourCount == 0
+                    ? "HALCON XLD 透视变换：输入为空，输出 XLD=0；" + parametersText
+                    : string.Format(
+                        CultureInfo.InvariantCulture,
+                        "HALCON XLD 透视变换：{0} 条轮廓，长度 {1:0.###} → {2:0.###}px，输出边界 Row[{3:0.###},{4:0.###}] / Column[{5:0.###},{6:0.###}]，四点误差 {7:0.######}px；{8}",
+                        outputMetrics.ContourCount,
+                        inputMetrics.TotalLength,
+                        outputMetrics.TotalLength,
+                        outputMetrics.MinRow,
+                        outputMetrics.MaxRow,
+                        outputMetrics.MinColumn,
+                        outputMetrics.MaxColumn,
+                        maxPointError,
+                        coordinateText);
+                InspectionRecord record = CreateRecord("XldProjectiveTransform", resultCode, outputMetrics.TotalLength, message, tool);
+                resultStore.Add(record);
+                LogInfo(tool.InstanceName + " 完成：" + message);
+                return record;
+            }
+            finally
+            {
+                DisposeObject(transformedContours);
+            }
+        }
+
+        private InspectionRecord RunXldContourCropTool(VmToolInstance tool, HObject inputXld)
+        {
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            parameters.Normalize();
+            string error = parameters.Validate(VmToolKind.XldContourCrop);
+            if (!string.IsNullOrWhiteSpace(error)) throw new InvalidOperationException(error);
+
+            XldGeometryMetrics inputMetrics = MeasureXldGeometry(inputXld);
+            HObject croppedContours = null;
+            try
+            {
+                croppedContours = imageService.CropXldContours(inputXld, parameters.XldCropRow1, parameters.XldCropColumn1, parameters.XldCropRow2, parameters.XldCropColumn2, parameters.XldCropCloseContours);
+                XldGeometryMetrics outputMetrics = MeasureXldGeometry(croppedContours);
+                string rectangleText = string.Format(CultureInfo.InvariantCulture, "Row[{0:0.###},{1:0.###}] / Column[{2:0.###},{3:0.###}]", parameters.XldCropRow1, parameters.XldCropRow2, parameters.XldCropColumn1, parameters.XldCropColumn2);
+                string parametersText = string.Format(CultureInfo.InvariantCulture, "Rectangle=({0:0.###},{1:0.###})-({2:0.###},{3:0.###}), CloseContours={4}", parameters.XldCropRow1, parameters.XldCropColumn1, parameters.XldCropRow2, parameters.XldCropColumn2, parameters.XldCropCloseContours);
+                string resultCode = outputMetrics.ContourCount > 0 ? "OK" : "NG";
+                tool.SetOutputValue("XLD", VmXldSnapshot.Create(croppedContours, tool.ToolId, tool.InstanceName, "XLD"));
+                tool.SetOutputValue("InputContourCount", (double)inputMetrics.ContourCount);
+                tool.SetOutputValue("ContourCount", (double)outputMetrics.ContourCount);
+                tool.SetOutputValue("InputTotalLength", inputMetrics.TotalLength);
+                tool.SetOutputValue("TotalLength", outputMetrics.TotalLength);
+                tool.SetOutputValue("MinRow", outputMetrics.MinRow);
+                tool.SetOutputValue("MinColumn", outputMetrics.MinColumn);
+                tool.SetOutputValue("MaxRow", outputMetrics.MaxRow);
+                tool.SetOutputValue("MaxColumn", outputMetrics.MaxColumn);
+                tool.SetOutputValue("CropRectangle", rectangleText);
+                tool.SetOutputValue("CloseContours", parameters.XldCropCloseContours ? "true" : "false");
+                tool.SetOutputValue("Parameters", parametersText);
+                ReplaceToolOverlayContours(croppedContours, tool, "XLD", outputMetrics.ContourCount, resultCode, outputMetrics.TotalLength);
+                croppedContours = null;
+
+                string message = outputMetrics.ContourCount == 0
+                    ? "HALCON XLD 矩形裁剪：裁剪框内没有保留轮廓，输出 XLD=0；" + parametersText
+                    : string.Format(CultureInfo.InvariantCulture, "HALCON XLD 矩形裁剪：轮廓 {0}→{1}，长度 {2:0.###}→{3:0.###}px，输出边界 Row[{4:0.###},{5:0.###}] / Column[{6:0.###},{7:0.###}]，CloseContours={8}", inputMetrics.ContourCount, outputMetrics.ContourCount, inputMetrics.TotalLength, outputMetrics.TotalLength, outputMetrics.MinRow, outputMetrics.MaxRow, outputMetrics.MinColumn, outputMetrics.MaxColumn, parameters.XldCropCloseContours);
+                InspectionRecord record = CreateRecord("XldContourCrop", resultCode, outputMetrics.TotalLength, message, tool);
+                resultStore.Add(record);
+                LogInfo(tool.InstanceName + " 完成：" + message);
+                return record;
+            }
+            finally
+            {
+                DisposeObject(croppedContours);
+            }
+        }
+
+        private sealed class XldLengthClassResult : IDisposable
+        {
+            public HObject Contours { get; set; }
+            public int Count { get { return Lengths.Count; } }
+            public List<double> Lengths { get; private set; }
+            public double Total { get { return Lengths.Sum(); } }
+            public double Minimum { get { return Lengths.Count == 0 ? 0 : Lengths.Min(); } }
+            public double Maximum { get { return Lengths.Count == 0 ? 0 : Lengths.Max(); } }
+            public double Mean { get { return Lengths.Count == 0 ? 0 : Lengths.Average(); } }
+
+            public XldLengthClassResult()
+            {
+                Lengths = new List<double>();
+            }
+
+            public void Dispose()
+            {
+                DisposeObject(Contours);
+                Contours = null;
+            }
+        }
+
+        private InspectionRecord RunXldLengthClassificationTool(VmToolInstance tool, HObject inputXld)
+        {
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            parameters.Normalize();
+            string error = parameters.Validate(VmToolKind.XldLengthClassification);
+            if (!string.IsNullOrWhiteSpace(error)) throw new InvalidOperationException(error);
+
+            XldLengthClassResult shortClass = new XldLengthClassResult();
+            XldLengthClassResult mediumClass = new XldLengthClassResult();
+            XldLengthClassResult longClass = new XldLengthClassResult();
+            try
+            {
+                HTuple countTuple;
+                HTuple lengthTuple;
+                HOperatorSet.CountObj(inputXld, out countTuple);
+                int inputCount = countTuple == null || countTuple.Length == 0 ? 0 : countTuple.I;
+                if (inputCount > 0) HOperatorSet.LengthXld(inputXld, out lengthTuple);
+                else lengthTuple = new HTuple();
+
+                List<int> shortIndices = new List<int>();
+                List<int> mediumIndices = new List<int>();
+                List<int> longIndices = new List<int>();
+                for (int index = 0; index < inputCount; index++)
+                {
+                    double length = lengthTuple[index].D;
+                    if (double.IsNaN(length) || double.IsInfinity(length)) throw new InvalidOperationException("HALCON length_xld 返回了非有限轮廓长度。");
+                    if (length <= parameters.XldLengthShortMaximum)
+                    {
+                        shortIndices.Add(index + 1);
+                        shortClass.Lengths.Add(length);
+                    }
+                    else if (length <= parameters.XldLengthMediumMaximum)
+                    {
+                        mediumIndices.Add(index + 1);
+                        mediumClass.Lengths.Add(length);
+                    }
+                    else
+                    {
+                        longIndices.Add(index + 1);
+                        longClass.Lengths.Add(length);
+                    }
+                }
+
+                shortClass.Contours = SelectXldObjects(inputXld, shortIndices);
+                mediumClass.Contours = SelectXldObjects(inputXld, mediumIndices);
+                longClass.Contours = SelectXldObjects(inputXld, longIndices);
+                PublishXldLengthClass(tool, "Short", shortClass);
+                PublishXldLengthClass(tool, "Medium", mediumClass);
+                PublishXldLengthClass(tool, "Long", longClass);
+                tool.SetOutputValue("ShortMaximum", parameters.XldLengthShortMaximum);
+                tool.SetOutputValue("MediumMaximum", parameters.XldLengthMediumMaximum);
+                string parametersText = string.Format(CultureInfo.InvariantCulture, "Short≤{0:0.###}; Medium=({0:0.###},{1:0.###}]; Long>{1:0.###}", parameters.XldLengthShortMaximum, parameters.XldLengthMediumMaximum);
+                tool.SetOutputValue("Parameters", parametersText);
+                string resultCode = inputCount > 0 ? "OK" : "NG";
+                string message = string.Format(CultureInfo.InvariantCulture,
+                    "HALCON XLD 长度分级：输入 {0} 条；短 {1} 条/{2:0.###}px，中 {3} 条/{4:0.###}px，长 {5} 条/{6:0.###}px；{7}",
+                    inputCount, shortClass.Count, shortClass.Total, mediumClass.Count, mediumClass.Total, longClass.Count, longClass.Total, parametersText);
+                InspectionRecord record = CreateRecord("XldLengthClassification", resultCode, shortClass.Total + mediumClass.Total + longClass.Total, message, tool);
+                resultStore.Add(record);
+                LogInfo(tool.InstanceName + " 完成：" + message);
+                return record;
+            }
+            finally
+            {
+                shortClass.Dispose();
+                mediumClass.Dispose();
+                longClass.Dispose();
+            }
+        }
+
+        private static HObject SelectXldObjects(HObject source, IList<int> indices)
+        {
+            HObject selected;
+            HOperatorSet.GenEmptyObj(out selected);
+            if (indices == null || indices.Count == 0) return selected;
+            foreach (int index in indices)
+            {
+                HObject item = null;
+                HObject combined = null;
+                try
+                {
+                    HOperatorSet.SelectObj(source, out item, index);
+                    HOperatorSet.ConcatObj(selected, item, out combined);
+                    selected.Dispose();
+                    selected = combined;
+                    combined = null;
+                }
+                finally
+                {
+                    DisposeObject(item);
+                    DisposeObject(combined);
+                }
+            }
+            return selected;
+        }
+
+        private static void PublishXldLengthClass(VmToolInstance tool, string prefix, XldLengthClassResult value)
+        {
+            tool.SetOutputValue(prefix + "XLD", VmXldSnapshot.Create(value.Contours, tool.ToolId, tool.InstanceName, prefix + "XLD"));
+            tool.SetOutputValue(prefix + "Count", (double)value.Count);
+            tool.SetOutputValue(prefix + "TotalLength", value.Total);
+            tool.SetOutputValue(prefix + "MinLength", value.Minimum);
+            tool.SetOutputValue(prefix + "MaxLength", value.Maximum);
+            tool.SetOutputValue(prefix + "MeanLength", value.Mean);
+        }
+
+        private sealed class XldLengthIndexedValue
+        {
+            public int OriginalIndex { get; set; }
+            public double Length { get; set; }
+        }
+
+        private InspectionRecord RunXldLengthSortSelectionTool(VmToolInstance tool, HObject inputXld)
+        {
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            parameters.Normalize();
+            string error = parameters.Validate(VmToolKind.XldLengthSortSelection);
+            if (!string.IsNullOrWhiteSpace(error)) throw new InvalidOperationException(error);
+
+            HObject selectedContours = null;
+            try
+            {
+                HTuple countTuple;
+                HTuple lengthTuple;
+                HOperatorSet.CountObj(inputXld, out countTuple);
+                int inputCount = countTuple == null || countTuple.Length == 0 ? 0 : countTuple.I;
+                if (inputCount > 0) HOperatorSet.LengthXld(inputXld, out lengthTuple); else lengthTuple = new HTuple();
+                List<XldLengthIndexedValue> measured = new List<XldLengthIndexedValue>();
+                for (int index = 0; index < inputCount; index++)
+                {
+                    double length = lengthTuple[index].D;
+                    if (double.IsNaN(length) || double.IsInfinity(length)) throw new InvalidOperationException("HALCON length_xld 返回了非有限轮廓长度。");
+                    measured.Add(new XldLengthIndexedValue { OriginalIndex = index + 1, Length = length });
+                }
+
+                bool descending = VmXldLengthSortDirection.Normalize(parameters.XldLengthSortDirection) == VmXldLengthSortDirection.Descending;
+                List<XldLengthIndexedValue> sorted = descending
+                    ? measured.OrderByDescending(item => item.Length).ThenBy(item => item.OriginalIndex).ToList()
+                    : measured.OrderBy(item => item.Length).ThenBy(item => item.OriginalIndex).ToList();
+                string mode = VmXldLengthSelectionMode.Normalize(parameters.XldLengthSelectionMode);
+                if (inputCount > 0)
+                {
+                    int maximumRequestedRank = mode == VmXldLengthSelectionMode.RankRange
+                        ? Math.Max(parameters.XldLengthStartRank, parameters.XldLengthEndRank)
+                        : parameters.XldLengthStartRank;
+                    if (maximumRequestedRank > inputCount)
+                    {
+                        throw new InvalidOperationException(string.Format(CultureInfo.InvariantCulture, "XLD 长度排序请求排名 {0}，但输入只有 {1} 条轮廓。", maximumRequestedRank, inputCount));
+                    }
+                }
+                int start;
+                int end;
+                if (mode == VmXldLengthSelectionMode.BottomN)
+                {
+                    int n = parameters.XldLengthStartRank;
+                    start = sorted.Count - n + 1;
+                    end = sorted.Count;
+                }
+                else if (mode == VmXldLengthSelectionMode.RankRange)
+                {
+                    start = parameters.XldLengthStartRank;
+                    end = parameters.XldLengthEndRank;
+                }
+                else
+                {
+                    start = 1;
+                    end = parameters.XldLengthStartRank;
+                }
+                List<XldLengthIndexedValue> selected = start <= end && start >= 1
+                    ? sorted.Skip(start - 1).Take(end - start + 1).ToList()
+                    : new List<XldLengthIndexedValue>();
+                selectedContours = SelectXldObjects(inputXld, selected.Select(item => item.OriginalIndex).ToList());
+                double total = selected.Sum(item => item.Length);
+                double minimum = selected.Count == 0 ? 0 : selected.Min(item => item.Length);
+                double maximum = selected.Count == 0 ? 0 : selected.Max(item => item.Length);
+                double mean = selected.Count == 0 ? 0 : total / selected.Count;
+                string indices = "[" + string.Join(",", selected.Select(item => item.OriginalIndex.ToString(CultureInfo.InvariantCulture))) + "]";
+                string lengths = "[" + string.Join(",", selected.Select(item => item.Length.ToString("0.###", CultureInfo.InvariantCulture))) + "]";
+                string directionText = VmXldLengthSortDirection.GetDisplayText(parameters.XldLengthSortDirection);
+                string modeText = VmXldLengthSelectionMode.GetDisplayText(mode);
+                string rankRange = selected.Count == 0 ? "[]" : string.Format(CultureInfo.InvariantCulture, "[{0},{1}]", start, end);
+                string parameterText = string.Format(CultureInfo.InvariantCulture, "Direction={0}; Mode={1}; Start/N={2}; End={3}", parameters.XldLengthSortDirection, mode, parameters.XldLengthStartRank, parameters.XldLengthEndRank);
+                tool.SetOutputValue("XLD", VmXldSnapshot.Create(selectedContours, tool.ToolId, tool.InstanceName, "XLD"));
+                tool.SetOutputValue("InputContourCount", (double)inputCount);
+                tool.SetOutputValue("ContourCount", (double)selected.Count);
+                tool.SetOutputValue("TotalLength", total);
+                tool.SetOutputValue("MinLength", minimum);
+                tool.SetOutputValue("MaxLength", maximum);
+                tool.SetOutputValue("MeanLength", mean);
+                tool.SetOutputValue("OriginalIndices", indices);
+                tool.SetOutputValue("Lengths", lengths);
+                tool.SetOutputValue("SortDirection", directionText);
+                tool.SetOutputValue("SelectionMode", modeText);
+                tool.SetOutputValue("RankRange", rankRange);
+                tool.SetOutputValue("Parameters", parameterText);
+                string resultCode = selected.Count > 0 ? "OK" : "NG";
+                ReplaceToolOverlayContours(selectedContours, tool, "XLD", selected.Count, resultCode, total);
+                selectedContours = null;
+                string message = string.Format(CultureInfo.InvariantCulture, "HALCON XLD 长度排序/索引选择：输入 {0} 条，{1}，{2}，排名 {3}，选择 {4} 条，总长 {5:0.###}px，原始索引 {6}", inputCount, directionText, modeText, rankRange, selected.Count, total, indices);
+                InspectionRecord record = CreateRecord("XldLengthSortSelection", resultCode, total, message, tool);
                 resultStore.Add(record);
                 LogInfo(tool.InstanceName + " 完成：" + message);
                 return record;
@@ -17015,6 +21798,8 @@ namespace HalconWinFormsDemo
                 case VmToolKind.ImageResize:
                 case VmToolKind.ImageMirror:
                 case VmToolKind.ImageRotate:
+                case VmToolKind.ImageAffineTransform:
+                case VmToolKind.ImageProjectiveTransform:
                 case VmToolKind.PolarImageUnwrap:
                 case VmToolKind.ImageDifference:
                     break;
@@ -17027,9 +21812,18 @@ namespace HalconWinFormsDemo
                     break;
                 case VmToolKind.RegionContourMeasurement:
                 case VmToolKind.XldContourFilter:
+                case VmToolKind.XldAdjacentContourUnion:
+                case VmToolKind.XldContourSmoothing:
+                case VmToolKind.XldAffineTransform:
+                case VmToolKind.XldProjectiveTransform:
+                case VmToolKind.XldContourCrop:
+                case VmToolKind.SubpixelEdgeExtraction:
                 case VmToolKind.XldContourSegmentation:
                 case VmToolKind.XldLineFitting:
                     tool.SetOutputValue("TotalLength", record.Score);
+                    break;
+                case VmToolKind.XldLengthClassification:
+                case VmToolKind.XldLengthSortSelection:
                     break;
                 case VmToolKind.ShapeMatch:
                     tool.SetOutputValue("Score", record.Score);
@@ -17243,6 +22037,17 @@ namespace HalconWinFormsDemo
             return Math.Max(2, Math.Max(Math.Abs(horizontal.X - origin.X), Math.Abs(vertical.Y - origin.Y)));
         }
 
+        private static double GetXldHitTolerance(
+            ImageViewportController controller,
+            HWindowControl control,
+            System.Drawing.Point windowPoint)
+        {
+            PointF origin = controller.WindowToImage(windowPoint, control);
+            PointF horizontal = controller.WindowToImage(new System.Drawing.Point(windowPoint.X + 9, windowPoint.Y), control);
+            PointF vertical = controller.WindowToImage(new System.Drawing.Point(windowPoint.X, windowPoint.Y + 9), control);
+            return Math.Max(2, Math.Max(Math.Abs(horizontal.X - origin.X), Math.Abs(vertical.Y - origin.Y)));
+        }
+
         private static string GetRoiEditHandleText(RoiEditHandle handle, int vertexIndex)
         {
             switch (handle)
@@ -17331,12 +22136,14 @@ namespace HalconWinFormsDemo
                 foreach (VmRoiLayer layer in layers)
                 {
                     Stopwatch stopwatch = Stopwatch.StartNew();
+                    HRegion effectiveRegion = null;
                     HObject clippedRegion = null;
                     HObject connectedRegion = null;
                     HObject selectedRegion = null;
                     try
                     {
-                        HOperatorSet.Intersection(thresholdRegion, layer.Geometry.Region, out clippedRegion);
+                        effectiveRegion = CreatePerRoiEffectiveRegion(tool, layer);
+                        HOperatorSet.Intersection(thresholdRegion, effectiveRegion, out clippedRegion);
                         HOperatorSet.Connection(clippedRegion, out connectedRegion);
                         HOperatorSet.SelectShape(connectedRegion, out selectedRegion, "area", "and", parameters.BlobMinArea, 999999999.0);
                         HTuple area;
@@ -17360,6 +22167,7 @@ namespace HalconWinFormsDemo
                         DisposeObject(selectedRegion);
                         DisposeObject(connectedRegion);
                         DisposeObject(clippedRegion);
+                        if (effectiveRegion != null) effectiveRegion.Dispose();
                     }
                 }
 
@@ -17436,11 +22244,13 @@ namespace HalconWinFormsDemo
                 foreach (VmRoiLayer layer in layers)
                 {
                     Stopwatch stopwatch = Stopwatch.StartNew();
+                    HRegion effectiveRegion = null;
                     try
                     {
+                        effectiveRegion = CreatePerRoiEffectiveRegion(tool, layer);
                         HTuple mean;
                         HTuple deviation;
-                        HOperatorSet.Intensity(layer.Geometry.Region, gray, out mean, out deviation);
+                        HOperatorSet.Intensity(effectiveRegion, gray, out mean, out deviation);
                         double value = mean.D;
                         bool ok = value >= parameters.GrayMin && value <= parameters.GrayMax;
                         results.Add(CreateRoiRunResult(layer, ok ? "OK" : "NG", "Mean", value, "Dev=" + deviation.D.ToString("0.###", CultureInfo.InvariantCulture), null, stopwatch.Elapsed.TotalMilliseconds));
@@ -17453,6 +22263,7 @@ namespace HalconWinFormsDemo
                     finally
                     {
                         stopwatch.Stop();
+                        if (effectiveRegion != null) effectiveRegion.Dispose();
                     }
                 }
 
@@ -17534,11 +22345,13 @@ namespace HalconWinFormsDemo
                 foreach (VmRoiLayer layer in layers)
                 {
                     Stopwatch stopwatch = Stopwatch.StartNew();
+                    HRegion effectiveRegion = null;
                     HObject reduced = null;
                     HObject edges = null;
                     try
                     {
-                        HOperatorSet.ReduceDomain(gray, layer.Geometry.Region, out reduced);
+                        effectiveRegion = CreatePerRoiEffectiveRegion(tool, layer);
+                        HOperatorSet.ReduceDomain(gray, effectiveRegion, out reduced);
                         HOperatorSet.EdgesSubPix(reduced, out edges, "canny", 1.0, parameters.EdgeThreshold, parameters.EdgeThreshold * 2.0);
                         HTuple lengths;
                         HOperatorSet.LengthXld(edges, out lengths);
@@ -17556,6 +22369,7 @@ namespace HalconWinFormsDemo
                         stopwatch.Stop();
                         DisposeObject(edges);
                         DisposeObject(reduced);
+                        if (effectiveRegion != null) effectiveRegion.Dispose();
                     }
                 }
 
@@ -17583,10 +22397,10 @@ namespace HalconWinFormsDemo
                 throw new InvalidOperationException("逐 ROI 模式必须使用本地 ROI 图层；请在输入页断开 Region 订阅，或切换为合并 ROI。");
             }
 
-            List<VmRoiLayer> layers = GetBoundRoiLayers(tool);
+            List<VmRoiLayer> layers = GetBoundDetectionRoiLayers(tool);
             if (layers.Count == 0)
             {
-                throw new InvalidOperationException(tool.InstanceName + " 使用逐 ROI 模式，必须至少绑定一个已启用 ROI。请在统一模块配置的 ROI / 模板页完成绑定。");
+                throw new InvalidOperationException(tool.InstanceName + " 使用逐 ROI 模式，必须至少绑定一个已启用检测区。屏蔽区会从每个检测区中扣除，但不能单独运行。");
             }
 
             return layers;
@@ -17755,6 +22569,10 @@ namespace HalconWinFormsDemo
             string selectedKey = ResultLayerList.SelectedItem is VmResultOverlayLayer
                 ? ((VmResultOverlayLayer)ResultLayerList.SelectedItem).LayerKey
                 : null;
+            foreach (VmResultOverlayLayer existingLayer in suppressResultLayerStyleCapture ? Enumerable.Empty<VmResultOverlayLayer>() : resultOverlayLayers)
+            {
+                StoreResultLayerStyle(existingLayer);
+            }
             Dictionary<string, bool> previousVisibility = resultOverlayLayers.ToDictionary(item => item.LayerKey, item => item.IsVisible, StringComparer.OrdinalIgnoreCase);
             Dictionary<string, int> previousOrder = resultOverlayLayers
                 .Select((item, index) => new { item.LayerKey, Index = index })
@@ -17824,13 +22642,18 @@ namespace HalconWinFormsDemo
                     string halconColor;
                     string colorHex;
                     ResolveResultLayerColor(port.DataType, tool.Sequence + discoveryIndex, out colorName, out halconColor, out colorHex);
-                    bool visible;
-                    if (!previousVisibility.TryGetValue(layerKey, out visible))
+                    if (tool.Kind == VmToolKind.XldLengthClassification)
                     {
-                        visible = true;
+                        if (string.Equals(port.PortName, "ShortXLD", StringComparison.OrdinalIgnoreCase)) { colorName = "绿色"; halconColor = "green"; colorHex = "#34D399"; }
+                        else if (string.Equals(port.PortName, "MediumXLD", StringComparison.OrdinalIgnoreCase)) { colorName = "黄色"; halconColor = "yellow"; colorHex = "#FACC15"; }
+                        else if (string.Equals(port.PortName, "LongXLD", StringComparison.OrdinalIgnoreCase)) { colorName = "红色"; halconColor = "red"; colorHex = "#F87171"; }
                     }
+                    ResultLayerStyleRecipeData style;
+                    bool hasStyle = resultLayerStyles.TryGetValue(layerKey, out style);
+                    bool visible = hasStyle ? style.IsVisible : (previousVisibility.ContainsKey(layerKey) ? previousVisibility[layerKey] : true);
                     int existingOrder;
                     bool hasExistingOrder = previousOrder.TryGetValue(layerKey, out existingOrder);
+                    string resolvedColor = hasStyle ? VmOverlayPalette.Normalize(style.Color, halconColor) : halconColor;
                     refreshed.Add(new VmResultOverlayLayer
                     {
                         LayerKey = layerKey,
@@ -17838,10 +22661,16 @@ namespace HalconWinFormsDemo
                         ToolName = tool.InstanceName,
                         PortName = port.PortName,
                         DataType = port.DataType,
-                        Sequence = hasExistingOrder ? existingOrder + 1 : 10000 + discoveryIndex,
-                        ColorName = colorName,
-                        HalconColor = halconColor,
-                        ColorHex = colorHex,
+                        Sequence = hasStyle && style.LayerOrder > 0 ? style.LayerOrder : (hasExistingOrder ? existingOrder + 1 : 10000 + discoveryIndex),
+                        LayerOrder = hasStyle && style.LayerOrder > 0 ? style.LayerOrder : 1000 + discoveryIndex,
+                        DisplayName = hasStyle ? style.DisplayName : tool.InstanceName + "." + port.PortName,
+                        ColorName = VmOverlayPalette.GetDisplayText(resolvedColor),
+                        HalconColor = resolvedColor,
+                        ColorHex = VmOverlayPalette.GetHex(resolvedColor),
+                        LineWidth = hasStyle ? style.LineWidth : 2,
+                        Opacity = hasStyle ? style.Opacity : 100,
+                        IsLocked = hasStyle && style.IsLocked,
+                        ViewportScope = hasStyle ? style.ViewportScope : VmLayerViewportScope.Right,
                         StateKey = stateKey,
                         StateText = stateText,
                         ResultCode = resultCode,
@@ -17871,9 +22700,23 @@ namespace HalconWinFormsDemo
 
             if (!string.IsNullOrWhiteSpace(selectedKey))
             {
-                ResultLayerList.SelectedItem = resultOverlayLayers.FirstOrDefault(item => string.Equals(item.LayerKey, selectedKey, StringComparison.OrdinalIgnoreCase));
+                resultOverlayLayersUpdating = true;
+                try
+                {
+                    ResultLayerList.SelectedItem = resultOverlayLayers.FirstOrDefault(item => string.Equals(item.LayerKey, selectedKey, StringComparison.OrdinalIgnoreCase));
+                }
+                finally
+                {
+                    resultOverlayLayersUpdating = false;
+                }
             }
             RefreshResultLayerCount();
+            if (!suppressResultLayerStyleCapture)
+            {
+                foreach (VmResultOverlayLayer layer in resultOverlayLayers) StoreResultLayerStyle(layer);
+            }
+            RefreshUnifiedLayers();
+            if (xldContourSelection != null) EnsureXldContourSelectionValid(true);
         }
 
         private static void ResolveResultLayerColor(string dataType, int index, out string colorName, out string halconColor, out string colorHex)
@@ -17925,9 +22768,15 @@ namespace HalconWinFormsDemo
                         PortName = source.PortName,
                         DataType = source.DataType,
                         Sequence = index + 1,
+                        LayerOrder = source.LayerOrder,
+                        DisplayName = source.DisplayName,
                         ColorName = source.ColorName,
                         HalconColor = source.HalconColor,
                         ColorHex = source.ColorHex,
+                        LineWidth = source.LineWidth,
+                        Opacity = source.Opacity,
+                        IsLocked = source.IsLocked,
+                        ViewportScope = source.ViewportScope,
                         StateKey = source.StateKey,
                         StateText = source.StateText,
                         ResultCode = source.ResultCode,
@@ -17942,17 +22791,17 @@ namespace HalconWinFormsDemo
                 resultOverlayLayersUpdating = false;
             }
             RefreshResultLayerCount();
+            foreach (VmResultOverlayLayer layer in resultOverlayLayers) StoreResultLayerStyle(layer);
+            RefreshUnifiedLayers();
         }
 
-        private void DrawResultOverlayLayers(HWindow window)
+        private void DrawResultOverlayLayer(HWindow window, VmResultOverlayLayer layer)
         {
-            foreach (VmResultOverlayLayer layer in resultOverlayLayers.Reverse().Where(item => item.IsVisible && item.StateKey == "Valid"))
-            {
-                VmToolInstance tool = flowTools.FirstOrDefault(item => string.Equals(item.ToolId, layer.ToolId, StringComparison.OrdinalIgnoreCase));
+            VmToolInstance tool = flowTools.FirstOrDefault(item => string.Equals(item.ToolId, layer.ToolId, StringComparison.OrdinalIgnoreCase));
                 object raw;
                 if (tool == null || !tool.TryGetOutputValue(layer.PortName, out raw))
                 {
-                    continue;
+                    return;
                 }
 
                 HObject displayObject = null;
@@ -17972,10 +22821,10 @@ namespace HalconWinFormsDemo
 
                     if (displayObject == null)
                     {
-                        continue;
+                        return;
                     }
-                    window.SetColor(layer.HalconColor);
-                    window.SetLineWidth(2);
+                    SetOverlayColor(window, layer.HalconColor, layer.Opacity);
+                    window.SetLineWidth(layer.LineWidth);
                     window.DispObj(displayObject);
                 }
                 catch (HalconException)
@@ -17990,6 +22839,108 @@ namespace HalconWinFormsDemo
                 {
                     DisposeObject(displayObject);
                 }
+        }
+
+        private void DrawResultOverlayLayers(HWindow window, bool isLeftViewport)
+        {
+            foreach (VmResultOverlayLayer layer in resultOverlayLayers.Reverse().Where(item =>
+                item.IsVisible && item.StateKey == "Valid" && VmLayerViewportScope.Includes(item.ViewportScope, isLeftViewport)))
+            {
+                DrawResultOverlayLayer(window, layer);
+            }
+        }
+
+        private static void SetOverlayColor(HWindow window, string color, int opacity)
+        {
+            int resolvedOpacity = Math.Max(10, Math.Min(100, opacity));
+            if (resolvedOpacity >= 100)
+            {
+                window.SetColor(color);
+                return;
+            }
+            string alpha = ((int)Math.Round(255.0 * resolvedOpacity / 100.0)).ToString("X2", CultureInfo.InvariantCulture);
+            window.SetColor(VmOverlayPalette.GetHex(color) + alpha);
+        }
+
+        private void DrawManagedLayers(HWindow window, bool isLeftViewport, bool allowInputCoordinateRoi, VmRoiLayer selectedLayer)
+        {
+            bool selectionViewportMatches = xldContourSelection != null &&
+                string.Equals(xldContourSelection.ViewportKey, isLeftViewport ? "Left" : "Right", StringComparison.OrdinalIgnoreCase);
+            bool isolateSelectedContour = selectionViewportMatches &&
+                XldContourIsolateToggleButton != null && XldContourIsolateToggleButton.IsChecked == true;
+            foreach (VmUnifiedLayerItem item in unifiedLayers.Reverse())
+            {
+                if (item.RoiLayer != null)
+                {
+                    if (isolateSelectedContour) continue;
+                    VmRoiLayer layer = item.RoiLayer;
+                    if (!showRoiOverlay || !allowInputCoordinateRoi || !layer.IsVisible || layer.Geometry == null ||
+                        !VmLayerViewportScope.Includes(layer.ViewportScope, isLeftViewport)) continue;
+                    string color = layer.IsEnabled ? layer.DisplayColor : "gray";
+                    overlayRenderer.DrawRoiLayer(
+                        window,
+                        layer.Geometry,
+                        color,
+                        layer == selectedLayer ? Math.Min(8, layer.DisplayLineWidth + 1) : layer.DisplayLineWidth,
+                        layer == selectedLayer,
+                        layer.IsLocked,
+                        layer.IsMask,
+                        layer.DisplayOpacity);
+                }
+                else if (item.ResultLayer != null)
+                {
+                    VmResultOverlayLayer layer = item.ResultLayer;
+                    if (!showResultOverlay || !layer.IsVisible || layer.StateKey != "Valid" ||
+                        !VmLayerViewportScope.Includes(layer.ViewportScope, isLeftViewport)) continue;
+                    if (isolateSelectedContour)
+                    {
+                        if (string.Equals(layer.LayerKey, xldContourSelection.LayerKey, StringComparison.OrdinalIgnoreCase))
+                        {
+                            DrawSelectedXldContour(window);
+                        }
+                        continue;
+                    }
+                    DrawResultOverlayLayer(window, layer);
+                }
+            }
+            if (selectionViewportMatches && !isolateSelectedContour)
+            {
+                DrawSelectedXldContour(window);
+            }
+        }
+
+        private void DrawSelectedXldContour(HWindow window)
+        {
+            if (xldContourSelection == null || xldContourSelection.Snapshot == null || xldContourSelection.Snapshot.IsDisposed)
+            {
+                return;
+            }
+
+            HObject contours = null;
+            HObject selectedContour = null;
+            try
+            {
+                contours = xldContourSelection.Snapshot.CreateXldCopy();
+                HOperatorSet.SelectObj(contours, out selectedContour, xldContourSelection.ObjectIndex);
+                window.SetColor("white");
+                window.SetLineWidth(6);
+                window.DispObj(selectedContour);
+                window.SetColor("magenta");
+                window.SetLineWidth(3);
+                window.DispObj(selectedContour);
+            }
+            catch (HalconException)
+            {
+                // Selection invalidation is handled by the next result/context refresh.
+            }
+            catch (ObjectDisposedException)
+            {
+                // Managed algorithm output ownership remains unchanged.
+            }
+            finally
+            {
+                DisposeObject(selectedContour);
+                DisposeObject(contours);
             }
         }
 
@@ -18001,6 +22952,25 @@ namespace HalconWinFormsDemo
             }
 
             imageWindow.HalconWindow.ClearWindow();
+            if (historicalImageMode)
+            {
+                HImage historical = historicalShowResultImage && historicalResultImage != null ? historicalResultImage : historicalSourceImage ?? historicalResultImage;
+                if (historical == null) return;
+                using (HImage display = historical.CopyImage())
+                {
+                    viewport.Apply(imageWindow.HalconWindow);
+                    display.DispImage(imageWindow.HalconWindow);
+                    foreach (HistoricalLayerSnapshot layer in historicalLayers.Where(layer => layer.Metadata != null && layer.Metadata.IsVisible && layer.Object != null).OrderByDescending(layer => layer.Metadata.Sequence))
+                    {
+                        SetOverlayColor(imageWindow.HalconWindow, layer.Metadata.Color, layer.Metadata.Opacity);
+                        imageWindow.HalconWindow.SetLineWidth(layer.Metadata.LineWidth);
+                        if (string.Equals(layer.Metadata.DataType, "Region", StringComparison.OrdinalIgnoreCase)) imageWindow.HalconWindow.SetDraw("margin");
+                        imageWindow.HalconWindow.DispObj(layer.Object);
+                    }
+                }
+                if (comparisonImageWindow != null && comparisonImageWindow.HalconWindow != null) comparisonImageWindow.HalconWindow.ClearWindow();
+                return;
+            }
             ResolvedImageContext context = ResolveImageContext();
             if (!context.HasImage)
             {
@@ -18017,19 +22987,7 @@ namespace HalconWinFormsDemo
                 VmToolInstance selectedTool = FlowToolList == null ? null : FlowToolList.SelectedItem as VmToolInstance;
                 bool transformedModuleOutput = IsTransformedModuleOutputContext(context, selectedTool);
                 bool showInputCoordinateRoi = showRoiOverlay && !transformedModuleOutput;
-                if (showInputCoordinateRoi)
-                {
-                    foreach (VmRoiLayer layer in roiLayers.Where(item => item.IsVisible && item.Geometry != null))
-                    {
-                        string color = layer == selectedLayer ? "green" : (layer.IsEnabled ? "cyan" : "gray");
-                        overlayRenderer.DrawRoiLayer(imageWindow.HalconWindow, layer.Geometry, color, layer == selectedLayer ? 3 : 2, layer == selectedLayer, layer.IsLocked);
-                    }
-                }
-
-                if (showResultOverlay)
-                {
-                    DrawResultOverlayLayers(imageWindow.HalconWindow);
-                }
+                DrawManagedLayers(imageWindow.HalconWindow, false, showInputCoordinateRoi, selectedLayer);
 
                 RoiData templateRoi = currentTemplateItem == null ? null : currentTemplateItem.TemplateRoi;
                 RoiData confirmedBoundary = templateRoi;
@@ -18064,6 +23022,7 @@ namespace HalconWinFormsDemo
                 {
                     DrawCircularCaliperEditor(imageWindow.HalconWindow);
                 }
+                DrawProjectiveGeometryEditor(imageWindow.HalconWindow, false);
                 DrawCrosshairSettings(imageWindow.HalconWindow, rightImageCrosshairs, context.Width, context.Height);
             }
             finally
@@ -18092,18 +23051,8 @@ namespace HalconWinFormsDemo
                 comparisonViewport.Apply(comparisonImageWindow.HalconWindow);
                 displayImage.DispImage(comparisonImageWindow.HalconWindow);
 
-                if (!showRoiOverlay)
-                {
-                    DrawCrosshairSettings(comparisonImageWindow.HalconWindow, leftImageCrosshairs, context.Width, context.Height);
-                    return;
-                }
-
                 VmRoiLayer selectedLayer = RoiLayerList == null ? null : RoiLayerList.SelectedItem as VmRoiLayer;
-                foreach (VmRoiLayer layer in roiLayers.Where(item => item.IsVisible && item.Geometry != null))
-                {
-                    string color = layer == selectedLayer ? "green" : (layer.IsEnabled ? "cyan" : "gray");
-                    overlayRenderer.DrawRoiLayer(comparisonImageWindow.HalconWindow, layer.Geometry, color, layer == selectedLayer ? 3 : 2, layer == selectedLayer, layer.IsLocked);
-                }
+                DrawManagedLayers(comparisonImageWindow.HalconWindow, true, true, selectedLayer);
 
                 RoiData templateRoi = currentTemplateItem == null ? null : currentTemplateItem.TemplateRoi;
                 ShapeTemplateService service = currentTemplateItem == null ? null : currentTemplateItem.Service;
@@ -18137,6 +23086,7 @@ namespace HalconWinFormsDemo
                 {
                     DrawCircularCaliperEditor(comparisonImageWindow.HalconWindow);
                 }
+                DrawProjectiveGeometryEditor(comparisonImageWindow.HalconWindow, true);
                 DrawCrosshairSettings(comparisonImageWindow.HalconWindow, leftImageCrosshairs, context.Width, context.Height);
             }
         }
@@ -18166,6 +23116,8 @@ namespace HalconWinFormsDemo
             return selectedTool.Kind == VmToolKind.ImageResize ||
                    selectedTool.Kind == VmToolKind.ImageMirror ||
                    selectedTool.Kind == VmToolKind.ImageRotate ||
+                   selectedTool.Kind == VmToolKind.ImageAffineTransform ||
+                   selectedTool.Kind == VmToolKind.ImageProjectiveTransform ||
                    selectedTool.Kind == VmToolKind.PolarImageUnwrap ||
                    selectedTool.Kind == VmToolKind.RoiImageExtraction &&
                    string.Equals(
@@ -18182,7 +23134,8 @@ namespace HalconWinFormsDemo
             }
 
             ResolvedImageContext imageContext = ResolveImageContext();
-            bool hasImage = imageContext.HasImage;
+            bool historyReadOnly = historicalImageMode;
+            bool hasImage = historyReadOnly ? historicalSourceImage != null || historicalResultImage != null : imageContext.HasImage;
             bool hasGlobalImage = currentImage != null;
             bool hasRoi = currentRoi != null;
             bool hasRoiLayers = roiLayers.Count > 0;
@@ -18192,7 +23145,7 @@ namespace HalconWinFormsDemo
             bool canSend = tcpService.CanSend;
             bool clientMode = TcpClientModeRadio.IsChecked == true;
             bool hasEnabledTools = flowTools.Any(item => item.IsEnabled);
-            bool flowBusy = isContinuousRunning || isFlowExecutionActive;
+            bool flowBusy = isContinuousRunning || isFlowExecutionActive || isImageQueueBatchRunning || historyReadOnly;
 
             RefreshFlowEditHistoryState();
 
@@ -18218,13 +23171,15 @@ namespace HalconWinFormsDemo
             RefreshFlowPortVisualization();
             SyncLegacyToolChecksFromFlow();
 
-            PreviousImageButton.IsEnabled = imageFiles.Count > 1 && imageIndex > 0 && !playbackTimer.IsEnabled;
-            NextImageButton.IsEnabled = imageFiles.Count > 1 && imageIndex < imageFiles.Count - 1 && !playbackTimer.IsEnabled;
-            PlayButton.IsEnabled = imageFiles.Count > 1 && !playbackTimer.IsEnabled && !flowBusy;
+            PreviousImageButton.IsEnabled = imageFiles.Count > 1 && imageIndex > 0 && !playbackTimer.IsEnabled && !flowBusy;
+            NextImageButton.IsEnabled = imageFiles.Count > 1 && imageIndex < imageFiles.Count - 1 && !playbackTimer.IsEnabled && !flowBusy;
+            PlayButton.IsEnabled = imageFiles.Count > 1 && !flowBusy;
+            PlayButton.Content = playbackTimer.IsEnabled ? "Ⅱ 暂停播放" : "▶ 播放";
             StopPlayButton.IsEnabled = playbackTimer.IsEnabled;
+            RefreshImageQueueUi();
             RunOnceButton.IsEnabled = hasEnabledTools && !flowBusy;
             RunContinuousButton.IsEnabled = hasEnabledTools && !flowBusy;
-            PauseRunButton.IsEnabled = flowBusy;
+            PauseRunButton.IsEnabled = isContinuousRunning || isFlowExecutionActive;
             PauseRunButton.Content = isPauseRequested ? "▶ 继续" : "Ⅱ 暂停";
             StopRunButton.IsEnabled = flowBusy;
             ToggleBreakpointButton.IsEnabled = hasSelectedFlowTools && !flowBusy;
@@ -18245,6 +23200,22 @@ namespace HalconWinFormsDemo
             ClearOverlayButton.IsEnabled = hasImage;
             SaveScreenshotButton.IsEnabled = hasImage;
 
+            if (historyReadOnly)
+            {
+                PreviousImageButton.IsEnabled = false;
+                NextImageButton.IsEnabled = false;
+                PlayButton.IsEnabled = false;
+                RunOnceButton.IsEnabled = false;
+                RunContinuousButton.IsEnabled = false;
+                ImageContextComboBox.IsEnabled = false;
+                ImageContextSourceText.Text = "来源：批次历史只读快照";
+                ImageContextDetailText.Text = historicalBatchItem == null ? "--" : historicalBatchItem.FileName + " · " + historicalBatchItem.ResultCode;
+            }
+            else
+            {
+                ImageContextComboBox.IsEnabled = true;
+            }
+
             RectangleRoiButton.IsEnabled = hasImage && !flowBusy;
             CircleRoiButton.IsEnabled = hasImage && !flowBusy;
             EllipseRoiButton.IsEnabled = hasImage && !flowBusy;
@@ -18254,6 +23225,9 @@ namespace HalconWinFormsDemo
             VmRoiLayer selectedEditableRoi = RoiLayerList == null ? null : RoiLayerList.SelectedItem as VmRoiLayer;
             CopySelectedRoiButton.IsEnabled = selectedEditableRoi != null && hasImage && !flowBusy;
             ToggleSelectedRoiLockButton.IsEnabled = selectedEditableRoi != null && !flowBusy;
+            ToggleSelectedRoiRoleButton.IsEnabled = selectedEditableRoi != null && selectedEditableRoi.Geometry != null && IsAreaRoiShape(selectedEditableRoi.Geometry.ShapeType) && !selectedEditableRoi.IsLocked && !flowBusy;
+            MoveSelectedRoiUpButton.IsEnabled = selectedEditableRoi != null && roiLayers.IndexOf(selectedEditableRoi) > 0 && !flowBusy;
+            MoveSelectedRoiDownButton.IsEnabled = selectedEditableRoi != null && roiLayers.IndexOf(selectedEditableRoi) >= 0 && roiLayers.IndexOf(selectedEditableRoi) < roiLayers.Count - 1 && !flowBusy;
             ClearRoiButton.IsEnabled = selectedEditableRoi != null && !selectedEditableRoi.IsLocked;
             ClearAllRoiLayersButton.IsEnabled = hasRoiLayers && !roiLayers.Any(item => item.IsLocked);
             ConfirmRoiButton.IsEnabled = hasPendingRoi;
@@ -18262,7 +23236,7 @@ namespace HalconWinFormsDemo
             SaveTemplateButton.IsEnabled = hasTemplate;
             LoadTemplateButton.IsEnabled = !flowBusy;
             VmToolInstance shapeTool = flowTools.FirstOrDefault(item => item.Kind == VmToolKind.ShapeMatch);
-            RunMatchButton.IsEnabled = hasGlobalImage && hasTemplate && shapeTool != null && GetBoundRoiLayers(shapeTool).Count > 0 && !flowBusy;
+            RunMatchButton.IsEnabled = hasGlobalImage && hasTemplate && shapeTool != null && GetBoundDetectionRoiLayers(shapeTool).Count > 0 && !flowBusy;
 
             TcpConnectButton.Visibility = clientMode ? Visibility.Visible : Visibility.Collapsed;
             TcpDisconnectButton.Visibility = clientMode ? Visibility.Visible : Visibility.Collapsed;
@@ -18285,14 +23259,18 @@ namespace HalconWinFormsDemo
 
             ImageIndexText.Text = imageFiles.Count == 0 ? "队列：0/0" : string.Format("队列：{0}/{1}", imageIndex + 1, imageFiles.Count);
             CurrentFileText.Text = "当前文件：" + (string.IsNullOrWhiteSpace(currentImagePath) ? "--" : currentImagePath);
-            ImageContextSourceText.Text = "来源：" + imageContext.SourceText;
-            ImageContextDetailText.Text = imageContext.DetailText;
-            DualRightSourceText.Text = "来源：" + imageContext.SourceText + " · " + imageContext.DetailText;
+            ImageContextSourceText.Text = historyReadOnly ? "来源：批次历史只读快照" : "来源：" + imageContext.SourceText;
+            ImageContextDetailText.Text = historyReadOnly && historicalBatchItem != null
+                ? historicalBatchItem.FileName + " · " + historicalBatchItem.ResultCode
+                : imageContext.DetailText;
+            DualRightSourceText.Text = historyReadOnly ? "来源：批次历史只读快照" : "来源：" + imageContext.SourceText + " · " + imageContext.DetailText;
             HalconHost.Visibility = hasImage ? Visibility.Visible : Visibility.Collapsed;
             ImageEmptyStateBorder.Visibility = hasImage ? Visibility.Collapsed : Visibility.Visible;
-            ImageEmptyStateText.Text = imageContext.StateText + "\n请选择全局输入，或先运行并选择具有 Image 输出/关联图像的模块。";
+            ImageEmptyStateText.Text = historyReadOnly
+                ? "历史图像快照不可用，请返回实时图像或选择其他逐图记录。"
+                : imageContext.StateText + "\n请选择全局输入，或先运行并选择具有 Image 输出/关联图像的模块。";
             ResolvedImageContext dualInputContext = ResolveDualInputImageContext();
-            bool hasDualInputImage = dualImageMode && dualInputContext.HasImage;
+            bool hasDualInputImage = !historyReadOnly && dualImageMode && dualInputContext.HasImage;
             DualHalconHost.Visibility = hasDualInputImage ? Visibility.Visible : Visibility.Collapsed;
             DualLeftEmptyStateBorder.Visibility = dualImageMode && !hasDualInputImage ? Visibility.Visible : Visibility.Collapsed;
             DualLeftEmptyStateText.Text = dualInputContext.StateText;
@@ -18304,8 +23282,9 @@ namespace HalconWinFormsDemo
             int visibleRoiCount = roiLayers.Count(item => item.IsVisible && item.Geometry != null);
             int rightCrosshairCount = CountEnabledCrosshairs(rightImageCrosshairs);
             int leftCrosshairCount = CountEnabledCrosshairs(leftImageCrosshairs);
+            int visibleMaskCount = roiLayers.Count(item => item.IsVisible && item.IsMask && item.Geometry != null);
             RoiOverlayLegendText.Text = showRoiOverlay
-                ? "ROI：" + visibleRoiCount.ToString(CultureInfo.InvariantCulture) + " 个 · 青/绿"
+                ? "ROI：" + visibleRoiCount.ToString(CultureInfo.InvariantCulture) + " 个 · 检测区青/绿 · 屏蔽区红纹 " + visibleMaskCount.ToString(CultureInfo.InvariantCulture)
                 : "ROI：已隐藏 · 图层/绑定保留";
             DualLeftOverlayText.Text = showRoiOverlay
                 ? "叠加：输入 ROI " + visibleRoiCount.ToString(CultureInfo.InvariantCulture) + " · 十字线 " + leftCrosshairCount.ToString(CultureInfo.InvariantCulture) + " · 结果关闭"
@@ -18332,9 +23311,11 @@ namespace HalconWinFormsDemo
 
             ModeStatusText.Text = isPauseRequested
                 ? (isDebugBreakpointPause ? "模式：断点调试" : (debugPauseBeforeNextTool ? "模式：单步调试" : "模式：流程暂停"))
-                : (isContinuousRunning
+                : (isImageQueueBatchRunning
+                    ? "模式：图片批次"
+                    : (isContinuousRunning
                     ? "模式：连续运行"
-                    : (isFlowExecutionActive ? "模式：单次运行" : (playbackTimer.IsEnabled ? "模式：图片播放" : "模式：手动调试")));
+                    : (isFlowExecutionActive ? "模式：单次运行" : (playbackTimer.IsEnabled ? "模式：图片播放" : "模式：手动调试"))));
             RunModeText.Text = ModeStatusText.Text;
             ImageStatusText.Text = hasImage ? string.Format("图像：{0}x{1}", imageContext.Width, imageContext.Height) : "图像：--";
             ZoomStatusText.Text = dualImageMode
@@ -18355,12 +23336,14 @@ namespace HalconWinFormsDemo
             SetRecipeDirtyState(isRecipeDirty, RecipeWorkspaceStatusText == null ? null : RecipeWorkspaceStatusText.Text);
             RefreshRecoveryWorkspace();
             RefreshInspector();
+            RefreshProductionRunView();
             ScheduleRecipeStateCheck();
         }
 
         private void SetRoiTool(VisionTool tool, string hint)
         {
             EnsureDisplayImage();
+            if (xldContourSelectionMode) SetXldContourSelectionMode(false, false);
             FinishRoiGeometryEdit(false);
             roiEditor.Tool = tool;
             ClearPendingRoi();
@@ -18573,20 +23556,21 @@ namespace HalconWinFormsDemo
 
         private void StopContinuousRun()
         {
-            if (!isContinuousRunning && !runTimer.IsEnabled && !isFlowExecutionActive)
+            if (!isContinuousRunning && !runTimer.IsEnabled && !isFlowExecutionActive && !isImageQueueBatchRunning)
             {
                 HeaderStatusText.Text = "当前没有运行中的流程。";
                 return;
             }
 
             isStopRequested = true;
+            if (isImageQueueBatchRunning) imageQueueBatchStopRequested = true;
             isPauseRequested = false;
             isDebugBreakpointPause = false;
             debugSingleStepRequested = false;
             debugPauseBeforeNextTool = false;
             isContinuousRunning = false;
             runTimer.Stop();
-            LogInfo(isFlowExecutionActive ? "已请求停止，将在当前工具完成后生效。" : "连续运行已停止。");
+            LogInfo(isFlowExecutionActive ? "已请求停止，将在当前工具完成后生效。" : (isImageQueueBatchRunning ? "图片批次已请求停止。" : "连续运行已停止。"));
             RefreshUiState();
         }
 
@@ -18650,8 +23634,11 @@ namespace HalconWinFormsDemo
             FlowTimeoutTextBox.Text = flowPolicy.FlowTimeoutMilliseconds.ToString(CultureInfo.InvariantCulture);
             StopOnNgCheckBox.IsChecked = flowPolicy.StopOnNg;
             runTimer.Interval = TimeSpan.FromMilliseconds(flowPolicy.ContinuousIntervalMilliseconds);
+            productionRunLayout = (recipe.ProductionRunLayout ?? VmProductionRunLayoutData.CreateDefault()).CloneNormalized();
+            ApplyProductionRunLayout(productionRunLayout);
 
             LoadRoiLayersFromRecipe(recipe);
+            LoadResultLayerStyles(recipe);
 
             ReplaceTemplate(null);
 
@@ -18671,7 +23658,16 @@ namespace HalconWinFormsDemo
                 ReplaceTemplate(item);
             }
 
-            ApplyFlowFromRecipe(recipe);
+            suppressResultLayerStyleCapture = true;
+            try
+            {
+                ApplyFlowFromRecipe(recipe);
+            }
+            finally
+            {
+                suppressResultLayerStyleCapture = false;
+            }
+            RefreshResultOverlayLayers();
             ResetFlowEditHistory();
 
             RefreshUiState();
@@ -18710,6 +23706,8 @@ namespace HalconWinFormsDemo
                 AutoSendResult = AutoSendMatchResultCheckBox.IsChecked == true,
                 ToolFlow = CaptureFlowRecipe(),
                 RoiLayers = CaptureRoiLayers(),
+                ResultLayerStyles = CaptureResultLayerStyles(),
+                ProductionRunLayout = productionRunLayout.CloneNormalized(),
                 FlowRunPolicy = ReadFlowRunPolicyFromUi(),
                 RightImageCrosshairs = rightImageCrosshairs.CloneNormalized(),
                 LeftImageCrosshairs = leftImageCrosshairs.CloneNormalized()
@@ -18744,6 +23742,12 @@ namespace HalconWinFormsDemo
                         IsEnabled = item.IsEnabled,
                         IsVisible = item.IsVisible,
                         IsLocked = item.IsLocked,
+                        IsMask = item.IsMask,
+                        DisplayColor = item.DisplayColor,
+                        DisplayLineWidth = item.DisplayLineWidth <= 0 ? 2 : item.DisplayLineWidth,
+                        DisplayOpacity = item.DisplayOpacity <= 0 ? 100 : item.DisplayOpacity,
+                        ViewportScope = VmLayerViewportScope.Normalize(item.ViewportScope, VmLayerViewportScope.Both),
+                        LayerOrder = item.LayerOrder,
                         Geometry = geometry
                     });
                 }
@@ -18787,14 +23791,81 @@ namespace HalconWinFormsDemo
                     IsEnabled = item.IsEnabled,
                     IsVisible = item.IsVisible,
                     IsLocked = item.IsLocked,
+                    IsMask = item.IsMask,
+                    DisplayColor = item.DisplayColor,
+                    DisplayLineWidth = item.DisplayLineWidth,
+                    DisplayOpacity = item.DisplayOpacity,
+                    ViewportScope = item.ViewportScope,
+                    LayerOrder = item.LayerOrder,
                     Geometry = ToRecipeRoi(item.Geometry)
                 })
                 .ToList();
         }
 
+        private void LoadResultLayerStyles(VisionRecipe recipe)
+        {
+            resultLayerStyles.Clear();
+            if (recipe == null || recipe.ResultLayerStyles == null) return;
+            foreach (ResultLayerStyleRecipeData item in recipe.ResultLayerStyles.Where(value => value != null && !string.IsNullOrWhiteSpace(value.LayerKey)))
+            {
+                resultLayerStyles[item.LayerKey] = NormalizeResultLayerStyle(item);
+            }
+        }
+
+        private List<ResultLayerStyleRecipeData> CaptureResultLayerStyles()
+        {
+            foreach (VmResultOverlayLayer layer in resultOverlayLayers)
+            {
+                StoreResultLayerStyle(layer);
+            }
+            HashSet<string> liveKeys = new HashSet<string>(resultOverlayLayers.Select(item => item.LayerKey), StringComparer.OrdinalIgnoreCase);
+            return resultLayerStyles.Values
+                .Where(item => liveKeys.Contains(item.LayerKey))
+                .OrderBy(item => item.LayerOrder)
+                .Select(item => NormalizeResultLayerStyle(item))
+                .ToList();
+        }
+
+        private static ResultLayerStyleRecipeData NormalizeResultLayerStyle(ResultLayerStyleRecipeData source)
+        {
+            return new ResultLayerStyleRecipeData
+            {
+                LayerKey = source.LayerKey,
+                ToolId = source.ToolId,
+                PortName = source.PortName,
+                DisplayName = source.DisplayName,
+                Color = VmOverlayPalette.Normalize(source.Color, "cyan"),
+                LineWidth = Math.Max(1, Math.Min(8, source.LineWidth <= 0 ? 2 : source.LineWidth)),
+                Opacity = Math.Max(10, Math.Min(100, source.Opacity <= 0 ? 100 : source.Opacity)),
+                IsVisible = source.IsVisible,
+                IsLocked = source.IsLocked,
+                ViewportScope = VmLayerViewportScope.Normalize(source.ViewportScope, VmLayerViewportScope.Right),
+                LayerOrder = source.LayerOrder
+            };
+        }
+
+        private void StoreResultLayerStyle(VmResultOverlayLayer layer)
+        {
+            if (layer == null || string.IsNullOrWhiteSpace(layer.LayerKey)) return;
+            resultLayerStyles[layer.LayerKey] = new ResultLayerStyleRecipeData
+            {
+                LayerKey = layer.LayerKey,
+                ToolId = layer.ToolId,
+                PortName = layer.PortName,
+                DisplayName = layer.DisplayName,
+                Color = layer.HalconColor,
+                LineWidth = layer.LineWidth,
+                Opacity = layer.Opacity,
+                IsVisible = layer.IsVisible,
+                IsLocked = layer.IsLocked,
+                ViewportScope = layer.ViewportScope,
+                LayerOrder = layer.LayerOrder
+            };
+        }
+
         private RoiData GetLegacySearchRoi()
         {
-            VmRoiLayer layer = roiLayers.FirstOrDefault(item => item.IsEnabled && item.Geometry != null) ?? roiLayers.FirstOrDefault(item => item.Geometry != null);
+            VmRoiLayer layer = roiLayers.FirstOrDefault(item => item.IsEnabled && !item.IsMask && item.Geometry != null) ?? roiLayers.FirstOrDefault(item => !item.IsMask && item.Geometry != null);
             return layer == null ? currentRoi : layer.Geometry;
         }
 
@@ -18895,9 +23966,11 @@ namespace HalconWinFormsDemo
                 SelectedRoiLockCheckBox.IsEnabled = layer != null;
                 SelectedRoiLockCheckBox.IsChecked = layer != null && layer.IsLocked;
                 ToggleSelectedRoiLockButton.Content = layer != null && layer.IsLocked ? "解锁" : "锁定";
+                SelectedRoiRoleText.Text = layer == null ? "--" : layer.RoleText + (layer.IsMask ? " · 运行时执行差集" : " · 运行时执行并集");
+                ToggleSelectedRoiRoleButton.Content = layer != null && layer.IsMask ? "恢复检测区" : "设为屏蔽区";
                 RoiSelectedLayerText.Text = layer == null
                     ? "未选择 ROI 图层"
-                    : layer.SequenceText + "  " + layer.Name + " · " + layer.ShapeText + " · " + layer.LockText;
+                    : layer.SequenceText + "  " + layer.Name + " · " + layer.RoleText + " · " + layer.ShapeText + " · " + layer.LockText;
                 if (RoiEditGuidanceText != null)
                 {
                     RoiEditGuidanceText.Text = GetRoiEditGuidance(layer);
@@ -19371,7 +24444,7 @@ namespace HalconWinFormsDemo
 
         private void BindLegacyRoiToFlowTools()
         {
-            VmRoiLayer layer = roiLayers.FirstOrDefault(item => item.IsEnabled && item.Geometry != null) ?? roiLayers.FirstOrDefault(item => item.Geometry != null);
+            VmRoiLayer layer = roiLayers.FirstOrDefault(item => item.IsEnabled && !item.IsMask && item.Geometry != null) ?? roiLayers.FirstOrDefault(item => !item.IsMask && item.Geometry != null);
             if (layer == null)
             {
                 return;
@@ -19397,25 +24470,48 @@ namespace HalconWinFormsDemo
                 .ToList();
         }
 
+        private List<VmRoiLayer> GetBoundDetectionRoiLayers(VmToolInstance tool)
+        {
+            return GetBoundRoiLayers(tool).Where(layer => !layer.IsMask).ToList();
+        }
+
+        private List<VmRoiLayer> GetBoundMaskRoiLayers(VmToolInstance tool)
+        {
+            return GetBoundRoiLayers(tool).Where(layer => layer.IsMask).ToList();
+        }
+
         private RoiData GetPrimaryBoundRoi(VmToolInstance tool)
         {
-            VmRoiLayer layer = GetBoundRoiLayers(tool).FirstOrDefault();
+            VmRoiLayer layer = GetBoundDetectionRoiLayers(tool).FirstOrDefault();
             return layer == null ? null : layer.Geometry;
         }
 
         private HRegion CreateBoundRoiRegion(VmToolInstance tool, bool required)
         {
-            List<VmRoiLayer> layers = GetBoundRoiLayers(tool);
-            if (layers.Count == 0)
+            List<VmRoiLayer> detectionLayers = GetBoundDetectionRoiLayers(tool);
+            List<VmRoiLayer> maskLayers = GetBoundMaskRoiLayers(tool);
+            if (detectionLayers.Count == 0)
             {
                 if (required)
                 {
-                    throw new InvalidOperationException(tool.InstanceName + " 尚未绑定已启用的 ROI。请在图像/ROI 页勾选至少一个图层。");
+                    throw new InvalidOperationException(tool.InstanceName + " 尚未绑定已启用的检测区。屏蔽区不能单独作为运行域，请至少绑定一个检测区。");
+                }
+                if (maskLayers.Count > 0)
+                {
+                    throw new InvalidOperationException(tool.InstanceName + " 只绑定了屏蔽区。请同时绑定一个检测区，或停用/解绑屏蔽区。");
                 }
 
                 return null;
             }
 
+            using (HRegion detectionRegion = CreateUnionRoiRegion(detectionLayers))
+            {
+                return CreateEffectiveRegionFromBase(tool, detectionRegion, new List<VmRoiLayer>(), maskLayers, false);
+            }
+        }
+
+        private static HRegion CreateUnionRoiRegion(IList<VmRoiLayer> layers)
+        {
             HObject combined = null;
             try
             {
@@ -19438,6 +24534,76 @@ namespace HalconWinFormsDemo
             }
         }
 
+        private HRegion CreateEffectiveRegionFromBase(
+            VmToolInstance tool,
+            HRegion baseRegion,
+            IList<VmRoiLayer> detectionLayers,
+            IList<VmRoiLayer> maskLayers,
+            bool intersectDetectionLayers)
+        {
+            HObject current = null;
+            HObject next = null;
+            try
+            {
+                HOperatorSet.CopyObj(baseRegion, out current, 1, -1);
+                if (intersectDetectionLayers && detectionLayers != null && detectionLayers.Count > 0)
+                {
+                    using (HRegion detectionRegion = CreateUnionRoiRegion(detectionLayers))
+                    {
+                        HOperatorSet.Intersection(current, detectionRegion, out next);
+                    }
+                    current.Dispose();
+                    current = next;
+                    next = null;
+                }
+
+                if (maskLayers != null && maskLayers.Count > 0)
+                {
+                    using (HRegion maskRegion = CreateUnionRoiRegion(maskLayers))
+                    {
+                        HOperatorSet.Difference(current, maskRegion, out next);
+                    }
+                    current.Dispose();
+                    current = next;
+                    next = null;
+                }
+
+                double area = GetRegionArea(current);
+                if (area <= 0.0)
+                {
+                    throw new InvalidOperationException((tool == null ? "当前工具" : tool.InstanceName) + " 的有效运行域为空；请调整检测区、屏蔽区或 Region 订阅。");
+                }
+
+                HRegion result = new HRegion(current);
+                current = null;
+                return result;
+            }
+            finally
+            {
+                DisposeObject(next);
+                DisposeObject(current);
+            }
+        }
+
+        private static double GetRegionArea(HObject region)
+        {
+            HTuple area;
+            HTuple row;
+            HTuple column;
+            HOperatorSet.AreaCenter(region, out area, out row, out column);
+            return SumTuple(area);
+        }
+
+        private HRegion CreatePerRoiEffectiveRegion(VmToolInstance tool, VmRoiLayer detectionLayer)
+        {
+            return CreateEffectiveRegionFromBase(
+                tool,
+                detectionLayer.Geometry.Region,
+                new List<VmRoiLayer>(),
+                GetBoundMaskRoiLayers(tool),
+                false);
+        }
+
         private string GetRoiBindingSummary(VmToolInstance tool)
         {
             if (tool == null || !ToolMetadata.SupportsRoi(tool.Kind))
@@ -19454,10 +24620,31 @@ namespace HalconWinFormsDemo
                     : "Region ← " + source.InstanceName + "." + binding.SourcePortName;
             }
 
-            List<VmRoiLayer> bound = GetBoundRoiLayers(tool);
-            return bound.Count == 0
-                ? (ToolMetadata.RequiresRoi(tool.Kind) ? "ROI 未绑定" : "全图运行 · ROI 可选")
-                : "ROI ×" + bound.Count.ToString(CultureInfo.InvariantCulture) + " · " + string.Join(", ", bound.Select(item => item.Name));
+            List<VmRoiLayer> detections = GetBoundDetectionRoiLayers(tool);
+            List<VmRoiLayer> masks = GetBoundMaskRoiLayers(tool);
+            if (detections.Count == 0 && masks.Count == 0)
+            {
+                return ToolMetadata.RequiresRoi(tool.Kind) ? "ROI 未绑定" : "全图运行 · ROI 可选";
+            }
+            if (detections.Count == 0)
+            {
+                return "检测区 0 · 屏蔽区 ×" + masks.Count.ToString(CultureInfo.InvariantCulture) + " · 无有效运行域";
+            }
+
+            string summary = "检测区 ×" + detections.Count.ToString(CultureInfo.InvariantCulture) +
+                " - 屏蔽区 ×" + masks.Count.ToString(CultureInfo.InvariantCulture);
+            try
+            {
+                using (HRegion effectiveRegion = CreateBoundRoiRegion(tool, true))
+                {
+                    summary += " · 有效面积 " + GetRegionArea(effectiveRegion).ToString("0", CultureInfo.InvariantCulture) + " px";
+                }
+            }
+            catch (Exception ex)
+            {
+                summary += " · " + ex.Message;
+            }
+            return summary + " · " + string.Join(", ", detections.Concat(masks).Select(item => item.Name));
         }
 
         private void RefreshRoiLayerBindingSummaries()
@@ -19753,7 +24940,9 @@ namespace HalconWinFormsDemo
         {
             recipeService.SaveLayout(new UiLayoutState
             {
-                BottomPanelHeight = BottomPanelRow.ActualHeight > 0 ? BottomPanelRow.ActualHeight : BottomPanelRow.Height.Value,
+                BottomPanelHeight = productionRunMode
+                    ? developerBottomPanelHeight.Value
+                    : (BottomPanelRow.ActualHeight > 0 ? BottomPanelRow.ActualHeight : BottomPanelRow.Height.Value),
                 RightPanelWidth = RightPanelColumn.ActualWidth > 0 ? RightPanelColumn.ActualWidth : RightPanelColumn.Width.Value,
                 LastRecipePath = currentRecipePath,
                 LastImageDirectory = string.IsNullOrWhiteSpace(currentImagePath) ? string.Empty : Path.GetDirectoryName(currentImagePath),
@@ -19772,6 +24961,7 @@ namespace HalconWinFormsDemo
         {
             ResultsDataGrid.ItemsSource = null;
             ResultsDataGrid.ItemsSource = resultStore.Records.OrderByDescending(item => item.Timestamp).ToList();
+            RefreshProductionRunView();
         }
 
         private void ExportResults(string type)
@@ -20028,6 +25218,7 @@ namespace HalconWinFormsDemo
                 {
                     AppendText(AlarmTextBox, e.Message);
                 }
+                RefreshProductionRunView();
             }));
         }
 
@@ -20039,6 +25230,7 @@ namespace HalconWinFormsDemo
         private void AppendAlarm(string text)
         {
             AppendText(AlarmTextBox, string.Format("{0:HH:mm:ss} {1}", DateTime.Now, text));
+            RefreshProductionRunView();
             logger.Info("报警：" + text);
         }
 
@@ -20095,15 +25287,15 @@ namespace HalconWinFormsDemo
 
         private static IEnumerable<string> EnumerateImages(string directory)
         {
-            string[] extensions = { ".bmp", ".jpg", ".jpeg", ".png", ".tif", ".tiff" };
+            string[] extensions = { ".bmp", ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".pgm" };
             return Directory.GetFiles(directory)
                 .Where(path => extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
                 .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
         }
 
-        private static bool IsImageFile(string path)
+        private static bool HasSupportedImageExtension(string path)
         {
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            if (string.IsNullOrWhiteSpace(path))
             {
                 return false;
             }
@@ -20114,7 +25306,13 @@ namespace HalconWinFormsDemo
                    string.Equals(extension, ".jpeg", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(extension, ".png", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(extension, ".tif", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(extension, ".tiff", StringComparison.OrdinalIgnoreCase);
+                   string.Equals(extension, ".tiff", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(extension, ".pgm", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsImageFile(string path)
+        {
+            return !string.IsNullOrWhiteSpace(path) && File.Exists(path) && HasSupportedImageExtension(path);
         }
 
         private static string SafeFileName(string value, string fallback)

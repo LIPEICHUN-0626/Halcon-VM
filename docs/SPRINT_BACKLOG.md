@@ -1,29 +1,117 @@
 # Sprint Backlog
 
-更新日期：2026-08-08
+更新日期：2026-08-12
 
-## 下一 Sprint：S36 VM 式 ROI 屏蔽区工作台 + HALCON 图像仿射变换
+## 下一 Sprint：S46 VM 式历史结果浏览/图层控制 + HALCON XLD 点数/闭合筛选
 
 状态：**提议**
 
-### A 线：VM 式 ROI 屏蔽区工作台
+### A 线：历史结果浏览与图层控制
 
-1. 依据官方 VM“屏蔽区”行为，把屏蔽区作为工具级 ROI 配置加入图像工具栏、ROI 图层侧栏和右侧常驻 ROI/模板页；检测 ROI 与屏蔽区必须使用不同视觉语义和清楚状态，不得只增加隐藏 DTO 或无执行效果的彩色覆盖。
-2. 首版至少支持矩形、圆和多边形屏蔽，复用创建、控制点/顶点、移动、数值编辑、复制、锁定、显隐、启停、命名、删除、绑定、边界/非法几何、配方及撤销/重做。
-3. Blob、GrayStat、EdgeMeasure 等真实 ROI 消费工具运行时使用 `有效 ROI = 合并检测 ROI - 合并启用屏蔽区`；右侧状态、图像叠加、逐 ROI 结果和错误必须能解释屏蔽数量、有效面积与空域原因。显隐只影响显示，启停才影响执行。
+1. 在 S45 只读历史上下文增加上一张/下一张和跨批次定位，损坏或缺失项目给出明确状态并允许跳过，不触发实时流程。
+2. 增加源图/结果图双画面对比及独立/联动缩放平移，严格按历史快照坐标隔离，不误叠实时 ROI。
+3. 增加历史 Region/XLD 图层清单的显隐、独显和样式只读摘要；全部变更只作用于历史显示会话，一键返回实时后不残留。
 
-### B 线：HALCON 图像仿射变换
+### B 线：HALCON XLD 点数/闭合筛选
 
-1. 新增右侧常驻“图像仿射变换”，显式订阅真实 Image，以本机 HALCON 20.11 精确签名构造 `HomMat2D` 并调用 `affine_trans_image`。
-2. 配置平移 Row/Column、Row/Column 缩放、逆时针旋转、斜切、五种插值和 `AdaptImageSize`；输出托管 `Image/Width/Height/Channels/HomMat2D/Parameters/ResultCode` 并驱动 Threshold、Blob、Gray、Edge。
-3. 明确 HALCON 行/列矩阵坐标、变换组合顺序、0.5 像素坐标差异、输入 domain 被忽略、输出 domain 和负坐标裁剪；变换输出使用新坐标上下文，校验奇异/非有限矩阵、无效插值/尺寸选项、失效输入并释放旧 Image。
+1. 新增右侧常驻“XLD 点数/闭合筛选”，显式订阅真实 XLD，按每条轮廓点数范围和开/闭状态筛选。
+2. 输出托管 XLD、原始索引字符串、输入/输出计数、开闭计数、点数 Min/Max/Mean、参数和结果码；继续驱动 XLD 与 NumericJudge。
+3. 常驻配置完成草稿、试运行、应用、撤销、配方和帮助；覆盖点数边界、闭合容差、开/闭/多/空、非法范围、生命周期和真实下游。
 
 ### 验收标准
 
-- 屏蔽区用合成多缺陷图证明屏蔽内目标被排除、屏蔽外目标仍检测；多屏蔽区、全屏蔽空域、禁用/显隐差异、复制、锁定、删除、绑定、配方、撤销/重做、逐 ROI 结果与生命周期通过。
-- 图像仿射覆盖单位、平移、缩放、旋转、斜切、组合顺序、两种尺寸适应、灰度/RGB、五插值、非方图定位像素、domain、非法矩阵/参数、托管生命周期、配方和下游工具链。
-- S09-S35、旧配方和 Image/Region/XLD/Number 生命周期不回退；Debug/Release、双版本启动和 HALCON 图像导出/高 DPI UI 通过。
-- 以官方 VM 用户手册“屏蔽区运行时不检测”的语义和 MVTec [`affine_trans_image`](https://www.mvtec.com/doc/halcon/2011/en/affine_trans_image.html)为依据，并反射本机 20.11 精确签名。BSB 按用户指令继续未实施/未验证。
+- 历史浏览覆盖首/中/末、跨批次、损坏跳过、单/双画面、联动/独立视图、空/多图层和实时状态不变。
+- XLD 点数/闭合筛选覆盖边界、容差、开闭/多/空、异常参数、输入所有权、上游释放、旧快照、配方和下游类型链。
+- S09-S45 不回退；Debug/Release、双版本启动、HALCON XLD 和高 DPI UI 通过。BSB 继续未实施/未验证。
+
+## 已完成 Sprint：S45 VM 式持久结果图像回看 + HALCON XLD 长度排序/索引选择
+
+状态：**已验证实现**
+
+- A 线已验证：源图/结果图及 Region/XLD 图层按安全相对路径保存；跨重启、源图删除、结果损坏降级、空/多层、同名文件、容量/批次/孤立清理、只读隔离、返回实时及开发/生产入口同源通过。
+- B 线已验证：`length_xld + select_obj` 稳定升/降序，Top-N、Bottom-N、排名范围、原始索引字符串、统计、托管 XLD、配方和 XLD/Number 下游通过。
+- 验证：旧配方与 S09-S45 共 38/38，1938×1158 UI 与 HALCON 历史 Region/排序 XLD 导出，Debug/Release 0 警告 0 错误，双版本独立启动 8 秒响应。BSB 按用户指令未实施/未验证。
+
+## 已完成 Sprint：S44 VM 式批次追溯工作台 + HALCON XLD 长度分级
+
+状态：**已验证实现**
+
+- A 线：图片批次以独立 JSON 原子保存批次 ID、真实方案名/SHA-256 指纹、起止、范围、各类计数、总耗时和逐图路径/状态/结果码/耗时/消息；开发态“批次追溯”和生产页“最近批次追溯”共用同一集合，时间/批次/方案/结果筛选、明细、重载、CSV、旧字段归一化、损坏隔离及保存失败不阻塞通过。当前仅为本地文件追溯，不等于 MES/数据库。
+- B 线：右侧常驻“XLD 长度分级”真实调用 HALCON `length_xld + select_obj`，以 `短≤T1 / T1<中≤T2 / 长>T2` 互斥输出三组托管 XLD、各组 Count/Total/Min/Max/Mean、阈值/参数/结果码，默认绿/黄/红图层并驱动 XLD/Number 下游。
+- 门禁：S44 专项覆盖跨重载、旧/损坏记录、重复文件名、损坏图、筛选/CSV/方案指纹/开发生产同源，以及阈值边界、相等/反序/非有限、空/多、所有权、释放、配方、三图层和下游；旧配方与 S09-S44 `37/37` 回归、两张 1938×1158 实体 UI、Debug/Release 0 警告 0 错误、双版本独立启动 8 秒 `Responding=True`。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 未验证；BSB 按用户指令未实施/未验证；Git `9/10`，不提交或推送。
+- 未完成：批次记录没有持久结果图片/叠加回放、数据库/MES、权限、归档和容量治理；仍缺完整 VM 任意控件设计器、多流程、资源、坐标/标定和完整通信。
+
+## 已完成 Sprint：S43 VM 式运行界面配置首版 + HALCON XLD 矩形裁剪
+
+状态：**已验证实现**
+
+- A 线：开发态“运行界面配置”以同一生产页实时预览，八个真实部件可改标题、可选显隐和受控顺序；图像、总判定和运行控制不能隐藏，图像固定左侧。草稿、应用、取消、恢复默认、配方、旧配方安全默认、脏状态和撤销/重做通过；独立分栏消除了 HALCON `WindowsFormsHost` 对 WPF 配置面板的遮挡。
+- B 线：右侧常驻“XLD 矩形裁剪”真实调用 HALCON 20.11 `crop_contours_xld`，支持 `Row1/Column1/Row2/Column2/CloseContours`、四角/四边/整体图像草稿及无图像数值回退，输出托管 `XLD/InputContourCount/ContourCount/InputTotalLength/TotalLength/Bounds/CropRectangle/CloseContours/Parameters/ResultCode`，并驱动 XLD/Number 下游。
+- 门禁：S43 专项覆盖布局、旧配方、撤销、穿越四边、内外/相切、开闭/多/空、闭合两态、异常、所有权、释放、配方与下游；S09-S43 `35/35` 回归、两张 1938×1158 实体 UI、Debug/Release 0 警告 0 错误、双版本独立启动 8 秒 `Responding=True`。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 未验证；BSB 按用户指令未实施/未验证；Git `8/10`，不提交或推送。
+- 未完成：仍不是完整 VM 任意控件设计器；缺权限、持久结果图片/叠加回放、真正多画面、Shape/HDevelop 受管叠加、位置修正、ROI 继承、类型化数组、Geometry/Pose、多流程、资源和完整通信。
+
+## 已完成 Sprint：S42 VM 式生产运行界面首版 + HALCON XLD 透视变换
+
+状态：**已验证实现**
+
+- A 线：顶部“开发/运行”模式和独立生产运行页已接入活动 WPF；运行页真实复用当前方案、确定性执行器、HALCON 图像/叠加、单次/连续/暂停/停止、图片当前/选中/全部、OK/NG、良率、节拍、报警和最近结果。运行模式收起菜单、模块箱、流程、配置、底部页签和图像编辑工具，退出 ROI/测量/透视/XLD 拾取等编辑态；切换不复制执行状态或托管快照，并在退出后恢复开发布局与图层工作台。
+- B 线：右侧常驻“XLD 透视变换”以四组源/目标点和 `normalized_dlt` 生成投影矩阵，真实调用本机 HALCON 20.11 `projective_trans_contour_xld`；支持标准像素中心 ±0.5 与原始 `affine_trans_pixel` 两种坐标策略，输出托管 `XLD/ContourCount/InputTotalLength/TotalLength/Bounds/HomMat2D/PointError/CoordinatePolicy/AttributePolicy/Parameters/ResultCode`，并真实驱动后续 XLD 工具与 NumericJudge。
+- 门禁：`S42ProductionRunAndXldProjectiveSmoke.ps1` 覆盖运行页状态复用/编辑隔离/运行与队列控制，以及 XLD 恒等、平移、梯形、两种坐标策略、开/闭/多/空、退化/自交/非有限、输入所有权、旧快照释放、配方和下游链；Legacy 与 S09-S42 最终 `35/35` 回归通过。两张 1938×1158 实体 UI 确认生产运行页和 XLD 透视常驻配置；Debug/Release x64 均 0 警告 0 错误，双版本独立启动 8 秒且 `Responding=True`。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 缺样本/设备，未验证；BSB 按用户指令未实施/未验证；Git `7/10`，不提交或推送。
+- 未完成：生产运行页尚无受控布局设计器、权限和持久追溯；仍缺真正多画面、Shape/HDevelop 真实受管叠加、位置修正、ROI 继承、类型化数组、Geometry/Pose、多流程、资源和完整通信。
+
+## 已完成 Sprint：S41 VM 式图片运行范围 + HALCON XLD 仿射变换
+
+状态：**已验证实现**
+
+- A 线：S40 同一本地图像队列新增首张/末张、全选/清选和“当前/选中/全部”范围；缩略项双向多选并显示未运行/运行中/OK/NG/异常/停止/耗时，批次区显示进度和 OK/NG/异常/未运行汇总。逐图真实调用现有确定性流程，复用停止、50 ms–1 h 超时、遇 NG 停止和托管输出语义；播放/手动运行/连续运行/图片批次互斥，停止在图片间隔内以 50 ms 分片响应。损坏项只记录本项异常，默认继续下一张；末图结束不循环。
+- B 线：右侧常驻“XLD 仿射变换”真实调用本机 HALCON 20.11 `affine_trans_contour_xld`，配置输入包围中心/手动中心、Row/Column 平移与缩放、旋转、Row 斜切、四种组合顺序和标准像素中心/原始 `affine_trans_pixel` 两种坐标策略。输出托管 `XLD/ContourCount/InputTotalLength/TotalLength/Bounds/Center/HomMat2D/TransformOrder/CoordinatePolicy/AttributePolicy/Parameters/ResultCode`，真实驱动直线拟合和 NumericJudge；空输入为受管 NG，属性明确交由 HALCON 算子处理且本工具不人工改写。
+- 门禁：`S41ImageQueueRunRangeAndXldAffineSmoke.ps1` 覆盖 11 项含损坏队列、当前/选中/全部、首末、多选、停止、遇 NG 停止、50 ms 超时、逐图状态/汇总，以及 XLD 恒等、Row/Column 平移、中心 90°旋转、各向异性缩放、斜切、组合顺序、两种坐标策略、开/闭/多/空、非法参数、输入所有权、旧快照释放、上游释放、配方和下游链。Legacy 与 S09-S41 最终 `34/34` 回归通过；两张 1938×1158 实体 UI 确认完整批次汇总和常驻仿射参数/真实 XLD 叠加；Debug/Release x64 0 警告 0 错误，双版本独立启动 8 秒且 `Responding=True`。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 缺样本/设备，未验证；BSB 按用户指令未实施/未验证；Git `6/10`，不提交或推送。
+- 未完成：批次结果尚未持久化为可追溯历史；仍缺生产运行页面/设计器、多画面、Shape/HDevelop 真实受管叠加、位置修正、ROI 继承、类型化数组、Geometry/Pose、多流程、资源和完整通信。
+
+## 已完成 Sprint：S40 VM 式图像队列缩略导航 + HALCON XLD 轮廓平滑
+
+状态：**已验证实现**
+
+- A 线：图像工作区新增可折叠本地图像队列，真实复用 `imageFiles/imageIndex`；缩略项显示图像、文件名、序号、尺寸及当前/已读/失败状态，支持点击、横向滚动、上一/下一、播放/暂停、末图停止、进度、目录重载和清空。BMP/JPG/PNG/TIF/PGM、损坏/删除项、24 项 LRU 缩略缓存、单/双画面、全局图像依赖失效和旧单图入口兼容已闭环；队列使用独立布局行，避免 WPF 浮层被 HALCON WinFormsHost 遮挡。
+- B 线：右侧常驻“XLD 轮廓平滑”真实调用本机 HALCON 20.11 `smooth_contours_xld`，配置 `3–999` 奇数 `NumRegrPoints`，输出托管 `XLD/InputContourCount/ContourCount/InputTotalLength/TotalLength/LengthDelta/NumRegrPoints/AttributePolicy/Parameters/ResultCode`，明确 HALCON 输出不保留输入点属性，并驱动直线拟合和 NumericJudge。
+- 门禁：`S40ImageQueueAndXldSmoothingSmoke.ps1` 覆盖 31 项混合/损坏队列、点击/前后/播放/末图停止、删除/重载/清空、24 项缓存、多 XLD、短/空、3/5/7/9、偶数/越界、属性丢弃、输入所有权、旧快照释放、配方、路径长度抑制及拟合残差输出；Legacy 与 S09-S40 最终 `33/33` 回归通过。1938×1158 实体 UI 确认队列和常驻配置；Debug/Release x64 0 警告 0 错误，双版本独立启动 8 秒且 `Responding=True`。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 缺样本/设备，未验证；BSB 按用户指令未实施/未验证；Git `5/10`，不提交或推送。
+- 未完成：图片队列尚无“当前/选中/全部”流程运行范围和逐图 OK/NG 汇总；仍缺多画面、Shape/HDevelop 真实受管叠加、位置修正、ROI 继承、类型化数组、Geometry/Pose、多流程、资源和生产运行。
+
+## 已完成 Sprint：S39 VM 式 XLD 轮廓拾取/检查器 + HALCON 相邻轮廓连接
+
+状态：**已验证实现**
+
+- A 线：图像工具栏“轮廓选择”可在当前选中或可见真实 XLD 图层中按最近线段命中单条对象，白色描边加品红高亮；常驻检查器显示来源工具/端口、左右坐标上下文、序号/总数、点数、长度、起终点、最近亚像素 Row/Column 和命中距离，并提供上一条/下一条、单条独显、定位生产者、打开配置和清除。状态不持有新 HObject，不修改/释放算法快照；重跑、删除、隐藏、视口范围和图像来源变化会安全失效，并与 ROI、十字线、透视、测量域模式互斥。
+- B 线：右侧常驻“相邻轮廓连接”真实调用本机 HALCON 20.11 `union_adjacent_contours_xld`，配置绝对/相对端点距离和 `attr_keep/attr_forget`，输出托管 `XLD/InputContourCount/ContourCount/JoinedCount/TotalLength/Mode/Parameters/ResultCode`，真实驱动 XLD 筛选/分段/四类拟合/双线关系及 NumericJudge。
+- 门禁：`S39XldContourInspectorAndAdjacentUnionSmoke.ps1` 覆盖 4 px 短间隙连接、2 px 超阈值不连接、反向点序、两种属性策略、空/非法、输入所有权、旧快照释放、配方、下游及最近线段亚像素投影、前后导航、独显、左右隔离、重跑/来源失效；旧 v1/S09-S39 共 32/32 回归通过。1938×1158 物理鼠标工作区、相邻连接流程/结果和 462×179 参数区通过；Debug/Release x64 0 警告 0 错误，双版本独立启动 8 秒、`Responding=True`。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 缺样本/设备，未验证；BSB 按用户指令未实施/未验证；Git `4/10`，不提交或推送。
+- 未完成：图像队列仍只有顶部前后/播放按钮而无缩略导航；Shape/HDevelop 尚未成为受管图层；位置修正、ROI 继承、类型化数组、Geometry/Pose、多流程、资源和生产运行仍缺。
+
+## 已完成 Sprint：S38 VM 式透视四边形图像交互 + HALCON 亚像素边缘提取
+
+状态：**已验证实现**
+
+- A 线：选择“图像透视校正”可在单/双图像区开启源/目标四边形编辑；左侧只显示真实输入坐标源四点，右侧只显示输出坐标目标四点，`1-4` 控制点、方向、数值双向同步、拖动草稿、试运行、应用/取消、恢复图像四角、源到目标复制、非法几何/越界状态、配方及撤销/重做均已闭环。编辑开启时不会误触 ROI 或十字线；该交互明确是依据 VM 图像预览/ROI 习惯的产品化推导。
+- B 线：右侧常驻“亚像素边缘提取”显式订阅 Image 和可选 ROI/屏蔽 Region，真实调用本机 HALCON 20.11 `edges_sub_pix`；支持九种 Filter、Alpha/Low/High、RGB 自动转灰/强制单通道，输出托管 `XLD/ContourCount/TotalLength/Filter/ColorPolicy/Parameters/ResultCode`，并真实建立到筛选、分段、四类拟合、双线关系和 NumericJudge 的类型化绑定。
+- 门禁：`S38ProjectiveEditorAndSubpixelEdgeSmoke.ps1` 覆盖源 128×96/目标 80×60 坐标隔离、草稿/试运行/应用/取消、恢复/复制、非法几何、配方/撤销，九种 Filter、灰度/RGB、reduced domain、空边缘 NG、参数边界、旧 XLD 释放和真实下游链；旧 v1/S09-S38 共 31/31 回归通过。1938×1158 双视口透视编辑、亚像素 XLD 工作区和 462×264 常驻参数页通过；Debug/Release x64 0 警告 0 错误，双版本独立启动 8 秒、`Responding=True`。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 缺样本/设备，未验证；BSB 按用户指令未实施/未验证；Git `3/10`，不提交或推送。
+- 未完成：图像区尚不能选中单条 XLD 并检查亚像素点；Shape/HDevelop 仍未成为受管图层；位置修正、ROI 继承、类型化数组、Geometry/Pose、多流程、资源和生产运行仍缺。
+
+## 已完成 Sprint：S37 VM 式统一图层属性工作台 + HALCON 图像透视校正
+
+状态：**已验证实现**
+
+- A 线：统一“全部图层”真实合并 ROI、屏蔽区和本周期 Region/XLD；显示来源/端口/坐标上下文、名称、颜色、线宽、透明度、显隐、独显、锁定、层级和左右视口范围，并与流程/生产者选择联动。样式进入配方和撤销/重做，显示操作不修改或释放算法快照；Shape/HDevelop 明确标为待迁移兼容项。
+- B 线：右侧常驻“图像透视校正”以四组源/目标点、`normalized_dlt` 和源/目标 `+0.5` 像素中心补偿执行本机 HALCON 20.11 `projective_trans_image`/`projective_trans_image_size`；支持 nearest/bilinear、保持输入/自适应/显式尺寸、TransformDomain，输出托管 Image 并驱动 Threshold/Blob/Gray/Edge。
+- 门禁：`S37UnifiedLayerAndProjectiveTransformSmoke.ps1` 和旧 v1/S09-S37 共 30/30 回归通过；1938×1158 统一图层 UI、462×415 透视参数页和 HALCON 投影输出实拍通过；Debug/Release x64 0 警告 0 错误，双版本各独立启动 8 秒且保持响应。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 缺样本/设备，未验证；BSB 未实施/未验证；Git `2/10`，不提交或推送。
+- 未完成：透视四边形仍主要靠右侧数值输入，Shape/HDevelop 尚未成为真实受管图层；位置修正、ROI 继承、多画面/缩略图、通用 Geometry/Pose 和类型化数组仍缺。
+
+## 已完成 Sprint：S36 VM 式 ROI 屏蔽区工作台 + HALCON 图像仿射变换
+
+状态：**已验证实现**
+
+- A 线：面 ROI 已可从图像工具栏、ROI 图层和右侧常驻页切换检测/屏蔽角色；红色斜线覆盖、角色标签、排序、复制、锁定、显隐、启停、命名、删除、绑定、配方和撤销/重做可见。Blob/Gray/Edge、Shape/HDevelop 兼容路径及 ROI 图像提取真实执行 `有效域 = 检测域 - 启用屏蔽区`；逐 ROI 模式逐项扣除屏蔽区，显隐不改变算法，空有效域给出明确错误。线/点因无面积不能作为屏蔽区。
+- B 线：右侧常驻 HALCON“图像仿射变换”真实调用本机 20.11 `HImage.AffineTransImage`，支持 Row/Column 平移、Row/Column 缩放、逆时针旋转、Row 斜切、五种插值和 `AdaptImageSize`，输出托管 `Image/Width/Height/Channels/HomMat2D/Interpolation/AdaptImageSize/Parameters/ResultCode` 并驱动 Threshold/Blob/Gray/Edge。行映射矩阵 x、列映射 y和官方 0.5 像素中心校正已落实，输入 domain、负坐标裁剪和安全尺寸限制明确。
+- 门禁：`S36RoiMaskAndImageAffineTransformSmoke.ps1` 通过 `8000 - 400 = 7600 px²`、隐藏/停用差异、复制/排序/撤销、合并/逐 ROI Blob、前序 Region/Gray、屏蔽专用/全空拒绝，以及仿射单位、平移、尺寸适应、90°逆时针、五插值、RGB、domain、非法参数/危险尺寸、上游/旧快照释放、配方、旧字段和下游 Threshold。旧 v1 与 S09-S36 共 29/29 回归通过；Debug/Release x64 0 警告 0 错误，Debug 启动、屏蔽区 UI/红色斜线 HALCON 导出和仿射 UI/输出导出通过。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 缺样本/设备，未验证；BSB 按用户指令未实施/未验证；Git 新批次 `1/10`，不提交或推送。
+- 未完成：位置修正、ROI 继承、完整统一图层属性、Shape 兼容叠加逐层化、多画面/缩略图和通用 Geometry/Pose 端口仍缺；仿射输出属于新坐标上下文，不能直接叠加输入 ROI。
 
 ## 已完成 Sprint：S35 VM 式线/点 ROI 图像编辑 + HALCON 图像旋转
 
@@ -197,7 +285,7 @@
 
 - `S25FlowDebugAndXldRectangleFittingSmoke.ps1` 通过：断点前暂停、单步一个、继续、停用跳过、配方回读、撤销/重做及指针清理均通过；旋转矩形三算法得到中心 `(120,180)`、方向约 `31.513°`、半边长 `60/25 px`，近正方形、空/短/直线退化、六类非法参数、参数回读和 XLD 生命周期通过。
 - S09-S25 与旧 v1 配方共 18 组烟测全回归；物理 1554×978 UI 确认顶部/流程工具条、断点/单步/继续、红色断点、橙色下一执行指针、旋转矩形常驻配置和 `Image -> Region -> XLD -> Rectangle -> Length1 Judge` 链，输出半边长 `140/70.003 px`、方向 `25.783°`。
-- Debug/Release x64 均 0 警告 0 错误，双版本启动 4 秒保持响应。旧 `.jw/.handle`、真实 Shape 模板和相机设备因缺样本/设备未验证；BSB 按用户指令未实施/未验证。S25 使上一批达到 `10/10` 并创建本地批次提交；GitHub 上传尚未确认。
+- Debug/Release x64 均 0 警告 0 错误，双版本启动 4 秒保持响应。旧 `.jw/.handle`、真实 Shape 模板和相机设备因缺样本/设备未验证；BSB 按用户指令未实施/未验证。S25 使上一批达到 `10/10` 并创建本地批次提交，该提交已于 2026-08-08 随 S26-S35 批次成功上传 GitHub。
 
 ## 已完成 Sprint：S24 VM 式流程组合/折叠 + HALCON XLD 椭圆拟合测量
 
@@ -935,7 +1023,16 @@
 | P0 | S33 双画面图像对比与图像尺寸缩放 | 单/双视口输入输出对比及联动/独立视图 | HALCON `zoom_image_size` 托管 Image 与坐标比例 | 已验证实现 |
 | P0 | S34 双十字辅助线与图像镜像 | 两组十字线的常驻配置与图像内交互 | HALCON `mirror_image` 托管 Image 与坐标映射 | 已验证实现 |
 | P0 | S35 线/点 ROI 图像编辑与图像旋转 | 线/点创建、控制点、数值属性和配方 | HALCON `rotate_image` 托管 Image 与坐标语义 | 已验证实现 |
-| P0 | S36 ROI 屏蔽区与图像仿射变换 | 屏蔽区常驻配置、图像编辑和真实 ROI 排除 | HALCON `affine_trans_image` 托管 Image 与矩阵/坐标语义 | 提议 |
+| P0 | S36 ROI 屏蔽区与图像仿射变换 | 屏蔽区常驻配置、图像编辑和真实 ROI 排除 | HALCON `affine_trans_image` 托管 Image 与矩阵/坐标语义 | 已验证实现 |
+| P0 | S37 统一图层属性与图像透视校正 | ROI/屏蔽/结果层属性、选择联动和持久化 | HALCON `projective_trans_image` 托管 Image 与投影坐标语义 | 已验证实现 |
+| P0 | S38 透视四边形图像交互与亚像素边缘 | 源/目标四点图像编辑、草稿预览和坐标隔离 | HALCON `edges_sub_pix` 托管 XLD 与下游测量链 | 已验证实现 |
+| P0 | S39 XLD 轮廓拾取/检查与相邻轮廓连接 | 单轮廓鼠标命中、亚像素点检查和生产者联动 | HALCON `union_adjacent_contours_xld` 托管 XLD 与下游链 | 已验证实现 |
+| P0 | S40 图像队列缩略导航与 XLD 轮廓平滑 | 真实图片队列缩略图、点击/播放/状态同步 | HALCON `smooth_contours_xld` 托管 XLD 与下游链 | 已验证实现 |
+| P0 | S41 图片运行范围与 XLD 仿射变换 | 当前/选中/全部批量运行、逐图状态和汇总 | HALCON `affine_trans_contour_xld` 托管 XLD 与坐标语义 | 已验证实现 |
+| P0 | S42 生产运行界面首版与 XLD 透视变换 | 开发/运行切换、真实运行状态和受控生产操作 | HALCON `projective_trans_contour_xld` 托管 XLD 与投影坐标语义 | 已验证实现 |
+| P0 | S43 运行界面配置首版与 XLD 矩形裁剪 | 同一生产页的受控部件标题、显隐、顺序和配方预览 | HALCON `crop_contours_xld` 托管 XLD、真实边界裁剪与图像草稿 | 已验证实现 |
+| P1 | S44 批次追溯工作台与 XLD 长度分级 | 持久批次列表、详情、筛选、重载和 CSV | HALCON XLD 短/中/长分级、统计、三类托管图层 | 已验证实现 |
+| P0 | S45 持久结果图像回看与 XLD 长度排序/索引选择 | 历史图片/叠加只读回看、清理和容量状态 | HALCON XLD 稳定排序、Top/Bottom/排名范围选择 | 提议 |
 | P0 | 后续资源管理 | 相机/控制器/IO/光源设备页 | WPF 单帧/连续采集和诊断闭环 | 提议，SDK 前需确认 |
 | P1 | 后续通信管理 | 设备、事件、报文监视 | 心跳、重连、超时、映射、触发和回复 | 提议 |
 | P1 | 后续全局逻辑 | 变量/触发/脚本/队列页面 | 类型化跨流程数据与多流程执行 | 提议 |

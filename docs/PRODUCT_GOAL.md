@@ -1,6 +1,6 @@
 # 产品长期目标
 
-更新日期：2026-08-08
+更新日期：2026-08-12
 状态：长期有效
 
 ## 产品定义
@@ -15,9 +15,9 @@ VM 是产品体验和用户习惯参照；HALCON 是全部视觉算子、图像�
 
 迭代授权：后续默认由开发代理自行选择并执行 A/B 双线 Sprint，不再逐轮等待确认；每轮仍必须明确 A 线可见 UI/UX 和 B 线真实工业功能，并完成验证和文档。自 2026-07-16 起，Git 按 10 个已验证小交付统一提交/推送，计数见 `docs/GIT_BATCH_LOG.md`，不再为每个小改动上传。恢复 BSB 或触碰 HALCON 算法含义、相机 SDK、投产协议、旧工程格式等高风险边界时仍需单独确认。
 
-当前产品基线（S35，新 Git 批次 `10/10`，本轮统一提交/上传）：活动 WPF 已形成顶部菜单/快捷工具条、左侧模块箱、中央流程、右上 HALCON 图像工作区、右下模块结果/配置/方案和底部状态/历史。中央默认“连接画布”把真实 `InputBindings` 映射为有方向的 Image/Region/XLD/Number 曲线，支持连接检查、端口导航、OUT→IN 创建/替换/重连、橡皮框/Ctrl 多选、复制/副本、批量启停/删除、可见网格、用户节点坐标、50 项撤销/重做、组织型 Group、断点/单步、常驻调试监视和运行到所选。右上结果图层页管理本周期真实 Region/XLD 输出；单/双画面左侧严格来自当前模块真实 Image 输入端口，右侧显示模块输出或兼容上下文，两侧支持来源/尺寸/像素/叠加状态、适应、1:1、放大及联动/独立缩放平移。矩形、圆、旋转矩形、多边形、椭圆、圆环、线和点共八类 ROI 均可在图像区创建、控制点编辑、复制、锁定、删除、显隐、启停、命名、绑定、保存和数值编辑；S35 的线 ROI 具有两端点/整体移动/长度/角度，点 ROI 具有单控制点和 X/Y 精确编辑。S31-S35 的极坐标展开、ROI 图像提取、图像尺寸缩放、图像镜像和图像旋转形成连续托管 Image 链；`rotate_image` 已按 0°/90°/180°/270°、任意角、非方图定位像素、五种插值及 domain 语义核对。Shape/HDevelop 仍走兼容配置，执行仍为确定性线性调度；Shape 兼容叠加尚未进入逐层清单，圆环壁厚工具几何仍靠数值配置，成组输出仍是可读字符串而非类型化数组；单个 HALCON 算子不可中断，真实并行、执行型 Group、运行到光标/变量表达式监视、屏蔽区、位置修正、通用几何/姿态类型、多流程、相机、坐标、工业通讯、权限、`.jw/.handle` 和 BSB 仍未完成。
+当前产品基线（S45 已验证，S36-S45 Git 批次已统一提交/上传，新批次 `0/10`）：活动 WPF 已具备顶部工具条、分类模块箱、真实依赖连接画布、单/双图像工作区、右侧常驻配置、方案、生产运行页和底部历史。S45 在 S44 本地批次元数据追溯上增加可选源图/结果图和受管 Region/XLD 快照、严格只读历史图像上下文、损坏降级、源文件删除后回看、容量保留、按批删除、孤立清理和返回实时；该能力不冒充 MES、数据库或合规归档。B 线新增 HALCON 20.11 `length_xld + select_obj`“XLD 长度排序/索引选择”，稳定升降序并支持 Top-N、Bottom-N 和排名范围，输出托管 XLD、原始索引字符串与统计并驱动 XLD/Number 下游。Shape/HDevelop 仍走兼容配置。执行仍为确定性线性调度；历史前后导航/双图对比与逐层控制、任意控件运行界面设计、权限、多画面、位置修正、ROI 继承、类型化数组、通用 Geometry/Pose、多流程、资源、坐标/标定、完整通信和 BSB 仍未完成。
 
-官方产品基线见 `docs/VM_OFFICIAL_REFERENCE_SPEC.md`。官方 VM 手册确认线/点基础 ROI，并明确图形 ROI 可设置屏蔽区且运行时不检测被屏蔽部分；S35 已完成线/点的真实 UI 和配方闭环，S36 将继续屏蔽区。MVTec HALCON 20.11 官方文档和本机运行确认 `rotate_image` 围绕图像中心逆时针旋转、90°/270°交换宽高、输入 domain 被忽略及输出 domain 交集语义。旧 v1 与 S09-S35 共 28 组功能回归全部通过，1942×1222 线/点 ROI 与旋转常驻配置 UI、原图 ROI/HALCON 旋转图像导出通过；全仓库 XAML 审计得到 558 个事件引用、238 个唯一处理入口且 0 缺失。Debug/Release x64 均为 0 警告、0 错误且双版本启动响应。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 因缺样本或设备仍未验证；当前工作区仍不等于完整 VM。
+官方产品基线见 `docs/VM_OFFICIAL_REFERENCE_SPEC.md`。S45 依照官方 VM 方案存图/输出图像习惯，在同一批次与生产状态上增加本地受管快照和只读回看。MVTec 官方文档与本机 HALCON 20.11 确认 `length_xld` 按轮廓顺序返回长度 tuple，`select_obj` 使用从 1 开始的对象索引；实现据此保证等长稳定排序和一基排名选择。S45 专项与旧配方/S09-S45 最终 38/38 功能回归、1938×1158 UI 以及 HALCON 历史 Region/排序 XLD 导出通过；Debug/Release x64 均为 0 警告、0 错误，两个版本各独立启动 8 秒且 `Responding=True`。真实外部产线图像、Shape 模板、相机和 `.jw/.handle` 因缺样本或设备仍未验证；当前工作区仍不等于完整 VM。
 
 ## 官方依据
 
@@ -53,6 +53,14 @@ VM 是产品体验和用户习惯参照；HALCON 是全部视觉算子、图像�
 - [MVTec HALCON 20.11 `zoom_image_size`](https://www.mvtec.com/doc/halcon/2011/en/zoom_image_size.html)：S33 按目标宽高和插值缩放完整图像矩阵，并显式输出行列比例及新坐标系。
 - [MVTec HALCON 20.11 `rotate_image`](https://www.mvtec.com/doc/halcon/2011/en/rotate_image.html)：S35 围绕图像中心逆时针旋转、90°/270°宽高交换和 domain 语义的官方依据。
 - [MVTec HALCON 20.11 `affine_trans_image`](https://www.mvtec.com/doc/halcon/2011/en/affine_trans_image.html)：S36 任意二维仿射、五种插值、输出尺寸适应、行列矩阵坐标与 domain 语义的官方依据。
+- [MVTec HALCON 20.11 `projective_trans_image`](https://www.mvtec.com/doc/halcon/2011/en/projective_trans_image.html)：S37 投影变换、插值、尺寸适应和 domain 语义的官方依据；本机 20.11 精确 .NET 签名另由程序集反射与运行夹具确认。
+- [MVTec HALCON `edges_sub_pix`](https://www.mvtec.com/doc/halcon/2011/en/edges_sub_pix.html)：S38 亚像素边缘 XLD、Filter、Alpha 与 Low/High 语义的官方依据；本机 HALCON 20.11 反射和专项结果已确认精确签名、九种 Filter、reduced domain 与 RGB 产品化策略。
+- [MVTec HALCON 20.11 `union_adjacent_contours_xld`](https://www.mvtec.com/doc/halcon/2011/en/union_adjacent_contours_xld.html)：S39 相邻轮廓连接的端点绝对/相对距离、属性模式和点序反转语义依据；本机程序集与专项夹具已确认精确 .NET 签名、短间隙/超阈值、反向端点、空对象和托管生命周期。
+- [MVTec HALCON 20.11 `smooth_contours_xld`](https://www.mvtec.com/doc/halcon/2011/en/smooth_contours_xld.html)：S40 XLD 轮廓平滑依据；本机已确认 `HOperatorSet.SmoothContoursXld(HObject,out HObject,HTuple)`、`NumRegrPoints >= 3` 且为奇数、3/5/7/9、短/多/空轮廓、长度变化、输入所有权和输出点属性不保留。
+- [MVTec HALCON 20.11 `affine_trans_contour_xld`](https://www.mvtec.com/doc/halcon/2011/en/affine_trans_contour_xld.html)：S41 已实现 XLD 仿射变换的依据；官方明确其应用任意二维仿射矩阵、使用 `affine_trans_pixel` 坐标体系并给出标准像素中心的 ±0.5 补偿，本机 20.11 精确签名为 `HOperatorSet.AffineTransContourXld(HObject,out HObject,HTuple)`。
+- [MVTec HALCON 20.11 `projective_trans_contour_xld`](https://www.mvtec.com/doc/halcon/2011/en/projective_trans_contour_xld.html)：S42 已实现 XLD 透视变换的依据；官方给出九元素投影矩阵、`affine_trans_pixel` 坐标体系及相同的 ±0.5 补偿约定，本机精确签名与正常/退化/生命周期专项均已通过。
+- [MVTec HALCON 20.11 `crop_contours_xld`](https://www.mvtec.com/doc/halcon/2011/en/crop_contours_xld.html)：S43 已实现 XLD 矩形裁剪的依据；本机 20.11 已确认精确 .NET 签名，穿越四边、内外/相切、开闭/多/空、两种闭合策略、所有权和托管生命周期专项均已通过。
+- [MVTec HALCON `length_xld`](https://www.mvtec.com/doc/halcon/2011/en/length_xld.html) 与 [`select_obj`](https://www.mvtec.com/doc/halcon/2011/en/select_obj.html)：S44 长度分级与 S45 长度排序/索引选择依据；前者按轮廓顺序返回欧氏路径长度，后者使用一基对象索引。本机 20.11 的稳定排序、范围选择、托管快照、统计和生命周期已专项验证。
 
 ## 目标用户体验
 

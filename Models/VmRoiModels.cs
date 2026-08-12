@@ -9,11 +9,17 @@ namespace HalconWinFormsDemo.Models
         private bool isEnabled;
         private bool isVisible;
         private bool isLocked;
+        private bool isMask;
         private RoiData geometry;
         private string bindingSummary;
         private string contextResultCode;
         private string contextResultText;
         private int sequence;
+        private string displayColor;
+        private int displayLineWidth;
+        private int displayOpacity;
+        private string viewportScope;
+        private int layerOrder;
 
         public VmRoiLayer()
         {
@@ -24,6 +30,9 @@ namespace HalconWinFormsDemo.Models
             BindingSummary = "未绑定工具";
             ContextResultCode = "--";
             ContextResultText = "当前工具未运行";
+            DisplayLineWidth = 2;
+            DisplayOpacity = 100;
+            ViewportScope = VmLayerViewportScope.Both;
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -120,6 +129,105 @@ namespace HalconWinFormsDemo.Models
             get { return IsLocked ? "已锁定" : "可编辑"; }
         }
 
+        public bool IsMask
+        {
+            get { return isMask; }
+            set
+            {
+                if (isMask == value)
+                {
+                    return;
+                }
+
+                isMask = value;
+                OnPropertyChanged("IsMask");
+                OnPropertyChanged("RoleText");
+                OnPropertyChanged("StateText");
+            }
+        }
+
+        public string RoleText
+        {
+            get { return IsMask ? "屏蔽区" : "检测区"; }
+        }
+
+        public string DisplayColor
+        {
+            get { return string.IsNullOrWhiteSpace(displayColor) ? (IsMask ? "red" : "cyan") : displayColor; }
+            set
+            {
+                string resolved = VmOverlayPalette.Normalize(value, IsMask ? "red" : "cyan");
+                if (string.Equals(displayColor, resolved, StringComparison.OrdinalIgnoreCase)) return;
+                displayColor = resolved;
+                OnPropertyChanged("DisplayColor");
+                OnPropertyChanged("DisplayColorHex");
+            }
+        }
+
+        public string DisplayColorHex
+        {
+            get { return VmOverlayPalette.GetHex(DisplayColor); }
+        }
+
+        public int DisplayLineWidth
+        {
+            get { return displayLineWidth <= 0 ? 2 : displayLineWidth; }
+            set
+            {
+                int resolved = Math.Max(1, Math.Min(8, value));
+                if (displayLineWidth == resolved) return;
+                displayLineWidth = resolved;
+                OnPropertyChanged("DisplayLineWidth");
+            }
+        }
+
+        public int DisplayOpacity
+        {
+            get { return displayOpacity <= 0 ? 100 : displayOpacity; }
+            set
+            {
+                int resolved = Math.Max(10, Math.Min(100, value));
+                if (displayOpacity == resolved) return;
+                displayOpacity = resolved;
+                OnPropertyChanged("DisplayOpacity");
+                OnPropertyChanged("OpacityText");
+            }
+        }
+
+        public string OpacityText
+        {
+            get { return DisplayOpacity + "%"; }
+        }
+
+        public string ViewportScope
+        {
+            get { return VmLayerViewportScope.Normalize(viewportScope, VmLayerViewportScope.Both); }
+            set
+            {
+                string resolved = VmLayerViewportScope.Normalize(value, VmLayerViewportScope.Both);
+                if (string.Equals(viewportScope, resolved, StringComparison.OrdinalIgnoreCase)) return;
+                viewportScope = resolved;
+                OnPropertyChanged("ViewportScope");
+                OnPropertyChanged("ViewportScopeText");
+            }
+        }
+
+        public string ViewportScopeText
+        {
+            get { return VmLayerViewportScope.GetDisplayText(ViewportScope); }
+        }
+
+        public int LayerOrder
+        {
+            get { return layerOrder; }
+            set
+            {
+                if (layerOrder == value) return;
+                layerOrder = value;
+                OnPropertyChanged("LayerOrder");
+            }
+        }
+
         public RoiData Geometry
         {
             get { return geometry; }
@@ -147,7 +255,7 @@ namespace HalconWinFormsDemo.Models
 
         public string StateText
         {
-            get { return (IsEnabled ? "参与运行" : "已停用") + " · " + LockText; }
+            get { return RoleText + " · " + (IsEnabled ? "参与运行" : "已停用") + " · " + LockText; }
         }
 
         public string BindingSummary
@@ -254,7 +362,7 @@ namespace HalconWinFormsDemo.Models
 
         public string ShapeText
         {
-            get { return Layer == null ? "--" : Layer.ShapeText; }
+            get { return Layer == null ? "--" : Layer.RoleText + " · " + Layer.ShapeText; }
         }
 
         public string StateText

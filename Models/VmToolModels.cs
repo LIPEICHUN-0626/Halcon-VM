@@ -7,6 +7,69 @@ using System.Linq;
 
 namespace HalconWinFormsDemo.Models
 {
+    public sealed class VmToolValueOption
+    {
+        public string Key { get; set; }
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmXldLengthSortDirection
+    {
+        public const string Ascending = "Ascending";
+        public const string Descending = "Descending";
+
+        public static string Normalize(string value)
+        {
+            return string.Equals(value, Descending, StringComparison.OrdinalIgnoreCase) ? Descending : Ascending;
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            return Normalize(value) == Descending ? "降序（长→短）" : "升序（短→长）";
+        }
+
+        public static IList<VmToolValueOption> CreateAll()
+        {
+            return new[]
+            {
+                new VmToolValueOption { Key = Ascending, DisplayText = "升序（短→长）" },
+                new VmToolValueOption { Key = Descending, DisplayText = "降序（长→短）" }
+            };
+        }
+    }
+
+    public static class VmXldLengthSelectionMode
+    {
+        public const string TopN = "TopN";
+        public const string BottomN = "BottomN";
+        public const string RankRange = "RankRange";
+
+        public static string Normalize(string value)
+        {
+            if (string.Equals(value, BottomN, StringComparison.OrdinalIgnoreCase)) return BottomN;
+            if (string.Equals(value, RankRange, StringComparison.OrdinalIgnoreCase)) return RankRange;
+            return TopN;
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == BottomN) return "末 N 条";
+            if (normalized == RankRange) return "排名区间";
+            return "前 N 条";
+        }
+
+        public static IList<VmToolValueOption> CreateAll()
+        {
+            return new[]
+            {
+                new VmToolValueOption { Key = TopN, DisplayText = "前 N 条" },
+                new VmToolValueOption { Key = BottomN, DisplayText = "末 N 条" },
+                new VmToolValueOption { Key = RankRange, DisplayText = "排名区间" }
+            };
+        }
+    }
+
     public enum VmToolKind
     {
         ShapeMatch,
@@ -41,7 +104,17 @@ namespace HalconWinFormsDemo.Models
         CaliperEdgePairMeasurement,
         LinearCaliperArrayMeasurement,
         CircularCaliperCircleFinder,
-        RingWallThicknessMeasurement
+        RingWallThicknessMeasurement,
+        ImageAffineTransform,
+        ImageProjectiveTransform,
+        SubpixelEdgeExtraction,
+        XldAdjacentContourUnion,
+        XldContourSmoothing,
+        XldAffineTransform,
+        XldProjectiveTransform,
+        XldContourCrop,
+        XldLengthClassification,
+        XldLengthSortSelection
     }
 
     public sealed class VmToolCatalogItem : INotifyPropertyChanged
@@ -871,6 +944,26 @@ namespace HalconWinFormsDemo.Models
                     return "图像镜像";
                 case VmToolKind.ImageRotate:
                     return "图像旋转";
+                case VmToolKind.ImageAffineTransform:
+                    return "仿射图像变换";
+                case VmToolKind.ImageProjectiveTransform:
+                    return "透视图像校正";
+                case VmToolKind.SubpixelEdgeExtraction:
+                    return "亚像素边缘提取";
+                case VmToolKind.XldAdjacentContourUnion:
+                    return "相邻轮廓连接";
+                case VmToolKind.XldContourSmoothing:
+                    return "XLD 轮廓平滑";
+                case VmToolKind.XldAffineTransform:
+                    return "XLD 仿射变换";
+                case VmToolKind.XldProjectiveTransform:
+                    return "XLD 透视变换";
+                case VmToolKind.XldContourCrop:
+                    return "XLD 矩形裁剪";
+                case VmToolKind.XldLengthClassification:
+                    return "XLD 长度分级";
+                case VmToolKind.XldLengthSortSelection:
+                    return "XLD 长度排序/索引选择";
                 case VmToolKind.PolarImageUnwrap:
                     return "极坐标展开";
                 case VmToolKind.RoiImageExtraction:
@@ -944,6 +1037,9 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.ImageResize:
                 case VmToolKind.ImageMirror:
                 case VmToolKind.ImageRotate:
+                case VmToolKind.ImageAffineTransform:
+                case VmToolKind.ImageProjectiveTransform:
+                case VmToolKind.SubpixelEdgeExtraction:
                 case VmToolKind.PolarImageUnwrap:
                 case VmToolKind.RoiImageExtraction:
                 case VmToolKind.ImageDifference:
@@ -955,6 +1051,13 @@ namespace HalconWinFormsDemo.Models
                     return "图像处理";
                 case VmToolKind.RegionContourMeasurement:
                 case VmToolKind.XldContourFilter:
+                case VmToolKind.XldAdjacentContourUnion:
+                case VmToolKind.XldContourSmoothing:
+                case VmToolKind.XldAffineTransform:
+                case VmToolKind.XldProjectiveTransform:
+                case VmToolKind.XldContourCrop:
+                case VmToolKind.XldLengthClassification:
+                case VmToolKind.XldLengthSortSelection:
                 case VmToolKind.XldContourSegmentation:
                 case VmToolKind.XldLineFitting:
                 case VmToolKind.XldCircleFitting:
@@ -995,6 +1098,12 @@ namespace HalconWinFormsDemo.Models
                     return "使用 HALCON mirror_image 按行、列或主对角线镜像图像；对角线模式会交换非方形图像的宽高，并继续输出安全 Image 快照。";
                 case VmToolKind.ImageRotate:
                     return "使用 HALCON rotate_image 围绕图像中心逆时针旋转；90°/270°交换宽高，其余角度保持图像矩阵尺寸，并明确输出新坐标语义。";
+                case VmToolKind.ImageAffineTransform:
+                    return "使用 HALCON affine_trans_image 围绕图像中心组合平移、旋转、行列缩放和行方向斜切；可选择是否自适应输出尺寸，并输出 HomMat2D 与明确的新坐标语义。";
+                case VmToolKind.ImageProjectiveTransform:
+                    return "使用 HALCON normalized_dlt 由四组源/目标像素点建立投影矩阵，再执行 projective_trans_image 或 projective_trans_image_size 完成梯形与平面透视校正。";
+                case VmToolKind.SubpixelEdgeExtraction:
+                    return "订阅真实 Image，按 HALCON edges_sub_pix 提取亚像素 XLD；支持滤波器、滞后阈值、彩色转灰和 ROI/屏蔽运行域。";
                 case VmToolKind.PolarImageUnwrap:
                     return "使用 HALCON 将圆环或圆弧区域按角度与半径展开为矩形图像；整圆自动避开首尾重复列，并继续输出安全 Image 快照。";
                 case VmToolKind.RoiImageExtraction:
@@ -1015,6 +1124,20 @@ namespace HalconWinFormsDemo.Models
                     return "订阅上游 Region，使用 HALCON 生成可显示的 XLD 轮廓并测量轮廓总长度与数量。";
                 case VmToolKind.XldContourFilter:
                     return "订阅上游 XLD，使用 HALCON 按轮廓长度或最大跨度筛选，并输出可继续订阅和显示的 XLD。";
+                case VmToolKind.XldAdjacentContourUnion:
+                    return "订阅上游 XLD，使用 HALCON union_adjacent_contours_xld 按端点绝对/相对距离连接相邻轮廓，并可选择保留或丢弃轮廓属性。";
+                case VmToolKind.XldContourSmoothing:
+                    return "订阅上游 XLD，使用 HALCON smooth_contours_xld 以局部回归线投影抑制轮廓噪声，输出平滑前后长度变化并明确点属性不会保留。";
+                case VmToolKind.XldAffineTransform:
+                    return "订阅上游 XLD，使用 HALCON affine_trans_contour_xld 执行平移、中心旋转、行列缩放和斜切；可配置组合顺序及 affine_trans_pixel/标准像素中心坐标策略。";
+                case VmToolKind.XldProjectiveTransform:
+                    return "订阅上游 XLD，由四组源/目标 Row/Column 点以 normalized_dlt 建立投影矩阵，再使用 HALCON projective_trans_contour_xld 完成透视变换并明确像素中心坐标策略。";
+                case VmToolKind.XldContourCrop:
+                    return "订阅上游 XLD，使用 HALCON crop_contours_xld 在矩形边界精确求交并裁剪轮廓，可选择将原闭合轮廓沿裁剪边界重新闭合。";
+                case VmToolKind.XldLengthClassification:
+                    return "订阅上游 XLD，使用 HALCON length_xld 测量每条轮廓并以 select_obj 互斥分为短、中、长三组，输出三组托管 XLD 及数量、总长、最小、最大和平均长度。";
+                case VmToolKind.XldLengthSortSelection:
+                    return "订阅上游 XLD，以 HALCON length_xld 获取每条长度并保持同长度原始次序，按升/降序执行 Top-N、Bottom-N 或排名区间选择，再以一基 select_obj 输出托管 XLD 和可读原始索引。";
                 case VmToolKind.XldContourSegmentation:
                     return "订阅上游 XLD，使用 HALCON 将轮廓分为直线段及圆弧或椭圆弧，并输出分类、长度与可继续订阅的 XLD。";
                 case VmToolKind.XldLineFitting:
@@ -1064,6 +1187,8 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.ImageResize:
                 case VmToolKind.ImageMirror:
                 case VmToolKind.ImageRotate:
+                case VmToolKind.ImageAffineTransform:
+                case VmToolKind.ImageProjectiveTransform:
                 case VmToolKind.PolarImageUnwrap:
                 case VmToolKind.ImageThreshold:
                 case VmToolKind.CaliperEdgePairMeasurement:
@@ -1071,6 +1196,12 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.CircularCaliperCircleFinder:
                 case VmToolKind.RingWallThicknessMeasurement:
                     return new[] { Port("Image", "输入图像", "Image", false) };
+                case VmToolKind.SubpixelEdgeExtraction:
+                    return new[]
+                    {
+                        Port("Image", "输入图像", "Image", false),
+                        Port("ROI", "绑定 ROI / 前序 Region", "Region", true)
+                    };
                 case VmToolKind.RoiImageExtraction:
                     return new[]
                     {
@@ -1094,6 +1225,13 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.RegionContourMeasurement:
                     return new[] { Port("Region", "输入区域", "Region", false) };
                 case VmToolKind.XldContourFilter:
+                case VmToolKind.XldAdjacentContourUnion:
+                case VmToolKind.XldContourSmoothing:
+                case VmToolKind.XldAffineTransform:
+                case VmToolKind.XldProjectiveTransform:
+                case VmToolKind.XldContourCrop:
+                case VmToolKind.XldLengthClassification:
+                case VmToolKind.XldLengthSortSelection:
                 case VmToolKind.XldContourSegmentation:
                 case VmToolKind.XldLineFitting:
                 case VmToolKind.XldCircleFitting:
@@ -1256,6 +1394,142 @@ namespace HalconWinFormsDemo.Models
                         Port("ContourCount", "轮廓数量", "Number", false),
                         Port("Feature", "筛选特征", "String", false),
                         Port("Range", "筛选范围", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldAdjacentContourUnion:
+                    return new[]
+                    {
+                        Port("XLD", "连接后轮廓", "XLD", false),
+                        Port("InputContourCount", "输入轮廓数量", "Number", false),
+                        Port("ContourCount", "输出轮廓数量", "Number", false),
+                        Port("JoinedCount", "已连接数量", "Number", false),
+                        Port("TotalLength", "输出轮廓总长度", "Number", false),
+                        Port("Mode", "属性策略", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldContourSmoothing:
+                    return new[]
+                    {
+                        Port("XLD", "平滑后轮廓", "XLD", false),
+                        Port("InputContourCount", "输入轮廓数量", "Number", false),
+                        Port("ContourCount", "输出轮廓数量", "Number", false),
+                        Port("InputTotalLength", "平滑前总长度", "Number", false),
+                        Port("TotalLength", "平滑后总长度", "Number", false),
+                        Port("LengthDelta", "长度变化", "Number", false),
+                        Port("NumRegrPoints", "回归点数", "Number", false),
+                        Port("AttributePolicy", "属性语义", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldAffineTransform:
+                    return new[]
+                    {
+                        Port("XLD", "仿射变换后轮廓", "XLD", false),
+                        Port("ContourCount", "轮廓数量", "Number", false),
+                        Port("InputTotalLength", "变换前总长度", "Number", false),
+                        Port("TotalLength", "变换后总长度", "Number", false),
+                        Port("MinRow", "输出最小 Row", "Number", false),
+                        Port("MinColumn", "输出最小 Column", "Number", false),
+                        Port("MaxRow", "输出最大 Row", "Number", false),
+                        Port("MaxColumn", "输出最大 Column", "Number", false),
+                        Port("CenterRow", "变换中心 Row", "Number", false),
+                        Port("CenterColumn", "变换中心 Column", "Number", false),
+                        Port("HomMat2D", "二维仿射矩阵", "String", false),
+                        Port("TransformOrder", "组合顺序", "String", false),
+                        Port("CoordinatePolicy", "坐标策略", "String", false),
+                        Port("AttributePolicy", "属性语义", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldProjectiveTransform:
+                    return new[]
+                    {
+                        Port("XLD", "透视变换后轮廓", "XLD", false),
+                        Port("ContourCount", "轮廓数量", "Number", false),
+                        Port("InputTotalLength", "变换前总长度", "Number", false),
+                        Port("TotalLength", "变换后总长度", "Number", false),
+                        Port("MinRow", "输出最小 Row", "Number", false),
+                        Port("MinColumn", "输出最小 Column", "Number", false),
+                        Port("MaxRow", "输出最大 Row", "Number", false),
+                        Port("MaxColumn", "输出最大 Column", "Number", false),
+                        Port("HomMat2D", "二维投影矩阵", "String", false),
+                        Port("PointError", "四点最大映射误差", "Number", false),
+                        Port("CoordinatePolicy", "坐标策略", "String", false),
+                        Port("AttributePolicy", "属性语义", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldContourCrop:
+                    return new[]
+                    {
+                        Port("XLD", "裁剪后轮廓", "XLD", false),
+                        Port("InputContourCount", "输入轮廓数量", "Number", false),
+                        Port("ContourCount", "输出轮廓数量", "Number", false),
+                        Port("InputTotalLength", "裁剪前总长度", "Number", false),
+                        Port("TotalLength", "裁剪后总长度", "Number", false),
+                        Port("MinRow", "输出最小 Row", "Number", false),
+                        Port("MinColumn", "输出最小 Column", "Number", false),
+                        Port("MaxRow", "输出最大 Row", "Number", false),
+                        Port("MaxColumn", "输出最大 Column", "Number", false),
+                        Port("CropRectangle", "裁剪矩形", "String", false),
+                        Port("CloseContours", "闭合策略", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldLengthClassification:
+                    return new[]
+                    {
+                        Port("ShortXLD", "短轮廓", "XLD", false),
+                        Port("MediumXLD", "中轮廓", "XLD", false),
+                        Port("LongXLD", "长轮廓", "XLD", false),
+                        Port("ShortCount", "短轮廓数量", "Number", false),
+                        Port("ShortTotalLength", "短轮廓总长度", "Number", false),
+                        Port("ShortMinLength", "短轮廓最小长度", "Number", false),
+                        Port("ShortMaxLength", "短轮廓最大长度", "Number", false),
+                        Port("ShortMeanLength", "短轮廓平均长度", "Number", false),
+                        Port("MediumCount", "中轮廓数量", "Number", false),
+                        Port("MediumTotalLength", "中轮廓总长度", "Number", false),
+                        Port("MediumMinLength", "中轮廓最小长度", "Number", false),
+                        Port("MediumMaxLength", "中轮廓最大长度", "Number", false),
+                        Port("MediumMeanLength", "中轮廓平均长度", "Number", false),
+                        Port("LongCount", "长轮廓数量", "Number", false),
+                        Port("LongTotalLength", "长轮廓总长度", "Number", false),
+                        Port("LongMinLength", "长轮廓最小长度", "Number", false),
+                        Port("LongMaxLength", "长轮廓最大长度", "Number", false),
+                        Port("LongMeanLength", "长轮廓平均长度", "Number", false),
+                        Port("ShortMaximum", "短轮廓上限", "Number", false),
+                        Port("MediumMaximum", "中轮廓上限", "Number", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldLengthSortSelection:
+                    return new[]
+                    {
+                        Port("XLD", "排序选择后轮廓", "XLD", false),
+                        Port("InputContourCount", "输入轮廓数量", "Number", false),
+                        Port("ContourCount", "选择轮廓数量", "Number", false),
+                        Port("TotalLength", "选择总长度", "Number", false),
+                        Port("MinLength", "选择最小长度", "Number", false),
+                        Port("MaxLength", "选择最大长度", "Number", false),
+                        Port("MeanLength", "选择平均长度", "Number", false),
+                        Port("OriginalIndices", "原始索引顺序", "String", false),
+                        Port("Lengths", "选择长度顺序", "String", false),
+                        Port("SortDirection", "排序方向", "String", false),
+                        Port("SelectionMode", "选择模式", "String", false),
+                        Port("RankRange", "排名范围", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.SubpixelEdgeExtraction:
+                    return new[]
+                    {
+                        Port("XLD", "亚像素边缘轮廓", "XLD", false),
+                        Port("TotalLength", "轮廓总长度", "Number", false),
+                        Port("ContourCount", "轮廓数量", "Number", false),
+                        Port("Filter", "边缘滤波器", "String", false),
+                        Port("ColorPolicy", "彩色处理策略", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
                         Port("ResultCode", "结果码", "String", false)
                     };
                 case VmToolKind.XldContourSegmentation:
@@ -1434,6 +1708,34 @@ namespace HalconWinFormsDemo.Models
                         Port("Parameters", "参数摘要", "String", false),
                         Port("ResultCode", "结果码", "String", false)
                     };
+                case VmToolKind.ImageAffineTransform:
+                    return new[]
+                    {
+                        Port("Image", "仿射变换图像", "Image", false),
+                        Port("Width", "输出图像宽度", "Number", false),
+                        Port("Height", "输出图像高度", "Number", false),
+                        Port("Channels", "图像通道数", "Number", false),
+                        Port("HomMat2D", "仿射矩阵", "String", false),
+                        Port("Interpolation", "插值方式", "String", false),
+                        Port("AdaptImageSize", "自适应尺寸", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.ImageProjectiveTransform:
+                    return new[]
+                    {
+                        Port("Image", "透视校正图像", "Image", false),
+                        Port("Width", "输出图像宽度", "Number", false),
+                        Port("Height", "输出图像高度", "Number", false),
+                        Port("Channels", "图像通道数", "Number", false),
+                        Port("HomMat2D", "投影矩阵", "String", false),
+                        Port("Interpolation", "插值方式", "String", false),
+                        Port("OutputMode", "输出尺寸模式", "String", false),
+                        Port("TransformDomain", "变换输入域", "String", false),
+                        Port("PointError", "四点映射最大误差", "Number", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
                 case VmToolKind.PolarImageUnwrap:
                     return new[]
                     {
@@ -1580,6 +1882,7 @@ namespace HalconWinFormsDemo.Models
                    kind == VmToolKind.Blob ||
                    kind == VmToolKind.GrayStat ||
                    kind == VmToolKind.EdgeMeasure ||
+                   kind == VmToolKind.SubpixelEdgeExtraction ||
                    kind == VmToolKind.HDevelop ||
                    kind == VmToolKind.RoiImageExtraction;
         }

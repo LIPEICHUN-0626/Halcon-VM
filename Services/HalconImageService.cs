@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HalconDotNet;
@@ -282,6 +283,145 @@ namespace HalconWinFormsDemo.Services
                 if (selectedContours != null)
                 {
                     selectedContours.Dispose();
+                }
+            }
+        }
+
+        public HObject UnionAdjacentXldContours(HObject contours, double maxDistAbs, double maxDistRel, string attributeMode)
+        {
+            if (contours == null)
+            {
+                throw new ArgumentNullException("contours");
+            }
+
+            HObject unionContours = null;
+            try
+            {
+                HOperatorSet.UnionAdjacentContoursXld(
+                    contours,
+                    out unionContours,
+                    maxDistAbs,
+                    maxDistRel,
+                    VmXldAdjacentAttributeMode.GetHalconValue(attributeMode));
+                HObject result = unionContours;
+                unionContours = null;
+                return result;
+            }
+            finally
+            {
+                if (unionContours != null)
+                {
+                    unionContours.Dispose();
+                }
+            }
+        }
+
+        public HObject SmoothXldContours(HObject contours, int numRegrPoints)
+        {
+            if (contours == null)
+            {
+                throw new ArgumentNullException("contours");
+            }
+
+            HObject smoothedContours = null;
+            try
+            {
+                HOperatorSet.SmoothContoursXld(contours, out smoothedContours, numRegrPoints);
+                HObject result = smoothedContours;
+                smoothedContours = null;
+                return result;
+            }
+            finally
+            {
+                if (smoothedContours != null)
+                {
+                    smoothedContours.Dispose();
+                }
+            }
+        }
+
+        public HObject AffineTransformXldContours(HObject contours, HTuple homMat2D)
+        {
+            if (contours == null)
+            {
+                throw new ArgumentNullException("contours");
+            }
+            if (homMat2D == null || homMat2D.Length != 6)
+            {
+                throw new ArgumentException("二维仿射矩阵必须包含 6 个有限数值。", "homMat2D");
+            }
+
+            HObject transformedContours = null;
+            try
+            {
+                HOperatorSet.AffineTransContourXld(contours, out transformedContours, homMat2D);
+                HObject result = transformedContours;
+                transformedContours = null;
+                return result;
+            }
+            finally
+            {
+                if (transformedContours != null)
+                {
+                    transformedContours.Dispose();
+                }
+            }
+        }
+
+        public HObject ProjectiveTransformXldContours(HObject contours, HTuple homMat2D)
+        {
+            if (contours == null)
+            {
+                throw new ArgumentNullException("contours");
+            }
+            if (homMat2D == null || homMat2D.Length != 9 || homMat2D.ToDArr().Any(value => double.IsNaN(value) || double.IsInfinity(value)))
+            {
+                throw new ArgumentException("二维投影矩阵必须包含 9 个有限数值。", "homMat2D");
+            }
+
+            HObject transformedContours = null;
+            try
+            {
+                HOperatorSet.ProjectiveTransContourXld(contours, out transformedContours, homMat2D);
+                HObject result = transformedContours;
+                transformedContours = null;
+                return result;
+            }
+            finally
+            {
+                if (transformedContours != null)
+                {
+                    transformedContours.Dispose();
+                }
+            }
+        }
+
+        public HObject CropXldContours(HObject contours, double row1, double column1, double row2, double column2, bool closeContours)
+        {
+            if (contours == null)
+            {
+                throw new ArgumentNullException("contours");
+            }
+            if (double.IsNaN(row1) || double.IsInfinity(row1) || double.IsNaN(column1) || double.IsInfinity(column1) ||
+                double.IsNaN(row2) || double.IsInfinity(row2) || double.IsNaN(column2) || double.IsInfinity(column2) ||
+                row2 - row1 < 1 || column2 - column1 < 1)
+            {
+                throw new ArgumentException("XLD 裁剪矩形必须是至少 1×1 像素的有限有序矩形。", "row1");
+            }
+
+            HObject croppedContours = null;
+            try
+            {
+                HOperatorSet.CropContoursXld(contours, out croppedContours, row1, column1, row2, column2, closeContours ? "true" : "false");
+                HObject result = croppedContours;
+                croppedContours = null;
+                return result;
+            }
+            finally
+            {
+                if (croppedContours != null)
+                {
+                    croppedContours.Dispose();
                 }
             }
         }

@@ -12,6 +12,7 @@ TestResults/
 /logs/
 /config/
 /recipes/
+/artifacts/
 *.log
 
 # HALCON runtime artifacts created by users

@@ -137,6 +137,50 @@ namespace HalconWinFormsDemo.Models
             ImageMirrorMode = VmImageMirrorMode.Row;
             ImageRotateAngleDegrees = 90;
             ImageRotateInterpolation = VmImageResizeInterpolation.Constant;
+            ImageAffineScaleRow = 1;
+            ImageAffineScaleColumn = 1;
+            ImageAffineInterpolation = VmImageResizeInterpolation.Bilinear;
+            ImageProjectiveSourceRow1 = 0;
+            ImageProjectiveSourceColumn1 = 0;
+            ImageProjectiveSourceRow2 = 0;
+            ImageProjectiveSourceColumn2 = 639;
+            ImageProjectiveSourceRow3 = 479;
+            ImageProjectiveSourceColumn3 = 639;
+            ImageProjectiveSourceRow4 = 479;
+            ImageProjectiveSourceColumn4 = 0;
+            ImageProjectiveTargetRow1 = 0;
+            ImageProjectiveTargetColumn1 = 0;
+            ImageProjectiveTargetRow2 = 0;
+            ImageProjectiveTargetColumn2 = 639;
+            ImageProjectiveTargetRow3 = 479;
+            ImageProjectiveTargetColumn3 = 639;
+            ImageProjectiveTargetRow4 = 479;
+            ImageProjectiveTargetColumn4 = 0;
+            ImageProjectiveInterpolation = VmProjectiveInterpolation.Bilinear;
+            ImageProjectiveOutputMode = VmProjectiveOutputMode.KeepInputSize;
+            ImageProjectiveOutputWidth = 640;
+            ImageProjectiveOutputHeight = 480;
+            SubpixelEdgeFilter = VmSubpixelEdgeFilter.Canny;
+            SubpixelEdgeAlpha = 1.0;
+            SubpixelEdgeLow = 20;
+            SubpixelEdgeHigh = 40;
+            SubpixelEdgeColorPolicy = VmSubpixelEdgeColorPolicy.AutoGray;
+            XldAdjacentMaxDistAbs = 10.0;
+            XldAdjacentMaxDistRel = 1.0;
+            XldAdjacentAttributeMode = VmXldAdjacentAttributeMode.AttrKeep;
+            XldSmoothNumRegrPoints = 5;
+            XldAffineScaleRow = 1.0;
+            XldAffineScaleColumn = 1.0;
+            XldAffineCenterMode = VmXldAffineCenterMode.InputBounds;
+            XldAffineCoordinatePolicy = VmXldAffineCoordinatePolicy.StandardPixelCenter;
+            XldAffineTransformOrder = VmXldAffineTransformOrder.ScaleSlantRotateTranslate;
+            SetDefaultXldProjectivePoints();
+            XldProjectiveCoordinatePolicy = VmXldAffineCoordinatePolicy.StandardPixelCenter;
+            XldCropRow1 = 40;
+            XldCropColumn1 = 60;
+            XldCropRow2 = 440;
+            XldCropColumn2 = 580;
+            XldCropCloseContours = true;
         }
 
         [DataMember(Order = 1)] public double BlobMinGray { get; set; }
@@ -268,6 +312,103 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 127, EmitDefaultValue = false)] public string ImageMirrorMode { get; set; }
         [DataMember(Order = 128, EmitDefaultValue = false)] public double ImageRotateAngleDegrees { get; set; }
         [DataMember(Order = 129, EmitDefaultValue = false)] public string ImageRotateInterpolation { get; set; }
+        [DataMember(Order = 130, EmitDefaultValue = false)] public double ImageAffineTranslateRow { get; set; }
+        [DataMember(Order = 131, EmitDefaultValue = false)] public double ImageAffineTranslateColumn { get; set; }
+        [DataMember(Order = 132, EmitDefaultValue = false)] public double ImageAffineScaleRow { get; set; }
+        [DataMember(Order = 133, EmitDefaultValue = false)] public double ImageAffineScaleColumn { get; set; }
+        [DataMember(Order = 134, EmitDefaultValue = false)] public double ImageAffineRotationDegrees { get; set; }
+        [DataMember(Order = 135, EmitDefaultValue = false)] public double ImageAffineSlantDegrees { get; set; }
+        [DataMember(Order = 136, EmitDefaultValue = false)] public string ImageAffineInterpolation { get; set; }
+        [DataMember(Order = 137, EmitDefaultValue = false)] public bool ImageAffineAdaptImageSize { get; set; }
+        [DataMember(Order = 138, EmitDefaultValue = false)] public double ImageProjectiveSourceRow1 { get; set; }
+        [DataMember(Order = 139, EmitDefaultValue = false)] public double ImageProjectiveSourceColumn1 { get; set; }
+        [DataMember(Order = 140, EmitDefaultValue = false)] public double ImageProjectiveSourceRow2 { get; set; }
+        [DataMember(Order = 141, EmitDefaultValue = false)] public double ImageProjectiveSourceColumn2 { get; set; }
+        [DataMember(Order = 142, EmitDefaultValue = false)] public double ImageProjectiveSourceRow3 { get; set; }
+        [DataMember(Order = 143, EmitDefaultValue = false)] public double ImageProjectiveSourceColumn3 { get; set; }
+        [DataMember(Order = 144, EmitDefaultValue = false)] public double ImageProjectiveSourceRow4 { get; set; }
+        [DataMember(Order = 145, EmitDefaultValue = false)] public double ImageProjectiveSourceColumn4 { get; set; }
+        [DataMember(Order = 146, EmitDefaultValue = false)] public double ImageProjectiveTargetRow1 { get; set; }
+        [DataMember(Order = 147, EmitDefaultValue = false)] public double ImageProjectiveTargetColumn1 { get; set; }
+        [DataMember(Order = 148, EmitDefaultValue = false)] public double ImageProjectiveTargetRow2 { get; set; }
+        [DataMember(Order = 149, EmitDefaultValue = false)] public double ImageProjectiveTargetColumn2 { get; set; }
+        [DataMember(Order = 150, EmitDefaultValue = false)] public double ImageProjectiveTargetRow3 { get; set; }
+        [DataMember(Order = 151, EmitDefaultValue = false)] public double ImageProjectiveTargetColumn3 { get; set; }
+        [DataMember(Order = 152, EmitDefaultValue = false)] public double ImageProjectiveTargetRow4 { get; set; }
+        [DataMember(Order = 153, EmitDefaultValue = false)] public double ImageProjectiveTargetColumn4 { get; set; }
+        [DataMember(Order = 154, EmitDefaultValue = false)] public string ImageProjectiveInterpolation { get; set; }
+        [DataMember(Order = 155, EmitDefaultValue = false)] public string ImageProjectiveOutputMode { get; set; }
+        [DataMember(Order = 156, EmitDefaultValue = false)] public int ImageProjectiveOutputWidth { get; set; }
+        [DataMember(Order = 157, EmitDefaultValue = false)] public int ImageProjectiveOutputHeight { get; set; }
+        [DataMember(Order = 158, EmitDefaultValue = false)] public bool ImageProjectiveTransformDomain { get; set; }
+        [DataMember(Order = 159, EmitDefaultValue = false)] public string SubpixelEdgeFilter { get; set; }
+        [DataMember(Order = 160, EmitDefaultValue = false)] public double SubpixelEdgeAlpha { get; set; }
+        [DataMember(Order = 161, EmitDefaultValue = false)] public int SubpixelEdgeLow { get; set; }
+        [DataMember(Order = 162, EmitDefaultValue = false)] public int SubpixelEdgeHigh { get; set; }
+        [DataMember(Order = 163, EmitDefaultValue = false)] public string SubpixelEdgeColorPolicy { get; set; }
+        [DataMember(Order = 164, EmitDefaultValue = false)] public double XldAdjacentMaxDistAbs { get; set; }
+        [DataMember(Order = 165, EmitDefaultValue = false)] public double XldAdjacentMaxDistRel { get; set; }
+        [DataMember(Order = 166, EmitDefaultValue = false)] public string XldAdjacentAttributeMode { get; set; }
+        [DataMember(Order = 167, EmitDefaultValue = false)] public int XldSmoothNumRegrPoints { get; set; }
+        [DataMember(Order = 168, EmitDefaultValue = false)] public double XldAffineTranslateRow { get; set; }
+        [DataMember(Order = 169, EmitDefaultValue = false)] public double XldAffineTranslateColumn { get; set; }
+        [DataMember(Order = 170, EmitDefaultValue = false)] public double XldAffineScaleRow { get; set; }
+        [DataMember(Order = 171, EmitDefaultValue = false)] public double XldAffineScaleColumn { get; set; }
+        [DataMember(Order = 172, EmitDefaultValue = false)] public double XldAffineRotationDegrees { get; set; }
+        [DataMember(Order = 173, EmitDefaultValue = false)] public double XldAffineSlantDegrees { get; set; }
+        [DataMember(Order = 174, EmitDefaultValue = false)] public string XldAffineCenterMode { get; set; }
+        [DataMember(Order = 175, EmitDefaultValue = false)] public double XldAffineCenterRow { get; set; }
+        [DataMember(Order = 176, EmitDefaultValue = false)] public double XldAffineCenterColumn { get; set; }
+        [DataMember(Order = 177, EmitDefaultValue = false)] public string XldAffineCoordinatePolicy { get; set; }
+        [DataMember(Order = 178, EmitDefaultValue = false)] public string XldAffineTransformOrder { get; set; }
+        [DataMember(Order = 179, EmitDefaultValue = false)] public double XldProjectiveSourceRow1 { get; set; }
+        [DataMember(Order = 180, EmitDefaultValue = false)] public double XldProjectiveSourceColumn1 { get; set; }
+        [DataMember(Order = 181, EmitDefaultValue = false)] public double XldProjectiveSourceRow2 { get; set; }
+        [DataMember(Order = 182, EmitDefaultValue = false)] public double XldProjectiveSourceColumn2 { get; set; }
+        [DataMember(Order = 183, EmitDefaultValue = false)] public double XldProjectiveSourceRow3 { get; set; }
+        [DataMember(Order = 184, EmitDefaultValue = false)] public double XldProjectiveSourceColumn3 { get; set; }
+        [DataMember(Order = 185, EmitDefaultValue = false)] public double XldProjectiveSourceRow4 { get; set; }
+        [DataMember(Order = 186, EmitDefaultValue = false)] public double XldProjectiveSourceColumn4 { get; set; }
+        [DataMember(Order = 187, EmitDefaultValue = false)] public double XldProjectiveTargetRow1 { get; set; }
+        [DataMember(Order = 188, EmitDefaultValue = false)] public double XldProjectiveTargetColumn1 { get; set; }
+        [DataMember(Order = 189, EmitDefaultValue = false)] public double XldProjectiveTargetRow2 { get; set; }
+        [DataMember(Order = 190, EmitDefaultValue = false)] public double XldProjectiveTargetColumn2 { get; set; }
+        [DataMember(Order = 191, EmitDefaultValue = false)] public double XldProjectiveTargetRow3 { get; set; }
+        [DataMember(Order = 192, EmitDefaultValue = false)] public double XldProjectiveTargetColumn3 { get; set; }
+        [DataMember(Order = 193, EmitDefaultValue = false)] public double XldProjectiveTargetRow4 { get; set; }
+        [DataMember(Order = 194, EmitDefaultValue = false)] public double XldProjectiveTargetColumn4 { get; set; }
+        [DataMember(Order = 195, EmitDefaultValue = false)] public string XldProjectiveCoordinatePolicy { get; set; }
+        [DataMember(Order = 196, EmitDefaultValue = false)] public double XldCropRow1 { get; set; }
+        [DataMember(Order = 197, EmitDefaultValue = false)] public double XldCropColumn1 { get; set; }
+        [DataMember(Order = 198, EmitDefaultValue = false)] public double XldCropRow2 { get; set; }
+        [DataMember(Order = 199, EmitDefaultValue = false)] public double XldCropColumn2 { get; set; }
+        [DataMember(Order = 200, EmitDefaultValue = false)] public bool XldCropCloseContours { get; set; }
+        [DataMember(Order = 201, EmitDefaultValue = false)] public double XldLengthShortMaximum { get; set; }
+        [DataMember(Order = 202, EmitDefaultValue = false)] public double XldLengthMediumMaximum { get; set; }
+        [DataMember(Order = 203, EmitDefaultValue = false)] public string XldLengthSortDirection { get; set; }
+        [DataMember(Order = 204, EmitDefaultValue = false)] public string XldLengthSelectionMode { get; set; }
+        [DataMember(Order = 205, EmitDefaultValue = false)] public int XldLengthStartRank { get; set; }
+        [DataMember(Order = 206, EmitDefaultValue = false)] public int XldLengthEndRank { get; set; }
+
+        private void SetDefaultXldProjectivePoints()
+        {
+            XldProjectiveSourceRow1 = 0;
+            XldProjectiveSourceColumn1 = 0;
+            XldProjectiveSourceRow2 = 0;
+            XldProjectiveSourceColumn2 = 639;
+            XldProjectiveSourceRow3 = 479;
+            XldProjectiveSourceColumn3 = 639;
+            XldProjectiveSourceRow4 = 479;
+            XldProjectiveSourceColumn4 = 0;
+            XldProjectiveTargetRow1 = 0;
+            XldProjectiveTargetColumn1 = 0;
+            XldProjectiveTargetRow2 = 0;
+            XldProjectiveTargetColumn2 = 639;
+            XldProjectiveTargetRow3 = 479;
+            XldProjectiveTargetColumn3 = 639;
+            XldProjectiveTargetRow4 = 479;
+            XldProjectiveTargetColumn4 = 0;
+        }
 
         public VmToolParameterData Clone()
         {
@@ -480,6 +621,87 @@ namespace HalconWinFormsDemo.Models
                 ImageRotateInterpolation = VmImageResizeInterpolation.Constant;
             }
             ImageRotateInterpolation = VmImageResizeInterpolation.Normalize(ImageRotateInterpolation);
+            if (string.IsNullOrWhiteSpace(ImageAffineInterpolation) && ImageAffineScaleRow == 0 && ImageAffineScaleColumn == 0)
+            {
+                ImageAffineScaleRow = 1;
+                ImageAffineScaleColumn = 1;
+                ImageAffineInterpolation = VmImageResizeInterpolation.Bilinear;
+            }
+            ImageAffineInterpolation = VmImageResizeInterpolation.Normalize(ImageAffineInterpolation);
+            if (string.IsNullOrWhiteSpace(ImageProjectiveInterpolation) && string.IsNullOrWhiteSpace(ImageProjectiveOutputMode) &&
+                ImageProjectiveSourceRow1 == 0 && ImageProjectiveSourceColumn1 == 0 &&
+                ImageProjectiveSourceRow2 == 0 && ImageProjectiveSourceColumn2 == 0 &&
+                ImageProjectiveSourceRow3 == 0 && ImageProjectiveSourceColumn3 == 0 &&
+                ImageProjectiveSourceRow4 == 0 && ImageProjectiveSourceColumn4 == 0)
+            {
+                ImageProjectiveSourceColumn2 = 639;
+                ImageProjectiveSourceRow3 = 479;
+                ImageProjectiveSourceColumn3 = 639;
+                ImageProjectiveSourceRow4 = 479;
+                ImageProjectiveTargetColumn2 = 639;
+                ImageProjectiveTargetRow3 = 479;
+                ImageProjectiveTargetColumn3 = 639;
+                ImageProjectiveTargetRow4 = 479;
+                ImageProjectiveOutputWidth = 640;
+                ImageProjectiveOutputHeight = 480;
+            }
+            ImageProjectiveInterpolation = VmProjectiveInterpolation.Normalize(ImageProjectiveInterpolation);
+            ImageProjectiveOutputMode = VmProjectiveOutputMode.Normalize(ImageProjectiveOutputMode);
+            if (ImageProjectiveOutputWidth <= 0) ImageProjectiveOutputWidth = 640;
+            if (ImageProjectiveOutputHeight <= 0) ImageProjectiveOutputHeight = 480;
+            SubpixelEdgeFilter = VmSubpixelEdgeFilter.Normalize(SubpixelEdgeFilter);
+            SubpixelEdgeColorPolicy = VmSubpixelEdgeColorPolicy.Normalize(SubpixelEdgeColorPolicy);
+            if (string.IsNullOrWhiteSpace(XldAdjacentAttributeMode) && XldAdjacentMaxDistAbs == 0 && XldAdjacentMaxDistRel == 0)
+            {
+                XldAdjacentMaxDistAbs = 10.0;
+                XldAdjacentMaxDistRel = 1.0;
+            }
+            XldAdjacentAttributeMode = VmXldAdjacentAttributeMode.Normalize(XldAdjacentAttributeMode);
+            if (XldSmoothNumRegrPoints == 0)
+            {
+                XldSmoothNumRegrPoints = 5;
+            }
+            if (XldAffineScaleRow == 0 && XldAffineScaleColumn == 0 &&
+                string.IsNullOrWhiteSpace(XldAffineCenterMode) &&
+                string.IsNullOrWhiteSpace(XldAffineCoordinatePolicy) &&
+                string.IsNullOrWhiteSpace(XldAffineTransformOrder))
+            {
+                XldAffineScaleRow = 1.0;
+                XldAffineScaleColumn = 1.0;
+            }
+            XldAffineCenterMode = VmXldAffineCenterMode.Normalize(XldAffineCenterMode);
+            XldAffineCoordinatePolicy = VmXldAffineCoordinatePolicy.Normalize(XldAffineCoordinatePolicy);
+            XldAffineTransformOrder = VmXldAffineTransformOrder.Normalize(XldAffineTransformOrder);
+            if (string.IsNullOrWhiteSpace(XldProjectiveCoordinatePolicy) &&
+                XldProjectiveSourceRow1 == 0 && XldProjectiveSourceColumn1 == 0 &&
+                XldProjectiveSourceRow2 == 0 && XldProjectiveSourceColumn2 == 0 &&
+                XldProjectiveSourceRow3 == 0 && XldProjectiveSourceColumn3 == 0 &&
+                XldProjectiveSourceRow4 == 0 && XldProjectiveSourceColumn4 == 0 &&
+                XldProjectiveTargetRow1 == 0 && XldProjectiveTargetColumn1 == 0 &&
+                XldProjectiveTargetRow2 == 0 && XldProjectiveTargetColumn2 == 0 &&
+                XldProjectiveTargetRow3 == 0 && XldProjectiveTargetColumn3 == 0 &&
+                XldProjectiveTargetRow4 == 0 && XldProjectiveTargetColumn4 == 0)
+            {
+                SetDefaultXldProjectivePoints();
+            }
+            XldProjectiveCoordinatePolicy = VmXldAffineCoordinatePolicy.Normalize(XldProjectiveCoordinatePolicy);
+            if (XldCropRow1 == 0 && XldCropColumn1 == 0 && XldCropRow2 == 0 && XldCropColumn2 == 0)
+            {
+                XldCropRow1 = 40;
+                XldCropColumn1 = 60;
+                XldCropRow2 = 440;
+                XldCropColumn2 = 580;
+                XldCropCloseContours = true;
+            }
+            if (XldLengthShortMaximum == 0 && XldLengthMediumMaximum == 0)
+            {
+                XldLengthShortMaximum = 50;
+                XldLengthMediumMaximum = 150;
+            }
+            XldLengthSortDirection = VmXldLengthSortDirection.Normalize(XldLengthSortDirection);
+            XldLengthSelectionMode = VmXldLengthSelectionMode.Normalize(XldLengthSelectionMode);
+            if (XldLengthStartRank <= 0) XldLengthStartRank = 1;
+            if (XldLengthEndRank <= 0) XldLengthEndRank = 1;
             if (string.IsNullOrWhiteSpace(RegionFeature))
             {
                 RegionFeature = VmRegionFeature.Area;
@@ -644,6 +866,207 @@ namespace HalconWinFormsDemo.Models
                 if (!VmImageResizeInterpolation.IsSupported(ImageRotateInterpolation))
                 {
                     return "图像旋转插值方式无效。";
+                }
+            }
+
+            if (kind == VmToolKind.ImageAffineTransform)
+            {
+                if (!IsFinite(ImageAffineTranslateRow) || !IsFinite(ImageAffineTranslateColumn) ||
+                    ImageAffineTranslateRow < -100000 || ImageAffineTranslateRow > 100000 ||
+                    ImageAffineTranslateColumn < -100000 || ImageAffineTranslateColumn > 100000)
+                {
+                    return "仿射平移 Row/Column 必须是 -100000 到 100000 之间的有限数值。";
+                }
+                if (!IsFinite(ImageAffineScaleRow) || !IsFinite(ImageAffineScaleColumn) ||
+                    ImageAffineScaleRow < 0.001 || ImageAffineScaleRow > 100 ||
+                    ImageAffineScaleColumn < 0.001 || ImageAffineScaleColumn > 100)
+                {
+                    return "仿射行列缩放比例必须在 0.001 到 100 之间。";
+                }
+                if (!IsFinite(ImageAffineRotationDegrees) || ImageAffineRotationDegrees < -360 || ImageAffineRotationDegrees > 360)
+                {
+                    return "仿射旋转角度必须在 -360 到 360 度之间。";
+                }
+                if (!IsFinite(ImageAffineSlantDegrees) || ImageAffineSlantDegrees <= -80 || ImageAffineSlantDegrees >= 80)
+                {
+                    return "仿射行方向斜切角必须严格位于 -80 到 80 度之间。";
+                }
+                if (!VmImageResizeInterpolation.IsSupported(ImageAffineInterpolation))
+                {
+                    return "仿射图像变换插值方式无效。";
+                }
+            }
+
+            if (kind == VmToolKind.ImageProjectiveTransform)
+            {
+                double[] sourceRows = { ImageProjectiveSourceRow1, ImageProjectiveSourceRow2, ImageProjectiveSourceRow3, ImageProjectiveSourceRow4 };
+                double[] sourceColumns = { ImageProjectiveSourceColumn1, ImageProjectiveSourceColumn2, ImageProjectiveSourceColumn3, ImageProjectiveSourceColumn4 };
+                double[] targetRows = { ImageProjectiveTargetRow1, ImageProjectiveTargetRow2, ImageProjectiveTargetRow3, ImageProjectiveTargetRow4 };
+                double[] targetColumns = { ImageProjectiveTargetColumn1, ImageProjectiveTargetColumn2, ImageProjectiveTargetColumn3, ImageProjectiveTargetColumn4 };
+                if (sourceRows.Concat(sourceColumns).Concat(targetRows).Concat(targetColumns).Any(value => !IsFinite(value) || Math.Abs(value) > 1000000000))
+                {
+                    return "透视校正的源点和目标点必须是绝对值不超过 1000000000 的有限像素坐标。";
+                }
+                if (sourceRows.Any(value => value < 0) || sourceColumns.Any(value => value < 0))
+                {
+                    return "透视校正源点必须位于非负图像坐标；执行时还会检查是否落在输入图像内。";
+                }
+                if (!IsOrderedProjectiveQuadrilateral(sourceRows, sourceColumns, out string sourceReason))
+                {
+                    return "透视校正源四边形无效：" + sourceReason;
+                }
+                if (!IsOrderedProjectiveQuadrilateral(targetRows, targetColumns, out string targetReason))
+                {
+                    return "透视校正目标四边形无效：" + targetReason;
+                }
+                if (!VmProjectiveInterpolation.IsSupported(ImageProjectiveInterpolation))
+                {
+                    return "透视校正仅支持 nearest_neighbor 或 bilinear 插值。";
+                }
+                if (!VmProjectiveOutputMode.IsSupported(ImageProjectiveOutputMode))
+                {
+                    return "透视校正输出尺寸模式无效。";
+                }
+                if (VmProjectiveOutputMode.Normalize(ImageProjectiveOutputMode) == VmProjectiveOutputMode.ExplicitSize &&
+                    (ImageProjectiveOutputWidth < 2 || ImageProjectiveOutputWidth > 16384 || ImageProjectiveOutputHeight < 2 || ImageProjectiveOutputHeight > 16384 ||
+                     (long)ImageProjectiveOutputWidth * ImageProjectiveOutputHeight > 67108864L))
+                {
+                    return "透视校正显式输出宽高必须在 2 到 16384 之间，且总像素数不得超过 67108864。";
+                }
+            }
+
+            if (kind == VmToolKind.SubpixelEdgeExtraction)
+            {
+                if (!VmSubpixelEdgeFilter.IsSupported(SubpixelEdgeFilter))
+                {
+                    return "亚像素边缘滤波器无效；请选择 HALCON 20.11 edges_sub_pix 支持的滤波器。";
+                }
+                if (!IsFinite(SubpixelEdgeAlpha) || SubpixelEdgeAlpha <= 0 || SubpixelEdgeAlpha > 100)
+                {
+                    return "亚像素边缘 Alpha 必须满足 0 < Alpha ≤ 100；Canny 的 Alpha 越大平滑越强，其余递归滤波器相反。";
+                }
+                if (SubpixelEdgeLow <= 0 || SubpixelEdgeHigh < SubpixelEdgeLow || SubpixelEdgeHigh > 65535)
+                {
+                    return "亚像素边缘滞后阈值必须满足 0 < Low ≤ High ≤ 65535。";
+                }
+                if (!VmSubpixelEdgeColorPolicy.IsSupported(SubpixelEdgeColorPolicy))
+                {
+                    return "亚像素边缘彩色处理策略无效。";
+                }
+            }
+
+            if (kind == VmToolKind.XldAdjacentContourUnion)
+            {
+                if (!IsFinite(XldAdjacentMaxDistAbs) || XldAdjacentMaxDistAbs < 0 || XldAdjacentMaxDistAbs > 100000)
+                {
+                    return "相邻轮廓连接的最大绝对距离必须是 0 到 100000 之间的有限数值。";
+                }
+                if (!IsFinite(XldAdjacentMaxDistRel) || XldAdjacentMaxDistRel < 0 || XldAdjacentMaxDistRel > 1000)
+                {
+                    return "相邻轮廓连接的最大相对距离必须是 0 到 1000 之间的有限数值。";
+                }
+                if (!VmXldAdjacentAttributeMode.IsSupported(XldAdjacentAttributeMode))
+                {
+                    return "相邻轮廓连接属性策略无效；请选择 attr_keep 或 attr_forget。";
+                }
+            }
+
+            if (kind == VmToolKind.XldContourSmoothing)
+            {
+                if (XldSmoothNumRegrPoints < 3 || XldSmoothNumRegrPoints > 999 || XldSmoothNumRegrPoints % 2 == 0)
+                {
+                    return "XLD 轮廓平滑回归点数必须是 3 到 999 之间的奇数；建议使用 3、5、7 或 9。";
+                }
+            }
+
+            if (kind == VmToolKind.XldAffineTransform)
+            {
+                if (!IsFinite(XldAffineTranslateRow) || !IsFinite(XldAffineTranslateColumn) ||
+                    Math.Abs(XldAffineTranslateRow) > 1000000000 || Math.Abs(XldAffineTranslateColumn) > 1000000000)
+                {
+                    return "XLD 仿射平移 Row/Column 必须是绝对值不超过 1000000000 的有限数值。";
+                }
+                if (!IsFinite(XldAffineScaleRow) || !IsFinite(XldAffineScaleColumn) ||
+                    XldAffineScaleRow < 0.001 || XldAffineScaleRow > 1000 ||
+                    XldAffineScaleColumn < 0.001 || XldAffineScaleColumn > 1000)
+                {
+                    return "XLD 仿射 Row/Column 缩放必须是 0.001 到 1000 之间的有限正数。";
+                }
+                if (!IsFinite(XldAffineRotationDegrees) || Math.Abs(XldAffineRotationDegrees) > 3600)
+                {
+                    return "XLD 仿射旋转角必须是 -3600° 到 3600° 之间的有限数值。";
+                }
+                if (!IsFinite(XldAffineSlantDegrees) || Math.Abs(XldAffineSlantDegrees) >= 80)
+                {
+                    return "XLD 仿射行斜切角必须是 -80° 到 80° 之间的有限数值（不含端点）。";
+                }
+                if (!VmXldAffineCenterMode.IsSupported(XldAffineCenterMode)) return "XLD 仿射中心模式无效。";
+                if (VmXldAffineCenterMode.Normalize(XldAffineCenterMode) == VmXldAffineCenterMode.Manual &&
+                    (!IsFinite(XldAffineCenterRow) || !IsFinite(XldAffineCenterColumn) ||
+                     Math.Abs(XldAffineCenterRow) > 1000000000 || Math.Abs(XldAffineCenterColumn) > 1000000000))
+                {
+                    return "XLD 仿射手动中心 Row/Column 必须是绝对值不超过 1000000000 的有限数值。";
+                }
+                if (!VmXldAffineCoordinatePolicy.IsSupported(XldAffineCoordinatePolicy)) return "XLD 仿射坐标策略无效。";
+                if (!VmXldAffineTransformOrder.IsSupported(XldAffineTransformOrder)) return "XLD 仿射组合顺序无效。";
+            }
+
+            if (kind == VmToolKind.XldProjectiveTransform)
+            {
+                double[] sourceRows = { XldProjectiveSourceRow1, XldProjectiveSourceRow2, XldProjectiveSourceRow3, XldProjectiveSourceRow4 };
+                double[] sourceColumns = { XldProjectiveSourceColumn1, XldProjectiveSourceColumn2, XldProjectiveSourceColumn3, XldProjectiveSourceColumn4 };
+                double[] targetRows = { XldProjectiveTargetRow1, XldProjectiveTargetRow2, XldProjectiveTargetRow3, XldProjectiveTargetRow4 };
+                double[] targetColumns = { XldProjectiveTargetColumn1, XldProjectiveTargetColumn2, XldProjectiveTargetColumn3, XldProjectiveTargetColumn4 };
+                if (sourceRows.Concat(sourceColumns).Concat(targetRows).Concat(targetColumns).Any(value => !IsFinite(value) || Math.Abs(value) > 1000000000))
+                {
+                    return "XLD 透视变换的源点和目标点必须是绝对值不超过 1000000000 的有限 Row/Column 坐标。";
+                }
+                string sourceReason;
+                if (!IsOrderedProjectiveQuadrilateral(sourceRows, sourceColumns, out sourceReason))
+                {
+                    return "XLD 透视变换源四边形无效：" + sourceReason;
+                }
+                string targetReason;
+                if (!IsOrderedProjectiveQuadrilateral(targetRows, targetColumns, out targetReason))
+                {
+                    return "XLD 透视变换目标四边形无效：" + targetReason;
+                }
+                if (!VmXldAffineCoordinatePolicy.IsSupported(XldProjectiveCoordinatePolicy)) return "XLD 透视变换坐标策略无效。";
+            }
+
+            if (kind == VmToolKind.XldContourCrop)
+            {
+                if (!IsFinite(XldCropRow1) || !IsFinite(XldCropColumn1) || !IsFinite(XldCropRow2) || !IsFinite(XldCropColumn2) ||
+                    Math.Abs(XldCropRow1) > 1000000000 || Math.Abs(XldCropColumn1) > 1000000000 ||
+                    Math.Abs(XldCropRow2) > 1000000000 || Math.Abs(XldCropColumn2) > 1000000000)
+                {
+                    return "XLD 裁剪矩形必须使用绝对值不超过 1000000000 的有限 Row/Column 坐标。";
+                }
+                if (XldCropRow2 - XldCropRow1 < 1 || XldCropColumn2 - XldCropColumn1 < 1)
+                {
+                    return "XLD 裁剪矩形要求 Row2 至少比 Row1 大 1，Column2 至少比 Column1 大 1。";
+                }
+            }
+
+            if (kind == VmToolKind.XldLengthClassification)
+            {
+                if (!IsFinite(XldLengthShortMaximum) || !IsFinite(XldLengthMediumMaximum) ||
+                    XldLengthShortMaximum < 0 || XldLengthMediumMaximum > 1000000000 ||
+                    XldLengthMediumMaximum <= XldLengthShortMaximum)
+                {
+                    return "XLD 长度分级阈值必须是有限数值，并满足 0 ≤ 短轮廓上限 < 中轮廓上限 ≤ 1000000000。";
+                }
+            }
+
+            if (kind == VmToolKind.XldLengthSortSelection)
+            {
+                if (XldLengthStartRank < 1 || XldLengthStartRank > 1000000 || XldLengthEndRank < 1 || XldLengthEndRank > 1000000)
+                {
+                    return "XLD 长度排序排名必须是 1 到 1000000 的整数。";
+                }
+                if (VmXldLengthSelectionMode.Normalize(XldLengthSelectionMode) == VmXldLengthSelectionMode.RankRange && XldLengthEndRank < XldLengthStartRank)
+                {
+                    return "XLD 长度排序排名区间必须满足结束排名 ≥ 起始排名。";
                 }
             }
 
@@ -1184,6 +1607,58 @@ namespace HalconWinFormsDemo.Models
             return !double.IsNaN(value) && !double.IsInfinity(value);
         }
 
+        private static bool IsOrderedProjectiveQuadrilateral(double[] rows, double[] columns, out string reason)
+        {
+            const double epsilon = 0.000001;
+            for (int first = 0; first < 4; first++)
+            {
+                for (int second = first + 1; second < 4; second++)
+                {
+                    double dr = rows[first] - rows[second];
+                    double dc = columns[first] - columns[second];
+                    if (dr * dr + dc * dc <= epsilon * epsilon)
+                    {
+                        reason = "存在重复点。";
+                        return false;
+                    }
+                }
+            }
+
+            double rowSpan = rows.Max() - rows.Min();
+            double columnSpan = columns.Max() - columns.Min();
+            double scaleSquared = Math.Max(1.0, rowSpan * rowSpan + columnSpan * columnSpan);
+            double minimumCross = Math.Max(epsilon, scaleSquared * 0.000001);
+            double sign = 0;
+            double twiceArea = 0;
+            for (int index = 0; index < 4; index++)
+            {
+                int next = (index + 1) % 4;
+                int after = (index + 2) % 4;
+                double cross = (columns[next] - columns[index]) * (rows[after] - rows[next]) -
+                               (rows[next] - rows[index]) * (columns[after] - columns[next]);
+                if (Math.Abs(cross) <= minimumCross)
+                {
+                    reason = "相邻三点共线或近共线。";
+                    return false;
+                }
+                if (sign == 0) sign = Math.Sign(cross);
+                else if (Math.Sign(cross) != Math.Sign(sign))
+                {
+                    reason = "点序必须沿凸四边形轮廓连续排列，不能交叉。";
+                    return false;
+                }
+                twiceArea += columns[index] * rows[next] - columns[next] * rows[index];
+            }
+            double minimumTwiceArea = Math.Max(1.0, rowSpan * columnSpan * 0.000002);
+            if (Math.Abs(twiceArea) <= minimumTwiceArea)
+            {
+                reason = "四边形面积过小，矩阵将接近奇异。";
+                return false;
+            }
+            reason = null;
+            return true;
+        }
+
         private static bool IsOddInRange(int value, int minimum, int maximum)
         {
             return value >= minimum && value <= maximum && value % 2 == 1;
@@ -1420,6 +1895,161 @@ namespace HalconWinFormsDemo.Models
         public string DisplayText { get; set; }
     }
 
+    public static class VmProjectiveInterpolation
+    {
+        public const string NearestNeighbor = "nearest_neighbor";
+        public const string Bilinear = "bilinear";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, NearestNeighbor, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Bilinear, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return Bilinear;
+            if (string.Equals(value, NearestNeighbor, StringComparison.OrdinalIgnoreCase)) return NearestNeighbor;
+            if (string.Equals(value, Bilinear, StringComparison.OrdinalIgnoreCase)) return Bilinear;
+            return value;
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            return Normalize(value) == NearestNeighbor ? "最近邻" : "双线性";
+        }
+
+        public static VmImageResizeInterpolationOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmImageResizeInterpolationOption { Key = Bilinear, DisplayText = "双线性（质量优先）" },
+                new VmImageResizeInterpolationOption { Key = NearestNeighbor, DisplayText = "最近邻（速度/标签）" }
+            };
+        }
+    }
+
+    public static class VmProjectiveOutputMode
+    {
+        public const string KeepInputSize = "KeepInputSize";
+        public const string AdaptImageSize = "AdaptImageSize";
+        public const string ExplicitSize = "ExplicitSize";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, KeepInputSize, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, AdaptImageSize, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, ExplicitSize, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return KeepInputSize;
+            if (string.Equals(value, KeepInputSize, StringComparison.OrdinalIgnoreCase)) return KeepInputSize;
+            if (string.Equals(value, AdaptImageSize, StringComparison.OrdinalIgnoreCase)) return AdaptImageSize;
+            if (string.Equals(value, ExplicitSize, StringComparison.OrdinalIgnoreCase)) return ExplicitSize;
+            return value;
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == AdaptImageSize) return "自适应非负边界";
+            if (normalized == ExplicitSize) return "显式输出尺寸";
+            return "保持输入尺寸";
+        }
+
+        public static VmLayerOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmLayerOption { Key = KeepInputSize, DisplayText = "保持输入尺寸" },
+                new VmLayerOption { Key = AdaptImageSize, DisplayText = "自适应非负边界" },
+                new VmLayerOption { Key = ExplicitSize, DisplayText = "显式输出尺寸" }
+            };
+        }
+    }
+
+    public static class VmSubpixelEdgeFilter
+    {
+        public const string Deriche1 = "deriche1";
+        public const string Lanser1 = "lanser1";
+        public const string Deriche2 = "deriche2";
+        public const string Lanser2 = "lanser2";
+        public const string Shen = "shen";
+        public const string ModifiedShen = "mshen";
+        public const string Canny = "canny";
+        public const string Sobel = "sobel";
+        public const string SobelFast = "sobel_fast";
+
+        private static readonly string[] Supported =
+        {
+            Deriche1, Lanser1, Deriche2, Lanser2, Shen, ModifiedShen, Canny, Sobel, SobelFast
+        };
+
+        public static bool IsSupported(string value)
+        {
+            return Supported.Any(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return Canny;
+            string match = Supported.FirstOrDefault(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase));
+            return match ?? value;
+        }
+
+        public static VmLayerOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmLayerOption { Key = Canny, DisplayText = "Canny（高质量通用）" },
+                new VmLayerOption { Key = Deriche1, DisplayText = "Deriche 1（递归）" },
+                new VmLayerOption { Key = Lanser1, DisplayText = "Lanser 1（递归）" },
+                new VmLayerOption { Key = Deriche2, DisplayText = "Deriche 2（递归）" },
+                new VmLayerOption { Key = Lanser2, DisplayText = "Lanser 2（递归）" },
+                new VmLayerOption { Key = Shen, DisplayText = "Shen（递归）" },
+                new VmLayerOption { Key = ModifiedShen, DisplayText = "Modified Shen（递归）" },
+                new VmLayerOption { Key = Sobel, DisplayText = "Sobel（固定宽度）" },
+                new VmLayerOption { Key = SobelFast, DisplayText = "Sobel Fast（速度优先）" }
+            };
+        }
+    }
+
+    public static class VmSubpixelEdgeColorPolicy
+    {
+        public const string AutoGray = "AutoGray";
+        public const string RequireSingleChannel = "RequireSingleChannel";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, AutoGray, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, RequireSingleChannel, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return AutoGray;
+            if (string.Equals(value, AutoGray, StringComparison.OrdinalIgnoreCase)) return AutoGray;
+            if (string.Equals(value, RequireSingleChannel, StringComparison.OrdinalIgnoreCase)) return RequireSingleChannel;
+            return value;
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            return Normalize(value) == RequireSingleChannel ? "仅允许单通道" : "彩色自动转灰";
+        }
+
+        public static VmLayerOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmLayerOption { Key = AutoGray, DisplayText = "彩色自动转灰（rgb1_to_gray）" },
+                new VmLayerOption { Key = RequireSingleChannel, DisplayText = "仅允许单通道输入" }
+            };
+        }
+    }
+
     public static class VmImageMirrorMode
     {
         public const string Row = "row";
@@ -1610,6 +2240,165 @@ namespace HalconWinFormsDemo.Models
     {
         public string Key { get; set; }
 
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmXldAdjacentAttributeMode
+    {
+        public const string AttrKeep = "AttrKeep";
+        public const string AttrForget = "AttrForget";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, AttrKeep, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, AttrForget, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, "attr_keep", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, "attr_forget", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) ||
+                string.Equals(value, AttrKeep, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(value, "attr_keep", StringComparison.OrdinalIgnoreCase)) return AttrKeep;
+            if (string.Equals(value, AttrForget, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(value, "attr_forget", StringComparison.OrdinalIgnoreCase)) return AttrForget;
+            return value.Trim();
+        }
+
+        public static string GetHalconValue(string value)
+        {
+            return Normalize(value) == AttrForget ? "attr_forget" : "attr_keep";
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == AttrForget) return "丢弃轮廓属性（attr_forget）";
+            return normalized == AttrKeep ? "保留并适配属性（attr_keep）" : "未知属性策略";
+        }
+
+        public static VmXldAdjacentAttributeModeOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmXldAdjacentAttributeModeOption { Key = AttrKeep, DisplayText = "保留并适配属性（attr_keep）" },
+                new VmXldAdjacentAttributeModeOption { Key = AttrForget, DisplayText = "丢弃属性（attr_forget）" }
+            };
+        }
+    }
+
+    public sealed class VmXldAdjacentAttributeModeOption
+    {
+        public string Key { get; set; }
+
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmXldAffineCenterMode
+    {
+        public const string InputBounds = "InputBounds";
+        public const string Manual = "Manual";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, InputBounds, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Manual, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, InputBounds, StringComparison.OrdinalIgnoreCase)) return InputBounds;
+            if (string.Equals(value, Manual, StringComparison.OrdinalIgnoreCase)) return Manual;
+            return value.Trim();
+        }
+
+        public static VmXldAffineOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmXldAffineOption { Key = InputBounds, DisplayText = "输入轮廓包围中心" },
+                new VmXldAffineOption { Key = Manual, DisplayText = "手动 Row/Column 中心" }
+            };
+        }
+    }
+
+    public static class VmXldAffineCoordinatePolicy
+    {
+        public const string StandardPixelCenter = "StandardPixelCenter";
+        public const string AffineTransPixel = "AffineTransPixel";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, StandardPixelCenter, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, AffineTransPixel, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, StandardPixelCenter, StringComparison.OrdinalIgnoreCase)) return StandardPixelCenter;
+            if (string.Equals(value, AffineTransPixel, StringComparison.OrdinalIgnoreCase)) return AffineTransPixel;
+            return value.Trim();
+        }
+
+        public static VmXldAffineOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmXldAffineOption { Key = StandardPixelCenter, DisplayText = "标准像素中心（±0.5 补偿）" },
+                new VmXldAffineOption { Key = AffineTransPixel, DisplayText = "affine_trans_pixel 原点（不补偿）" }
+            };
+        }
+    }
+
+    public static class VmXldAffineTransformOrder
+    {
+        public const string ScaleSlantRotateTranslate = "ScaleSlantRotateTranslate";
+        public const string ScaleRotateSlantTranslate = "ScaleRotateSlantTranslate";
+        public const string RotateScaleSlantTranslate = "RotateScaleSlantTranslate";
+        public const string RotateSlantScaleTranslate = "RotateSlantScaleTranslate";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, ScaleSlantRotateTranslate, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, ScaleRotateSlantTranslate, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, RotateScaleSlantTranslate, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, RotateSlantScaleTranslate, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, ScaleSlantRotateTranslate, StringComparison.OrdinalIgnoreCase)) return ScaleSlantRotateTranslate;
+            if (string.Equals(value, ScaleRotateSlantTranslate, StringComparison.OrdinalIgnoreCase)) return ScaleRotateSlantTranslate;
+            if (string.Equals(value, RotateScaleSlantTranslate, StringComparison.OrdinalIgnoreCase)) return RotateScaleSlantTranslate;
+            if (string.Equals(value, RotateSlantScaleTranslate, StringComparison.OrdinalIgnoreCase)) return RotateSlantScaleTranslate;
+            return value.Trim();
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == ScaleRotateSlantTranslate) return "缩放 → 旋转 → 斜切 → 平移";
+            if (normalized == RotateScaleSlantTranslate) return "旋转 → 缩放 → 斜切 → 平移";
+            if (normalized == RotateSlantScaleTranslate) return "旋转 → 斜切 → 缩放 → 平移";
+            return "缩放 → 斜切 → 旋转 → 平移";
+        }
+
+        public static VmXldAffineOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmXldAffineOption { Key = ScaleSlantRotateTranslate, DisplayText = "缩放 → 斜切 → 旋转 → 平移" },
+                new VmXldAffineOption { Key = ScaleRotateSlantTranslate, DisplayText = "缩放 → 旋转 → 斜切 → 平移" },
+                new VmXldAffineOption { Key = RotateScaleSlantTranslate, DisplayText = "旋转 → 缩放 → 斜切 → 平移" },
+                new VmXldAffineOption { Key = RotateSlantScaleTranslate, DisplayText = "旋转 → 斜切 → 缩放 → 平移" }
+            };
+        }
+    }
+
+    public sealed class VmXldAffineOption
+    {
+        public string Key { get; set; }
         public string DisplayText { get; set; }
     }
 

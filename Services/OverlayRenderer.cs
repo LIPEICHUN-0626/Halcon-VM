@@ -11,10 +11,86 @@ namespace HalconWinFormsDemo.Services
     {
         public void DrawRoiLayer(HWindow window, RoiData roi, string color, double width, bool selected, bool locked)
         {
-            DrawRoi(window, roi, color, width);
+            DrawRoiLayer(window, roi, color, width, selected, locked, false);
+        }
+
+        public void DrawRoiLayer(HWindow window, RoiData roi, string color, double width, bool selected, bool locked, bool isMask)
+        {
+            DrawRoiLayer(window, roi, color, width, selected, locked, isMask, 100);
+        }
+
+        public void DrawRoiLayer(HWindow window, RoiData roi, string color, double width, bool selected, bool locked, bool isMask, int opacity)
+        {
+            if (isMask)
+            {
+                DrawMaskRoi(window, roi, color, width, opacity);
+            }
+            else
+            {
+                DrawRoi(window, roi, color, width, opacity);
+            }
             if (selected)
             {
                 DrawEditHandles(window, roi, locked);
+            }
+        }
+
+        private static void DrawMaskRoi(HWindow window, RoiData roi, string color, double width, int opacity)
+        {
+            if (roi == null || roi.Region == null)
+            {
+                return;
+            }
+
+            DrawRoi(window, roi, color, width, opacity);
+            HObject line = null;
+            HObject clipped = null;
+            try
+            {
+                HTuple row1;
+                HTuple column1;
+                HTuple row2;
+                HTuple column2;
+                HOperatorSet.SmallestRectangle1(roi.Region, out row1, out column1, out row2, out column2);
+                if (row1 == null || row1.Length == 0)
+                {
+                    return;
+                }
+
+                double top = row1.D;
+                double bottom = row2.D;
+                double left = column1.D;
+                double right = column2.D;
+                double step = Math.Max(10.0, Math.Min(28.0, (bottom - top + 1.0) / 7.0));
+                window.SetDraw("fill");
+                ApplyColor(window, color, opacity);
+                window.SetLineWidth(Math.Max(1.0, width - 1.0));
+                for (double row = top; row <= bottom; row += step)
+                {
+                    DisposeObject(clipped);
+                    DisposeObject(line);
+                    HOperatorSet.GenRegionLine(out line, row, left, row, right);
+                    HOperatorSet.Intersection(line, roi.Region, out clipped);
+                    window.DispObj(clipped);
+                }
+            }
+            catch (HalconException)
+            {
+                // The red boundary still keeps an invalidated mask visible.
+            }
+            finally
+            {
+                DisposeObject(clipped);
+                DisposeObject(line);
+                window.SetDraw("margin");
+            }
+        }
+
+        private static void DisposeObject(HObject value)
+        {
+            if (value != null)
+            {
+                value.Dispose();
             }
         }
 
@@ -55,13 +131,18 @@ namespace HalconWinFormsDemo.Services
 
         private static void DrawRoi(HWindow window, RoiData roi, string color, double width)
         {
+            DrawRoi(window, roi, color, width, 100);
+        }
+
+        private static void DrawRoi(HWindow window, RoiData roi, string color, double width, int opacity)
+        {
             if (roi == null)
             {
                 return;
             }
 
             window.SetDraw("margin");
-            window.SetColor(color);
+            ApplyColor(window, color, opacity);
             window.SetLineWidth(width);
             if (roi.ShapeType == RoiShapeType.Line)
             {
@@ -96,6 +177,19 @@ namespace HalconWinFormsDemo.Services
             {
                 window.DispRectangle1(roi.Row1, roi.Column1, roi.Row2, roi.Column2);
             }
+        }
+
+        private static void ApplyColor(HWindow window, string color, int opacity)
+        {
+            int resolvedOpacity = Math.Max(10, Math.Min(100, opacity));
+            if (resolvedOpacity >= 100)
+            {
+                window.SetColor(color);
+                return;
+            }
+
+            string alpha = ((int)Math.Round(255.0 * resolvedOpacity / 100.0)).ToString("X2", System.Globalization.CultureInfo.InvariantCulture);
+            window.SetColor(VmOverlayPalette.GetHex(color) + alpha);
         }
 
         private static void DrawRegionBoundary(HWindow window, HRegion region, string color, double width)

@@ -1,0 +1,98 @@
+param([string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot))
+
+$ErrorActionPreference = 'Stop'
+if ([Threading.Thread]::CurrentThread.ApartmentState -ne [Threading.ApartmentState]::STA) { throw 'Run with powershell.exe -STA.' }
+$halconRoot = 'C:\Program Files\MVTec\HALCON-20.11-Progress'
+$env:PATH = (Join-Path $halconRoot 'bin\x64-win64') + ';' + $env:PATH
+Add-Type -AssemblyName PresentationFramework
+[Reflection.Assembly]::LoadFrom((Join-Path $halconRoot 'bin\dotnet35\halcondotnet.dll')) | Out-Null
+$assembly = [Reflection.Assembly]::LoadFrom((Join-Path $ProjectRoot 'bin\x64\Debug\HalconWinFormsDemo.exe'))
+
+function Assert-True([bool]$Condition, [string]$Message) { if (-not $Condition) { throw "Assertion failed: $Message" } }
+function Pump-Ui([int]$Milliseconds) {
+    $frame = New-Object Windows.Threading.DispatcherFrame
+    $timer = New-Object Windows.Threading.DispatcherTimer
+    $timer.Interval = [TimeSpan]::FromMilliseconds($Milliseconds)
+    $timer.Add_Tick({ $timer.Stop(); $frame.Continue = $false })
+    $timer.Start(); [Windows.Threading.Dispatcher]::PushFrame($frame)
+}
+function Write-MarkerPgm([string]$Path) {
+    $header = [Text.Encoding]::ASCII.GetBytes("P5`n4 3`n255`n")
+    $pixels = [byte[]](0,1,2,3,10,11,12,13,20,21,22,23)
+    $bytes = New-Object byte[] ($header.Length + $pixels.Length)
+    [Array]::Copy($header,0,$bytes,0,$header.Length); [Array]::Copy($pixels,0,$bytes,$header.Length,$pixels.Length)
+    [IO.File]::WriteAllBytes($Path,$bytes)
+}
+function Write-ColorPpm([string]$Path) {
+    $header = [Text.Encoding]::ASCII.GetBytes("P6`n4 3`n255`n")
+    $pixels = New-Object byte[] 36
+    for ($i=0;$i-lt 12;$i++) { $pixels[$i*3]=[byte]($i+1);$pixels[$i*3+1]=[byte]($i+31);$pixels[$i*3+2]=[byte]($i+61) }
+    $bytes=New-Object byte[] ($header.Length+$pixels.Length);[Array]::Copy($header,0,$bytes,0,$header.Length);[Array]::Copy($pixels,0,$bytes,$header.Length,$pixels.Length);[IO.File]::WriteAllBytes($Path,$bytes)
+}
+function Set-Quad($p,[double[]]$sr,[double[]]$sc,[double[]]$tr,[double[]]$tc) {
+    for($i=1;$i-le 4;$i++) {
+        $p.("ImageProjectiveSourceRow$i")=$sr[$i-1];$p.("ImageProjectiveSourceColumn$i")=$sc[$i-1]
+        $p.("ImageProjectiveTargetRow$i")=$tr[$i-1];$p.("ImageProjectiveTargetColumn$i")=$tc[$i-1]
+    }
+}
+
+$tempRoot=Join-Path ([IO.Path]::GetTempPath()) ('halcon-vm-s37-'+[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($tempRoot)|Out-Null
+$grayPath=Join-Path $tempRoot 'marker.pgm';Write-MarkerPgm $grayPath
+$colorPath=Join-Path $tempRoot 'color.ppm';Write-ColorPpm $colorPath
+$mainType=$assembly.GetType('HalconWinFormsDemo.MainWindow',$true);$recipeServiceType=$assembly.GetType('HalconWinFormsDemo.Services.RecipeService',$true);$loggerType=$assembly.GetType('HalconWinFormsDemo.Services.AppLogger',$true);$kindType=$assembly.GetType('HalconWinFormsDemo.Models.VmToolKind',$true);$metadataType=$assembly.GetType('HalconWinFormsDemo.Models.ToolMetadata',$true);$roiType=$assembly.GetType('HalconWinFormsDemo.Models.RoiData',$true)
+$private=[Reflection.BindingFlags]'Instance,NonPublic';$all=[Reflection.BindingFlags]'Instance,NonPublic,Public';$staticPublic=[Reflection.BindingFlags]'Static,Public';$args=New-Object 'object[]' 1;$args[0]=$tempRoot.ToString();$service=$recipeServiceType.GetConstructor([Type[]]@([string])).Invoke($args);$logger=$loggerType.GetConstructor([Type[]]@([string])).Invoke($args)
+$window=$mainType.GetConstructor($private,$null,[Type[]]@($recipeServiceType,$loggerType),$null).Invoke([object[]]@($service,$logger));$flow=$mainType.GetField('flowTools',$private).GetValue($window);$roiLayers=$mainType.GetField('roiLayers',$private).GetValue($window);$catalog=$mainType.GetField('toolCatalog',$private).GetValue($window)
+$create=$mainType.GetMethod('CreateFlowTool',$private);$execute=$mainType.GetMethod('ExecuteFlowTool',$private);$runProjective=$mainType.GetMethod('RunImageProjectiveTransformTool',$private);$disposeFlow=$mainType.GetMethod('DisposeFlowTools',$private);$refreshLayers=$mainType.GetMethod('RefreshResultOverlayLayers',$private);$refreshUnified=$mainType.GetMethod('RefreshUnifiedLayers',$private);$addRoi=$mainType.GetMethod('AddRoiLayer',$private);$captureRecipe=$mainType.GetMethod('CaptureRecipe',$private);$applyRecipe=$mainType.GetMethod('ApplyRecipe',$private);$applyLayer=$mainType.GetMethod('ApplyUnifiedLayerPropertiesButton_Click',$private);$undo=$mainType.GetMethod('UndoFlowEditButton_Click',$private);$redo=$mainType.GetMethod('RedoFlowEditButton_Click',$private);$transformedContext=$mainType.GetMethod('IsTransformedModuleOutputContext',[Reflection.BindingFlags]'Static,NonPublic')
+function Field([string]$Name){$mainType.GetField($Name,$all).GetValue($window)}
+function New-Tool([string]$Kind,[string]$Name){$create.Invoke($window,[object[]]@([Enum]::Parse($kindType,$Kind),$Name,$true,$null))}
+function Invoke-Projective($Tool,$Image){try{$runProjective.Invoke($window,[object[]]@($Tool,$Image))}catch [Reflection.TargetInvocationException]{throw $_.Exception.InnerException}}
+function Invoke-Execute($Tool,[string]$Source){try{$execute.Invoke($window,[object[]]@($Tool,$Source))}catch [Reflection.TargetInvocationException]{throw $_.Exception.InnerException}}
+function Get-Out($Tool,[string]$Port){$value=$null;if(-not$Tool.TryGetOutputValue($Port,[ref]$value)){throw "$($Tool.InstanceName).$Port missing"};$value}
+function Get-Area($Region){$a=$null;$r=$null;$c=$null;[HalconDotNet.HOperatorSet]::AreaCenter($Region,[ref]$a,[ref]$r,[ref]$c);$sum=0.0;foreach($v in $a.ToDArr()){$sum+=$v};$sum}
+function Find-Tool([string]$Id){foreach($candidate in $flow){if($candidate.ToolId-eq$Id){return $candidate}};$null}
+
+foreach($name in @('UnifiedLayerList','UnifiedLayerNameTextBox','UnifiedLayerColorComboBox','UnifiedLayerViewportComboBox','UnifiedLayerLineWidthComboBox','UnifiedLayerOpacityComboBox','UnifiedLayerVisibleCheckBox','UnifiedLayerLockCheckBox','DockImageProjectiveTransformPanel','DockProjectiveSourceRow1TextBox','DockProjectiveTargetColumn4TextBox','DockProjectiveInterpolationComboBox','DockProjectiveOutputModeComboBox','DockProjectiveOutputWidthTextBox','DockProjectiveOutputHeightTextBox','DockProjectiveTransformDomainCheckBox')){Assert-True($null-ne(Field $name)) "$name is missing."}
+Assert-True($null-ne($catalog|Where-Object{$_.Kind.ToString()-eq'ImageProjectiveTransform'}|Select-Object -First 1)) 'Projective tool is missing from toolbox.'
+$projectiveKind=[Enum]::Parse($kindType,'ImageProjectiveTransform');$inputs=$metadataType.GetMethod('GetInputPorts',$staticPublic).Invoke($null,[object[]]@($projectiveKind));$outputs=$metadataType.GetMethod('GetOutputPorts',$staticPublic).Invoke($null,[object[]]@($projectiveKind))
+Assert-True(($inputs|Where-Object{$_.PortName-eq'Image'-and$_.DataType-eq'Image'-and-not$_.IsOptional}).Count-eq1) 'Required typed Image input is missing.'
+foreach($port in @('Image','Width','Height','Channels','HomMat2D','Interpolation','OutputMode','TransformDomain','PointError','Parameters','ResultCode')){Assert-True(($outputs|Where-Object PortName -eq $port).Count-eq1) "Projective output $port is missing."}
+
+$app=[Windows.Application]::Current;if($null-eq$app){$app=New-Object Windows.Application;$app.ShutdownMode=[Windows.ShutdownMode]::OnExplicitShutdown}
+$disposeFlow.Invoke($window,@())|Out-Null;$flow.Clear();$source=New-Tool ImageSource 'S37 Source';$projective=New-Tool ImageProjectiveTransform 'S37 Projective';$threshold=New-Tool ImageThreshold 'S37 Threshold';$source.Parameters.LocalImagePath=$grayPath;$projective.SetInputBinding('Image',$source.ToolId,'Image');$threshold.Parameters.ImageThresholdMinGray=0;$threshold.Parameters.ImageThresholdMaxGray=255;$threshold.SetInputBinding('Image',$projective.ToolId,'Image');foreach($t in @($source,$projective,$threshold)){$flow.Add($t)}
+$sourceId=$source.ToolId;$projectiveId=$projective.ToolId;$thresholdId=$threshold.ToolId
+$window.WindowStartupLocation=[Windows.WindowStartupLocation]::Manual;$window.Left=2;$window.Top=2;$window.Width=1750;$window.Height=980;$window.Topmost=$true;$window.Show();$window.Activate()|Out-Null;Pump-Ui 400
+
+$image=[HalconDotNet.HImage]::new($grayPath);$direct=New-Tool ImageProjectiveTransform 'S37 Direct'
+try {
+    Set-Quad $direct.Parameters ([double[]](0,0,2,2)) ([double[]](0,3,3,0)) ([double[]](0,0,2,2)) ([double[]](0,3,3,0));$direct.Parameters.ImageProjectiveInterpolation='nearest_neighbor';$direct.Parameters.ImageProjectiveOutputMode='KeepInputSize';$direct.Parameters.ImageProjectiveTransformDomain=$false
+    Invoke-Projective $direct $image|Out-Null;$copy=(Get-Out $direct Image).CreateImageCopy();try{Assert-True([int](Get-Out $direct Width)-eq4-and[int](Get-Out $direct Height)-eq3) 'Identity projective dimensions are wrong.';Assert-True([double]$copy.GetGrayval(0,0).D-eq0-and[double]$copy.GetGrayval(2,3).D-eq23) 'Identity projective pixel mapping is wrong.';Assert-True([double](Get-Out $direct PointError)-lt0.000001) 'Identity point error is too high.';Assert-True((Get-Out $direct Parameters).Contains('PixelCenterCorrection=+0.5')) 'Pixel-center coordinate contract is missing.'}finally{$copy.Dispose()}
+    $old=Get-Out $direct Image;Set-Quad $direct.Parameters ([double[]](0,0,2,2)) ([double[]](0,3,3,0)) ([double[]](0,0,2,2)) ([double[]](0,3,2,1));$direct.Parameters.ImageProjectiveInterpolation='bilinear';Invoke-Projective $direct $image|Out-Null;Assert-True $old.IsDisposed 'Projective rerun did not release previous managed Image snapshot.';Assert-True([double](Get-Out $direct PointError)-lt0.01) 'Trapezoid projective mapping is inaccurate.'
+    $direct.Parameters.ImageProjectiveOutputMode='ExplicitSize';$direct.Parameters.ImageProjectiveOutputWidth=7;$direct.Parameters.ImageProjectiveOutputHeight=5;Invoke-Projective $direct $image|Out-Null;Assert-True([int](Get-Out $direct Width)-eq7-and[int](Get-Out $direct Height)-eq5) 'Explicit projective output size failed.'
+    Set-Quad $direct.Parameters ([double[]](0,0,2,2)) ([double[]](0,3,3,0)) ([double[]](1,1,3,3)) ([double[]](2,5,5,2));$direct.Parameters.ImageProjectiveOutputMode='AdaptImageSize';Invoke-Projective $direct $image|Out-Null;Assert-True([int](Get-Out $direct Width)-ge6-and[int](Get-Out $direct Height)-ge4) 'AdaptImageSize did not expand nonnegative target bounds.'
+    Set-Quad $direct.Parameters ([double[]](0,0,2,2)) ([double[]](0,3,3,0)) ([double[]](0,0,2,2)) ([double[]](0,3,3,0));$direct.Parameters.ImageProjectiveOutputMode='KeepInputSize';$point=$roiType.GetMethod('CreatePoint',$staticPublic).Invoke($null,[object[]]@([double]1,[double]1));$reduced=$image.ReduceDomain($point.Region)
+    try{$direct.Parameters.ImageProjectiveTransformDomain=$false;Invoke-Projective $direct $reduced|Out-Null;$domain=(Get-Out $direct Image).CreateImageCopy().GetDomain();try{Assert-True([Math]::Abs((Get-Area $domain)-12)-lt.001) 'TransformDomain=false did not ignore input domain.'}finally{$domain.Dispose()};$direct.Parameters.ImageProjectiveTransformDomain=$true;Invoke-Projective $direct $reduced|Out-Null;$out=(Get-Out $direct Image).CreateImageCopy();$domain=$out.GetDomain();try{Assert-True([Math]::Abs((Get-Area $domain)-1)-lt.001) 'TransformDomain=true did not preserve/transform input domain.'}finally{$domain.Dispose();$out.Dispose()}}finally{$reduced.Dispose();$point.Dispose()}
+} finally {$image.Dispose();$direct.Dispose()}
+
+$rgb=[HalconDotNet.HImage]::new($colorPath);$rgbTool=New-Tool ImageProjectiveTransform 'S37 RGB';try{Set-Quad $rgbTool.Parameters ([double[]](0,0,2,2)) ([double[]](0,3,3,0)) ([double[]](0,0,2,2)) ([double[]](0,3,3,0));Invoke-Projective $rgbTool $rgb|Out-Null;Assert-True([int](Get-Out $rgbTool Channels)-eq3) 'Projective transform did not preserve RGB channels.'}finally{$rgb.Dispose();$rgbTool.Dispose()}
+
+$bad=New-Tool ImageProjectiveTransform 'S37 Invalid';$badImage=[HalconDotNet.HImage]::new($grayPath);try{Set-Quad $bad.Parameters ([double[]](0,0,0,2)) ([double[]](0,0,3,0)) ([double[]](0,0,2,2)) ([double[]](0,3,3,0));$rejected=$false;try{Invoke-Projective $bad $badImage|Out-Null}catch{$rejected=$true};Assert-True $rejected 'Duplicate/collinear projective source points were accepted.';Set-Quad $bad.Parameters ([double[]](0,0,9,2)) ([double[]](0,3,3,0)) ([double[]](0,0,2,2)) ([double[]](0,3,3,0));$rejected=$false;try{Invoke-Projective $bad $badImage|Out-Null}catch{$rejected=$true};Assert-True $rejected 'Out-of-image projective source point was accepted.'}finally{$badImage.Dispose();$bad.Dispose()}
+
+# Real flow and unified layer workbench.
+Set-Quad $projective.Parameters ([double[]](0,0,2,2)) ([double[]](0,3,3,0)) ([double[]](0,0,2,2)) ([double[]](0,3,3,0));Invoke-Execute $source 'S37 source'|Out-Null;Invoke-Execute $projective 'S37 projective'|Out-Null;Invoke-Execute $threshold 'S37 downstream'|Out-Null;Assert-True($projective.ResultCode-eq'OK'-and$threshold.ResultCode-eq'OK') 'Projective output did not drive downstream Threshold.'
+$geometry=$roiType.GetMethod('CreateRectangle',$staticPublic).Invoke($null,[object[]]@([double]0,[double]0,[double]2,[double]3));$roi=$addRoi.Invoke($window,[object[]]@($geometry,'S37 Inspection ROI',$threshold));$geometry.Dispose();$refreshLayers.Invoke($window,@())|Out-Null;$refreshUnified.Invoke($window,@())|Out-Null
+$unified=Field 'UnifiedLayerList';$items=@($unified.Items);Assert-True(($items|Where-Object{$_.RoiLayer-ne$null}).Count-ge1) 'Unified workbench is missing ROI layer.';Assert-True(($items|Where-Object{$_.ResultLayer-ne$null-and$_.ResultLayer.ToolId-eq$threshold.ToolId}).Count-ge1) 'Unified workbench is missing current-cycle Region layer.'
+$roiItem=$items|Where-Object{$_.RoiLayer-ne$null-and$_.RoiLayer.RoiId-eq$roi.RoiId}|Select-Object -First 1;$unified.SelectedItem=$roiItem;(Field 'UnifiedLayerNameTextBox').Text='S37 Styled ROI';(Field 'UnifiedLayerColorComboBox').SelectedValue='orange';(Field 'UnifiedLayerViewportComboBox').SelectedValue='Left';(Field 'UnifiedLayerLineWidthComboBox').SelectedValue='4';(Field 'UnifiedLayerOpacityComboBox').SelectedValue='60';(Field 'UnifiedLayerVisibleCheckBox').IsChecked=$true;(Field 'UnifiedLayerLockCheckBox').IsChecked=$false;$applyLayer.Invoke($window,[object[]]@($null,$null))|Out-Null
+Assert-True($roi.Name-eq'S37 Styled ROI'-and$roi.DisplayColor-eq'orange'-and$roi.DisplayLineWidth-eq4-and$roi.DisplayOpacity-eq60-and$roi.ViewportScope-eq'Left') 'Unified ROI properties were not applied.'
+$undo.Invoke($window,[object[]]@($null,$null))|Out-Null;$restored=@($mainType.GetField('roiLayers',$private).GetValue($window))|Where-Object RoiId -eq $roi.RoiId|Select-Object -First 1;Assert-True($restored.Name-eq'S37 Inspection ROI') 'Unified layer property undo failed.';$redo.Invoke($window,[object[]]@($null,$null))|Out-Null;$restored=@($mainType.GetField('roiLayers',$private).GetValue($window))|Where-Object RoiId -eq $roi.RoiId|Select-Object -First 1;Assert-True($restored.Name-eq'S37 Styled ROI'-and$restored.DisplayOpacity-eq60) 'Unified layer property redo failed.';$source=Find-Tool $sourceId;$projective=Find-Tool $projectiveId;$threshold=Find-Tool $thresholdId;Invoke-Execute $source 'S37 rerun after history'|Out-Null;Invoke-Execute $projective 'S37 rerun after history'|Out-Null;Invoke-Execute $threshold 'S37 rerun after history'|Out-Null
+$refreshLayers.Invoke($window,@())|Out-Null;$refreshUnified.Invoke($window,@())|Out-Null;$resultItem=@((Field 'UnifiedLayerList').Items)|Where-Object{$_.ResultLayer-ne$null-and$_.ResultLayer.ToolId-eq$threshold.ToolId}|Select-Object -First 1;(Field 'UnifiedLayerList').SelectedItem=$resultItem;Pump-Ui 100;Assert-True((Field 'FlowToolList').SelectedItem.ToolId-eq$threshold.ToolId) 'Result layer selection did not synchronize the producer flow node.'
+$regionSnapshot=Get-Out $threshold Region;(Field 'UnifiedLayerNameTextBox').Text='S37 Defect Region';(Field 'UnifiedLayerColorComboBox').SelectedValue='magenta';(Field 'UnifiedLayerViewportComboBox').SelectedValue='Right';(Field 'UnifiedLayerLineWidthComboBox').SelectedValue='3';(Field 'UnifiedLayerOpacityComboBox').SelectedValue='80';(Field 'UnifiedLayerVisibleCheckBox').IsChecked=$true;(Field 'UnifiedLayerLockCheckBox').IsChecked=$false;$applyLayer.Invoke($window,[object[]]@($null,$null))|Out-Null;Assert-True(-not$regionSnapshot.IsDisposed) 'Display-only layer property change released the algorithm snapshot.'
+$recipe=$captureRecipe.Invoke($window,@());$savedStyle=$recipe.ResultLayerStyles|Where-Object{$_.LayerKey-eq$resultItem.LayerKey}|Select-Object -First 1;Assert-True($savedStyle.DisplayName-eq'S37 Defect Region'-and$savedStyle.Color-eq'magenta'-and$savedStyle.Opacity-eq80-and$savedStyle.ViewportScope-eq'Right') 'Result layer style did not enter recipe.';Assert-True(($recipe.RoiLayers|Where-Object{$_.RoiId-eq$restored.RoiId-and$_.DisplayColor-eq'orange'-and$_.DisplayOpacity-eq60}).Count-eq1) 'ROI layer style did not enter recipe.'
+$recipePath=Join-Path $tempRoot 's37-recipe.json';$service.SaveRecipe($recipePath,$recipe);$loaded=$service.LoadRecipe($recipePath);Assert-True(($loaded.ToolFlow|Where-Object { $_.ToolType -eq 'ImageProjectiveTransform' }).Parameters.ImageProjectiveOutputMode-eq'KeepInputSize') 'Projective parameters did not survive recipe save/load.';Assert-True(($loaded.ResultLayerStyles|Where-Object { $_.LayerKey -eq $resultItem.LayerKey }).LineWidth-eq3) 'Result layer style did not survive recipe save/load.'
+$applyRecipe.Invoke($window,[object[]]@($loaded))|Out-Null;$refreshLayers.Invoke($window,@())|Out-Null;$restoredResult=@($mainType.GetField('resultOverlayLayers',$private).GetValue($window))|Where-Object LayerKey -eq $resultItem.LayerKey|Select-Object -First 1;Assert-True($restoredResult.DisplayName-eq'S37 Defect Region'-and$restoredResult.HalconColor-eq'magenta'-and$restoredResult.LineWidth-eq3-and$restoredResult.Opacity-eq80) 'Applying a recipe did not restore the unified result layer style.'
+$shape=New-Tool ShapeMatch 'S37 Compatibility Shape';$flow.Add($shape);$refreshUnified.Invoke($window,@())|Out-Null;Assert-True(@((Field 'UnifiedLayerList').Items|Where-Object{$_.LayerKey-eq'compatibility:shape'-and$_.IsCompatibilityLayer}).Count-eq1) 'Shape/HDevelop compatibility overlay is not explicitly marked as pending migration.';$flow.Remove($shape)|Out-Null;$shape.Dispose()
+
+$legacy=$assembly.GetType('HalconWinFormsDemo.Models.VmToolParameterData',$true).GetConstructor([Type[]]@()).Invoke(@());$legacy.ImageProjectiveSourceRow1=0;$legacy.ImageProjectiveSourceColumn1=0;$legacy.ImageProjectiveSourceRow2=0;$legacy.ImageProjectiveSourceColumn2=0;$legacy.ImageProjectiveSourceRow3=0;$legacy.ImageProjectiveSourceColumn3=0;$legacy.ImageProjectiveSourceRow4=0;$legacy.ImageProjectiveSourceColumn4=0;$legacy.ImageProjectiveInterpolation=$null;$legacy.ImageProjectiveOutputMode=$null;$legacy.Normalize();Assert-True($legacy.ImageProjectiveSourceColumn2-eq639-and$legacy.ImageProjectiveSourceRow3-eq479-and$legacy.ImageProjectiveInterpolation-eq'bilinear'-and$legacy.ImageProjectiveOutputMode-eq'KeepInputSize') 'Missing projective fields do not normalize to safe identity defaults.'
+Assert-True($transformedContext.ToString().Contains('IsTransformedModuleOutputContext')) 'Transformed output context helper is missing.'
+
+$mainType.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();$app.Shutdown();if(Test-Path $tempRoot){Remove-Item -LiteralPath $tempRoot -Recurse -Force}
+Write-Output 'S37 unified layer workbench and HALCON projective image correction smoke tests passed.'

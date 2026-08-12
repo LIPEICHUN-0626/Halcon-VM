@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
 
 namespace HalconWinFormsDemo.Models
@@ -31,6 +32,7 @@ namespace HalconWinFormsDemo.Models
             FlowRunPolicy = new VmFlowRunPolicy();
             RightImageCrosshairs = VmImageCrosshairViewSettings.CreateDefault();
             LeftImageCrosshairs = VmImageCrosshairViewSettings.CreateDefault();
+            ProductionRunLayout = VmProductionRunLayoutData.CreateDefault();
         }
 
         [DataMember(Order = 1)]
@@ -123,6 +125,110 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 30, EmitDefaultValue = false)]
         public VmImageCrosshairViewSettings LeftImageCrosshairs { get; set; }
 
+        [DataMember(Order = 31, EmitDefaultValue = false)]
+        public List<ResultLayerStyleRecipeData> ResultLayerStyles { get; set; }
+
+        [DataMember(Order = 32, EmitDefaultValue = false)]
+        public VmProductionRunLayoutData ProductionRunLayout { get; set; }
+
+    }
+
+    [DataContract]
+    public sealed class VmProductionRunLayoutData
+    {
+        public const string Scheme = "Scheme";
+        public const string Image = "Image";
+        public const string OverallResult = "OverallResult";
+        public const string Statistics = "Statistics";
+        public const string RunControl = "RunControl";
+        public const string Batch = "Batch";
+        public const string Alarm = "Alarm";
+        public const string RecentResults = "RecentResults";
+
+        [DataMember(Order = 1, EmitDefaultValue = false)]
+        public List<VmProductionWidgetLayoutData> Widgets { get; set; }
+
+        public static VmProductionRunLayoutData CreateDefault()
+        {
+            return new VmProductionRunLayoutData
+            {
+                Widgets = new List<VmProductionWidgetLayoutData>
+                {
+                    Item(Scheme, "生产运行", true, 0, false),
+                    Item(Image, "实时图像", true, 1, true),
+                    Item(OverallResult, "总判定", true, 2, true),
+                    Item(Statistics, "生产统计", true, 3, false),
+                    Item(RunControl, "运行控制", true, 4, true),
+                    Item(Batch, "图片批次", true, 5, false),
+                    Item(Alarm, "报警与故障定位", true, 6, false),
+                    Item(RecentResults, "最近结果（真实结果记录）", true, 7, false)
+                }
+            };
+        }
+
+        public VmProductionRunLayoutData CloneNormalized()
+        {
+            VmProductionRunLayoutData defaults = CreateDefault();
+            Dictionary<string, VmProductionWidgetLayoutData> source = (Widgets ?? new List<VmProductionWidgetLayoutData>())
+                .Where(item => item != null && !string.IsNullOrWhiteSpace(item.WidgetId))
+                .GroupBy(item => item.WidgetId, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+            List<VmProductionWidgetLayoutData> normalized = new List<VmProductionWidgetLayoutData>();
+            foreach (VmProductionWidgetLayoutData fallback in defaults.Widgets)
+            {
+                VmProductionWidgetLayoutData value;
+                source.TryGetValue(fallback.WidgetId, out value);
+                value = value ?? fallback;
+                normalized.Add(new VmProductionWidgetLayoutData
+                {
+                    WidgetId = fallback.WidgetId,
+                    Title = NormalizeTitle(value.Title, fallback.Title),
+                    IsVisible = fallback.IsRequired || value.IsVisible,
+                    Order = value.Order,
+                    IsRequired = fallback.IsRequired
+                });
+            }
+            normalized = normalized.OrderBy(item => item.Order).ThenBy(item => DefaultOrder(item.WidgetId)).ToList();
+            for (int index = 0; index < normalized.Count; index++) normalized[index].Order = index;
+            return new VmProductionRunLayoutData { Widgets = normalized };
+        }
+
+        public VmProductionRunLayoutData Clone()
+        {
+            return CloneNormalized();
+        }
+
+        private static VmProductionWidgetLayoutData Item(string id, string title, bool visible, int order, bool required)
+        {
+            return new VmProductionWidgetLayoutData { WidgetId = id, Title = title, IsVisible = visible, Order = order, IsRequired = required };
+        }
+
+        private static int DefaultOrder(string id)
+        {
+            VmProductionWidgetLayoutData item = CreateDefault().Widgets.First(value => string.Equals(value.WidgetId, id, StringComparison.OrdinalIgnoreCase));
+            return item.Order;
+        }
+
+        private static string NormalizeTitle(string title, string fallback)
+        {
+            string value = string.IsNullOrWhiteSpace(title) ? fallback : title.Trim().Replace("\r", " ").Replace("\n", " ");
+            return value.Length > 40 ? value.Substring(0, 40) : value;
+        }
+    }
+
+    [DataContract]
+    public sealed class VmProductionWidgetLayoutData
+    {
+        [DataMember(Order = 1)] public string WidgetId { get; set; }
+        [DataMember(Order = 2)] public string Title { get; set; }
+        [DataMember(Order = 3)] public bool IsVisible { get; set; }
+        [DataMember(Order = 4)] public int Order { get; set; }
+        [DataMember(Order = 5, EmitDefaultValue = false)] public bool IsRequired { get; set; }
+
+        public VmProductionWidgetLayoutData Clone()
+        {
+            return new VmProductionWidgetLayoutData { WidgetId = WidgetId, Title = Title, IsVisible = IsVisible, Order = Order, IsRequired = IsRequired };
+        }
     }
 
     [DataContract]
@@ -336,6 +442,31 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 6, EmitDefaultValue = false)]
         public bool IsLocked { get; set; }
+
+        [DataMember(Order = 7, EmitDefaultValue = false)]
+        public bool IsMask { get; set; }
+
+        [DataMember(Order = 8, EmitDefaultValue = false)] public string DisplayColor { get; set; }
+        [DataMember(Order = 9, EmitDefaultValue = false)] public int DisplayLineWidth { get; set; }
+        [DataMember(Order = 10, EmitDefaultValue = false)] public int DisplayOpacity { get; set; }
+        [DataMember(Order = 11, EmitDefaultValue = false)] public string ViewportScope { get; set; }
+        [DataMember(Order = 12, EmitDefaultValue = false)] public int LayerOrder { get; set; }
+    }
+
+    [DataContract]
+    public sealed class ResultLayerStyleRecipeData
+    {
+        [DataMember(Order = 1)] public string LayerKey { get; set; }
+        [DataMember(Order = 2, EmitDefaultValue = false)] public string ToolId { get; set; }
+        [DataMember(Order = 3, EmitDefaultValue = false)] public string PortName { get; set; }
+        [DataMember(Order = 4, EmitDefaultValue = false)] public string DisplayName { get; set; }
+        [DataMember(Order = 5, EmitDefaultValue = false)] public string Color { get; set; }
+        [DataMember(Order = 6, EmitDefaultValue = false)] public int LineWidth { get; set; }
+        [DataMember(Order = 7, EmitDefaultValue = false)] public int Opacity { get; set; }
+        [DataMember(Order = 8, EmitDefaultValue = false)] public bool IsVisible { get; set; }
+        [DataMember(Order = 9, EmitDefaultValue = false)] public bool IsLocked { get; set; }
+        [DataMember(Order = 10, EmitDefaultValue = false)] public string ViewportScope { get; set; }
+        [DataMember(Order = 11, EmitDefaultValue = false)] public int LayerOrder { get; set; }
     }
 
     [DataContract]

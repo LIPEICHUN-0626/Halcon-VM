@@ -11,6 +11,12 @@ namespace HalconWinFormsDemo.Models
     public sealed class VmResultOverlayLayer : INotifyPropertyChanged
     {
         private bool isVisible;
+        private string displayName;
+        private int lineWidth;
+        private int opacity;
+        private bool isLocked;
+        private string viewportScope;
+        private int layerOrder;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -41,6 +47,85 @@ namespace HalconWinFormsDemo.Models
         public int ObjectCount { get; set; }
 
         public string MetricText { get; set; }
+
+        public string DisplayName
+        {
+            get { return string.IsNullOrWhiteSpace(displayName) ? SourceText : displayName; }
+            set
+            {
+                string resolved = string.IsNullOrWhiteSpace(value) ? SourceText : value.Trim();
+                if (displayName == resolved) return;
+                displayName = resolved;
+                OnPropertyChanged("DisplayName");
+            }
+        }
+
+        public int LineWidth
+        {
+            get { return lineWidth <= 0 ? 2 : lineWidth; }
+            set
+            {
+                int resolved = Math.Max(1, Math.Min(8, value));
+                if (lineWidth == resolved) return;
+                lineWidth = resolved;
+                OnPropertyChanged("LineWidth");
+            }
+        }
+
+        public int Opacity
+        {
+            get { return opacity <= 0 ? 100 : opacity; }
+            set
+            {
+                int resolved = Math.Max(10, Math.Min(100, value));
+                if (opacity == resolved) return;
+                opacity = resolved;
+                OnPropertyChanged("Opacity");
+                OnPropertyChanged("OpacityText");
+            }
+        }
+
+        public string OpacityText { get { return Opacity + "%"; } }
+
+        public bool IsLocked
+        {
+            get { return isLocked; }
+            set
+            {
+                if (isLocked == value) return;
+                isLocked = value;
+                OnPropertyChanged("IsLocked");
+                OnPropertyChanged("LockText");
+            }
+        }
+
+        public string LockText { get { return IsLocked ? "已锁定" : "可编辑"; } }
+
+        public string ViewportScope
+        {
+            get { return VmLayerViewportScope.Normalize(viewportScope, VmLayerViewportScope.Right); }
+            set
+            {
+                string resolved = VmLayerViewportScope.Normalize(value, VmLayerViewportScope.Right);
+                if (string.Equals(viewportScope, resolved, StringComparison.OrdinalIgnoreCase)) return;
+                viewportScope = resolved;
+                OnPropertyChanged("ViewportScope");
+                OnPropertyChanged("ViewportScopeText");
+            }
+        }
+
+        public string ViewportScopeText { get { return VmLayerViewportScope.GetDisplayText(ViewportScope); } }
+
+        public int LayerOrder
+        {
+            get { return layerOrder; }
+            set
+            {
+                if (layerOrder == value) return;
+                layerOrder = value;
+                OnPropertyChanged("LayerOrder");
+            }
+        }
 
         public bool IsVisible
         {
@@ -84,6 +169,121 @@ namespace HalconWinFormsDemo.Models
             {
                 handler(this, new PropertyChangedEventArgs(propertyName));
             }
+        }
+    }
+
+    public sealed class VmUnifiedLayerItem
+    {
+        public string LayerKey { get; set; }
+        public string LayerKind { get; set; }
+        public string DisplayName { get; set; }
+        public string SourceText { get; set; }
+        public string TypeText { get; set; }
+        public string StateText { get; set; }
+        public string CoordinateContextText { get; set; }
+        public string ColorHex { get; set; }
+        public int LayerOrder { get; set; }
+        public bool IsVisible { get; set; }
+        public bool IsLocked { get; set; }
+        public bool IsCompatibilityLayer { get; set; }
+        public VmRoiLayer RoiLayer { get; set; }
+        public VmResultOverlayLayer ResultLayer { get; set; }
+    }
+
+    public sealed class VmLayerOption
+    {
+        public string Key { get; set; }
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmLayerViewportScope
+    {
+        public const string Both = "Both";
+        public const string Left = "Left";
+        public const string Right = "Right";
+
+        public static string Normalize(string value, string fallback)
+        {
+            if (string.Equals(value, Both, StringComparison.OrdinalIgnoreCase)) return Both;
+            if (string.Equals(value, Left, StringComparison.OrdinalIgnoreCase)) return Left;
+            if (string.Equals(value, Right, StringComparison.OrdinalIgnoreCase)) return Right;
+            return string.IsNullOrWhiteSpace(fallback) ? Both : fallback;
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value, Both);
+            if (normalized == Left) return "左视口";
+            if (normalized == Right) return "右视口";
+            return "左右视口";
+        }
+
+        public static VmLayerOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmLayerOption { Key = Both, DisplayText = "左右视口" },
+                new VmLayerOption { Key = Left, DisplayText = "仅左视口" },
+                new VmLayerOption { Key = Right, DisplayText = "仅右视口" }
+            };
+        }
+
+        public static bool Includes(string value, bool isLeftViewport)
+        {
+            string normalized = Normalize(value, Both);
+            return normalized == Both || (isLeftViewport ? normalized == Left : normalized == Right);
+        }
+    }
+
+    public static class VmOverlayPalette
+    {
+        private static readonly Dictionary<string, string> Hex = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "cyan", "#22D3EE" }, { "green", "#34D399" }, { "yellow", "#FACC15" },
+            { "orange", "#FB923C" }, { "red", "#F87171" }, { "magenta", "#F472B6" },
+            { "blue", "#60A5FA" }, { "white", "#F8FAFC" }, { "gray", "#94A3B8" }
+        };
+
+        public static string Normalize(string value, string fallback)
+        {
+            string normalized = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim().ToLowerInvariant();
+            return Hex.ContainsKey(normalized) ? normalized : fallback;
+        }
+
+        public static string GetHex(string value)
+        {
+            string normalized = Normalize(value, "cyan");
+            return Hex[normalized];
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value, "cyan");
+            if (normalized == "cyan") return "青色";
+            if (normalized == "green") return "绿色";
+            if (normalized == "yellow") return "黄色";
+            if (normalized == "orange") return "橙色";
+            if (normalized == "red") return "红色";
+            if (normalized == "magenta") return "品红";
+            if (normalized == "blue") return "蓝色";
+            if (normalized == "white") return "白色";
+            return "灰色";
+        }
+
+        public static VmLayerOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmLayerOption { Key = "cyan", DisplayText = "青色" },
+                new VmLayerOption { Key = "green", DisplayText = "绿色" },
+                new VmLayerOption { Key = "yellow", DisplayText = "黄色" },
+                new VmLayerOption { Key = "orange", DisplayText = "橙色" },
+                new VmLayerOption { Key = "red", DisplayText = "红色" },
+                new VmLayerOption { Key = "magenta", DisplayText = "品红" },
+                new VmLayerOption { Key = "blue", DisplayText = "蓝色" },
+                new VmLayerOption { Key = "white", DisplayText = "白色" },
+                new VmLayerOption { Key = "gray", DisplayText = "灰色" }
+            };
         }
     }
 
