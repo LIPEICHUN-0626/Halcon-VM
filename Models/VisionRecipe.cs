@@ -511,5 +511,8 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 7, EmitDefaultValue = false)]
         public List<string> RecentToolKinds { get; set; }
+
+        [DataMember(Order = 8, EmitDefaultValue = false)]
+        public bool IsBottomPanelExpanded { get; set; }
     }
 }

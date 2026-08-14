@@ -112,6 +112,7 @@
     <Compile Include="Services\ShapeTemplateService.cs" />
     <Compile Include="Services\StartupDiagnosticsService.cs" />
     <Compile Include="Services\TcpCommunicationService.cs" />
+    <Compile Include="Services\TcpFlowClientService.cs" />
     <Compile Include="Services\XlsxExportService.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

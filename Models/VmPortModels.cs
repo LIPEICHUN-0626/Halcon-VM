@@ -402,6 +402,10 @@ namespace HalconWinFormsDemo.Models
 
         public string Label { get; set; }
 
+        public string FullLabel { get; set; }
+
+        public bool IsLabelVisible { get; set; }
+
         public string StatusText { get; set; }
 
         public Geometry Geometry { get; set; }

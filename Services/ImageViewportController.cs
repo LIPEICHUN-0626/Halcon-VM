@@ -86,6 +86,22 @@ namespace HalconWinFormsDemo.Services
             column2 = 0;
         }
 
+        public void CopyFrom(ImageViewportController source)
+        {
+            if (source == null)
+            {
+                Clear();
+                return;
+            }
+
+            imageWidth = source.imageWidth;
+            imageHeight = source.imageHeight;
+            row1 = source.row1;
+            column1 = source.column1;
+            row2 = source.row2;
+            column2 = source.column2;
+        }
+
         public void Fit()
         {
             if (!HasImage)

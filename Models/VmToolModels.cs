@@ -70,6 +70,78 @@ namespace HalconWinFormsDemo.Models
         }
     }
 
+    public static class VmXldClosureSelectionMode
+    {
+        public const string All = "All";
+        public const string OpenOnly = "OpenOnly";
+        public const string ClosedOnly = "ClosedOnly";
+
+        public static string Normalize(string value)
+        {
+            if (string.Equals(value, OpenOnly, StringComparison.OrdinalIgnoreCase)) return OpenOnly;
+            if (string.Equals(value, ClosedOnly, StringComparison.OrdinalIgnoreCase)) return ClosedOnly;
+            return All;
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == OpenOnly) return "仅开放轮廓";
+            if (normalized == ClosedOnly) return "仅闭合轮廓";
+            return "开放 + 闭合";
+        }
+
+        public static IList<VmToolValueOption> CreateAll()
+        {
+            return new[]
+            {
+                new VmToolValueOption { Key = All, DisplayText = "开放 + 闭合" },
+                new VmToolValueOption { Key = OpenOnly, DisplayText = "仅开放轮廓" },
+                new VmToolValueOption { Key = ClosedOnly, DisplayText = "仅闭合轮廓" }
+            };
+        }
+    }
+
+    public static class VmXldAreaDirectionMode
+    {
+        public const string All = "All";
+        public const string Clockwise = "Clockwise";
+        public const string Counterclockwise = "Counterclockwise";
+
+        public static string Normalize(string value)
+        {
+            if (string.Equals(value, Clockwise, StringComparison.OrdinalIgnoreCase)) return Clockwise;
+            if (string.Equals(value, Counterclockwise, StringComparison.OrdinalIgnoreCase)) return Counterclockwise;
+            return All;
+        }
+
+        public static bool IsSupported(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ||
+                   string.Equals(value, All, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Clockwise, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Counterclockwise, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Clockwise) return "顺时针（HALCON negative）";
+            if (normalized == Counterclockwise) return "逆时针（HALCON positive）";
+            return "全部方向";
+        }
+
+        public static IList<VmToolValueOption> CreateAll()
+        {
+            return new[]
+            {
+                new VmToolValueOption { Key = All, DisplayText = "全部方向" },
+                new VmToolValueOption { Key = Clockwise, DisplayText = "顺时针" },
+                new VmToolValueOption { Key = Counterclockwise, DisplayText = "逆时针" }
+            };
+        }
+    }
+
     public enum VmToolKind
     {
         ShapeMatch,
@@ -114,7 +186,17 @@ namespace HalconWinFormsDemo.Models
         XldProjectiveTransform,
         XldContourCrop,
         XldLengthClassification,
-        XldLengthSortSelection
+        XldLengthSortSelection,
+        XldPointClosureFilter,
+        XldAreaDirectionFilter,
+        XldBoundingCompactnessFilter,
+        XldCircularityConvexityFilter,
+        XldEnclosingCircleDiameterMeasurement,
+        XldMinimumRectangleDirectionMeasurement,
+        XldDirectionConsistencyMeasurement,
+        TcpClientExchange,
+        TextAssembly,
+        TextParser
     }
 
     public sealed class VmToolCatalogItem : INotifyPropertyChanged
@@ -218,6 +300,7 @@ namespace HalconWinFormsDemo.Models
         private string dependencyState;
         private string dependencySummary;
         private bool isFlowSelected;
+        private bool isFlowDetailExpanded;
         private double graphX;
         private double graphY;
         private double graphHeight = 180;
@@ -336,7 +419,31 @@ namespace HalconWinFormsDemo.Models
 
                 isFlowSelected = value;
                 OnPropertyChanged("IsFlowSelected");
+                OnPropertyChanged("ShowFlowDetails");
             }
+        }
+
+        public bool IsFlowDetailExpanded
+        {
+            get { return isFlowDetailExpanded; }
+            set
+            {
+                if (isFlowDetailExpanded == value) return;
+                isFlowDetailExpanded = value;
+                OnPropertyChanged("IsFlowDetailExpanded");
+                OnPropertyChanged("ShowFlowDetails");
+                OnPropertyChanged("FlowDetailToggleText");
+            }
+        }
+
+        public bool ShowFlowDetails
+        {
+            get { return IsFlowDetailExpanded; }
+        }
+
+        public string FlowDetailToggleText
+        {
+            get { return IsFlowDetailExpanded ? "收起" : "端口"; }
         }
 
         public string GroupId
@@ -964,6 +1071,26 @@ namespace HalconWinFormsDemo.Models
                     return "XLD 长度分级";
                 case VmToolKind.XldLengthSortSelection:
                     return "XLD 长度排序/索引选择";
+                case VmToolKind.XldPointClosureFilter:
+                    return "XLD 点数/闭合筛选";
+                case VmToolKind.XldAreaDirectionFilter:
+                    return "XLD 面积/方向筛选";
+                case VmToolKind.XldBoundingCompactnessFilter:
+                    return "XLD 外接框/紧凑度筛选";
+                case VmToolKind.XldCircularityConvexityFilter:
+                    return "XLD 圆度/凸性筛选";
+                case VmToolKind.XldEnclosingCircleDiameterMeasurement:
+                    return "XLD 最小包围圆/直径测量";
+                case VmToolKind.XldMinimumRectangleDirectionMeasurement:
+                    return "XLD 最小旋转矩形/方向测量";
+                case VmToolKind.XldDirectionConsistencyMeasurement:
+                    return "XLD 方向一致性/角度偏差";
+                case VmToolKind.TcpClientExchange:
+                    return "TCP 客户端发送/接收";
+                case VmToolKind.TextAssembly:
+                    return "文本组装";
+                case VmToolKind.TextParser:
+                    return "文本解析";
                 case VmToolKind.PolarImageUnwrap:
                     return "极坐标展开";
                 case VmToolKind.RoiImageExtraction:
@@ -1058,6 +1185,13 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.XldContourCrop:
                 case VmToolKind.XldLengthClassification:
                 case VmToolKind.XldLengthSortSelection:
+                case VmToolKind.XldPointClosureFilter:
+                case VmToolKind.XldAreaDirectionFilter:
+                case VmToolKind.XldBoundingCompactnessFilter:
+                case VmToolKind.XldCircularityConvexityFilter:
+                case VmToolKind.XldEnclosingCircleDiameterMeasurement:
+                case VmToolKind.XldMinimumRectangleDirectionMeasurement:
+                case VmToolKind.XldDirectionConsistencyMeasurement:
                 case VmToolKind.XldContourSegmentation:
                 case VmToolKind.XldLineFitting:
                 case VmToolKind.XldCircleFitting:
@@ -1074,7 +1208,11 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.HDevelop:
                     return "脚本";
                 case VmToolKind.NumericJudge:
+                case VmToolKind.TextAssembly:
+                case VmToolKind.TextParser:
                     return "逻辑/计算";
+                case VmToolKind.TcpClientExchange:
+                    return "通讯";
                 default:
                     return "其他";
             }
@@ -1138,6 +1276,26 @@ namespace HalconWinFormsDemo.Models
                     return "订阅上游 XLD，使用 HALCON length_xld 测量每条轮廓并以 select_obj 互斥分为短、中、长三组，输出三组托管 XLD 及数量、总长、最小、最大和平均长度。";
                 case VmToolKind.XldLengthSortSelection:
                     return "订阅上游 XLD，以 HALCON length_xld 获取每条长度并保持同长度原始次序，按升/降序执行 Top-N、Bottom-N 或排名区间选择，再以一基 select_obj 输出托管 XLD 和可读原始索引。";
+                case VmToolKind.XldPointClosureFilter:
+                    return "订阅上游 XLD，以 HALCON get_contour_xld 读取逐轮廓点序列，按点数范围及首末点距离容差筛选开放/闭合轮廓，再以一基 select_obj 输出托管 XLD、原始索引和统计。";
+                case VmToolKind.XldAreaDirectionFilter:
+                    return "订阅上游 XLD，先明确跳过开放或退化轮廓，再使用 HALCON area_center_xld 测量闭合轮廓面积和点序方向，按绝对面积及顺/逆时针筛选并输出托管 XLD、原始索引和统计。";
+                case VmToolKind.XldBoundingCompactnessFilter:
+                    return "订阅上游 XLD，显式跳过开放、自交和退化轮廓，使用 HALCON smallest_rectangle1_xld 与 compactness_xld 测量轴对齐外接框宽高和紧凑度，按三个闭区间筛选并输出托管 XLD、原始索引和统计。";
+                case VmToolKind.XldCircularityConvexityFilter:
+                    return "订阅上游 XLD，显式跳过开放、自交和退化轮廓，使用 HALCON circularity_xld 与 convexity_xld 测量圆度和凸性，按两个闭区间筛选并输出托管 XLD、原始索引和统计。";
+                case VmToolKind.XldEnclosingCircleDiameterMeasurement:
+                    return "订阅上游 XLD，使用 HALCON smallest_circle_xld 与 diameter_xld 测量每条轮廓的最小包围圆和最大点间直径，按开闭策略及直径闭区间选择，并输出圆与直径线托管 XLD。";
+                case VmToolKind.XldMinimumRectangleDirectionMeasurement:
+                    return "订阅上游 XLD，使用 HALCON smallest_rectangle2_xld 计算包含全部轮廓点的最小面积旋转矩形，输出中心、主轴方向、长短边、面积和四角点，并生成托管矩形 XLD。";
+                case VmToolKind.XldDirectionConsistencyMeasurement:
+                    return "订阅上游 XLD，以 HALCON smallest_rectangle2_xld 的主轴方向测量相对目标方向的半周等价有符号偏差；跳过近正方形不稳定轮廓，输出矩形、方向轴和逐轮廓合格判定。";
+                case VmToolKind.TcpClientExchange:
+                    return "通用 TCP 客户端流程工具：将可选 String、Number、ResultCode 输入组装到发送模板，按编码、行尾和超时配置完成一次连接、发送与可选响应接收。";
+                case VmToolKind.TextAssembly:
+                    return "订阅可选 String、Number、ResultCode，按模板、分隔符、数值格式和空值策略生成可继续订阅的工业文本。";
+                case VmToolKind.TextParser:
+                    return "订阅 String，按字面分隔或正则匹配提取指定字段，可选执行 InvariantCulture 数值转换，并输出可继续订阅的文本、数值和匹配状态。";
                 case VmToolKind.XldContourSegmentation:
                     return "订阅上游 XLD，使用 HALCON 将轮廓分为直线段及圆弧或椭圆弧，并输出分类、长度与可继续订阅的 XLD。";
                 case VmToolKind.XldLineFitting:
@@ -1232,6 +1390,13 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.XldContourCrop:
                 case VmToolKind.XldLengthClassification:
                 case VmToolKind.XldLengthSortSelection:
+                case VmToolKind.XldPointClosureFilter:
+                case VmToolKind.XldAreaDirectionFilter:
+                case VmToolKind.XldBoundingCompactnessFilter:
+                case VmToolKind.XldCircularityConvexityFilter:
+                case VmToolKind.XldEnclosingCircleDiameterMeasurement:
+                case VmToolKind.XldMinimumRectangleDirectionMeasurement:
+                case VmToolKind.XldDirectionConsistencyMeasurement:
                 case VmToolKind.XldContourSegmentation:
                 case VmToolKind.XldLineFitting:
                 case VmToolKind.XldCircleFitting:
@@ -1274,6 +1439,16 @@ namespace HalconWinFormsDemo.Models
                     };
                 case VmToolKind.NumericJudge:
                     return new[] { Port("Value", "待判定数值", "Number", false) };
+                case VmToolKind.TcpClientExchange:
+                case VmToolKind.TextAssembly:
+                    return new[]
+                    {
+                        Port("String", "字符串变量", "String", true),
+                        Port("Number", "数值变量", "Number", true),
+                        Port("ResultCode", "结果码变量", "String", true)
+                    };
+                case VmToolKind.TextParser:
+                    return new[] { Port("String", "待解析文本", "String", false) };
                 default:
                     return new VmPortDefinition[0];
             }
@@ -1291,6 +1466,33 @@ namespace HalconWinFormsDemo.Models
                         Port("Path", "图像路径", "String", false),
                         Port("Width", "图像宽度", "Number", false),
                         Port("Height", "图像高度", "Number", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.TcpClientExchange:
+                    return new[]
+                    {
+                        Port("Connected", "已连接", "Boolean", false),
+                        Port("SentText", "发送文本", "String", false),
+                        Port("ReceivedText", "接收文本", "String", false),
+                        Port("RoundTripMs", "往返耗时", "Number", false),
+                        Port("BytesSent", "发送字节数", "Number", false),
+                        Port("BytesReceived", "接收字节数", "Number", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.TextAssembly:
+                    return new[]
+                    {
+                        Port("Text", "组装文本", "String", false),
+                        Port("Length", "文本长度", "Number", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.TextParser:
+                    return new[]
+                    {
+                        Port("Text", "解析文本", "String", false),
+                        Port("Number", "解析数值", "Number", false),
+                        Port("FieldCount", "字段数量", "Number", false),
+                        Port("Matched", "是否匹配", "Boolean", false),
                         Port("ResultCode", "结果码", "String", false)
                     };
                 case VmToolKind.CaliperEdgePairMeasurement:
@@ -1518,6 +1720,208 @@ namespace HalconWinFormsDemo.Models
                         Port("SortDirection", "排序方向", "String", false),
                         Port("SelectionMode", "选择模式", "String", false),
                         Port("RankRange", "排名范围", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldPointClosureFilter:
+                    return new[]
+                    {
+                        Port("XLD", "筛选后轮廓", "XLD", false),
+                        Port("InputContourCount", "输入轮廓数量", "Number", false),
+                        Port("ContourCount", "输出轮廓数量", "Number", false),
+                        Port("InputOpenCount", "输入开放轮廓数", "Number", false),
+                        Port("InputClosedCount", "输入闭合轮廓数", "Number", false),
+                        Port("SelectedOpenCount", "输出开放轮廓数", "Number", false),
+                        Port("SelectedClosedCount", "输出闭合轮廓数", "Number", false),
+                        Port("MinPointCount", "输出最小点数", "Number", false),
+                        Port("MaxPointCount", "输出最大点数", "Number", false),
+                        Port("MeanPointCount", "输出平均点数", "Number", false),
+                        Port("OriginalIndices", "原始索引", "String", false),
+                        Port("PointCounts", "逐轮廓点数", "String", false),
+                        Port("ClosureMode", "开闭筛选", "String", false),
+                        Port("ClosureTolerance", "闭合容差", "Number", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldAreaDirectionFilter:
+                    return new[]
+                    {
+                        Port("XLD", "面积/方向筛选后轮廓", "XLD", false),
+                        Port("InputContourCount", "输入轮廓数量", "Number", false),
+                        Port("ContourCount", "输出轮廓数量", "Number", false),
+                        Port("InputOpenCount", "输入开放轮廓数", "Number", false),
+                        Port("InputClosedCount", "输入闭合轮廓数", "Number", false),
+                        Port("DegenerateCount", "退化轮廓数", "Number", false),
+                        Port("ClockwiseCount", "有效顺时针数", "Number", false),
+                        Port("CounterclockwiseCount", "有效逆时针数", "Number", false),
+                        Port("SelectedClockwiseCount", "输出顺时针数", "Number", false),
+                        Port("SelectedCounterclockwiseCount", "输出逆时针数", "Number", false),
+                        Port("MinArea", "输出最小绝对面积", "Number", false),
+                        Port("MaxArea", "输出最大绝对面积", "Number", false),
+                        Port("MeanArea", "输出平均绝对面积", "Number", false),
+                        Port("OriginalIndices", "原始索引", "String", false),
+                        Port("Areas", "逐轮廓绝对面积", "String", false),
+                        Port("DirectionMode", "方向筛选", "String", false),
+                        Port("ClosureTolerance", "闭合容差", "Number", false),
+                        Port("RejectPolicy", "开放/退化策略", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldBoundingCompactnessFilter:
+                    return new[]
+                    {
+                        Port("XLD", "外接框/紧凑度筛选后轮廓", "XLD", false),
+                        Port("InputContourCount", "输入轮廓数量", "Number", false),
+                        Port("ContourCount", "输出轮廓数量", "Number", false),
+                        Port("InputOpenCount", "输入开放轮廓数", "Number", false),
+                        Port("InputClosedCount", "输入闭合轮廓数", "Number", false),
+                        Port("SelfIntersectingCount", "自交轮廓数", "Number", false),
+                        Port("DegenerateCount", "退化轮廓数", "Number", false),
+                        Port("MinWidth", "输出最小宽度", "Number", false),
+                        Port("MaxWidth", "输出最大宽度", "Number", false),
+                        Port("MeanWidth", "输出平均宽度", "Number", false),
+                        Port("MinHeight", "输出最小高度", "Number", false),
+                        Port("MaxHeight", "输出最大高度", "Number", false),
+                        Port("MeanHeight", "输出平均高度", "Number", false),
+                        Port("MinCompactness", "输出最小紧凑度", "Number", false),
+                        Port("MaxCompactness", "输出最大紧凑度", "Number", false),
+                        Port("MeanCompactness", "输出平均紧凑度", "Number", false),
+                        Port("OriginalIndices", "原始索引", "String", false),
+                        Port("Widths", "逐轮廓宽度", "String", false),
+                        Port("Heights", "逐轮廓高度", "String", false),
+                        Port("CompactnessValues", "逐轮廓紧凑度", "String", false),
+                        Port("ClosureTolerance", "闭合容差", "Number", false),
+                        Port("RejectPolicy", "开放/自交/退化策略", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldCircularityConvexityFilter:
+                    return new[]
+                    {
+                        Port("XLD", "圆度/凸性筛选后轮廓", "XLD", false),
+                        Port("InputContourCount", "输入轮廓数量", "Number", false),
+                        Port("ContourCount", "输出轮廓数量", "Number", false),
+                        Port("InputOpenCount", "输入开放轮廓数", "Number", false),
+                        Port("InputClosedCount", "输入闭合轮廓数", "Number", false),
+                        Port("SelfIntersectingCount", "自交轮廓数", "Number", false),
+                        Port("DegenerateCount", "退化轮廓数", "Number", false),
+                        Port("MinCircularity", "输出最小圆度", "Number", false),
+                        Port("MaxCircularity", "输出最大圆度", "Number", false),
+                        Port("MeanCircularity", "输出平均圆度", "Number", false),
+                        Port("MinConvexity", "输出最小凸性", "Number", false),
+                        Port("MaxConvexity", "输出最大凸性", "Number", false),
+                        Port("MeanConvexity", "输出平均凸性", "Number", false),
+                        Port("OriginalIndices", "原始索引", "String", false),
+                        Port("CircularityValues", "逐轮廓圆度", "String", false),
+                        Port("ConvexityValues", "逐轮廓凸性", "String", false),
+                        Port("ClosureTolerance", "闭合容差", "Number", false),
+                        Port("RejectPolicy", "开放/自交/退化策略", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldEnclosingCircleDiameterMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "最小包围圆与最大直径线", "XLD", false),
+                        Port("InputContourCount", "输入轮廓数量", "Number", false),
+                        Port("MeasuredCount", "有效测量数量", "Number", false),
+                        Port("ContourCount", "范围内输出数量", "Number", false),
+                        Port("OpenCount", "输入开放轮廓数", "Number", false),
+                        Port("ClosedCount", "输入闭合轮廓数", "Number", false),
+                        Port("SelfIntersectingCount", "自交轮廓数", "Number", false),
+                        Port("DegenerateCount", "退化轮廓数", "Number", false),
+                        Port("CenterRow", "主结果圆心 Row", "Number", false),
+                        Port("CenterColumn", "主结果圆心 Column", "Number", false),
+                        Port("Radius", "主结果最小包围圆半径", "Number", false),
+                        Port("Diameter", "主结果最大点间直径", "Number", false),
+                        Port("StartRow", "主直径起点 Row", "Number", false),
+                        Port("StartColumn", "主直径起点 Column", "Number", false),
+                        Port("EndRow", "主直径终点 Row", "Number", false),
+                        Port("EndColumn", "主直径终点 Column", "Number", false),
+                        Port("MinRadius", "输出最小半径", "Number", false),
+                        Port("MaxRadius", "输出最大半径", "Number", false),
+                        Port("MeanRadius", "输出平均半径", "Number", false),
+                        Port("MinDiameter", "输出最小直径", "Number", false),
+                        Port("MaxDiameter", "输出最大直径", "Number", false),
+                        Port("MeanDiameter", "输出平均直径", "Number", false),
+                        Port("OriginalIndices", "原始索引", "String", false),
+                        Port("Radii", "逐轮廓半径", "String", false),
+                        Port("Diameters", "逐轮廓直径", "String", false),
+                        Port("ContourPolicy", "开闭轮廓策略", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldMinimumRectangleDirectionMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "最小旋转矩形", "XLD", false),
+                        Port("InputContourCount", "输入轮廓数量", "Number", false),
+                        Port("MeasuredCount", "有效测量数量", "Number", false),
+                        Port("ContourCount", "范围内输出数量", "Number", false),
+                        Port("OpenCount", "输入开放轮廓数", "Number", false),
+                        Port("ClosedCount", "输入闭合轮廓数", "Number", false),
+                        Port("SelfIntersectingCount", "自交轮廓数", "Number", false),
+                        Port("DegenerateCount", "退化轮廓数", "Number", false),
+                        Port("CenterRow", "主矩形中心 Row", "Number", false),
+                        Port("CenterColumn", "主矩形中心 Column", "Number", false),
+                        Port("Phi", "主轴方向角（弧度）", "Number", false),
+                        Port("AngleDegrees", "主轴方向角（度）", "Number", false),
+                        Port("Length1", "主边半长", "Number", false),
+                        Port("Length2", "次边半长", "Number", false),
+                        Port("Width", "主边全长", "Number", false),
+                        Port("Height", "次边全长", "Number", false),
+                        Port("Area", "矩形面积", "Number", false),
+                        Port("Corner1Row", "角点1 Row", "Number", false),
+                        Port("Corner1Column", "角点1 Column", "Number", false),
+                        Port("Corner2Row", "角点2 Row", "Number", false),
+                        Port("Corner2Column", "角点2 Column", "Number", false),
+                        Port("Corner3Row", "角点3 Row", "Number", false),
+                        Port("Corner3Column", "角点3 Column", "Number", false),
+                        Port("Corner4Row", "角点4 Row", "Number", false),
+                        Port("Corner4Column", "角点4 Column", "Number", false),
+                        Port("MinWidth", "输出最小主边", "Number", false),
+                        Port("MaxWidth", "输出最大主边", "Number", false),
+                        Port("MeanWidth", "输出平均主边", "Number", false),
+                        Port("MinHeight", "输出最小次边", "Number", false),
+                        Port("MaxHeight", "输出最大次边", "Number", false),
+                        Port("MeanHeight", "输出平均次边", "Number", false),
+                        Port("MinArea", "输出最小面积", "Number", false),
+                        Port("MaxArea", "输出最大面积", "Number", false),
+                        Port("MeanArea", "输出平均面积", "Number", false),
+                        Port("OriginalIndices", "原始索引", "String", false),
+                        Port("Widths", "逐轮廓主边", "String", false),
+                        Port("Heights", "逐轮廓次边", "String", false),
+                        Port("AnglesDegrees", "逐轮廓方向角", "String", false),
+                        Port("Areas", "逐轮廓面积", "String", false),
+                        Port("ContourPolicy", "开闭轮廓策略", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.XldDirectionConsistencyMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "方向矩形与主轴", "XLD", false),
+                        Port("InputContourCount", "输入轮廓数量", "Number", false),
+                        Port("MeasuredCount", "稳定测量数量", "Number", false),
+                        Port("PassCount", "偏差合格数量", "Number", false),
+                        Port("FailCount", "偏差不合格数量", "Number", false),
+                        Port("UnstableCount", "近正方形不稳定数量", "Number", false),
+                        Port("DegenerateCount", "退化轮廓数量", "Number", false),
+                        Port("OpenCount", "开放轮廓数量", "Number", false),
+                        Port("ClosedCount", "闭合轮廓数量", "Number", false),
+                        Port("PrimaryAngle", "主轮廓方向角", "Number", false),
+                        Port("TargetAngle", "目标方向角", "Number", false),
+                        Port("SignedDeviation", "主轮廓有符号偏差", "Number", false),
+                        Port("AbsoluteDeviation", "主轮廓绝对偏差", "Number", false),
+                        Port("MinDeviation", "最小绝对偏差", "Number", false),
+                        Port("MaxDeviation", "最大绝对偏差", "Number", false),
+                        Port("MeanDeviation", "平均绝对偏差", "Number", false),
+                        Port("PassIndices", "合格原始索引", "String", false),
+                        Port("FailIndices", "不合格原始索引", "String", false),
+                        Port("AnglesDegrees", "逐轮廓方向角", "String", false),
+                        Port("SignedDeviations", "逐轮廓有符号偏差", "String", false),
+                        Port("AbsoluteDeviations", "逐轮廓绝对偏差", "String", false),
+                        Port("ContourPolicy", "轮廓与稳定性策略", "String", false),
                         Port("Parameters", "参数摘要", "String", false),
                         Port("ResultCode", "结果码", "String", false)
                     };

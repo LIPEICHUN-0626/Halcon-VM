@@ -9,7 +9,7 @@ namespace HalconWinFormsDemo.Models
     [DataContract]
     public sealed class VmImageBatchTraceRecord
     {
-        public const int CurrentSchemaVersion = 2;
+        public const int CurrentSchemaVersion = 3;
 
         [DataMember(Order = 1)] public int SchemaVersion { get; set; }
         [DataMember(Order = 2)] public string BatchId { get; set; }
@@ -99,6 +99,7 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 9, EmitDefaultValue = false)] public string ResultImageRelativePath { get; set; }
         [DataMember(Order = 10, EmitDefaultValue = false)] public string ResultImageSource { get; set; }
         [DataMember(Order = 11, EmitDefaultValue = false)] public List<VmBatchTraceLayerSnapshotData> Layers { get; set; }
+        [DataMember(Order = 12, EmitDefaultValue = false)] public List<VmBatchTraceToolResultData> ToolResults { get; set; }
 
         [IgnoreDataMember] public string AssetState { get; set; }
         [IgnoreDataMember] public string AssetMessage { get; set; }
@@ -117,6 +118,7 @@ namespace HalconWinFormsDemo.Models
             }
         }
         public string LayerCountText { get { return (Layers == null ? 0 : Layers.Count).ToString(CultureInfo.InvariantCulture) + " 层"; } }
+        public string ToolResultCountText { get { return (ToolResults == null ? 0 : ToolResults.Count).ToString(CultureInfo.InvariantCulture) + " 个工具"; } }
         public string StateText
         {
             get
@@ -141,9 +143,82 @@ namespace HalconWinFormsDemo.Models
             ResultImageSource = ResultImageSource ?? string.Empty;
             Layers = Layers == null ? new List<VmBatchTraceLayerSnapshotData>() : Layers.Where(layer => layer != null).ToList();
             for (int layerIndex = 0; layerIndex < Layers.Count; layerIndex++) Layers[layerIndex].Normalize(layerIndex);
+            ToolResults = ToolResults == null ? new List<VmBatchTraceToolResultData>() : ToolResults.Where(result => result != null).ToList();
+            for (int resultIndex = 0; resultIndex < ToolResults.Count; resultIndex++) ToolResults[resultIndex].Normalize(resultIndex);
             AssetState = string.IsNullOrWhiteSpace(AssetState) ? (SourceImageRelativePath.Length > 0 || ResultImageRelativePath.Length > 0 ? "Unknown" : "None") : AssetState;
             AssetMessage = AssetMessage ?? string.Empty;
             if (double.IsNaN(ElapsedMilliseconds) || double.IsInfinity(ElapsedMilliseconds) || ElapsedMilliseconds < 0) ElapsedMilliseconds = 0;
+        }
+    }
+
+    [DataContract]
+    public sealed class VmBatchTraceToolResultData
+    {
+        [DataMember(Order = 1)] public int Sequence { get; set; }
+        [DataMember(Order = 2)] public string ToolId { get; set; }
+        [DataMember(Order = 3)] public string ToolName { get; set; }
+        [DataMember(Order = 4)] public string ToolType { get; set; }
+        [DataMember(Order = 5)] public string ResultCode { get; set; }
+        [DataMember(Order = 6)] public double ElapsedMilliseconds { get; set; }
+        [DataMember(Order = 7, EmitDefaultValue = false)] public string ErrorMessage { get; set; }
+        [DataMember(Order = 8, EmitDefaultValue = false)] public List<VmBatchTraceToolOutputData> Outputs { get; set; }
+
+        public string SequenceText { get { return (Sequence + 1).ToString("00", CultureInfo.InvariantCulture); } }
+        public string ElapsedText { get { return ElapsedMilliseconds <= 0 ? "--" : ElapsedMilliseconds.ToString("0.0", CultureInfo.InvariantCulture) + " ms"; } }
+        public string OutputText
+        {
+            get
+            {
+                return Outputs == null || Outputs.Count == 0
+                    ? "无可持久化 Number/String 输出"
+                    : string.Join(" · ", Outputs.Select(output => output.DisplayText));
+            }
+        }
+        public string DetailText
+        {
+            get
+            {
+                string detail = string.Format(CultureInfo.InvariantCulture, "#{0} {1} · {2} · {3} · {4}", SequenceText, ToolName, ToolType, ResultCode, ElapsedText);
+                return string.IsNullOrWhiteSpace(ErrorMessage) ? detail : detail + " · " + ErrorMessage;
+            }
+        }
+        public string SearchText
+        {
+            get { return string.Join(" ", new[] { ToolId, ToolName, ToolType, ResultCode, ErrorMessage, OutputText }.Where(value => !string.IsNullOrWhiteSpace(value))); }
+        }
+
+        public void Normalize(int index)
+        {
+            if (Sequence < 0) Sequence = index;
+            ToolId = ToolId == null ? string.Empty : ToolId.Trim();
+            ToolName = string.IsNullOrWhiteSpace(ToolName) ? "未命名工具" : ToolName.Trim();
+            ToolType = string.IsNullOrWhiteSpace(ToolType) ? "未知类型" : ToolType.Trim();
+            ResultCode = string.IsNullOrWhiteSpace(ResultCode) ? "--" : ResultCode.Trim();
+            ErrorMessage = ErrorMessage == null ? string.Empty : ErrorMessage.Trim();
+            Outputs = Outputs == null ? new List<VmBatchTraceToolOutputData>() : Outputs.Where(output => output != null).ToList();
+            for (int outputIndex = 0; outputIndex < Outputs.Count; outputIndex++) Outputs[outputIndex].Normalize(outputIndex);
+            if (double.IsNaN(ElapsedMilliseconds) || double.IsInfinity(ElapsedMilliseconds) || ElapsedMilliseconds < 0) ElapsedMilliseconds = 0;
+        }
+    }
+
+    [DataContract]
+    public sealed class VmBatchTraceToolOutputData
+    {
+        [DataMember(Order = 1)] public int Sequence { get; set; }
+        [DataMember(Order = 2)] public string PortName { get; set; }
+        [DataMember(Order = 3)] public string DisplayName { get; set; }
+        [DataMember(Order = 4)] public string DataType { get; set; }
+        [DataMember(Order = 5)] public string Value { get; set; }
+
+        public string DisplayText { get { return (string.IsNullOrWhiteSpace(DisplayName) ? PortName : DisplayName) + "=" + Value; } }
+
+        public void Normalize(int index)
+        {
+            if (Sequence < 0) Sequence = index;
+            PortName = PortName == null ? string.Empty : PortName.Trim();
+            DisplayName = string.IsNullOrWhiteSpace(DisplayName) ? PortName : DisplayName.Trim();
+            DataType = string.Equals(DataType, "Number", StringComparison.OrdinalIgnoreCase) ? "Number" : "String";
+            Value = Value == null ? string.Empty : Value;
         }
     }
 

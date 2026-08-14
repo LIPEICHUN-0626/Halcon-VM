@@ -55,6 +55,64 @@ namespace HalconWinFormsDemo.Models
             XldLineFitClippingEndPoints = 0;
             XldLineFitIterations = 5;
             XldLineFitClippingFactor = 2;
+            XldPointMinimum = 1;
+            XldPointMaximum = 1000000;
+            XldClosureSelectionMode = VmXldClosureSelectionMode.All;
+            XldClosureTolerance = 1.0;
+            XldAreaMinimum = 0;
+            XldAreaMaximum = 999999999;
+            XldAreaDirectionMode = VmXldAreaDirectionMode.All;
+            XldAreaClosureTolerance = 1.0;
+            XldBoundingWidthMinimum = 0;
+            XldBoundingWidthMaximum = 999999999;
+            XldBoundingHeightMinimum = 0;
+            XldBoundingHeightMaximum = 999999999;
+            XldCompactnessMinimum = 1;
+            XldCompactnessMaximum = 999999999;
+            XldBoundingClosureTolerance = 1.0;
+            XldCircularityMinimum = 0;
+            XldCircularityMaximum = 1;
+            XldConvexityMinimum = 0;
+            XldConvexityMaximum = 1;
+            XldCircularityConvexityClosureTolerance = 1.0;
+            XldEnclosingContourMode = VmXldClosureSelectionMode.All;
+            XldEnclosingMinimumPointCount = 2;
+            XldEnclosingClosureTolerance = 1.0;
+            XldEnclosingDiameterMinimum = 0;
+            XldEnclosingDiameterMaximum = 999999999;
+            XldMinimumRectangleContourMode = VmXldClosureSelectionMode.All;
+            XldMinimumRectangleMinimumPointCount = 2;
+            XldMinimumRectangleClosureTolerance = 1.0;
+            XldMinimumRectangleWidthMinimum = 0;
+            XldMinimumRectangleWidthMaximum = 999999999;
+            XldMinimumRectangleHeightMinimum = 0;
+            XldMinimumRectangleHeightMaximum = 999999999;
+            XldDirectionContourMode = VmXldClosureSelectionMode.All;
+            XldDirectionMinimumPointCount = 2;
+            XldDirectionClosureTolerance = 1.0;
+            XldDirectionTargetAngleDegrees = 0;
+            XldDirectionDeviationMinimum = 0;
+            XldDirectionDeviationMaximum = 10;
+            XldDirectionMinimumAspectRatio = 1.1;
+            TcpClientHost = "127.0.0.1";
+            TcpClientPort = 9000;
+            TcpClientConnectTimeoutMilliseconds = 1000;
+            TcpClientSendTimeoutMilliseconds = 1000;
+            TcpClientReceiveTimeoutMilliseconds = 1000;
+            TcpClientEncoding = VmTcpEncoding.Utf8;
+            TcpClientLineEnding = VmTcpLineEnding.CrLf;
+            TcpClientSendTemplate = "{String}{Number}{ResultCode}";
+            TcpClientWaitForResponse = true;
+            TextAssemblyTemplate = "{Values}";
+            TextAssemblySeparator = ",";
+            TextAssemblyNumberFormat = "0.###";
+            TextAssemblyEmptyPolicy = VmTextAssemblyEmptyPolicy.Keep;
+            TextParserMode = VmTextParserMode.Literal;
+            TextParserPattern = ",";
+            TextParserFieldIndex = 1;
+            TextParserTrim = true;
+            TextParserEmptyPolicy = VmTextAssemblyEmptyPolicy.Keep;
+            TextParserConvertNumber = false;
             XldCircleFitAlgorithm = VmXldCircleFitAlgorithm.ATukey;
             XldCircleFitMaxNumPoints = -1;
             XldCircleFitMaxClosureDistance = 1.5;
@@ -389,6 +447,64 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 204, EmitDefaultValue = false)] public string XldLengthSelectionMode { get; set; }
         [DataMember(Order = 205, EmitDefaultValue = false)] public int XldLengthStartRank { get; set; }
         [DataMember(Order = 206, EmitDefaultValue = false)] public int XldLengthEndRank { get; set; }
+        [DataMember(Order = 207, EmitDefaultValue = false)] public int XldPointMinimum { get; set; }
+        [DataMember(Order = 208, EmitDefaultValue = false)] public int XldPointMaximum { get; set; }
+        [DataMember(Order = 209, EmitDefaultValue = false)] public string XldClosureSelectionMode { get; set; }
+        [DataMember(Order = 210, EmitDefaultValue = false)] public double XldClosureTolerance { get; set; }
+        [DataMember(Order = 211, EmitDefaultValue = false)] public double XldAreaMinimum { get; set; }
+        [DataMember(Order = 212, EmitDefaultValue = false)] public double XldAreaMaximum { get; set; }
+        [DataMember(Order = 213, EmitDefaultValue = false)] public string XldAreaDirectionMode { get; set; }
+        [DataMember(Order = 214, EmitDefaultValue = false)] public double XldAreaClosureTolerance { get; set; }
+        [DataMember(Order = 215, EmitDefaultValue = false)] public double XldBoundingWidthMinimum { get; set; }
+        [DataMember(Order = 216, EmitDefaultValue = false)] public double XldBoundingWidthMaximum { get; set; }
+        [DataMember(Order = 217, EmitDefaultValue = false)] public double XldBoundingHeightMinimum { get; set; }
+        [DataMember(Order = 218, EmitDefaultValue = false)] public double XldBoundingHeightMaximum { get; set; }
+        [DataMember(Order = 219, EmitDefaultValue = false)] public double XldCompactnessMinimum { get; set; }
+        [DataMember(Order = 220, EmitDefaultValue = false)] public double XldCompactnessMaximum { get; set; }
+        [DataMember(Order = 221, EmitDefaultValue = false)] public double XldBoundingClosureTolerance { get; set; }
+        [DataMember(Order = 222, EmitDefaultValue = false)] public double XldCircularityMinimum { get; set; }
+        [DataMember(Order = 223, EmitDefaultValue = false)] public double XldCircularityMaximum { get; set; }
+        [DataMember(Order = 224, EmitDefaultValue = false)] public double XldConvexityMinimum { get; set; }
+        [DataMember(Order = 225, EmitDefaultValue = false)] public double XldConvexityMaximum { get; set; }
+        [DataMember(Order = 226, EmitDefaultValue = false)] public double XldCircularityConvexityClosureTolerance { get; set; }
+        [DataMember(Order = 227, EmitDefaultValue = false)] public string XldEnclosingContourMode { get; set; }
+        [DataMember(Order = 228, EmitDefaultValue = false)] public int XldEnclosingMinimumPointCount { get; set; }
+        [DataMember(Order = 229, EmitDefaultValue = false)] public double XldEnclosingClosureTolerance { get; set; }
+        [DataMember(Order = 230, EmitDefaultValue = false)] public double XldEnclosingDiameterMinimum { get; set; }
+        [DataMember(Order = 231, EmitDefaultValue = false)] public double XldEnclosingDiameterMaximum { get; set; }
+        [DataMember(Order = 232, EmitDefaultValue = false)] public string XldMinimumRectangleContourMode { get; set; }
+        [DataMember(Order = 233, EmitDefaultValue = false)] public int XldMinimumRectangleMinimumPointCount { get; set; }
+        [DataMember(Order = 234, EmitDefaultValue = false)] public double XldMinimumRectangleClosureTolerance { get; set; }
+        [DataMember(Order = 235, EmitDefaultValue = false)] public double XldMinimumRectangleWidthMinimum { get; set; }
+        [DataMember(Order = 236, EmitDefaultValue = false)] public double XldMinimumRectangleWidthMaximum { get; set; }
+        [DataMember(Order = 237, EmitDefaultValue = false)] public double XldMinimumRectangleHeightMinimum { get; set; }
+        [DataMember(Order = 238, EmitDefaultValue = false)] public double XldMinimumRectangleHeightMaximum { get; set; }
+        [DataMember(Order = 239, EmitDefaultValue = false)] public string XldDirectionContourMode { get; set; }
+        [DataMember(Order = 240, EmitDefaultValue = false)] public int XldDirectionMinimumPointCount { get; set; }
+        [DataMember(Order = 241, EmitDefaultValue = false)] public double XldDirectionClosureTolerance { get; set; }
+        [DataMember(Order = 242, EmitDefaultValue = false)] public double XldDirectionTargetAngleDegrees { get; set; }
+        [DataMember(Order = 243, EmitDefaultValue = false)] public double XldDirectionDeviationMinimum { get; set; }
+        [DataMember(Order = 244, EmitDefaultValue = false)] public double XldDirectionDeviationMaximum { get; set; }
+        [DataMember(Order = 245, EmitDefaultValue = false)] public double XldDirectionMinimumAspectRatio { get; set; }
+        [DataMember(Order = 246, EmitDefaultValue = false)] public string TcpClientHost { get; set; }
+        [DataMember(Order = 247, EmitDefaultValue = false)] public int TcpClientPort { get; set; }
+        [DataMember(Order = 248, EmitDefaultValue = false)] public int TcpClientConnectTimeoutMilliseconds { get; set; }
+        [DataMember(Order = 249, EmitDefaultValue = false)] public int TcpClientSendTimeoutMilliseconds { get; set; }
+        [DataMember(Order = 250, EmitDefaultValue = false)] public int TcpClientReceiveTimeoutMilliseconds { get; set; }
+        [DataMember(Order = 251, EmitDefaultValue = false)] public string TcpClientEncoding { get; set; }
+        [DataMember(Order = 252, EmitDefaultValue = false)] public string TcpClientLineEnding { get; set; }
+        [DataMember(Order = 253, EmitDefaultValue = false)] public string TcpClientSendTemplate { get; set; }
+        [DataMember(Order = 254, EmitDefaultValue = false)] public bool TcpClientWaitForResponse { get; set; }
+        [DataMember(Order = 255, EmitDefaultValue = false)] public string TextAssemblyTemplate { get; set; }
+        [DataMember(Order = 256, EmitDefaultValue = false)] public string TextAssemblySeparator { get; set; }
+        [DataMember(Order = 257, EmitDefaultValue = false)] public string TextAssemblyNumberFormat { get; set; }
+        [DataMember(Order = 258, EmitDefaultValue = false)] public string TextAssemblyEmptyPolicy { get; set; }
+        [DataMember(Order = 259, EmitDefaultValue = false)] public string TextParserMode { get; set; }
+        [DataMember(Order = 260, EmitDefaultValue = false)] public string TextParserPattern { get; set; }
+        [DataMember(Order = 261, EmitDefaultValue = false)] public int TextParserFieldIndex { get; set; }
+        [DataMember(Order = 262, EmitDefaultValue = false)] public bool TextParserTrim { get; set; }
+        [DataMember(Order = 263, EmitDefaultValue = false)] public string TextParserEmptyPolicy { get; set; }
+        [DataMember(Order = 264, EmitDefaultValue = false)] public bool TextParserConvertNumber { get; set; }
 
         private void SetDefaultXldProjectivePoints()
         {
@@ -702,6 +818,82 @@ namespace HalconWinFormsDemo.Models
             XldLengthSelectionMode = VmXldLengthSelectionMode.Normalize(XldLengthSelectionMode);
             if (XldLengthStartRank <= 0) XldLengthStartRank = 1;
             if (XldLengthEndRank <= 0) XldLengthEndRank = 1;
+            if (XldPointMinimum <= 0) XldPointMinimum = 1;
+            if (XldPointMaximum <= 0) XldPointMaximum = 1000000;
+            XldClosureSelectionMode = VmXldClosureSelectionMode.Normalize(XldClosureSelectionMode);
+            if (XldAreaMaximum <= 0) XldAreaMaximum = 999999999;
+            XldAreaDirectionMode = VmXldAreaDirectionMode.Normalize(XldAreaDirectionMode);
+            if (XldAreaClosureTolerance < 0) XldAreaClosureTolerance = 1.0;
+            if (XldBoundingWidthMaximum <= 0) XldBoundingWidthMaximum = 999999999;
+            if (XldBoundingHeightMaximum <= 0) XldBoundingHeightMaximum = 999999999;
+            if (XldCompactnessMinimum <= 0) XldCompactnessMinimum = 1;
+            if (XldCompactnessMaximum <= 0) XldCompactnessMaximum = 999999999;
+            if (XldBoundingClosureTolerance < 0) XldBoundingClosureTolerance = 1.0;
+            XldEnclosingContourMode = VmXldClosureSelectionMode.Normalize(XldEnclosingContourMode);
+            if (XldEnclosingMinimumPointCount <= 0) XldEnclosingMinimumPointCount = 2;
+            if (XldEnclosingClosureTolerance < 0) XldEnclosingClosureTolerance = 1.0;
+            if (XldEnclosingDiameterMaximum <= 0) XldEnclosingDiameterMaximum = 999999999;
+            XldMinimumRectangleContourMode = VmXldClosureSelectionMode.Normalize(XldMinimumRectangleContourMode);
+            if (XldMinimumRectangleMinimumPointCount <= 0) XldMinimumRectangleMinimumPointCount = 2;
+            if (XldMinimumRectangleClosureTolerance < 0) XldMinimumRectangleClosureTolerance = 1.0;
+            if (XldMinimumRectangleWidthMaximum <= 0) XldMinimumRectangleWidthMaximum = 999999999;
+            if (XldMinimumRectangleHeightMaximum <= 0) XldMinimumRectangleHeightMaximum = 999999999;
+            if (string.IsNullOrWhiteSpace(XldDirectionContourMode) && XldDirectionMinimumPointCount == 0 &&
+                XldDirectionClosureTolerance == 0 && XldDirectionTargetAngleDegrees == 0 &&
+                XldDirectionDeviationMinimum == 0 && XldDirectionDeviationMaximum == 0 && XldDirectionMinimumAspectRatio == 0)
+            {
+                XldDirectionMinimumPointCount = 2;
+                XldDirectionClosureTolerance = 1.0;
+                XldDirectionDeviationMaximum = 10;
+                XldDirectionMinimumAspectRatio = 1.1;
+            }
+            XldDirectionContourMode = VmXldClosureSelectionMode.Normalize(XldDirectionContourMode);
+            if (XldDirectionMinimumPointCount <= 0) XldDirectionMinimumPointCount = 2;
+            if (XldDirectionClosureTolerance < 0) XldDirectionClosureTolerance = 1.0;
+            if (XldDirectionMinimumAspectRatio <= 0) XldDirectionMinimumAspectRatio = 1.1;
+            if (string.IsNullOrWhiteSpace(TcpClientHost) && TcpClientPort == 0 &&
+                TcpClientConnectTimeoutMilliseconds == 0 && TcpClientSendTimeoutMilliseconds == 0 &&
+                TcpClientReceiveTimeoutMilliseconds == 0 && string.IsNullOrWhiteSpace(TcpClientEncoding) &&
+                string.IsNullOrWhiteSpace(TcpClientLineEnding) && string.IsNullOrWhiteSpace(TcpClientSendTemplate))
+            {
+                TcpClientHost = "127.0.0.1";
+                TcpClientPort = 9000;
+                TcpClientConnectTimeoutMilliseconds = 1000;
+                TcpClientSendTimeoutMilliseconds = 1000;
+                TcpClientReceiveTimeoutMilliseconds = 1000;
+                TcpClientEncoding = VmTcpEncoding.Utf8;
+                TcpClientLineEnding = VmTcpLineEnding.CrLf;
+                TcpClientSendTemplate = "{String}{Number}{ResultCode}";
+                TcpClientWaitForResponse = true;
+            }
+            TcpClientHost = (TcpClientHost ?? string.Empty).Trim();
+            TcpClientEncoding = VmTcpEncoding.Normalize(TcpClientEncoding);
+            TcpClientLineEnding = VmTcpLineEnding.Normalize(TcpClientLineEnding);
+            if (TcpClientSendTemplate == null) TcpClientSendTemplate = string.Empty;
+            if (TextAssemblyTemplate == null && TextAssemblySeparator == null && TextAssemblyNumberFormat == null && TextAssemblyEmptyPolicy == null)
+            {
+                TextAssemblyTemplate = "{Values}";
+                TextAssemblySeparator = ",";
+                TextAssemblyNumberFormat = "0.###";
+                TextAssemblyEmptyPolicy = VmTextAssemblyEmptyPolicy.Keep;
+            }
+            if (TextAssemblyTemplate == null) TextAssemblyTemplate = string.Empty;
+            if (TextAssemblySeparator == null) TextAssemblySeparator = string.Empty;
+            if (string.IsNullOrWhiteSpace(TextAssemblyNumberFormat)) TextAssemblyNumberFormat = "0.###";
+            TextAssemblyNumberFormat = TextAssemblyNumberFormat.Trim();
+            TextAssemblyEmptyPolicy = VmTextAssemblyEmptyPolicy.Normalize(TextAssemblyEmptyPolicy);
+            if (TextParserMode == null && TextParserPattern == null && TextParserEmptyPolicy == null)
+            {
+                TextParserMode = VmTextParserMode.Literal;
+                TextParserPattern = ",";
+                TextParserFieldIndex = 1;
+                TextParserTrim = true;
+                TextParserEmptyPolicy = VmTextAssemblyEmptyPolicy.Keep;
+                TextParserConvertNumber = false;
+            }
+            TextParserMode = VmTextParserMode.Normalize(TextParserMode);
+            if (TextParserPattern == null) TextParserPattern = ",";
+            TextParserEmptyPolicy = VmTextAssemblyEmptyPolicy.Normalize(TextParserEmptyPolicy);
             if (string.IsNullOrWhiteSpace(RegionFeature))
             {
                 RegionFeature = VmRegionFeature.Area;
@@ -1067,6 +1259,155 @@ namespace HalconWinFormsDemo.Models
                 if (VmXldLengthSelectionMode.Normalize(XldLengthSelectionMode) == VmXldLengthSelectionMode.RankRange && XldLengthEndRank < XldLengthStartRank)
                 {
                     return "XLD 长度排序排名区间必须满足结束排名 ≥ 起始排名。";
+                }
+            }
+
+            if (kind == VmToolKind.XldPointClosureFilter)
+            {
+                if (XldPointMinimum < 1 || XldPointMaximum > 1000000 || XldPointMaximum < XldPointMinimum)
+                {
+                    return "XLD 点数范围必须满足 1 ≤ 最小点数 ≤ 最大点数 ≤ 1000000。";
+                }
+                if (!IsFinite(XldClosureTolerance) || XldClosureTolerance < 0 || XldClosureTolerance > 1000000)
+                {
+                    return "XLD 闭合容差必须是 0 到 1000000 之间的有限像素值。";
+                }
+            }
+
+            if (kind == VmToolKind.XldAreaDirectionFilter)
+            {
+                if (!IsFinite(XldAreaMinimum) || !IsFinite(XldAreaMaximum) || XldAreaMinimum < 0 || XldAreaMaximum > 1000000000000 || XldAreaMaximum < XldAreaMinimum)
+                {
+                    return "XLD 面积范围必须满足 0 ≤ 最小面积 ≤ 最大面积 ≤ 1000000000000。";
+                }
+                if (!VmXldAreaDirectionMode.IsSupported(XldAreaDirectionMode)) return "XLD 面积/方向筛选的方向模式无效。";
+                if (!IsFinite(XldAreaClosureTolerance) || XldAreaClosureTolerance < 0 || XldAreaClosureTolerance > 1000000)
+                {
+                    return "XLD 面积/方向筛选的闭合容差必须是 0 到 1000000 之间的有限像素值。";
+                }
+            }
+
+            if (kind == VmToolKind.XldBoundingCompactnessFilter)
+            {
+                if (!IsFinite(XldBoundingWidthMinimum) || !IsFinite(XldBoundingWidthMaximum) || XldBoundingWidthMinimum < 0 || XldBoundingWidthMaximum > 1000000000000 || XldBoundingWidthMaximum < XldBoundingWidthMinimum)
+                    return "XLD 外接框宽度范围必须满足 0 ≤ 最小宽度 ≤ 最大宽度 ≤ 1000000000000。";
+                if (!IsFinite(XldBoundingHeightMinimum) || !IsFinite(XldBoundingHeightMaximum) || XldBoundingHeightMinimum < 0 || XldBoundingHeightMaximum > 1000000000000 || XldBoundingHeightMaximum < XldBoundingHeightMinimum)
+                    return "XLD 外接框高度范围必须满足 0 ≤ 最小高度 ≤ 最大高度 ≤ 1000000000000。";
+                if (!IsFinite(XldCompactnessMinimum) || !IsFinite(XldCompactnessMaximum) || XldCompactnessMinimum < 1 || XldCompactnessMaximum > 1000000000000 || XldCompactnessMaximum < XldCompactnessMinimum)
+                    return "XLD 紧凑度范围必须满足 1 ≤ 最小紧凑度 ≤ 最大紧凑度 ≤ 1000000000000。";
+                if (!IsFinite(XldBoundingClosureTolerance) || XldBoundingClosureTolerance < 0 || XldBoundingClosureTolerance > 1000000)
+                    return "XLD 外接框/紧凑度筛选的闭合容差必须是 0 到 1000000 之间的有限像素值。";
+            }
+
+            if (kind == VmToolKind.XldCircularityConvexityFilter)
+            {
+                if (!IsFinite(XldCircularityMinimum) || !IsFinite(XldCircularityMaximum) || XldCircularityMinimum < 0 || XldCircularityMaximum > 1 || XldCircularityMaximum < XldCircularityMinimum)
+                    return "XLD 圆度范围必须满足 0 ≤ 最小圆度 ≤ 最大圆度 ≤ 1。";
+                if (!IsFinite(XldConvexityMinimum) || !IsFinite(XldConvexityMaximum) || XldConvexityMinimum < 0 || XldConvexityMaximum > 1 || XldConvexityMaximum < XldConvexityMinimum)
+                    return "XLD 凸性范围必须满足 0 ≤ 最小凸性 ≤ 最大凸性 ≤ 1。";
+                if (!IsFinite(XldCircularityConvexityClosureTolerance) || XldCircularityConvexityClosureTolerance < 0 || XldCircularityConvexityClosureTolerance > 1000000)
+                    return "XLD 圆度/凸性筛选的闭合容差必须是 0 到 1000000 之间的有限像素值。";
+            }
+
+            if (kind == VmToolKind.XldEnclosingCircleDiameterMeasurement)
+            {
+                if (XldEnclosingMinimumPointCount < 2 || XldEnclosingMinimumPointCount > 1000000)
+                    return "XLD 包围圆/直径测量的最小点数必须满足 2 ≤ 点数 ≤ 1000000。";
+                if (!IsFinite(XldEnclosingClosureTolerance) || XldEnclosingClosureTolerance < 0 || XldEnclosingClosureTolerance > 1000000)
+                    return "XLD 包围圆/直径测量的闭合容差必须是 0 到 1000000 之间的有限像素值。";
+                if (!IsFinite(XldEnclosingDiameterMinimum) || !IsFinite(XldEnclosingDiameterMaximum) || XldEnclosingDiameterMinimum < 0 || XldEnclosingDiameterMaximum > 1000000000000 || XldEnclosingDiameterMaximum < XldEnclosingDiameterMinimum)
+                    return "XLD 包围圆/直径测量的直径范围必须满足 0 ≤ 最小值 ≤ 最大值 ≤ 1000000000000。";
+            }
+
+            if (kind == VmToolKind.XldMinimumRectangleDirectionMeasurement)
+            {
+                if (XldMinimumRectangleMinimumPointCount < 2 || XldMinimumRectangleMinimumPointCount > 1000000)
+                    return "XLD 最小旋转矩形测量的最小点数必须满足 2 ≤ 点数 ≤ 1000000。";
+                if (!IsFinite(XldMinimumRectangleClosureTolerance) || XldMinimumRectangleClosureTolerance < 0 || XldMinimumRectangleClosureTolerance > 1000000)
+                    return "XLD 最小旋转矩形测量的闭合容差必须是 0 到 1000000 之间的有限像素值。";
+                if (!IsFinite(XldMinimumRectangleWidthMinimum) || !IsFinite(XldMinimumRectangleWidthMaximum) || XldMinimumRectangleWidthMinimum < 0 || XldMinimumRectangleWidthMaximum > 1000000000000 || XldMinimumRectangleWidthMaximum < XldMinimumRectangleWidthMinimum)
+                    return "XLD 最小旋转矩形测量的主边范围必须满足 0 ≤ 最小值 ≤ 最大值 ≤ 1000000000000。";
+                if (!IsFinite(XldMinimumRectangleHeightMinimum) || !IsFinite(XldMinimumRectangleHeightMaximum) || XldMinimumRectangleHeightMinimum < 0 || XldMinimumRectangleHeightMaximum > 1000000000000 || XldMinimumRectangleHeightMaximum < XldMinimumRectangleHeightMinimum)
+                    return "XLD 最小旋转矩形测量的次边范围必须满足 0 ≤ 最小值 ≤ 最大值 ≤ 1000000000000。";
+            }
+
+            if (kind == VmToolKind.XldDirectionConsistencyMeasurement)
+            {
+                if (XldDirectionMinimumPointCount < 2 || XldDirectionMinimumPointCount > 1000000)
+                    return "XLD 方向一致性测量的最小点数必须满足 2 ≤ 点数 ≤ 1000000。";
+                if (!IsFinite(XldDirectionClosureTolerance) || XldDirectionClosureTolerance < 0 || XldDirectionClosureTolerance > 1000000)
+                    return "XLD 方向一致性测量的闭合容差必须是 0 到 1000000 之间的有限像素值。";
+                if (!IsFinite(XldDirectionTargetAngleDegrees) || XldDirectionTargetAngleDegrees < -360000 || XldDirectionTargetAngleDegrees > 360000)
+                    return "目标方向角必须是 -360000° 到 360000° 之间的有限值。";
+                if (!IsFinite(XldDirectionDeviationMinimum) || !IsFinite(XldDirectionDeviationMaximum) || XldDirectionDeviationMinimum < 0 || XldDirectionDeviationMaximum > 90 || XldDirectionDeviationMaximum < XldDirectionDeviationMinimum)
+                    return "方向偏差范围必须满足 0° ≤ 最小偏差 ≤ 最大偏差 ≤ 90°。";
+                if (!IsFinite(XldDirectionMinimumAspectRatio) || XldDirectionMinimumAspectRatio < 1 || XldDirectionMinimumAspectRatio > 1000000)
+                    return "方向稳定宽高比阈值必须是 1 到 1000000 之间的有限值。";
+            }
+
+            if (kind == VmToolKind.TcpClientExchange)
+            {
+                if (string.IsNullOrWhiteSpace(TcpClientHost) || TcpClientHost.Length > 255)
+                    return "TCP 主机必须填写，且长度不能超过 255 个字符。";
+                if (TcpClientPort < 1 || TcpClientPort > 65535)
+                    return "TCP 端口必须是 1 到 65535。";
+                if (TcpClientConnectTimeoutMilliseconds < 10 || TcpClientConnectTimeoutMilliseconds > 600000)
+                    return "TCP 连接超时必须是 10 到 600000 毫秒。";
+                if (TcpClientSendTimeoutMilliseconds < 10 || TcpClientSendTimeoutMilliseconds > 600000)
+                    return "TCP 发送超时必须是 10 到 600000 毫秒。";
+                if (TcpClientReceiveTimeoutMilliseconds < 10 || TcpClientReceiveTimeoutMilliseconds > 600000)
+                    return "TCP 接收超时必须是 10 到 600000 毫秒。";
+                if (!VmTcpEncoding.IsSupported(TcpClientEncoding))
+                    return "TCP 编码仅支持 UTF-8 或 ASCII。";
+                if (!VmTcpLineEnding.IsSupported(TcpClientLineEnding))
+                    return "TCP 行尾仅支持无、CR、LF 或 CRLF。";
+                if ((TcpClientSendTemplate ?? string.Empty).Length > 65536)
+                    return "TCP 发送模板不能超过 65536 个字符。";
+            }
+
+            if (kind == VmToolKind.TextAssembly)
+            {
+                if ((TextAssemblyTemplate ?? string.Empty).Length > 65536)
+                    return "文本组装模板不能超过 65536 个字符。";
+                if ((TextAssemblySeparator ?? string.Empty).Length > 1024)
+                    return "文本组装分隔符不能超过 1024 个字符。";
+                if (string.IsNullOrWhiteSpace(TextAssemblyNumberFormat) || TextAssemblyNumberFormat.Length > 64)
+                    return "文本组装数值格式必须填写，且长度不能超过 64 个字符。";
+                if (!VmTextAssemblyEmptyPolicy.IsSupported(TextAssemblyEmptyPolicy))
+                    return "文本组装空值策略仅支持保留、跳过或拒绝。";
+                try
+                {
+                    1.25.ToString(TextAssemblyNumberFormat, System.Globalization.CultureInfo.InvariantCulture);
+                }
+                catch (FormatException)
+                {
+                    return "文本组装数值格式无效，请使用 0.###、F2、0000 等 .NET 格式。";
+                }
+            }
+
+            if (kind == VmToolKind.TextParser)
+            {
+                if (!VmTextParserMode.IsSupported(TextParserMode))
+                    return "文本解析方式仅支持字面分隔或正则匹配。";
+                if (string.IsNullOrEmpty(TextParserPattern) || TextParserPattern.Length > 4096)
+                    return "文本解析分隔符/正则必须填写，且长度不能超过 4096 个字符。";
+                if (TextParserFieldIndex < 1 || TextParserFieldIndex > 100000)
+                    return "文本解析字段序号必须是 1 到 100000。";
+                if (!VmTextAssemblyEmptyPolicy.IsSupported(TextParserEmptyPolicy))
+                    return "文本解析空字段策略仅支持保留、跳过或拒绝。";
+                if (string.Equals(TextParserMode, VmTextParserMode.Regex, StringComparison.Ordinal))
+                {
+                    try
+                    {
+                        new System.Text.RegularExpressions.Regex(
+                            TextParserPattern,
+                            System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+                            TimeSpan.FromMilliseconds(200));
+                    }
+                    catch (ArgumentException)
+                    {
+                        return "文本解析正则表达式无效。";
+                    }
                 }
             }
 
@@ -2936,6 +3277,130 @@ namespace HalconWinFormsDemo.Models
         public string Key { get; set; }
 
         public string DisplayText { get; set; }
+    }
+
+    public sealed class VmTcpOption
+    {
+        public string Key { get; set; }
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmTcpEncoding
+    {
+        public const string Utf8 = "UTF-8";
+        public const string Ascii = "ASCII";
+
+        public static string Normalize(string value)
+        {
+            return string.Equals(value, Ascii, StringComparison.OrdinalIgnoreCase) ? Ascii : Utf8;
+        }
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, Utf8, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Ascii, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static VmTcpOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmTcpOption { Key = Utf8, DisplayText = "UTF-8" },
+                new VmTcpOption { Key = Ascii, DisplayText = "ASCII" }
+            };
+        }
+    }
+
+    public static class VmTcpLineEnding
+    {
+        public const string None = "None";
+        public const string Cr = "CR";
+        public const string Lf = "LF";
+        public const string CrLf = "CRLF";
+
+        public static string Normalize(string value)
+        {
+            if (string.Equals(value, Cr, StringComparison.OrdinalIgnoreCase)) return Cr;
+            if (string.Equals(value, Lf, StringComparison.OrdinalIgnoreCase)) return Lf;
+            if (string.Equals(value, CrLf, StringComparison.OrdinalIgnoreCase)) return CrLf;
+            return None;
+        }
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, None, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Cr, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Lf, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, CrLf, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static VmTcpOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmTcpOption { Key = None, DisplayText = "无行尾" },
+                new VmTcpOption { Key = Cr, DisplayText = "CR" },
+                new VmTcpOption { Key = Lf, DisplayText = "LF" },
+                new VmTcpOption { Key = CrLf, DisplayText = "CRLF" }
+            };
+        }
+    }
+
+    public static class VmTextAssemblyEmptyPolicy
+    {
+        public const string Keep = "Keep";
+        public const string Skip = "Skip";
+        public const string Reject = "Reject";
+
+        public static string Normalize(string value)
+        {
+            if (string.Equals(value, Skip, StringComparison.OrdinalIgnoreCase)) return Skip;
+            if (string.Equals(value, Reject, StringComparison.OrdinalIgnoreCase)) return Reject;
+            return Keep;
+        }
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, Keep, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Skip, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Reject, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static VmTcpOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmTcpOption { Key = Keep, DisplayText = "保留空值" },
+                new VmTcpOption { Key = Skip, DisplayText = "跳过空值" },
+                new VmTcpOption { Key = Reject, DisplayText = "空值时报错" }
+            };
+        }
+    }
+
+    public static class VmTextParserMode
+    {
+        public const string Literal = "Literal";
+        public const string Regex = "Regex";
+
+        public static string Normalize(string value)
+        {
+            return string.Equals(value, Regex, StringComparison.OrdinalIgnoreCase) ? Regex : Literal;
+        }
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, Literal, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Regex, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static VmTcpOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmTcpOption { Key = Literal, DisplayText = "字面分隔" },
+                new VmTcpOption { Key = Regex, DisplayText = "正则匹配" }
+            };
+        }
     }
 
     public static class VmImageChannelMode
