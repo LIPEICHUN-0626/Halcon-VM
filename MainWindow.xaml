@@ -43,6 +43,18 @@
             <Setter Property="Margin" Value="3,0" />
             <Setter Property="MinWidth" Value="76" />
         </Style>
+        <Style x:Key="CompactMetricUnit" TargetType="{x:Type Border}">
+            <Setter Property="BorderBrush" Value="#D8DEE9" />
+            <Setter Property="BorderThickness" Value="1,0,0,0" />
+            <Setter Property="Padding" Value="7,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="AppBarButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="MinHeight" Value="26" />
+            <Setter Property="MinWidth" Value="50" />
+            <Setter Property="Margin" Value="1" />
+            <Setter Property="Padding" Value="6,1" />
+        </Style>
         <Style x:Key="PanelHeader" TargetType="{x:Type TextBlock}">
             <Setter Property="Foreground" Value="#F8FAFC" />
             <Setter Property="FontSize" Value="15" />
@@ -117,58 +129,72 @@
                     <MenuItem Header="视图">
                         <MenuItem Header="流程适应窗口" Click="FitFlowButton_Click" />
                         <MenuItem Header="图像适应窗口" Click="FitImageButton_Click" />
+                        <Separator />
+                        <MenuItem Header="全局变量" Click="OpenGlobalVariablesButton_Click" />
+                        <MenuItem Header="外部资源" Click="OpenExternalResourcesButton_Click" />
+                        <MenuItem Header="脚本接口" Click="OpenScriptInterfaceButton_Click" />
                         <MenuItem Header="项目自检" Click="DiagnosticsButton_Click" />
                     </MenuItem>
                     <MenuItem Header="帮助">
                         <MenuItem Header="关于 HALCON VM" Click="AboutMenuItem_Click" />
                     </MenuItem>
                 </Menu>
-                <DockPanel Grid.Row="1" LastChildFill="True" Margin="12,6,12,4">
-                    <UniformGrid DockPanel.Dock="Right" Columns="4" Width="330" VerticalAlignment="Center">
-                        <Border Style="{StaticResource MetricCard}">
-                            <StackPanel><TextBlock Text="OK" Foreground="#64748B" /><TextBlock x:Name="MetricOkText" Text="0" FontSize="17" FontWeight="Bold" Foreground="#15803D" /></StackPanel>
+                <DockPanel x:Name="DeveloperAppBar" Grid.Row="1" LastChildFill="True" Height="32" Margin="8,1">
+                    <StackPanel x:Name="DeveloperMetricStrip" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Stretch">
+                        <Border Style="{StaticResource CompactMetricUnit}">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="OK" Foreground="#64748B" VerticalAlignment="Center" /><TextBlock x:Name="MetricOkText" Text="0" Margin="4,0,0,0" FontSize="13" FontWeight="Bold" Foreground="#15803D" VerticalAlignment="Center" /></StackPanel>
                         </Border>
-                        <Border Style="{StaticResource MetricCard}">
-                            <StackPanel><TextBlock Text="NG" Foreground="#64748B" /><TextBlock x:Name="MetricNgText" Text="0" FontSize="17" FontWeight="Bold" Foreground="#B91C1C" /></StackPanel>
+                        <Border Style="{StaticResource CompactMetricUnit}">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="NG" Foreground="#64748B" VerticalAlignment="Center" /><TextBlock x:Name="MetricNgText" Text="0" Margin="4,0,0,0" FontSize="13" FontWeight="Bold" Foreground="#B91C1C" VerticalAlignment="Center" /></StackPanel>
                         </Border>
-                        <Border Style="{StaticResource MetricCard}">
-                            <StackPanel><TextBlock Text="良率" Foreground="#64748B" /><TextBlock x:Name="MetricYieldText" Text="--" FontSize="17" FontWeight="Bold" Foreground="#1D4ED8" /></StackPanel>
+                        <Border Style="{StaticResource CompactMetricUnit}">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="良率" Foreground="#64748B" VerticalAlignment="Center" /><TextBlock x:Name="MetricYieldText" Text="--" Margin="4,0,0,0" FontSize="12" FontWeight="Bold" Foreground="#1D4ED8" VerticalAlignment="Center" /></StackPanel>
                         </Border>
-                        <Border Style="{StaticResource MetricCard}">
-                            <StackPanel><TextBlock Text="节拍" Foreground="#64748B" /><TextBlock x:Name="MetricCycleText" Text="--" FontSize="17" FontWeight="Bold" Foreground="#111827" /></StackPanel>
+                        <Border Style="{StaticResource CompactMetricUnit}">
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="节拍" Foreground="#64748B" VerticalAlignment="Center" /><TextBlock x:Name="MetricCycleText" Text="--" Margin="4,0,0,0" FontSize="12" FontWeight="Bold" Foreground="#111827" VerticalAlignment="Center" /></StackPanel>
                         </Border>
-                    </UniformGrid>
-                    <StackPanel Orientation="Horizontal">
-                        <StackPanel>
-                            <TextBlock Text="HALCON VM 工业视觉平台" FontSize="18" FontWeight="SemiBold" Foreground="#0F172A" />
-                            <TextBlock x:Name="RecipeNameText" Text="方案：未加载" Foreground="#64748B" Margin="0,2,0,0" />
-                        </StackPanel>
-                        <Border x:Name="RecipeStateBadge" Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="10" Padding="9,3" Margin="12,4,0,4" VerticalAlignment="Center">
-                            <TextBlock x:Name="RecipeStateBadgeText" Text="新方案" Foreground="#92400E" FontWeight="SemiBold" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="HALCON VM" FontSize="14" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" Margin="2,0,12,0" ToolTip="HALCON VM 工业视觉平台" />
+                        <TextBlock x:Name="RecipeNameText" Text="方案：未加载" Foreground="#475569" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="320" />
+                        <Border x:Name="RecipeStateBadge" Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="8" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="RecipeStateBadgeText" Text="新方案" Foreground="#92400E" FontSize="11" FontWeight="SemiBold" />
                         </Border>
                     </StackPanel>
                 </DockPanel>
-                <WrapPanel x:Name="DeveloperToolbarPanel" Grid.Row="2" Margin="10,0,10,6" VerticalAlignment="Center">
-                    <Button x:Name="SaveRecipeButton" Content="▣ 保存" MinWidth="66" Click="SaveRecipeButton_Click" ToolTip="保存当前方案（文件菜单可新建、打开和另存）" />
-                    <Button x:Name="OpenImageButton" Content="▧ 图像" MinWidth="66" Click="OpenImageButton_Click" ToolTip="打开单张图像；批量目录位于更多或文件菜单" />
-                    <Button x:Name="RunOnceButton" Content="▶ 运行" MinWidth="66" FontWeight="Bold" Foreground="#0F766E" Click="RunOnceButton_Click" ToolTip="运行全流程" />
-                    <Button x:Name="StopRunButton" Content="■ 停止" MinWidth="66" Foreground="#B91C1C" Click="StopRunButton_Click" />
-                    <Button x:Name="EnterProductionModeButton" Content="▣ 生产" MinWidth="66" FontWeight="SemiBold" Foreground="#1D4ED8" Click="ToggleProductionModeButton_Click" Tag="Production" ToolTip="进入复用当前方案、图像、结果、统计和报警的生产运行视图" />
-                    <ToggleButton x:Name="DeveloperMoreToggleButton" Content="更多 ▾" MinWidth="64" Margin="4,2" ToolTip="方案、批量图像、连续运行和诊断等低频命令" />
-                    <WrapPanel Visibility="{Binding IsChecked, ElementName=DeveloperMoreToggleButton, Converter={StaticResource BooleanToVisibilityConverter}}" Background="#F1F5F9" Margin="5,0,0,0">
-                        <Button x:Name="NewRecipeButton" Content="新建" Click="NewRecipeButton_Click" />
-                        <Button x:Name="LoadRecipeButton" Content="打开方案" Click="LoadRecipeButton_Click" />
-                        <Button x:Name="SaveRecipeAsButton" Content="另存为" Click="SaveRecipeAsButton_Click" />
-                        <Button x:Name="OpenFolderButton" Content="批量图片" Click="OpenFolderButton_Click" />
-                        <Button x:Name="PreviousImageButton" Content="上一张" Click="PreviousImageButton_Click" /><Button x:Name="NextImageButton" Content="下一张" Click="NextImageButton_Click" />
-                        <Button x:Name="RunContinuousButton" Content="连续运行" Click="RunContinuousButton_Click" /><Button Content="▷ 单步" Click="DebugStepButton_Click" /><Button Content="调试继续" Click="DebugContinueButton_Click" /><Button x:Name="PauseRunButton" Content="Ⅱ 暂停" Click="PauseRunButton_Click" />
-                        <TextBlock Text="间隔" Margin="7,0,1,0" VerticalAlignment="Center" Foreground="#475569" /><TextBox x:Name="ContinuousIntervalTextBox" Width="55" Text="500" />
-                        <TextBlock Text="超时" Margin="5,0,1,0" VerticalAlignment="Center" Foreground="#475569" /><TextBox x:Name="FlowTimeoutTextBox" Width="58" Text="0" /><CheckBox x:Name="StopOnNgCheckBox" Content="遇 NG 停止" Margin="5,0" VerticalAlignment="Center" />
-                        <Button x:Name="PlayButton" Content="播放" Click="PlayButton_Click" /><Button x:Name="StopPlayButton" Content="停播" Click="StopPlayButton_Click" /><Button x:Name="ClearOverlayButton" Content="清除叠加" Click="ClearOverlayButton_Click" />
-                        <Button x:Name="SaveScreenshotButton" Content="截图" Click="SaveScreenshotButton_Click" /><Button x:Name="DiagnosticsButton" Content="自检" Click="DiagnosticsButton_Click" /><Button x:Name="OpenProductionLayoutDesignerButton" Content="运行页配置" Foreground="#7C3AED" Click="OpenProductionLayoutDesignerButton_Click" />
-                    </WrapPanel>
-                </WrapPanel>
-                <WrapPanel x:Name="ProductionToolbarPanel" Grid.Row="2" Margin="8,0,8,6" VerticalAlignment="Center" Visibility="Collapsed">
+                <StackPanel x:Name="DeveloperToolbarPanel" Grid.Row="2" Orientation="Horizontal" Margin="8,0,8,3" VerticalAlignment="Center">
+                    <Button x:Name="SaveRecipeButton" Style="{StaticResource AppBarButton}" Content="保存" Click="SaveRecipeButton_Click" ToolTip="保存当前方案（文件菜单可新建、打开和另存）" />
+                    <Button x:Name="OpenImageButton" Style="{StaticResource AppBarButton}" Content="图像" Click="OpenImageButton_Click" ToolTip="打开单张图像；批量目录位于更多或文件菜单" />
+                    <Button x:Name="RunOnceButton" Style="{StaticResource AppBarButton}" Content="运行" FontWeight="Bold" Foreground="#0F766E" Click="RunOnceButton_Click" ToolTip="运行全流程" />
+                    <Button x:Name="StopRunButton" Style="{StaticResource AppBarButton}" Content="停止" Foreground="#B91C1C" Click="StopRunButton_Click" />
+                    <Button x:Name="EnterProductionModeButton" Style="{StaticResource AppBarButton}" Content="生产" FontWeight="SemiBold" Foreground="#1D4ED8" Click="ToggleProductionModeButton_Click" Tag="Production" ToolTip="进入复用当前方案、图像、结果、统计和报警的生产运行视图" />
+                    <ToggleButton x:Name="DeveloperMoreToggleButton" Content="更多" MinHeight="26" MinWidth="48" Margin="2,1" Padding="5,1" ToolTip="方案、批量图像、连续运行和诊断等低频命令" />
+                    <Popup x:Name="DeveloperMorePopup" IsOpen="{Binding IsChecked, ElementName=DeveloperMoreToggleButton, Mode=TwoWay}" PlacementTarget="{Binding ElementName=DeveloperMoreToggleButton}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
+                        <Border Background="#FFFFFF" BorderBrush="#94A3B8" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,2,0,0">
+                            <StackPanel Width="650">
+                                <TextBlock Text="更多命令" FontWeight="SemiBold" Foreground="#334155" Margin="2,0,0,4" />
+                                <WrapPanel>
+                                    <Button x:Name="NewRecipeButton" Content="新建" Click="NewRecipeButton_Click" />
+                                    <Button x:Name="LoadRecipeButton" Content="打开方案" Click="LoadRecipeButton_Click" />
+                                    <Button x:Name="SaveRecipeAsButton" Content="另存为" Click="SaveRecipeAsButton_Click" />
+                                    <Button x:Name="OpenFolderButton" Content="批量图片" Click="OpenFolderButton_Click" />
+                                    <Button x:Name="PreviousImageButton" Content="上一张" Click="PreviousImageButton_Click" /><Button x:Name="NextImageButton" Content="下一张" Click="NextImageButton_Click" />
+                                    <Button x:Name="RunContinuousButton" Content="连续运行" Click="RunContinuousButton_Click" /><Button Content="单步" Click="DebugStepButton_Click" /><Button Content="调试继续" Click="DebugContinueButton_Click" /><Button x:Name="PauseRunButton" Content="暂停" Click="PauseRunButton_Click" />
+                                </WrapPanel>
+                                <WrapPanel Margin="0,3,0,0">
+                                    <TextBlock Text="间隔" Margin="7,0,1,0" VerticalAlignment="Center" Foreground="#475569" /><TextBox x:Name="ContinuousIntervalTextBox" Width="55" Text="500" />
+                                    <TextBlock Text="超时" Margin="5,0,1,0" VerticalAlignment="Center" Foreground="#475569" /><TextBox x:Name="FlowTimeoutTextBox" Width="58" Text="0" /><CheckBox x:Name="StopOnNgCheckBox" Content="遇 NG 停止" Margin="5,0" VerticalAlignment="Center" />
+                                    <Button x:Name="PlayButton" Content="播放" Click="PlayButton_Click" /><Button x:Name="StopPlayButton" Content="停播" Click="StopPlayButton_Click" /><Button x:Name="ClearOverlayButton" Content="清除叠加" Click="ClearOverlayButton_Click" />
+                                    <Button x:Name="SaveScreenshotButton" Content="截图" Click="SaveScreenshotButton_Click" /><Button x:Name="DiagnosticsButton" Content="自检" Click="DiagnosticsButton_Click" /><Button x:Name="OpenProductionLayoutDesignerButton" Content="运行页配置" Foreground="#7C3AED" Click="OpenProductionLayoutDesignerButton_Click" />
+                                    <Button Content="全局变量" Foreground="#0F766E" Click="OpenGlobalVariablesButton_Click" ToolTip="打开当前方案的强类型变量工作台" />
+                                    <Button Content="外部资源" Foreground="#1D4ED8" Click="OpenExternalResourcesButton_Click" ToolTip="管理脚本使用的受管 DLL 副本、版本、哈希和引用" />
+                                    <Button Content="脚本接口" Foreground="#7C3AED" Click="OpenScriptInterfaceButton_Click" ToolTip="为当前脚本实例设计类型化输入、参数和输出" />
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                </StackPanel>
+                <StackPanel x:Name="ProductionToolbarPanel" Grid.Row="2" Orientation="Horizontal" Margin="8,0,8,3" VerticalAlignment="Center" Visibility="Collapsed">
                     <Button Content="← 返回开发" FontWeight="SemiBold" Foreground="#1D4ED8" Click="ToggleProductionModeButton_Click" Tag="Developer" />
                     <Separator Width="8" Opacity="0" />
                     <Button Content="▶ 单次运行" FontWeight="Bold" Foreground="#0F766E" Click="RunOnceButton_Click" />
@@ -185,7 +211,7 @@
                     </ComboBox>
                     <Button Content="▶ 图片批次" Foreground="#0F766E" Click="RunImageQueueBatchButton_Click" />
                     <Button Content="停止批次" Foreground="#B91C1C" Click="StopImageQueueBatchButton_Click" />
-                </WrapPanel>
+                </StackPanel>
             </Grid>
         </Border>
 
@@ -196,7 +222,7 @@
                 <RowDefinition x:Name="RightConfigurationRow" Height="2*" MinHeight="210" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="ToolCatalogColumn" Width="210" MinWidth="180" />
+                <ColumnDefinition x:Name="ToolCatalogColumn" Width="240" MinWidth="210" />
                 <ColumnDefinition Width="5" />
                 <ColumnDefinition Width="*" MinWidth="360" />
                 <ColumnDefinition Width="5" />
@@ -213,18 +239,27 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock Text="工具箱" Style="{StaticResource PanelHeader}" />
+                    <DockPanel>
+                        <TextBlock x:Name="ToolCatalogCapabilityText" DockPanel.Dock="Right" Text="-- 个工具 · -- 类" Foreground="#94A3B8" FontSize="10" Margin="0,7,8,0" />
+                        <TextBlock Text="模块箱" Style="{StaticResource PanelHeader}" />
+                    </DockPanel>
                     <TextBox x:Name="ToolSearchTextBox" Grid.Row="1" Margin="8,0,8,8" TextChanged="ToolSearchTextBox_TextChanged" ToolTip="搜索工具名称、分类或说明" />
                     <UniformGrid Grid.Row="2" Columns="4" Margin="6,0,6,6">
                         <Button x:Name="ToolCatalogCommonButton" Content="常用" MinWidth="0" MinHeight="25" Padding="3,1" Click="ToolCatalogModeButton_Click" Tag="Common" />
                         <Button x:Name="ToolCatalogFavoriteButton" Content="★ 收藏" MinWidth="0" MinHeight="25" Padding="3,1" Click="ToolCatalogModeButton_Click" Tag="Favorite" />
                         <Button x:Name="ToolCatalogRecentButton" Content="最近" MinWidth="0" MinHeight="25" Padding="3,1" Click="ToolCatalogModeButton_Click" Tag="Recent" />
-                        <Button x:Name="ToolCatalogAllButton" Content="全部" MinWidth="0" MinHeight="25" Padding="3,1" Click="ToolCatalogModeButton_Click" Tag="All" />
+                        <Button x:Name="ToolCatalogAllButton" Content="分类" MinWidth="0" MinHeight="25" Padding="3,1" Click="ToolCatalogModeButton_Click" Tag="All" ToolTip="按 9 个能力分类浏览全部可运行工具" />
                     </UniformGrid>
                     <Grid Grid.Row="3" Margin="6,0">
-                        <ListBox x:Name="ToolCatalogList" Background="#111827" BorderThickness="0" Foreground="#E2E8F0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="ToolCatalogList_SelectionChanged" MouseDoubleClick="ToolCatalogList_MouseDoubleClick" PreviewMouseLeftButtonDown="ToolCatalogList_PreviewMouseLeftButtonDown" PreviewMouseMove="ToolCatalogList_PreviewMouseMove">
+                        <ListBox x:Name="ToolCatalogList" Background="#111827" BorderThickness="0" Foreground="#E2E8F0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="ToolCatalogList_SelectionChanged" MouseDoubleClick="ToolCatalogList_MouseDoubleClick" PreviewKeyDown="ToolCatalogList_PreviewKeyDown" PreviewMouseRightButtonDown="ToolCatalogList_PreviewMouseRightButtonDown" PreviewMouseLeftButtonDown="ToolCatalogList_PreviewMouseLeftButtonDown" PreviewMouseMove="ToolCatalogList_PreviewMouseMove">
+                            <ListBox.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="追加到流程末尾" Click="AddToolButton_Click" />
+                                    <MenuItem Header="切换收藏" Click="ToolCatalogToggleFavoriteMenuItem_Click" />
+                                    <MenuItem Header="能力与端口预览" Click="ToolCatalogShowDescriptionMenuItem_Click" />
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
                             <ListBox.GroupStyle>
                                 <GroupStyle>
                                     <GroupStyle.ContainerStyle>
@@ -250,13 +285,13 @@
                             </ListBox.GroupStyle>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border Padding="7,4" Margin="1" MinHeight="31" BorderBrush="#334155" BorderThickness="0,0,0,1">
+                                <Border x:Name="ToolCatalogRow" Padding="7,4" Margin="1" MinHeight="31" BorderBrush="#334155" BorderThickness="0,0,0,1">
                                     <Border.ToolTip>
                                         <StackPanel MaxWidth="300">
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
                                             <TextBlock Text="{Binding Category}" Foreground="#0284C7" Margin="0,2,0,0" />
                                             <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,5,0,0" />
-                                            <TextBlock Text="双击追加；拖拽可指定线性插入位置" Foreground="#64748B" Margin="0,5,0,0" />
+                                            <TextBlock Text="双击或 Enter 追加；拖拽可指定线性插入位置" Foreground="#64748B" Margin="0,5,0,0" />
                                         </StackPanel>
                                     </Border.ToolTip>
                                     <Grid>
@@ -265,7 +300,29 @@
                                             <TextBlock DockPanel.Dock="Right" Text="{Binding RecentText}" Foreground="#A7F3D0" FontSize="9" Margin="5,0,0,0" />
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                         </DockPanel>
-                                        <Button Grid.Column="1" Content="{Binding FavoriteGlyph}" ToolTip="{Binding FavoriteHint}" Tag="{Binding}" MinWidth="24" Width="24" MinHeight="22" Height="22" Padding="0" Margin="4,0,0,0" Foreground="#FBBF24" Background="Transparent" BorderBrush="#475569" Click="ToolCatalogFavoriteButton_Click" />
+                                        <Button Grid.Column="1" Content="{Binding FavoriteGlyph}" ToolTip="{Binding FavoriteHint}" Tag="{Binding}" MinWidth="22" Width="22" MinHeight="22" Height="22" Padding="0" Margin="3,0,0,0" Foreground="#FBBF24" Background="Transparent" BorderThickness="0" Click="ToolCatalogFavoriteButton_Click">
+                                            <Button.Style>
+                                                <Style TargetType="Button">
+                                                    <Setter Property="Opacity" Value="0" />
+                                                    <Setter Property="IsHitTestVisible" Value="False" />
+                                                    <Setter Property="Cursor" Value="Hand" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsFavorite}" Value="True">
+                                                            <Setter Property="Opacity" Value="0.9" />
+                                                            <Setter Property="IsHitTestVisible" Value="True" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsMouseOver, ElementName=ToolCatalogRow}" Value="True">
+                                                            <Setter Property="Opacity" Value="1" />
+                                                            <Setter Property="IsHitTestVisible" Value="True" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}" Value="True">
+                                                            <Setter Property="Opacity" Value="1" />
+                                                            <Setter Property="IsHitTestVisible" Value="True" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -273,14 +330,22 @@
                         </ListBox>
                         <TextBlock x:Name="ToolCatalogEmptyText" Text="当前筛选没有工具。可切换“全部”或清空搜索。" Visibility="Collapsed" Foreground="#94A3B8" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center" Margin="18" IsHitTestVisible="False" />
                     </Grid>
-                    <Border x:Name="ToolCatalogSelectionDetail" Grid.Row="4" Visibility="Collapsed" Background="#0F172A" BorderBrush="#334155" BorderThickness="1" CornerRadius="3" Margin="7,5,7,0" Padding="7,5">
-                        <StackPanel>
-                            <TextBlock x:Name="ToolCatalogSelectionTitleText" Foreground="#38BDF8" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                            <TextBlock x:Name="ToolCatalogSelectionDescriptionText" Foreground="#CBD5E1" FontSize="10" TextWrapping="Wrap" MaxHeight="42" />
-                        </StackPanel>
-                    </Border>
-                    <TextBlock x:Name="ToolCatalogStatusText" Grid.Row="5" Text="按分类显示 · 双击或拖入流程" Foreground="#94A3B8" FontSize="10" TextWrapping="Wrap" Margin="9,5,9,0" />
-                    <Button x:Name="AddToolButton" Grid.Row="6" Content="＋ 追加到流程末尾" Margin="8" FontWeight="SemiBold" Click="AddToolButton_Click" />
+                    <Expander x:Name="ToolCapabilityExpander" Grid.Row="4" Header="能力 / 端口预览" IsExpanded="False" Margin="7,3,7,0" Foreground="#CBD5E1" Expanded="ToolCapabilityExpander_Expanded">
+                        <Border Background="#0F172A" BorderBrush="#334155" BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,3,0,2">
+                            <StackPanel>
+                                <DockPanel>
+                                    <TextBlock x:Name="ToolCapabilityMaturityText" DockPanel.Dock="Right" Text="已实现 · 可拖入" Foreground="#34D399" FontSize="10" />
+                                    <TextBlock x:Name="ToolCapabilityNameText" Text="选择一个工具" Foreground="#F8FAFC" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                </DockPanel>
+                                <TextBlock x:Name="ToolCapabilityPurposeText" Text="选择后按需查看真实用途与端口。" Foreground="#CBD5E1" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                <TextBlock x:Name="ToolCapabilityInputText" Text="IN  --" Foreground="#93C5FD" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                <TextBlock x:Name="ToolCapabilityOutputText" Text="OUT --" Foreground="#A7F3D0" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                <TextBlock x:Name="ToolCapabilityGraphicsText" Text="ROI / 图形 --" Foreground="#C4B5FD" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                <TextBlock Text="规划缺口（不可拖入）：相机 SDK、完整标定、OCR/读码扩展" Foreground="#94A3B8" FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </Expander>
+                    <TextBlock x:Name="ToolCatalogStatusText" Grid.Row="5" Text="双击、Enter 或拖入流程" Foreground="#94A3B8" FontSize="10" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Margin="9,5,9,7" />
                 </Grid>
             </Border>
 
@@ -847,6 +912,58 @@
                                         <TextBlock Text="{Binding ErrorMessage, StringFormat=异常：{0}}" Foreground="#B91C1C" FontSize="10" TextWrapping="Wrap" Margin="0,2,0,0" />
                                     </StackPanel>
                                 </Border>
+                                <Expander x:Name="PortDataMonitorExpander" IsExpanded="False" Margin="0,7,0,0" Expanded="PortDataMonitorExpander_Expanded" Collapsed="PortDataMonitorExpander_Collapsed">
+                                    <Expander.Header>
+                                        <DockPanel LastChildFill="True">
+                                            <Border DockPanel.Dock="Right" Background="#FCE7F3" CornerRadius="8" Padding="6,1" Margin="8,0,0,0">
+                                                <TextBlock x:Name="PortDataMonitorCountText" Text="0 项" Foreground="#BE185D" FontSize="9" FontWeight="SemiBold" />
+                                            </Border>
+                                            <StackPanel>
+                                                <TextBlock Text="端口数据" Foreground="#334155" FontWeight="SemiBold" />
+                                                <TextBlock Text="当前模块 / 所选连接 / 已固定" Foreground="#64748B" FontSize="9" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Expander.Header>
+                                    <StackPanel Margin="0,5,0,0">
+                                        <TextBlock x:Name="PortDataMonitorScopeText" Text="选择模块或连接后显示本周期数据。" Foreground="#64748B" FontSize="9" TextWrapping="Wrap" Margin="0,0,0,4" />
+                                        <DataGrid x:Name="PortDataMonitorGrid" Height="236" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderBrush="#CBD5E1" SelectionMode="Single" SelectionUnit="FullRow" SelectionChanged="PortDataMonitorGrid_SelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled" RowHeight="58">
+                                            <DataGrid.Columns>
+                                                <DataGridTemplateColumn Header="固定" Width="38">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate><Button Content="{Binding PinGlyph}" Tag="{Binding}" Click="TogglePortMonitorPinButton_Click" Padding="3,0" Foreground="#BE185D" ToolTip="固定或取消固定此端口" /></DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                                <DataGridTemplateColumn Header="端口 / 来源" Width="170">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <StackPanel Margin="2">
+                                                                <DockPanel><TextBlock Text="{Binding DirectionText}" Foreground="#BE185D" FontWeight="Bold" Margin="0,0,5,0" /><TextBlock Text="{Binding EndpointText}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" /></DockPanel>
+                                                                <TextBlock Text="{Binding SourceText, StringFormat=来源：{0}}" Foreground="#64748B" FontSize="9" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                                <DataGridTemplateColumn Header="本周期数据" Width="*">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <StackPanel Margin="2">
+                                                                <DockPanel><TextBlock Text="{Binding DataType}" Foreground="#7E22CE" FontWeight="SemiBold" /><TextBlock DockPanel.Dock="Right" Text="{Binding StateText}" Foreground="#0F766E" FontSize="9" /></DockPanel>
+                                                                <TextBlock Text="{Binding ValueText}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding ValueText}" />
+                                                                <TextBlock Foreground="#64748B" FontSize="9" TextTrimming="CharacterEllipsis"><Run Text="{Binding ContextText}" /><Run Text=" · 周期 " /><Run Text="{Binding CycleText}" /></TextBlock>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                        <UniformGrid Columns="3" Margin="0,4,0,0">
+                                            <Button Content="定位 / I/O" Click="OpenPortMonitorIoButton_Click" ToolTip="定位真实节点或连接，并打开该模块 I/O" />
+                                            <Button Content="刷新" Click="RefreshPortMonitorButton_Click" />
+                                            <Button Content="清除固定" Click="ClearPortMonitorPinsButton_Click" />
+                                        </UniformGrid>
+                                        <TextBlock Text="只读取真实运行快照；固定、选择和展开不会改变执行顺序、连接或算法结果。" Foreground="#64748B" FontSize="9" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Expander>
                                 <UniformGrid Columns="2" Margin="0,5,0,0">
                                     <Button x:Name="DebugRunToSelectedButton" Content="运行到所选" Foreground="#0F766E" FontWeight="SemiBold" ToolTip="从流程起点执行并在所选模块完成后暂停" Click="DebugRunToSelectedButton_Click" />
                                     <Button Content="定位节点" Click="LocateDebugMonitorToolButton_Click" />
@@ -2620,8 +2737,170 @@
                                             </GroupBox>
                                             <TextBlock Text="输出 Text、Number、FieldCount 和 Matched；Number 可直接连接数值判定。" Foreground="#64748B" TextWrapping="Wrap" Margin="4,3" />
                                         </StackPanel>
+                                        <StackPanel x:Name="DockNumericCalculationPanel" Visibility="Collapsed">
+                                            <GroupBox Header="数值运算任务">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="76" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="运算类型" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockNumericCalculationOperationComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="小数位数" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockNumericCalculationRoundDigitsTextBox" Grid.Row="1" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" ToolTip="仅四舍五入使用，范围 0–15；采用 MidpointRounding.AwayFromZero" />
+                                                </Grid>
+                                            </GroupBox>
+                                            <TextBlock Text="NumberA 必须连接；加减乘除、最小值和最大值还必须连接 NumberB。绝对值和四舍五入只使用 NumberA。" Foreground="#64748B" TextWrapping="Wrap" Margin="4,3" />
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockShapeMatchPanel" Visibility="Collapsed">
+                                            <Border Background="#EFF6FF" BorderBrush="#93C5FD" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,6">
+                                                <StackPanel>
+                                                    <DockPanel>
+                                                        <TextBlock Text="Shape 定位任务" FontWeight="SemiBold" Foreground="#1E3A8A" />
+                                                        <TextBlock x:Name="DockShapeModelStateText" DockPanel.Dock="Right" Text="模型：未配置" Foreground="#475569" TextTrimming="CharacterEllipsis" MaxWidth="180" />
+                                                    </DockPanel>
+                                                    <Grid Margin="0,7,0,0">
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="86" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                        <TextBlock Text="模型名称" VerticalAlignment="Center" />
+                                                        <TextBox x:Name="DockShapeModelNameTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                        <TextBlock Grid.Row="1" Text="训练 ROI" VerticalAlignment="Center" />
+                                                        <ComboBox x:Name="DockShapeTrainingRoiComboBox" Grid.Row="1" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    </Grid>
+                                                    <WrapPanel Margin="0,7,0,0">
+                                                        <Button Content="使用当前图像训练" Foreground="#0F766E" FontWeight="SemiBold" Click="DockShapeTrainButton_Click" />
+                                                        <Button Content="加载 .shm…" Click="DockShapeLoadButton_Click" />
+                                                        <Button Content="另存模型…" Click="DockShapeSaveButton_Click" />
+                                                    </WrapPanel>
+                                                </StackPanel>
+                                            </Border>
+                                            <GroupBox Header="搜索与候选">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="82" /><ColumnDefinition Width="*" /><ColumnDefinition Width="72" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="最小分数" VerticalAlignment="Center" /><TextBox x:Name="DockShapeMinScoreTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Column="2" Text="最大数量" VerticalAlignment="Center" /><TextBox x:Name="DockShapeMaxMatchesTextBox" Grid.Column="3" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="起始角 °" VerticalAlignment="Center" /><TextBox x:Name="DockShapeAngleStartTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="角度范围 °" VerticalAlignment="Center" /><TextBox x:Name="DockShapeAngleExtentTextBox" Grid.Row="1" Grid.Column="3" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Text="最小尺度" VerticalAlignment="Center" /><TextBox x:Name="DockShapeScaleMinTextBox" Grid.Row="2" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="最大尺度" VerticalAlignment="Center" /><TextBox x:Name="DockShapeScaleMaxTextBox" Grid.Row="2" Grid.Column="3" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="3" Text="最大重叠" VerticalAlignment="Center" Tag="AdvancedParameter" /><TextBox x:Name="DockShapeMaxOverlapTextBox" Grid.Row="3" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="3" Grid.Column="2" Text="贪婪度" VerticalAlignment="Center" Tag="AdvancedParameter" /><TextBox x:Name="DockShapeGreedinessTextBox" Grid.Row="3" Grid.Column="3" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="4" Text="金字塔层" VerticalAlignment="Center" Tag="AdvancedParameter" /><TextBox x:Name="DockShapeNumLevelsTextBox" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                </Grid>
+                                            </GroupBox>
+                                            <TextBlock Text="训练 ROI 只用于建模；“ROI / 模板”页绑定的检测区作为搜索 ROI。候选按分数、Row、Column 稳定排序，最佳 Row/Column/Angle 可直接连接 2D 位置修正。" Foreground="#475569" TextWrapping="Wrap" Margin="4,4" />
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockPointSetGeometryPanel" Visibility="Collapsed">
+                                            <GroupBox Header="HALCON 点集几何统计">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="116" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="最小有效点数" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockPointSetMinimumCountTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="异常点策略" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockPointSetAbnormalPolicyComboBox" Grid.Row="1" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="只接受同一 ImagePixel 上下文的类型化 Point2D[]。不解析旧字符串坐标；计算质心、边界、跨度，并生成点、质心与外接框 XLD。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                </Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockPositionCorrectionPanel" Visibility="Collapsed">
+                                            <GroupBox Header="2D 位置修正 · 基准位姿">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="92" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="基准 Row" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockPositionCorrectionReferenceRowTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="基准 Column" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockPositionCorrectionReferenceColumnTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Text="基准角度 °" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockPositionCorrectionReferenceAngleTextBox" Grid.Row="2" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                </Grid>
+                                            </GroupBox>
+                                            <Border Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,6,0,0">
+                                                <TextBlock Text="I/O 中连接当前 Row、Column、Angle；运行时调用 HALCON vector_angle_to_rigid。输出矩阵和三项偏移，可作为后续 ROI/屏蔽区的修正来源。" Foreground="#065F46" TextWrapping="Wrap" />
+                                            </Border>
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockResultLogicAggregationPanel" Visibility="Collapsed">
+                                            <GroupBox Header="结果逻辑汇总任务">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="76" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="逻辑模式" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockResultLogicOperationComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="大小写" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <CheckBox x:Name="DockResultLogicCaseSensitiveCheckBox" Grid.Row="1" Grid.Column="1" Tag="AdvancedParameter" Content="严格区分 OK/NG 大小写" Click="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Text="空白处理" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <CheckBox x:Name="DockResultLogicTrimInputCheckBox" Grid.Row="2" Grid.Column="1" Tag="AdvancedParameter" Content="去除输入首尾空白" Click="DockDraftValue_Changed" />
+                                                </Grid>
+                                            </GroupBox>
+                                            <TextBlock Text="仅允许 OK/NG。全部/任一模式必须连接 A、B；取反/透传只使用 A。空值和其他结果码会明确报错，输出统一为 OK/NG。" Foreground="#64748B" TextWrapping="Wrap" Margin="4,3" />
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockScriptPanel" Visibility="Collapsed">
+                                            <GroupBox Header="受信任 C# / DLL 脚本">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="86" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="执行方式" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockScriptExecutionModeComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockScriptExecutionModeComboBox_SelectionChanged" />
+                                                    <TextBlock Grid.Row="1" Text="超时 ms" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockScriptTimeoutTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Text="参数数值" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockScriptParameterNumberTextBox" Grid.Row="2" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="3" Text="参数文本" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockScriptParameterTextTextBox" Grid.Row="3" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                </Grid>
+                                            </GroupBox>
+                                            <Border Background="#F5F3FF" BorderBrush="#DDD6FE" BorderThickness="1" CornerRadius="4" Padding="9" Margin="0,6,0,0">
+                                                <DockPanel>
+                                                    <Button DockPanel.Dock="Right" Content="设计接口…" Foreground="#7C3AED" FontWeight="SemiBold" Click="OpenScriptInterfaceButton_Click" />
+                                                    <StackPanel>
+                                                        <TextBlock Text="脚本接口" FontWeight="SemiBold" Foreground="#4C1D95" />
+                                                        <TextBlock Text="按需声明命名输入、参数和输出；普通运行参数保持简洁。" Foreground="#6D5A90" FontSize="11" TextWrapping="Wrap" />
+                                                    </StackPanel>
+                                                </DockPanel>
+                                            </Border>
+                                            <Expander x:Name="DockScriptEditorExpander" Header="代码 / DLL 入口（按需展开）" IsExpanded="False" Margin="0,6,0,0">
+                                                <StackPanel Margin="7">
+                                                    <StackPanel x:Name="DockScriptInlinePanel">
+                                                        <TextBlock Text="Execute 方法体" FontWeight="SemiBold" />
+                                                        <TextBox x:Name="DockScriptInlineCodeTextBox" Height="160" Margin="0,4,0,0" AcceptsReturn="True" AcceptsTab="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" FontFamily="Consolas" TextChanged="DockDraftValue_Changed" />
+                                                    </StackPanel>
+                                                    <StackPanel x:Name="DockScriptDllPanel" Visibility="Collapsed">
+                                                        <TextBlock Text="受管 DLL 资源" FontWeight="SemiBold" />
+                                                        <Grid Margin="0,4,0,0">
+                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                            <ComboBox x:Name="DockScriptResourceComboBox" DisplayMemberPath="DisplayText" SelectedValuePath="ResourceId" SelectionChanged="DockScriptResourceComboBox_SelectionChanged" />
+                                                            <Button Grid.Column="1" Content="管理资源…" Margin="5,0,0,0" Click="OpenExternalResourcesButton_Click" />
+                                                        </Grid>
+                                                        <TextBlock x:Name="DockScriptResourceSummaryText" Text="请选择受管资源；旧方案仍可使用兼容路径。" Foreground="#475569" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                                        <TextBlock Text="类型全名" Margin="0,6,0,0" /><TextBox x:Name="DockScriptTypeNameTextBox" TextChanged="DockDraftValue_Changed" />
+                                                        <TextBlock Text="静态方法" Margin="0,6,0,0" /><TextBox x:Name="DockScriptMethodNameTextBox" TextChanged="DockDraftValue_Changed" />
+                                                        <Expander x:Name="DockScriptLegacyPathExpander" Header="兼容：直接 DLL 路径" IsExpanded="False" Margin="0,7,0,0" ToolTip="仅用于旧配方兼容；新配置应导入受管资源。">
+                                                            <DockPanel Margin="0,5,0,0"><Button DockPanel.Dock="Right" Content="浏览…" Margin="5,0,0,0" Click="DockScriptBrowseButton_Click" /><TextBox x:Name="DockScriptAssemblyPathTextBox" TextChanged="DockDraftValue_Changed" /></DockPanel>
+                                                        </Expander>
+                                                    </StackPanel>
+                                                    <TextBlock Text="签名：public static ScriptToolResult Execute(ScriptToolContext input)" Foreground="#475569" TextWrapping="Wrap" Margin="0,7,0,0" />
+                                                    <Button Content="编译 / 入口检查" HorizontalAlignment="Left" Margin="0,7,0,0" Click="DockScriptValidateButton_Click" />
+                                                </StackPanel>
+                                            </Expander>
+                                            <TextBlock x:Name="DockScriptDiagnosticsText" Text="尚未编译或运行。" Foreground="#475569" TextWrapping="Wrap" Margin="4,6,4,0" />
+                                            <TextBlock Text="仅运行受信任代码。超时通过可卸载 AppDomain 隔离执行，但这不是进程级安全沙箱。" Foreground="#B45309" TextWrapping="Wrap" Margin="4,3" />
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockGlobalVariablePanel" Visibility="Collapsed">
+                                            <GroupBox Header="全局变量任务">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="82" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="目标变量" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockGlobalVariableComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="VariableId" SelectionChanged="DockGlobalVariableComboBox_SelectionChanged" />
+                                                    <TextBlock Grid.Row="1" Text="类型 / 当前" VerticalAlignment="Top" Margin="0,6,0,0" />
+                                                    <TextBlock x:Name="DockGlobalVariableSummaryText" Grid.Row="1" Grid.Column="1" Text="请选择变量" Margin="4,6,0,0" Foreground="#475569" TextWrapping="Wrap" />
+                                                    <Button Grid.Row="2" Grid.Column="1" Content="管理全局变量…" HorizontalAlignment="Left" Margin="0,7,0,0" Click="OpenGlobalVariablesButton_Click" />
+                                                </Grid>
+                                            </GroupBox>
+                                            <TextBlock x:Name="DockGlobalVariableHintText" Text="读取工具无输入；写入工具只使用与变量类型一致的端口。" Foreground="#64748B" TextWrapping="Wrap" Margin="4,3" />
+                                        </StackPanel>
                                         <Border x:Name="DockCompatibilityPanel" Visibility="Collapsed" Background="#FFF7ED" BorderBrush="#FDBA74" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,6,0,0">
-                                            <StackPanel><TextBlock Text="Shape/HDevelop 暂用兼容配置，不在缺少真实样本时改写算法或程序契约。" TextWrapping="Wrap" /><Button Content="打开兼容配置" Margin="0,8,0,0" Click="DockOpenCompatibilityButton_Click" /></StackPanel>
+                                            <StackPanel><TextBlock Text="HDevelop 暂用兼容配置，不在缺少真实程序契约时改写入口。" TextWrapping="Wrap" /><Button Content="打开兼容配置" Margin="0,8,0,0" Click="DockOpenCompatibilityButton_Click" /></StackPanel>
                                         </Border>
                                         <TextBlock x:Name="DockValidationText" Foreground="#B91C1C" TextWrapping="Wrap" Margin="4,8,4,0" />
                                     </StackPanel>
@@ -2665,19 +2944,28 @@
                             </TabItem>
                             <TabItem x:Name="DockRoiTaskTab" Header="ROI / 模板">
                                 <Grid Margin="9">
-                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                     <StackPanel>
                                         <TextBlock x:Name="DockRoiSummaryText" Text="该模块没有 ROI 输入。" TextWrapping="Wrap" />
                                         <ComboBox x:Name="DockRoiExecutionModeComboBox" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" Margin="0,6,0,0" />
                                     </StackPanel>
-                                    <ItemsControl x:Name="DockRoiBindingItemsControl" Grid.Row="1" Margin="0,8,0,0">
+                                    <Border x:Name="DockRoiPositionCorrectionPanel" Grid.Row="1" Visibility="Collapsed" Background="#F0FDFA" BorderBrush="#99F6E4" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,8,0,0">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="92" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                            <TextBlock Text="位置修正" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#115E59" />
+                                            <ComboBox x:Name="DockRoiPositionCorrectionComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                            <TextBlock x:Name="DockRoiPositionCorrectionStatusText" Grid.Row="1" Grid.ColumnSpan="2" Text="不跟随位置修正，使用配方基础 ROI。" Foreground="#475569" FontSize="10" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                        </Grid>
+                                    </Border>
+                                    <ItemsControl x:Name="DockRoiBindingItemsControl" Grid.Row="2" Margin="0,8,0,0">
                                         <ItemsControl.ItemTemplate><DataTemplate><Border BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="7" Margin="0,0,0,5"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><CheckBox IsChecked="{Binding IsBound}" Click="DockRoiBindingCheckBox_Click" Margin="0,0,8,0" /><StackPanel Grid.Column="1"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" /><TextBlock Text="{Binding GeometryText}" Foreground="#64748B" FontSize="10" TextTrimming="CharacterEllipsis" /></StackPanel><TextBlock Grid.Column="2" Text="{Binding ShapeText}" Foreground="#0369A1" /></Grid></Border></DataTemplate></ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                    <DockPanel Grid.Row="2"><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="全选" Click="DockSelectAllRoiButton_Click" /><Button Content="清空" Click="DockClearRoiButton_Click" /><Button Content="返回图像区" Foreground="#0F766E" FontWeight="SemiBold" Click="DockOpenRoiWorkspaceButton_Click" /></StackPanel></DockPanel>
+                                    <DockPanel Grid.Row="3"><StackPanel DockPanel.Dock="Right" Orientation="Horizontal"><Button Content="全选" Click="DockSelectAllRoiButton_Click" /><Button Content="清空" Click="DockClearRoiButton_Click" /><Button Content="返回图像区" Foreground="#0F766E" FontWeight="SemiBold" Click="DockOpenRoiWorkspaceButton_Click" /></StackPanel></DockPanel>
                                 </Grid>
                             </TabItem>
                             <TabItem x:Name="DockResultTaskTab" Header="结果">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="10"><TextBlock x:Name="DockResultText" Text="最近结果：--" TextWrapping="Wrap" /><TextBlock x:Name="DockErrorText" Text="错误：--" Foreground="#B91C1C" TextWrapping="Wrap" Margin="0,6,0,0" /><DataGrid x:Name="DockRoiResultsDataGrid" Height="145" Margin="0,10,0,0" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"><DataGrid.Columns><DataGridTextColumn Header="ROI" Binding="{Binding RoiName}" Width="90" /><DataGridTextColumn Header="判定" Binding="{Binding ResultCode}" Width="55" /><DataGridTextColumn Header="数值" Binding="{Binding ValueText}" Width="100" /><DataGridTextColumn Header="说明" Binding="{Binding DisplayMessage}" Width="*" /></DataGrid.Columns></DataGrid></StackPanel></ScrollViewer>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="10"><TextBlock x:Name="DockResultText" Text="最近结果：--" TextWrapping="Wrap" /><TextBlock x:Name="DockErrorText" Text="错误：--" Foreground="#B91C1C" TextWrapping="Wrap" Margin="0,6,0,0" /><DataGrid x:Name="DockShapeCandidatesDataGrid" Visibility="Collapsed" Height="190" Margin="0,10,0,0" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionChanged="DockShapeCandidatesDataGrid_SelectionChanged"><DataGrid.Columns><DataGridTextColumn Header="#" Binding="{Binding Index}" Width="34" /><DataGridTextColumn Header="Score" Binding="{Binding ScoreText}" Width="62" /><DataGridTextColumn Header="Row" Binding="{Binding RowText}" Width="68" /><DataGridTextColumn Header="Column" Binding="{Binding ColumnText}" Width="68" /><DataGridTextColumn Header="角度" Binding="{Binding AngleText}" Width="58" /><DataGridTextColumn Header="尺度" Binding="{Binding ScaleText}" Width="58" /></DataGrid.Columns></DataGrid><DataGrid x:Name="DockRoiResultsDataGrid" Height="145" Margin="0,10,0,0" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"><DataGrid.Columns><DataGridTextColumn Header="ROI" Binding="{Binding RoiName}" Width="90" /><DataGridTextColumn Header="判定" Binding="{Binding ResultCode}" Width="55" /><DataGridTextColumn Header="数值" Binding="{Binding ValueText}" Width="100" /><DataGridTextColumn Header="说明" Binding="{Binding DisplayMessage}" Width="*" /></DataGrid.Columns></DataGrid></StackPanel></ScrollViewer>
                             </TabItem>
                             <TabItem x:Name="DockHelpTaskTab" Header="帮助"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="14"><TextBlock x:Name="DockHelpText" Text="选择模块后显示帮助。" TextWrapping="Wrap" /><TextBlock Text="草稿未应用前不会改变当前实例；试运行临时使用草稿，完成后恢复已应用参数。" Foreground="#0F766E" TextWrapping="Wrap" Margin="0,12,0,0" /></StackPanel></ScrollViewer></TabItem>
                         </TabControl>
@@ -3311,6 +3599,285 @@
                 </Grid>
             </Border>
         </Grid>
+
+        <Border x:Name="GlobalVariableWorkspace" Grid.Row="1" Margin="8" Visibility="Collapsed" Background="#F8FAFC" BorderBrush="#0F766E" BorderThickness="1" CornerRadius="5" Panel.ZIndex="90">
+            <Grid>
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <Border Background="#E7F4F2" BorderBrush="#99CFC7" BorderThickness="0,0,0,1" Padding="14,10">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="关闭" MinWidth="64" Click="CloseGlobalVariablesButton_Click" />
+                        <StackPanel>
+                            <TextBlock Text="全局变量" FontSize="18" FontWeight="SemiBold" Foreground="#0F3D38" />
+                            <TextBlock Text="当前方案 · 单流程 · 强类型；只在需要时占用工作区" Foreground="#47736D" FontSize="11" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+                <Grid Grid.Row="1" Margin="12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="330" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <Border Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Padding="10">
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="112" /></Grid.ColumnDefinitions>
+                                <TextBox x:Name="GlobalVariableSearchTextBox" ToolTip="按名称筛选" TextChanged="GlobalVariableFilter_Changed" />
+                                <ComboBox x:Name="GlobalVariableTypeFilterComboBox" Grid.Column="1" Margin="6,0,0,0" SelectedValuePath="Tag" SelectionChanged="GlobalVariableFilter_Changed">
+                                    <ComboBoxItem Content="全部类型" Tag="All" IsSelected="True" />
+                                    <ComboBoxItem Content="数值" Tag="Number" />
+                                    <ComboBoxItem Content="字符串" Tag="String" />
+                                    <ComboBoxItem Content="布尔值" Tag="Boolean" />
+                                    <ComboBoxItem Content="结果码" Tag="ResultCode" />
+                                </ComboBox>
+                            </Grid>
+                            <ListBox x:Name="GlobalVariableListBox" Grid.Row="1" Margin="0,9,0,8" BorderThickness="0" HorizontalContentAlignment="Stretch" SelectionChanged="GlobalVariableListBox_SelectionChanged">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="7,6">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="78" /></Grid.ColumnDefinitions>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#0F172A" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding CurrentValueText}" Foreground="#0F766E" FontFamily="Consolas" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                                                    <TextBlock Text="{Binding TypeDisplayText}" Foreground="#64748B" HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{Binding SubscriptionSummary}" Foreground="#94A3B8" FontSize="10" HorizontalAlignment="Right" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <Button Grid.Row="2" Content="＋ 新建变量" HorizontalAlignment="Left" Foreground="#0F766E" FontWeight="SemiBold" Click="NewGlobalVariableButton_Click" />
+                        </Grid>
+                    </Border>
+                    <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Padding="16">
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                            <DockPanel>
+                                <TextBlock x:Name="GlobalVariableEditorTitleText" Text="选择变量查看详情" FontSize="16" FontWeight="SemiBold" Foreground="#0F172A" />
+                                <TextBlock x:Name="GlobalVariableIdText" DockPanel.Dock="Right" Foreground="#94A3B8" FontFamily="Consolas" FontSize="10" />
+                            </DockPanel>
+                            <Grid Grid.Row="1" Margin="0,14,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /><ColumnDefinition Width="92" /><ColumnDefinition Width="180" /></Grid.ColumnDefinitions>
+                                <TextBlock Text="名称" VerticalAlignment="Center" /><TextBox x:Name="GlobalVariableNameTextBox" Grid.Column="1" />
+                                <TextBlock Grid.Column="2" Text="数据类型" Margin="12,0,0,0" VerticalAlignment="Center" />
+                                <ComboBox x:Name="GlobalVariableValueTypeComboBox" Grid.Column="3" DisplayMemberPath="DisplayText" SelectedValuePath="Key" />
+                            </Grid>
+                            <Grid Grid.Row="2" Margin="0,9,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <TextBlock Text="默认值" VerticalAlignment="Center" /><TextBox x:Name="GlobalVariableDefaultValueTextBox" Grid.Column="1" FontFamily="Consolas" />
+                            </Grid>
+                            <Grid Grid.Row="3" Margin="0,9,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <TextBlock Text="当前值" VerticalAlignment="Center" /><TextBox x:Name="GlobalVariableCurrentValueTextBox" Grid.Column="1" FontFamily="Consolas" />
+                            </Grid>
+                            <Border Grid.Row="4" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="流程订阅" FontWeight="SemiBold" Foreground="#334155" />
+                                    <TextBlock x:Name="GlobalVariableSubscriptionText" Text="读取 0 · 写入 0" Foreground="#475569" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                    <TextBlock Text="变量类型变更与删除在存在订阅时受保护；读写工具通过稳定 VariableId 绑定。" Foreground="#64748B" FontSize="10" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Grid.Row="5" x:Name="GlobalVariableValidationText" Foreground="#B91C1C" TextWrapping="Wrap" Margin="2,12,2,0" />
+                        </Grid>
+                    </Border>
+                </Grid>
+                <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="0,1,0,0" Padding="12,8">
+                    <DockPanel>
+                        <TextBlock x:Name="GlobalVariableWorkspaceStatusText" Text="0 个变量" VerticalAlignment="Center" Foreground="#64748B" />
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Content="恢复当前为默认" Click="ResetGlobalVariableButton_Click" />
+                            <Button Content="删除" Foreground="#B91C1C" Click="DeleteGlobalVariableButton_Click" />
+                            <Button Content="应用" Foreground="#0F766E" FontWeight="SemiBold" Click="ApplyGlobalVariableButton_Click" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <Border x:Name="ExternalResourceWorkspace" Grid.Row="1" Margin="8" Visibility="Collapsed" Background="#F8FAFC" BorderBrush="#2563EB" BorderThickness="1" CornerRadius="5" Panel.ZIndex="91">
+            <Grid>
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <Border Background="#EAF2FF" BorderBrush="#BFDBFE" BorderThickness="0,0,0,1" Padding="14,10">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="关闭" MinWidth="64" Click="CloseExternalResourcesButton_Click" />
+                        <StackPanel>
+                            <TextBlock Text="外部资源" FontSize="18" FontWeight="SemiBold" Foreground="#173B71" />
+                            <TextBlock Text="当前方案 · 受管 DLL 副本 · 版本与哈希可追踪；只在需要时占用工作区" Foreground="#526D92" FontSize="11" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+                <Grid Grid.Row="1" Margin="12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="350" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <Border Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Padding="10">
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="116" /></Grid.ColumnDefinitions>
+                                <TextBox x:Name="ExternalResourceSearchTextBox" ToolTip="按名称、版本、类型或路径筛选" TextChanged="ExternalResourceFilter_Changed" />
+                                <ComboBox x:Name="ExternalResourceHealthFilterComboBox" Grid.Column="1" Margin="6,0,0,0" SelectedValuePath="Tag" SelectionChanged="ExternalResourceFilter_Changed">
+                                    <ComboBoxItem Content="全部状态" Tag="All" IsSelected="True" />
+                                    <ComboBoxItem Content="可运行" Tag="Runnable" />
+                                    <ComboBoxItem Content="需处理" Tag="Attention" />
+                                </ComboBox>
+                            </Grid>
+                            <ListBox x:Name="ExternalResourceListBox" Grid.Row="1" Margin="0,9,0,8" BorderThickness="0" HorizontalContentAlignment="Stretch" SelectionChanged="ExternalResourceListBox_SelectionChanged">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="7,6">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="96" /></Grid.ColumnDefinitions>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#0F172A" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding ResourceTypeDisplayText}" Foreground="#64748B" FontSize="10" />
+                                                    <TextBlock Text="{Binding ShortSha256}" Foreground="#2563EB" FontFamily="Consolas" FontSize="10" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                                                    <TextBlock Text="{Binding VersionDisplayText}" Foreground="#334155" HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{Binding HealthDisplayText}" Foreground="#0F766E" FontSize="10" HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{Binding ReferenceSummary}" Foreground="#94A3B8" FontSize="10" HorizontalAlignment="Right" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <Button Grid.Row="2" Content="＋ 导入 DLL" HorizontalAlignment="Left" Foreground="#1D4ED8" FontWeight="SemiBold" Click="ImportExternalResourceButton_Click" />
+                        </Grid>
+                    </Border>
+                    <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Padding="16">
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                            <DockPanel>
+                                <TextBlock x:Name="ExternalResourceEditorTitleText" Text="导入或选择资源" FontSize="16" FontWeight="SemiBold" Foreground="#0F172A" />
+                                <TextBlock x:Name="ExternalResourceIdText" DockPanel.Dock="Right" Foreground="#94A3B8" FontFamily="Consolas" FontSize="10" />
+                            </DockPanel>
+                            <Grid Grid.Row="1" Margin="0,14,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="104" /><ColumnDefinition Width="*" /><ColumnDefinition Width="82" /><ColumnDefinition Width="160" /></Grid.ColumnDefinitions>
+                                <TextBlock Text="资源名称" VerticalAlignment="Center" /><TextBox x:Name="ExternalResourceNameTextBox" Grid.Column="1" />
+                                <TextBlock Grid.Column="2" Text="健康状态" Margin="12,0,0,0" VerticalAlignment="Center" /><TextBlock x:Name="ExternalResourceHealthText" Grid.Column="3" Text="待导入" Foreground="#0F766E" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            </Grid>
+                            <Grid Grid.Row="2" Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="104" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="类型全名" VerticalAlignment="Center" /><TextBox x:Name="ExternalResourceTypeNameTextBox" Grid.Column="1" Text="UserScripts.ScriptEntry" /></Grid>
+                            <Grid Grid.Row="3" Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="104" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="静态方法" VerticalAlignment="Center" /><TextBox x:Name="ExternalResourceMethodNameTextBox" Grid.Column="1" Text="Execute" /></Grid>
+                            <Grid Grid.Row="4" Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="104" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="原始来源" VerticalAlignment="Top" /><TextBlock x:Name="ExternalResourceSourcePathText" Grid.Column="1" Text="导入时选择 DLL" Foreground="#475569" TextWrapping="Wrap" /></Grid>
+                            <Grid Grid.Row="5" Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="104" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="受管副本" VerticalAlignment="Top" /><TextBlock x:Name="ExternalResourceManagedPathText" Grid.Column="1" Text="--" Foreground="#475569" TextWrapping="Wrap" /></Grid>
+                            <Border Grid.Row="6" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,12,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="104" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <TextBlock Text="版本 / SHA" FontWeight="SemiBold" Foreground="#334155" /><TextBlock x:Name="ExternalResourceVersionHashText" Grid.Column="1" Text="--" Foreground="#1D4ED8" FontFamily="Consolas" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="1" Text="流程引用" Margin="0,5,0,0" FontWeight="SemiBold" Foreground="#334155" /><TextBlock x:Name="ExternalResourceReferenceText" Grid.Row="1" Grid.Column="1" Text="引用 0" Margin="0,5,0,0" Foreground="#475569" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="2" Text="诊断" Margin="0,5,0,0" FontWeight="SemiBold" Foreground="#334155" /><TextBlock x:Name="ExternalResourceDiagnosticsText" Grid.Row="2" Grid.Column="1" Text="导入后显示签名与完整性状态。" Margin="0,5,0,0" Foreground="#64748B" TextWrapping="Wrap" />
+                                </Grid>
+                            </Border>
+                            <TextBlock Grid.Row="7" x:Name="ExternalResourceValidationText" Foreground="#B91C1C" TextWrapping="Wrap" Margin="2,12,2,0" />
+                        </Grid>
+                    </Border>
+                </Grid>
+                <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="0,1,0,0" Padding="12,8">
+                    <DockPanel>
+                        <TextBlock x:Name="ExternalResourceWorkspaceStatusText" Text="0 个资源" VerticalAlignment="Center" Foreground="#64748B" />
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Content="刷新来源" Click="RefreshExternalResourceButton_Click" />
+                            <Button Content="替换来源…" Click="ReplaceExternalResourceButton_Click" />
+                            <Button Content="删除" Foreground="#B91C1C" Click="DeleteExternalResourceButton_Click" />
+                            <Button Content="应用入口" Foreground="#1D4ED8" FontWeight="SemiBold" Click="ApplyExternalResourceButton_Click" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <Border x:Name="ScriptInterfaceWorkspace" Grid.Row="1" Margin="8" Visibility="Collapsed" Background="#F8FAFC" BorderBrush="#7C3AED" BorderThickness="1" CornerRadius="5" Panel.ZIndex="92">
+            <Grid>
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <Border Background="#F5F3FF" BorderBrush="#DDD6FE" BorderThickness="0,0,0,1" Padding="14,10">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="关闭" MinWidth="64" Click="CloseScriptInterfaceButton_Click" />
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="脚本接口设计器" FontSize="18" FontWeight="SemiBold" Foreground="#3B1B66" />
+                                <Border Background="#EDE9FE" CornerRadius="8" Padding="7,2" Margin="10,1,0,0"><TextBlock x:Name="ScriptInterfaceToolNameText" Text="未选择脚本" Foreground="#6D28D9" FontWeight="SemiBold" /></Border>
+                            </StackPanel>
+                            <TextBlock Text="当前脚本实例 · 类型化标量接口 · 稳定成员 ID；仅在需要时占用工作区" Foreground="#6D5A90" FontSize="11" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+                <Grid Grid.Row="1" Margin="12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="330" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <Border Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Padding="10">
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <DockPanel>
+                                <TextBlock Text="接口成员" FontSize="15" FontWeight="SemiBold" Foreground="#0F172A" />
+                                <TextBlock x:Name="ScriptInterfaceCountText" DockPanel.Dock="Right" Text="输入 0 · 参数 0 · 输出 0" Foreground="#64748B" FontSize="11" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <WrapPanel Grid.Row="1" Margin="0,9,0,7">
+                                <Button Content="＋ 输入" Foreground="#0369A1" Click="AddScriptInputButton_Click" />
+                                <Button Content="＋ 参数" Foreground="#B45309" Click="AddScriptParameterButton_Click" />
+                                <Button Content="＋ 输出" Foreground="#15803D" Click="AddScriptOutputButton_Click" />
+                            </WrapPanel>
+                            <ListBox x:Name="ScriptInterfaceMemberListBox" Grid.Row="2" BorderThickness="0" SelectionChanged="ScriptInterfaceMemberListBox_SelectionChanged">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="7,6">
+                                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                <StackPanel><TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#1E293B" /><TextBlock Text="{Binding SummaryText}" Foreground="#64748B" FontSize="11" /></StackPanel>
+                                                <TextBlock Grid.Column="1" Text="{Binding MemberId}" Foreground="#B8B3C7" FontFamily="Consolas" FontSize="9" MaxWidth="72" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
+                                <Button Content="创建副本" Click="DuplicateScriptMemberButton_Click" />
+                                <Button Content="删除" Foreground="#B91C1C" Click="DeleteScriptMemberButton_Click" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Padding="16">
+                        <Grid>
+                            <TextBlock x:Name="ScriptInterfaceEmptyText" Text="从左侧选择成员，或添加一个输入、参数、输出。" Foreground="#64748B" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Grid x:Name="ScriptInterfaceEditorPanel">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                <DockPanel>
+                                    <TextBlock Text="成员设置" FontSize="16" FontWeight="SemiBold" Foreground="#0F172A" />
+                                    <TextBlock x:Name="ScriptInterfaceMemberIdText" DockPanel.Dock="Right" Foreground="#94A3B8" FontFamily="Consolas" FontSize="10" />
+                                </DockPanel>
+                                <Grid Grid.Row="1" Margin="0,14,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="92" /><ColumnDefinition Width="*" /><ColumnDefinition Width="80" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="方向" VerticalAlignment="Center" /><ComboBox x:Name="ScriptInterfaceDirectionComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" />
+                                    <TextBlock Grid.Column="2" Text="类型" Margin="12,0,0,0" VerticalAlignment="Center" /><ComboBox x:Name="ScriptInterfaceTypeComboBox" Grid.Column="3" DisplayMemberPath="DisplayText" SelectedValuePath="Key" />
+                                </Grid>
+                                <Grid Grid.Row="2" Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="92" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="名称" VerticalAlignment="Center" /><TextBox x:Name="ScriptInterfaceNameTextBox" Grid.Column="1" /></Grid>
+                                <Grid x:Name="ScriptInterfaceDefaultRow" Grid.Row="3" Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="92" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="默认值" VerticalAlignment="Center" /><TextBox x:Name="ScriptInterfaceDefaultTextBox" Grid.Column="1" /></Grid>
+                                <Grid Grid.Row="4" Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="92" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="约束" VerticalAlignment="Center" /><CheckBox x:Name="ScriptInterfaceRequiredCheckBox" Grid.Column="1" Content="必需；缺失时立即停止当前工具并清除旧输出" VerticalAlignment="Center" /></Grid>
+                                <Grid Grid.Row="5" Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="92" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="说明" VerticalAlignment="Top" /><TextBox x:Name="ScriptInterfaceDescriptionTextBox" Grid.Column="1" Height="54" AcceptsReturn="True" TextWrapping="Wrap" /></Grid>
+                                <Border Grid.Row="6" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,12,0,0">
+                                    <Grid><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                        <DockPanel><TextBlock Text="代码访问" FontWeight="SemiBold" Foreground="#334155" /><Button DockPanel.Dock="Right" Content="复制代码" Padding="7,2" Click="CopyScriptSnippetButton_Click" /></DockPanel>
+                                        <TextBox x:Name="ScriptInterfaceSnippetTextBox" Grid.Row="1" Margin="0,7,0,0" IsReadOnly="True" FontFamily="Consolas" Background="#FFFFFF" BorderBrush="#CBD5E1" />
+                                        <TextBlock x:Name="ScriptInterfacePortText" Grid.Row="2" Margin="0,6,0,0" Foreground="#64748B" FontFamily="Consolas" FontSize="10" />
+                                    </Grid>
+                                </Border>
+                                <StackPanel Grid.Row="7" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,12,0,0"><Button Content="应用成员草稿" Foreground="#7C3AED" FontWeight="SemiBold" Click="ApplyScriptMemberButton_Click" /></StackPanel>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Grid>
+                <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="0,1,0,0" Padding="12,8">
+                    <DockPanel LastChildFill="False">
+                        <StackPanel>
+                            <TextBlock x:Name="ScriptInterfaceContractText" Text="固定入口：public static ScriptToolResult Execute(ScriptToolContext input)" Foreground="#475569" FontFamily="Consolas" FontSize="10" />
+                            <TextBlock x:Name="ScriptInterfaceValidationText" Text="接口草稿尚未修改。" Foreground="#64748B" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Content="取消草稿" Click="CancelScriptInterfaceButton_Click" />
+                            <Button Content="应用接口" Foreground="#7C3AED" FontWeight="SemiBold" Click="ApplyScriptInterfaceButton_Click" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Border>
 
         <Grid Grid.Row="2" Background="#E9EEF5">
             <GridSplitter x:Name="BottomPanelSplitter" Height="5" Background="#CBD5E1" HorizontalAlignment="Stretch" VerticalAlignment="Top" Visibility="Collapsed" />

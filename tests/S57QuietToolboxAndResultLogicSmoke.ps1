@@ -1,0 +1,71 @@
+param([string]$ProjectRoot=(Split-Path -Parent $PSScriptRoot))
+$ErrorActionPreference='Stop'
+if([Threading.Thread]::CurrentThread.ApartmentState-ne[Threading.ApartmentState]::STA){throw 'Run with powershell.exe -STA.'}
+$halcon='C:\Program Files\MVTec\HALCON-20.11-Progress';$env:PATH=(Join-Path $halcon 'bin\x64-win64')+';'+$env:PATH
+Add-Type -AssemblyName PresentationFramework
+Add-Type -AssemblyName System.Runtime.Serialization
+if(-not('S57LoopbackServer' -as [type])){Add-Type -TypeDefinition @'
+using System;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading;
+public sealed class S57LoopbackServer : IDisposable {
+  private TcpListener listener; private Thread thread;
+  public int Port { get; private set; } public string ReceivedText { get; private set; }
+  public S57LoopbackServer(){ReceivedText="";listener=new TcpListener(IPAddress.Loopback,0);listener.Start();Port=((IPEndPoint)listener.LocalEndpoint).Port;thread=new Thread(Run);thread.IsBackground=true;thread.Start();}
+  private void Run(){try{using(TcpClient client=listener.AcceptTcpClient()){client.ReceiveTimeout=2000;using(NetworkStream stream=client.GetStream()){byte[] buffer=new byte[4096];int count=stream.Read(buffer,0,buffer.Length);ReceivedText=Encoding.UTF8.GetString(buffer,0,Math.Max(0,count));byte[] reply=Encoding.UTF8.GetBytes("ACK:"+ReceivedText);stream.Write(reply,0,reply.Length);stream.Flush();}}}catch{}finally{try{listener.Stop();}catch{}}}
+  public void Dispose(){try{listener.Stop();}catch{}if(thread!=null&&thread.IsAlive)thread.Join(1000);}
+}
+'@}
+function Assert([bool]$condition,[string]$message){if(-not$condition){throw $message}}
+function Pump([int]$ms){$frame=New-Object Windows.Threading.DispatcherFrame;$timer=New-Object Windows.Threading.DispatcherTimer;$timer.Interval=[TimeSpan]::FromMilliseconds($ms);$timer.Add_Tick({$timer.Stop();$frame.Continue=$false});$timer.Start();[Windows.Threading.Dispatcher]::PushFrame($frame)}
+$assembly=[Reflection.Assembly]::LoadFrom((Join-Path $ProjectRoot 'bin\x64\Debug\HalconWinFormsDemo.exe'))
+$mainType=$assembly.GetType('HalconWinFormsDemo.MainWindow',$true);$serviceType=$assembly.GetType('HalconWinFormsDemo.Services.RecipeService',$true);$loggerType=$assembly.GetType('HalconWinFormsDemo.Services.AppLogger',$true);$kindType=$assembly.GetType('HalconWinFormsDemo.Models.VmToolKind',$true);$metadataType=$assembly.GetType('HalconWinFormsDemo.Models.ToolMetadata',$true);$parametersType=$assembly.GetType('HalconWinFormsDemo.Models.VmToolParameterData',$true)
+$private=[Reflection.BindingFlags]'Instance,NonPublic';$all=[Reflection.BindingFlags]'Instance,NonPublic,Public';$temp=Join-Path([IO.Path]::GetTempPath())('halcon-vm-s57-'+[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($temp)|Out-Null
+$service=$serviceType.GetConstructor([Type[]]@([string])).Invoke([object[]]@($temp.ToString()));$logger=$loggerType.GetConstructor([Type[]]@([string])).Invoke([object[]]@($temp.ToString()));$window=$mainType.GetConstructor($private,$null,[Type[]]@($serviceType,$loggerType),$null).Invoke([object[]]@($service,$logger))
+$app=[Windows.Application]::Current;$ownsApp=$null-eq$app;if($ownsApp){$app=New-Object Windows.Application;$app.ShutdownMode=[Windows.ShutdownMode]::OnExplicitShutdown};$window.ShowInTaskbar=$false;$window.Left=-10000;$window.Show();Pump 120
+function Field([string]$name){$field=$mainType.GetField($name,$all);if($null-eq$field){return $null};$value=$field.GetValue($window);Write-Output -NoEnumerate $value}
+function Kind([string]$name){[Enum]::Parse($kindType,$name)}
+function Tool([string]$kind,[string]$name){$mainType.GetMethod('CreateFlowTool',$private).Invoke($window,[object[]]@((Kind $kind),$name,$true,$null))}
+function Out($tool,[string]$name){$args=[object[]]@($name,$null);Assert($tool.GetType().GetMethod('TryGetOutputValue').Invoke($tool,$args))('Missing output '+$name);$args[1]}
+function Run($tool){$mainType.GetMethod('ExecuteFlowTool',$private).Invoke($window,[object[]]@($tool,'S57 smoke'))}
+function RunFailure($tool){try{Run $tool|Out-Null;throw 'Expected execution failure'}catch{if($_.Exception.InnerException){return $_.Exception.InnerException.Message};return $_.Exception.Message}}
+function LoadDock($tool){$mainType.GetMethod('LoadDockConfigurationDraft',$private).Invoke($window,[object[]]@($tool.PSObject.BaseObject))|Out-Null}
+try{
+  Assert($null-eq(Field 'AddToolButton')) 'Permanent add button still exists in the visual tree'
+  $catalog=Field 'toolCatalog';$catalogItem=$catalog|Where-Object{$_.Kind.ToString()-eq'ResultLogicAggregation'}|Select-Object -First 1;Assert($null-ne$catalogItem) 'Result Logic tool is missing from the catalog'
+  $modeField=$mainType.GetField('toolCatalogMode',$private);$modeField.SetValue($window,'All');$mainType.GetMethod('RefreshToolCatalogView',$private).Invoke($window,@())|Out-Null;$list=Field 'ToolCatalogList';$list.SelectedItem=$catalogItem
+  $before=(Field 'flowTools').Count;$inputSource=[Windows.PresentationSource]::FromVisual($window);$keyArgs=[Windows.Input.KeyEventArgs]::new([Windows.Input.Keyboard]::PrimaryDevice,$inputSource,[Environment]::TickCount,[Windows.Input.Key]::Enter);$keyArgs.RoutedEvent=[Windows.Input.Keyboard]::PreviewKeyDownEvent;$mainType.GetMethod('ToolCatalogList_PreviewKeyDown',$private).Invoke($window,[object[]]@($list,$keyArgs))|Out-Null;Assert((Field 'flowTools').Count-eq($before+1)) 'Enter did not append the selected tool'
+  $mainType.GetMethod('ToolCatalogList_MouseDoubleClick',$private).Invoke($window,[object[]]@($list,$null))|Out-Null;Assert((Field 'flowTools').Count-eq($before+2)) 'Double-click path did not append the selected tool'
+  $mainType.GetMethod('AddToolButton_Click',$private).Invoke($window,[object[]]@($null,$null))|Out-Null;Assert((Field 'flowTools').Count-eq($before+3)) 'Context append command did not append the selected tool'
+  $mainType.GetMethod('ToolCatalogToggleFavoriteMenuItem_Click',$private).Invoke($window,[object[]]@($null,$null))|Out-Null;Assert($catalogItem.IsFavorite) 'Context favorite command failed'
+
+  $flow=Field 'flowTools';$source=Tool ImageSource 'Logic Inputs';$judgeA=Tool NumericJudge 'Judge A';$judgeB=Tool NumericJudge 'Judge B';$logic=Tool ResultLogicAggregation 'Result Logic';$text=Tool TextAssembly 'Result Text';$tcp=Tool TcpClientExchange 'Result TCP';$countJudge=Tool NumericJudge 'Passed Count Judge';foreach($tool in @($source,$judgeA,$judgeB,$logic,$text,$tcp,$countJudge)){$flow.Add($tool)}
+  $source.SetOutputValue('Width',[double]5);$source.SetOutputValue('Height',[double]8);$source.SetOutputValue('SN',' ok ');$source.SetOutputValue('Path','BAD');$source.SetOutputValue('ResultCode','OK');$source.ResultCode='OK'
+  $judgeA.SetInputBinding('Value',$source.ToolId,'Width');$judgeA.InputToolId=$source.ToolId;$judgeA.InputPortName='Width';$judgeA.NumericLowerLimit=4;$judgeA.NumericUpperLimit=6
+  $judgeB.SetInputBinding('Value',$source.ToolId,'Height');$judgeB.InputToolId=$source.ToolId;$judgeB.InputPortName='Height';$judgeB.NumericLowerLimit=7;$judgeB.NumericUpperLimit=9
+  Assert((Run $judgeA).ResultCode-eq'OK'-and(Run $judgeB).ResultCode-eq'OK') 'Two real upstream result tools did not run'
+  $logic.SetInputBinding('ResultCodeA',$judgeA.ToolId,'ResultCode');$logic.SetInputBinding('ResultCodeB',$judgeB.ToolId,'ResultCode')
+  $inputs=$metadataType.GetMethod('GetInputPorts',[Reflection.BindingFlags]'Static,Public').Invoke($null,[object[]]@((Kind ResultLogicAggregation)));$outputs=$metadataType.GetMethod('GetOutputPorts',[Reflection.BindingFlags]'Static,Public').Invoke($null,[object[]]@((Kind ResultLogicAggregation)));Assert($inputs.Count-eq2-and-not$inputs[0].IsOptional-and$inputs[1].IsOptional) 'Result Logic input contract failed';Assert(($outputs|Where-Object{$_.PortName-eq'ResultCode'}).DataType-eq'String'-and($outputs|Where-Object{$_.PortName-eq'PassedCount'}).DataType-eq'Number') 'Result Logic output contract failed'
+  $logic.Parameters.ResultLogicOperation='AllOk';Assert((Run $logic).ResultCode-eq'OK'-and(Out $logic IsOk)-eq$true-and[int](Out $logic PassedCount)-eq2) 'All OK mode failed for OK/OK'
+  $source.SetOutputValue('Height',[double]20);Assert((Run $judgeB).ResultCode-eq'NG') 'NG upstream setup failed';Assert((Run $logic).ResultCode-eq'NG'-and[int](Out $logic PassedCount)-eq1) 'All OK mode failed for OK/NG'
+  $logic.Parameters.ResultLogicOperation='AnyOk';Assert((Run $logic).ResultCode-eq'OK'-and[int](Out $logic InputCount)-eq2) 'Any OK mode failed for OK/NG'
+  $source.SetOutputValue('Width',[double]20);Run $judgeA|Out-Null;Assert((Run $logic).ResultCode-eq'NG'-and[int](Out $logic PassedCount)-eq0) 'Any OK mode failed for NG/NG'
+  $logic.Parameters.ResultLogicOperation='Not';Assert((Run $logic).ResultCode-eq'OK'-and[int](Out $logic InputCount)-eq1) 'NOT mode failed for NG';$logic.Parameters.ResultLogicOperation='PassThrough';Assert((Run $logic).ResultCode-eq'NG') 'Pass-through mode failed for NG'
+
+  $logic.SetInputBinding('ResultCodeA',$source.ToolId,'SN');$logic.Parameters.ResultLogicOperation='PassThrough';$logic.Parameters.ResultLogicTrimInput=$true;$logic.Parameters.ResultLogicCaseSensitive=$false;Assert((Run $logic).ResultCode-eq'OK') 'Trim/case-insensitive policy failed'
+  $logic.Parameters.ResultLogicCaseSensitive=$true;$caseError=RunFailure $logic;Assert($caseError.Length-gt0) 'Case-sensitive invalid token was not rejected';$logic.Parameters.ResultLogicCaseSensitive=$false;$source.SetOutputValue('SN','');$emptyError=RunFailure $logic;Assert($emptyError.Length-gt0) 'Empty token was not rejected';$logic.SetInputBinding('ResultCodeA',$source.ToolId,'Path');$invalidError=RunFailure $logic;Assert($invalidError.Length-gt0) 'Invalid token was not rejected'
+  $logic.SetInputBinding('ResultCodeA',$judgeA.ToolId,'ResultCode');$logic.RemoveInputBinding('ResultCodeB');$logic.Parameters.ResultLogicOperation='AllOk';$missingError=RunFailure $logic;Assert($missingError-match'ResultCodeB') 'Missing B was not rejected';$logic.SetInputBinding('ResultCodeB',$judgeB.ToolId,'ResultCode');$logic.Parameters.ResultLogicOperation='AnyOk';$source.SetOutputValue('Width',[double]5);Run $judgeA|Out-Null;Assert((Run $logic).ResultCode-eq'OK') 'Final real aggregate run failed'
+
+  $text.SetInputBinding('ResultCode',$logic.ToolId,'ResultCode');$text.Parameters.TextAssemblyTemplate='RESULT={ResultCode}';Assert((Run $text).ResultCode-eq'OK'-and(Out $text Text)-eq'RESULT=OK') 'ResultCode did not drive Text Assembly'
+  $tcp.SetInputBinding('ResultCode',$logic.ToolId,'ResultCode');$tcp.Parameters.TcpClientHost='127.0.0.1';$tcp.Parameters.TcpClientLineEnding='None';$tcp.Parameters.TcpClientSendTemplate='RESULT={ResultCode}';$server=[S57LoopbackServer]::new();try{$tcp.Parameters.TcpClientPort=$server.Port;Assert((Run $tcp).ResultCode-eq'OK'-and(Out $tcp ReceivedText)-eq'ACK:RESULT=OK') 'ResultCode did not drive real TCP exchange'}finally{$server.Dispose()}
+  $countJudge.SetInputBinding('Value',$logic.ToolId,'PassedCount');$countJudge.InputToolId=$logic.ToolId;$countJudge.InputPortName='PassedCount';$countJudge.NumericLowerLimit=1;$countJudge.NumericUpperLimit=1;Assert((Run $countJudge).ResultCode-eq'OK') 'PassedCount did not drive Numeric Judge'
+
+  $serializer=[Runtime.Serialization.Json.DataContractJsonSerializer]::new($parametersType);$bytes=[Text.Encoding]::UTF8.GetBytes('{}');$stream=New-Object IO.MemoryStream(,$bytes);try{$old=$serializer.ReadObject($stream)}finally{$stream.Dispose()};$old.Normalize();Assert($old.ResultLogicOperation-eq'AllOk'-and-not$old.ResultLogicCaseSensitive-and$old.ResultLogicTrimInput) 'Old recipe Result Logic defaults failed'
+  LoadDock $logic;Assert((Field 'DockResultLogicAggregationPanel').Visibility.ToString()-eq'Visible') 'Result Logic dock panel is missing';$advanced=Field 'dockAdvancedParameterRows';Assert($advanced.Count-eq2-and($advanced|Where-Object{$_.Row.Height.Value-ne0}).Count-eq0) 'Result Logic advanced policies are not collapsed'
+  (Field 'DockResultLogicOperationComboBox').SelectedValue='PassThrough';(Field 'DockResultLogicCaseSensitiveCheckBox').IsChecked=$true;(Field 'DockResultLogicTrimInputCheckBox').IsChecked=$false;$oldOperation=$logic.Parameters.ResultLogicOperation;$apply=$mainType.GetMethod('ApplyDockConfigurationDraft',$private);Assert([bool]$apply.Invoke($window,[object[]]@($true))) 'Result Logic dock Apply failed';Assert($logic.Parameters.ResultLogicOperation-eq'PassThrough'-and$logic.Parameters.ResultLogicCaseSensitive-and-not$logic.Parameters.ResultLogicTrimInput) 'Result Logic draft was not stored'
+  $mainType.GetMethod('UndoFlowEditButton_Click',$private).Invoke($window,[object[]]@($null,$null))|Out-Null;$restored=$flow|Where-Object{$_.ToolId-eq$logic.ToolId}|Select-Object -First 1;Assert($restored.Parameters.ResultLogicOperation-eq$oldOperation) 'Result Logic undo failed';$mainType.GetMethod('RedoFlowEditButton_Click',$private).Invoke($window,[object[]]@($null,$null))|Out-Null;$restored=$flow|Where-Object{$_.ToolId-eq$logic.ToolId}|Select-Object -First 1;Assert($restored.Parameters.ResultLogicOperation-eq'PassThrough') 'Result Logic redo failed'
+  LoadDock $restored;$flowList=Field 'FlowToolList';$flowList.SelectedItems.Clear();$flowList.SelectedItem=$restored;$copyBefore=$flow.Count;$mainType.GetMethod('DuplicateFlowToolButton_Click',$private).Invoke($window,[object[]]@($null,$null))|Out-Null;$copy=$flow|Where-Object{$_.Kind.ToString()-eq'ResultLogicAggregation'-and$_.ToolId-ne$restored.ToolId}|Select-Object -Last 1;Assert($flow.Count-eq($copyBefore+1)-and$copy.Parameters.ResultLogicOperation-eq'PassThrough') 'Result Logic copy failed';$recipe=$mainType.GetMethod('CaptureRecipe',$private).Invoke($window,@());$saved=$recipe.ToolFlow|Where-Object{$_.ToolId-eq$restored.ToolId}|Select-Object -First 1;Assert($saved.Parameters.ResultLogicOperation-eq'PassThrough'-and$saved.Parameters.ResultLogicCaseSensitive) 'Result Logic recipe persistence failed'
+  Write-Output 'S57 quiet toolbox and Result Logic operations/downstream/recipe lifecycle passed; BSB not implemented by user directive.'
+}finally{$mainType.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();if($ownsApp){$app.Shutdown()};if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}}

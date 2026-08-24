@@ -1,0 +1,72 @@
+﻿param([string]$ProjectRoot=(Split-Path -Parent $PSScriptRoot))
+$ErrorActionPreference='Stop'
+if([Threading.Thread]::CurrentThread.ApartmentState-ne[Threading.ApartmentState]::STA){throw 'Run with powershell.exe -STA.'}
+$halcon='C:\Program Files\MVTec\HALCON-20.11-Progress';$env:PATH=(Join-Path $halcon 'bin\x64-win64')+';'+$env:PATH
+Add-Type -AssemblyName PresentationFramework;Add-Type -AssemblyName System.Runtime.Serialization;Add-Type -AssemblyName Microsoft.CSharp
+function Assert([bool]$condition,[string]$message){if(-not$condition){throw $message}}
+function Pump([int]$ms){$frame=New-Object Windows.Threading.DispatcherFrame;$timer=New-Object Windows.Threading.DispatcherTimer;$timer.Interval=[TimeSpan]::FromMilliseconds($ms);$timer.Add_Tick({$timer.Stop();$frame.Continue=$false});$timer.Start();[Windows.Threading.Dispatcher]::PushFrame($frame)}
+$exe=Join-Path $ProjectRoot 'bin\x64\Debug\HalconWinFormsDemo.exe';$assembly=[Reflection.Assembly]::LoadFrom($exe)
+$mainType=$assembly.GetType('HalconWinFormsDemo.MainWindow',$true);$recipeServiceType=$assembly.GetType('HalconWinFormsDemo.Services.RecipeService',$true);$loggerType=$assembly.GetType('HalconWinFormsDemo.Services.AppLogger',$true);$kindType=$assembly.GetType('HalconWinFormsDemo.Models.VmToolKind',$true);$recipeType=$assembly.GetType('HalconWinFormsDemo.Models.VisionRecipe',$true);$parametersType=$assembly.GetType('HalconWinFormsDemo.Models.VmToolParameterData',$true)
+$private=[Reflection.BindingFlags]'Instance,NonPublic';$all=[Reflection.BindingFlags]'Instance,NonPublic,Public';$temp=Join-Path([IO.Path]::GetTempPath())('halcon-vm-s60-'+[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($temp)|Out-Null
+$recipeService=$recipeServiceType.GetConstructor([Type[]]@([string])).Invoke([object[]]@($temp.ToString()));$logger=$loggerType.GetConstructor([Type[]]@([string])).Invoke([object[]]@($temp.ToString()));$window=$mainType.GetConstructor($private,$null,[Type[]]@($recipeServiceType,$loggerType),$null).Invoke([object[]]@($recipeService,$logger))
+$app=[Windows.Application]::Current;$ownsApp=$null-eq$app;if($ownsApp){$app=New-Object Windows.Application;$app.ShutdownMode=[Windows.ShutdownMode]::OnExplicitShutdown};$window.ShowInTaskbar=$false;$window.Left=-10000;$window.Show();Pump 180
+function F([string]$name){$field=$mainType.GetField($name,$all);if($null-eq$field){return $null};$value=$field.GetValue($window);Write-Output -NoEnumerate $value}
+function M([string]$name,[object[]]$parameters=@()){try{$mainType.GetMethod($name,$private).Invoke($window,$parameters)}catch{throw ($name+': '+$_.Exception.Message)}}
+function Kind([string]$name){[Enum]::Parse($kindType,$name)}
+function Tool([string]$kind,[string]$name){M 'CreateFlowTool' ([object[]]@((Kind $kind),$name,$true,$null))}
+function Out($tool,[string]$name){$args=[object[]]@($name,$null);Assert($tool.GetType().GetMethod('TryGetOutputValue').Invoke($tool,$args))('Missing output '+$name);$args[1]}
+function Run($tool){M 'ExecuteFlowTool' ([object[]]@($tool,'S60 smoke'))}
+function RunFailure($tool){try{Run $tool|Out-Null;throw 'Expected execution failure'}catch{$e=$_.Exception;while($e.InnerException){$e=$e.InnerException};return $e.Message}}
+function CompileFixture([string]$source,[string]$name){$path=Join-Path $temp $name;$provider=New-Object Microsoft.CSharp.CSharpCodeProvider;$options=New-Object CodeDom.Compiler.CompilerParameters;$options.GenerateExecutable=$false;$options.GenerateInMemory=$false;$options.OutputAssembly=$path;[void]$options.ReferencedAssemblies.Add('System.dll');[void]$options.ReferencedAssemblies.Add($exe);try{$result=$provider.CompileAssemblyFromSource($options,$source);if($result.Errors.HasErrors){throw (($result.Errors|%{$_.ToString()})-join' | ')}}finally{$provider.Dispose()};$path}
+$sourceV1=@'
+using System.Reflection;
+using HalconWinFormsDemo.Models;
+[assembly: AssemblyVersion("1.6.0.0")]
+namespace S60Fixture { public static class Entry { public static ScriptToolResult Execute(ScriptToolContext input) { return ScriptToolResult.Ok(input.ParameterNumber + (input.HasNumberA ? input.NumberA : 0), "MANAGED-V1:" + input.ParameterText); } } }
+'@
+$sourceV2=@'
+using System.Reflection;
+using HalconWinFormsDemo.Models;
+[assembly: AssemblyVersion("2.6.0.0")]
+namespace S60Fixture { public static class Entry { public static ScriptToolResult Execute(ScriptToolContext input) { return ScriptToolResult.Ok(100 + input.ParameterNumber + (input.HasNumberA ? input.NumberA : 0), "MANAGED-V2:" + input.ParameterText); } } }
+'@
+try{
+  Assert((F 'ExternalResourceWorkspace').Visibility.ToString()-eq'Collapsed') 'External resource workspace must not occupy the default first screen'
+  M 'OpenExternalResourcesButton_Click' ([object[]]@($null,$null))|Out-Null;Assert((F 'ExternalResourceWorkspace').Visibility.ToString()-eq'Visible'-and(F 'MainWorkspaceGrid').Visibility.ToString()-eq'Collapsed') 'On-demand resource workspace did not replace main workspace'
+  M 'CloseExternalResourcesButton_Click' ([object[]]@($null,$null))|Out-Null;Assert((F 'ExternalResourceWorkspace').Visibility.ToString()-eq'Collapsed'-and(F 'MainWorkspaceGrid').Visibility.ToString()-eq'Visible') 'Closing resource workspace did not restore main workspace'
+
+  $v1=CompileFixture $sourceV1 'S60Fixture-v1.dll';$v2=CompileFixture $sourceV2 'S60Fixture-v2.dll'
+  (F 'ExternalResourceNameTextBox').Text='Inspection Rules';(F 'ExternalResourceTypeNameTextBox').Text='S60Fixture.Entry';(F 'ExternalResourceMethodNameTextBox').Text='Execute'
+  $resource=M 'ImportExternalResourceFromPath' ([object[]]@([string]$v1,$null));if($null-eq$resource){$debugService=F 'externalResourceService';try{$debugService.Import([string]$v1,'Inspection Rules','S60Fixture.Entry','Execute',$null)|Out-Null}catch{throw $_.Exception.ToString()}};Assert($null-ne$resource) ('Managed DLL import failed: '+(F 'ExternalResourceValidationText').Text);$resources=F 'externalResources';Assert($resources.Count-eq1-and$resource.ResourceId.Length-gt0) 'Stable ResourceId or resource collection failed'
+  Assert((Test-Path -LiteralPath $resource.ManagedPath)-and-not[string]::Equals([IO.Path]::GetFullPath($v1),[IO.Path]::GetFullPath($resource.ManagedPath),[StringComparison]::OrdinalIgnoreCase)) 'Managed copy was not created independently from source'
+  Assert($resource.Sha256.Length-eq64-and$resource.AssemblyVersion-eq'1.6.0.0'-and$resource.HealthState-eq'Healthy') 'Managed version/hash/health metadata failed'
+  Assert($resource.ManagedPath.StartsWith($recipeService.ResourceDirectory,[StringComparison]::OrdinalIgnoreCase)) 'Managed copy escaped the application resource directory'
+
+  $flow=F 'flowTools';M 'DisposeFlowTools'|Out-Null;$flow.Clear();$input=Tool ImageSource 'Managed Input';$script=Tool CSharpDllScript 'Managed Script';$judge=Tool NumericJudge 'Managed Number';$text=Tool TextAssembly 'Managed Text';foreach($tool in @($input,$script,$judge,$text)){$flow.Add($tool)}
+  $input.SetOutputValue('Width',[double]7);$input.ResultCode='OK';$script.SetInputBinding('NumberA',$input.ToolId,'Width');$script.Parameters.ScriptExecutionMode='Dll';$script.Parameters.ScriptResourceId=$resource.ResourceId;$script.Parameters.ScriptAssemblyPath=(Join-Path $temp 'missing-legacy.dll');$script.Parameters.ScriptTypeName='S60Fixture.Entry';$script.Parameters.ScriptMethodName='Execute';$script.Parameters.ScriptParameterNumber=5;$script.Parameters.ScriptParameterText='REAL'
+  Assert((Run $script).ResultCode-eq'OK'-and[double](Out $script Number)-eq12-and(Out $script Text)-eq'MANAGED-V1:REAL') 'Script did not execute the managed copy by ResourceId'
+  Assert((Out $script AssemblyVersion)-eq'1.6.0.0'-and(Out $script AssemblySha256)-eq$resource.Sha256) 'Runtime did not publish managed resource version/hash'
+  $judge.SetInputBinding('Value',$script.ToolId,'Number');$judge.InputToolId=$script.ToolId;$judge.InputPortName='Number';$judge.NumericLowerLimit=12;$judge.NumericUpperLimit=12;Assert((Run $judge).ResultCode-eq'OK') 'Managed DLL Number did not drive NumericJudge'
+  $text.SetInputBinding('String',$script.ToolId,'Text');$text.Parameters.TextAssemblyTemplate='DLL={String}';Assert((Run $text).ResultCode-eq'OK'-and(Out $text Text)-eq'DLL=MANAGED-V1:REAL') 'Managed DLL Text did not drive TextAssembly'
+
+  [IO.File]::Copy($v2,$v1,$true);$resourceService=F 'externalResourceService';$resourceService.Inspect($resource);Assert($resource.HealthState-eq'UpdateAvailable') 'Changed original source was not detected';Assert((Run $script).ResultCode-eq'OK'-and[double](Out $script Number)-eq12-and(Out $script Text)-eq'MANAGED-V1:REAL') 'Changed source silently altered the managed runtime version'
+  (F 'ExternalResourceListBox').SelectedItem=$resource;M 'RefreshExternalResourceButton_Click' ([object[]]@($null,$null))|Out-Null;$resource=$resources|Where-Object{$_.ResourceId-eq$script.Parameters.ScriptResourceId}|Select-Object -First 1;Assert($resource.AssemblyVersion-eq'2.6.0.0'-and$resource.ManagedPath-ne'') 'Refresh did not create the new managed version';Assert((Run $script).ResultCode-eq'OK'-and[double](Out $script Number)-eq112-and(Out $script Text)-eq'MANAGED-V2:REAL') 'Refreshed managed version did not execute'
+
+  $managed=$resource.ManagedPath;$backup=$managed+'.test-backup';[IO.File]::Copy($managed,$backup,$true);[IO.File]::WriteAllText($managed,'tampered');$hashError=RunFailure $script;Assert($hashError-match'哈希|SHA') 'Managed hash drift was not rejected';[IO.File]::Copy($backup,$managed,$true);Remove-Item -LiteralPath $backup -Force;Assert((Run $script).ResultCode-eq'OK') 'Managed DLL did not recover after restoring exact copy'
+  $missing=$managed+'.missing';[IO.File]::Move($managed,$missing);$missingError=RunFailure $script;Assert($missingError-match'不存在|缺失') 'Missing managed copy was not rejected';[IO.File]::Move($missing,$managed);Assert((Run $script).ResultCode-eq'OK') 'Managed DLL did not recover after missing-copy restore'
+
+  $bad=CompileFixture 'using HalconWinFormsDemo.Models; namespace S60Bad { public static class Entry { public static double Execute(ScriptToolContext input) { return 1; } } }' 'S60Bad.dll';$countBefore=$resources.Count;(F 'ExternalResourceNameTextBox').Text='Bad Signature';(F 'ExternalResourceTypeNameTextBox').Text='S60Bad.Entry';(F 'ExternalResourceMethodNameTextBox').Text='Execute';$badResource=M 'ImportExternalResourceFromPath' ([object[]]@([string]$bad,$null));Assert($null-eq$badResource-and$resources.Count-eq$countBefore) 'Invalid signature import was not rejected atomically'
+
+  M 'RefreshExternalResourceReferences'|Out-Null;(F 'ExternalResourceListBox').SelectedItem=$resource;M 'DeleteExternalResourceButton_Click' ([object[]]@($null,$null))|Out-Null;Assert($resources.Contains($resource)-and(F 'ExternalResourceValidationText').Text-match'引用') 'Referenced-resource deletion protection failed'
+  M 'LoadDockConfigurationDraft' ([object[]]@($script))|Out-Null;Assert((F 'DockScriptResourceComboBox').SelectedValue-eq$resource.ResourceId-and-not(F 'DockScriptLegacyPathExpander').IsExpanded) 'Script dock did not prefer the managed resource selector';Assert((F 'DockScriptResourceSummaryText').Text-match'SHA-256') 'Managed resource dock summary is missing';$apply=$mainType.GetMethod('ApplyDockConfigurationDraft',$private);Assert([bool]$apply.Invoke($window,[object[]]@($true))) 'Managed resource dock Apply failed'
+
+  $recipe=M 'CaptureRecipe';Assert($recipe.ExternalResources.Count-eq1-and($recipe.ToolFlow|Where-Object{$_.ToolId-eq$script.ToolId}).Parameters.ScriptResourceId-eq$resource.ResourceId) 'Resource/ScriptResourceId recipe capture failed'
+  $serializer=[Runtime.Serialization.Json.DataContractJsonSerializer]::new($recipeType);$stream=New-Object IO.MemoryStream;try{$serializer.WriteObject($stream,$recipe);$stream.Position=0;$roundtrip=$serializer.ReadObject($stream)}finally{$stream.Dispose()};Assert($roundtrip.ExternalResources.Count-eq1-and$roundtrip.ExternalResources[0].ResourceId-eq$resource.ResourceId) 'External resource JSON roundtrip failed'
+  $oldSerializer=[Runtime.Serialization.Json.DataContractJsonSerializer]::new($recipeType);$bytes=[Text.Encoding]::UTF8.GetBytes('{}');$oldStream=New-Object IO.MemoryStream(,$bytes);try{$old=$oldSerializer.ReadObject($oldStream)}finally{$oldStream.Dispose()};M 'LoadExternalResourcesFromRecipe' ([object[]]@($old))|Out-Null;Assert($resources.Count-eq0) 'Old recipe without ExternalResources did not load as an empty collection';M 'LoadExternalResourcesFromRecipe' ([object[]]@($recipe))|Out-Null;$resource=$resources[0]
+
+  $scriptNow=$flow|Where-Object{$_.ToolId-eq$script.ToolId}|Select-Object -First 1;$scriptNow.Parameters.ScriptResourceId='';M 'RefreshExternalResourceReferences'|Out-Null;(F 'ExternalResourceListBox').SelectedItem=$resource;$beforeDelete=$resources.Count;M 'DeleteExternalResourceButton_Click' ([object[]]@($null,$null))|Out-Null;Assert($resources.Count-eq($beforeDelete-1)) 'Unreferenced resource delete failed';M 'UndoFlowEditButton_Click' ([object[]]@($null,$null))|Out-Null;Assert($resources.Count-eq$beforeDelete) 'Resource delete undo failed';M 'RedoFlowEditButton_Click' ([object[]]@($null,$null))|Out-Null;Assert($resources.Count-eq($beforeDelete-1)) 'Resource delete redo failed';M 'UndoFlowEditButton_Click' ([object[]]@($null,$null))|Out-Null;Assert($resources.Count-eq$beforeDelete) 'Resource restore for final state failed'
+
+  $restoredScript=$null;foreach($candidate in $flow){if($candidate.Kind.ToString()-eq'CSharpDllScript'){$restoredScript=$candidate;break}};$restoredScript.Parameters.ScriptExecutionMode='Dll';$restoredScript.Parameters.ScriptResourceId='missing-resource-id';$restoredScript.Parameters.ScriptAssemblyPath='';$missingResourceError=RunFailure $restoredScript;Assert($missingResourceError-match'不存在') ('Missing ResourceId target was not rejected: '+$missingResourceError)
+  $empty=[Activator]::CreateInstance($parametersType);$empty.Normalize();Assert([string]::IsNullOrEmpty($empty.ScriptResourceId)) 'Old parameter model did not default ScriptResourceId safely'
+  Write-Output 'S60 on-demand resource workbench + stable ResourceId/versioned managed DLL/import-refresh-replace/hash-missing/signature/delete-protection/recipe/undo/downstream passed; trusted local .NET DLL only; BSB not implemented by user directive.'
+}finally{$mainType.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();if($ownsApp){$app.Shutdown()};if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}}

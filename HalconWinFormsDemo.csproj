@@ -42,6 +42,7 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Xaml" />
     <Reference Include="System.Windows.Forms" />
@@ -70,6 +71,27 @@
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="MainWindow.S59.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S60.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S61.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S62.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S63.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S64.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S65.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="TemplateCreateWindow.xaml.cs">
       <DependentUpon>TemplateCreateWindow.xaml</DependentUpon>
     </Compile>
@@ -84,16 +106,21 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Models\InspectionRecord.cs" />
+    <Compile Include="Models\GlobalVariableModels.cs" />
+    <Compile Include="Models\ExternalResourceModels.cs" />
     <Compile Include="Models\BatchTraceModels.cs" />
     <Compile Include="Models\RoiData.cs" />
     <Compile Include="Models\RecipeWorkspaceModels.cs" />
     <Compile Include="Models\RuntimeStatistics.cs" />
+    <Compile Include="Models\ScriptToolModels.cs" />
     <Compile Include="Models\ShapeMatchResult.cs" />
     <Compile Include="Models\TemplateDefinition.cs" />
     <Compile Include="Models\TemplateItem.cs" />
     <Compile Include="Models\TemplateMatchOptions.cs" />
     <Compile Include="Models\VisionRecipe.cs" />
     <Compile Include="Models\VmPortModels.cs" />
+    <Compile Include="Models\VmPose2D.cs" />
+    <Compile Include="Models\VmPoint2D.cs" />
     <Compile Include="Models\VmRoiModels.cs" />
     <Compile Include="Models\VmFlowExecutionModels.cs" />
     <Compile Include="Models\VmToolModels.cs" />
@@ -109,6 +136,8 @@
     <Compile Include="Services\RecipeService.cs" />
     <Compile Include="Services\RoiEditor.cs" />
     <Compile Include="Services\RoiService.cs" />
+    <Compile Include="Services\ScriptToolService.cs" />
+    <Compile Include="Services\ExternalResourceService.cs" />
     <Compile Include="Services\ShapeTemplateService.cs" />
     <Compile Include="Services\StartupDiagnosticsService.cs" />
     <Compile Include="Services\TcpCommunicationService.cs" />

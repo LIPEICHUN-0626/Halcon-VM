@@ -8,6 +8,8 @@ namespace HalconWinFormsDemo.Models
             MaxMatches = 1;
             AngleStartDeg = -180;
             AngleExtentDeg = 360;
+            ScaleMin = 1.0;
+            ScaleMax = 1.0;
             MaxOverlap = 0.5;
             Greediness = 0.9;
             NumLevels = "auto";
@@ -23,6 +25,10 @@ namespace HalconWinFormsDemo.Models
         public double AngleStartDeg { get; set; }
 
         public double AngleExtentDeg { get; set; }
+
+        public double ScaleMin { get; set; }
+
+        public double ScaleMax { get; set; }
 
         public double MaxOverlap { get; set; }
 

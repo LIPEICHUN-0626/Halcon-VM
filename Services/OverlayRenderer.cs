@@ -248,14 +248,12 @@ namespace HalconWinFormsDemo.Services
             {
                 DrawMatchFrame(window, match);
                 window.DispCross(match.Row, match.Column, 48, DegToRad(match.AngleDeg));
-                window.DispText(
+                SafeDispText(
+                    window,
                     string.Format("{0:F3}", match.Score),
-                    "image",
                     (int)Math.Max(0, match.Row - 60),
                     (int)Math.Max(0, match.Column + 32),
-                    "green",
-                    "box",
-                    "false");
+                    "green");
             }
         }
 

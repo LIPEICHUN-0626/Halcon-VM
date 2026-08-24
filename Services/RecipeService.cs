@@ -10,6 +10,7 @@ namespace HalconWinFormsDemo.Services
     {
         private readonly string recipeDirectory;
         private readonly string stateDirectory;
+        private readonly string resourceDirectory;
 
         public RecipeService()
             : this(AppDomain.CurrentDomain.BaseDirectory)
@@ -26,8 +27,10 @@ namespace HalconWinFormsDemo.Services
             string root = Path.GetFullPath(baseDirectory);
             recipeDirectory = Path.Combine(root, "recipes");
             stateDirectory = Path.Combine(root, "config");
+            resourceDirectory = Path.Combine(root, "resources");
             Directory.CreateDirectory(recipeDirectory);
             Directory.CreateDirectory(stateDirectory);
+            Directory.CreateDirectory(resourceDirectory);
         }
 
         public string RecipeDirectory
@@ -38,6 +41,11 @@ namespace HalconWinFormsDemo.Services
         public string StateDirectory
         {
             get { return stateDirectory; }
+        }
+
+        public string ResourceDirectory
+        {
+            get { return resourceDirectory; }
         }
 
         public string StatePath

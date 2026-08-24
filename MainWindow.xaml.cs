@@ -29,7 +29,7 @@ namespace HalconWinFormsDemo
 {
     public partial class MainWindow : Window
     {
-        private const string VersionStamp = "HALCON VM S55 2026-08-14";
+        private const string VersionStamp = "HALCON VM S62 2026-08-21";
         private const string ToolCatalogDragFormat = "HalconVm.ToolCatalogItem";
         private const double FlowLayoutGridSize = 24;
         private const int FlowEditHistoryLimit = 50;
@@ -42,6 +42,7 @@ namespace HalconWinFormsDemo
         private readonly OverlayRenderer overlayRenderer = new OverlayRenderer();
         private readonly RoiEditor roiEditor = new RoiEditor();
         private readonly TcpCommunicationService tcpService = new TcpCommunicationService();
+        private readonly ScriptToolService scriptToolService = new ScriptToolService();
         private readonly InspectionResultStore resultStore = new InspectionResultStore();
         private readonly RecipeService recipeService;
         private readonly BatchTraceStore batchTraceStore;
@@ -80,7 +81,7 @@ namespace HalconWinFormsDemo
         private readonly HashSet<VmToolKind> favoriteToolKinds = new HashSet<VmToolKind>();
         private readonly List<VmToolKind> recentToolKinds = new List<VmToolKind>();
         private ICollectionView toolCatalogView;
-        private string toolCatalogMode = "Common";
+        private string toolCatalogMode = "All";
         private static readonly HashSet<VmToolKind> commonToolKinds = new HashSet<VmToolKind>
         {
             VmToolKind.ImageSource,
@@ -673,6 +674,8 @@ namespace HalconWinFormsDemo
         private sealed class FlowEditSnapshot
         {
             public List<ToolFlowRecipeItem> ToolFlow { get; set; }
+            public List<VmGlobalVariableData> GlobalVariables { get; set; }
+            public List<VmExternalResourceData> ExternalResources { get; set; }
             public List<RoiLayerRecipeData> RoiLayers { get; set; }
             public List<ResultLayerStyleRecipeData> ResultLayerStyles { get; set; }
             public VmProductionRunLayoutData ProductionRunLayout { get; set; }
@@ -733,6 +736,7 @@ namespace HalconWinFormsDemo
             if (logger == null) throw new ArgumentNullException("logger");
             this.recipeService = recipeService;
             this.logger = logger;
+            externalResourceService = new ExternalResourceService(recipeService.ResourceDirectory, scriptToolService);
             batchTraceStore = new BatchTraceStore(recipeService.StateDirectory);
             batchTraceStorageSettings = batchTraceStore.LoadSettings();
             InitializeComponent();
@@ -781,7 +785,7 @@ namespace HalconWinFormsDemo
 
         private void InitializeVmWorkspace()
         {
-            flowTools.CollectionChanged += delegate { RefreshFlowSequence(); ScheduleRecipeStateCheck(); };
+            flowTools.CollectionChanged += delegate { RefreshFlowSequence(); RefreshGlobalVariableSubscriptions(); RefreshExternalResourceReferences(); ScheduleRecipeStateCheck(); };
             roiLayers.CollectionChanged += delegate { ScheduleRecipeStateCheck(); RefreshUnifiedLayers(); };
             toolCatalog.AddRange(new[]
             {
@@ -822,6 +826,13 @@ namespace HalconWinFormsDemo
                 CreateCatalogItem(VmToolKind.TcpClientExchange),
                 CreateCatalogItem(VmToolKind.TextAssembly),
                 CreateCatalogItem(VmToolKind.TextParser),
+                CreateCatalogItem(VmToolKind.NumericCalculation),
+                CreateCatalogItem(VmToolKind.ResultLogicAggregation),
+                CreateCatalogItem(VmToolKind.CSharpDllScript),
+                CreateCatalogItem(VmToolKind.GlobalVariableRead),
+                CreateCatalogItem(VmToolKind.GlobalVariableWrite),
+                CreateCatalogItem(VmToolKind.PositionCorrection2D),
+                CreateCatalogItem(VmToolKind.PointSetGeometryStatistics),
                 CreateCatalogItem(VmToolKind.XldContourSegmentation),
                 CreateCatalogItem(VmToolKind.XldLineFitting),
                 CreateCatalogItem(VmToolKind.XldCircleFitting),
@@ -840,8 +851,8 @@ namespace HalconWinFormsDemo
                 CreateCatalogItem(VmToolKind.NumericJudge)
             });
             toolCatalogView = CollectionViewSource.GetDefaultView(toolCatalog);
-            toolCatalogView.GroupDescriptions.Add(new PropertyGroupDescription("Category"));
-            toolCatalogView.SortDescriptions.Add(new SortDescription("Category", ListSortDirection.Ascending));
+            toolCatalogView.GroupDescriptions.Add(new PropertyGroupDescription("ImplementedCategory"));
+            toolCatalogView.SortDescriptions.Add(new SortDescription("CategoryOrder", ListSortDirection.Ascending));
             toolCatalogView.SortDescriptions.Add(new SortDescription("RecentRank", ListSortDirection.Ascending));
             toolCatalogView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
             toolCatalogView.Filter = FilterToolCatalogItem;
@@ -855,6 +866,7 @@ namespace HalconWinFormsDemo
             FlowPortConsumerListBox.ItemsSource = flowPortConsumers;
             DebugMonitorToolComboBox.ItemsSource = flowTools;
             DebugMonitorBreakpointList.ItemsSource = debugBreakpointTools;
+            PortDataMonitorGrid.ItemsSource = portDataMonitorRows;
             InputPortsItemsControl.ItemsSource = inputPortRows;
             OutputPortsItemsControl.ItemsSource = outputPortRows;
             RoiLayerList.ItemsSource = roiLayers;
@@ -908,6 +920,10 @@ namespace HalconWinFormsDemo
             DockTextAssemblyEmptyPolicyComboBox.ItemsSource = VmTextAssemblyEmptyPolicy.CreateAll();
             DockTextParserModeComboBox.ItemsSource = VmTextParserMode.CreateAll();
             DockTextParserEmptyPolicyComboBox.ItemsSource = VmTextAssemblyEmptyPolicy.CreateAll();
+            DockNumericCalculationOperationComboBox.ItemsSource = VmNumericCalculationOperation.CreateAll();
+            DockPointSetAbnormalPolicyComboBox.ItemsSource = VmPointSetAbnormalPolicy.CreateAll();
+            DockResultLogicOperationComboBox.ItemsSource = VmResultLogicOperation.CreateAll();
+            DockScriptExecutionModeComboBox.ItemsSource = VmScriptExecutionMode.CreateAll();
             DockXldAreaDirectionModeComboBox.ItemsSource = VmXldAreaDirectionMode.CreateAll();
             ProductionLayoutWidgetListBox.ItemsSource = productionLayoutDraftItems;
             ApplyProductionRunLayout(productionRunLayout);
@@ -953,6 +969,9 @@ namespace HalconWinFormsDemo
             Crosshair1ThicknessComboBox.ItemsSource = new[] { 1, 2, 3, 4, 5 };
             Crosshair2ThicknessComboBox.ItemsSource = new[] { 1, 2, 3, 4, 5 };
             LoadCrosshairEditor();
+            InitializeGlobalVariableWorkspace();
+            InitializeExternalResourceWorkspace();
+            InitializeScriptInterfaceWorkspace();
             RefreshToolCatalogView();
             ApplyFlowFromRecipe(new VisionRecipe());
         }
@@ -1049,13 +1068,13 @@ namespace HalconWinFormsDemo
                 }
 
                 tool.FlowInputPorts.Clear();
-                foreach (VmPortDefinition port in ToolMetadata.GetInputPorts(tool.Kind))
+                foreach (VmPortDefinition port in ToolMetadata.GetInstanceInputPorts(tool))
                 {
                     tool.FlowInputPorts.Add(CreateFlowInputPortChip(tool, port));
                 }
 
                 tool.FlowOutputPorts.Clear();
-                foreach (VmPortDefinition port in ToolMetadata.GetOutputPorts(tool.Kind))
+                foreach (VmPortDefinition port in ToolMetadata.GetInstanceOutputPorts(tool))
                 {
                     int consumerCount = GetFlowPortConsumerCount(tool, port.PortName);
                     string value = tool.GetFormattedOutput(port.PortName);
@@ -1278,7 +1297,7 @@ namespace HalconWinFormsDemo
                 int level = parents.Count == 0 ? 0 : parents.Max(item => levels.ContainsKey(item.ToolId) ? levels[item.ToolId] + 1 : 1);
                 levels[tool.ToolId] = level;
 
-                int portRows = Math.Max(ToolMetadata.GetInputPorts(tool.Kind).Count, ToolMetadata.GetOutputPorts(tool.Kind).Count);
+                int portRows = Math.Max(ToolMetadata.GetInstanceInputPorts(tool).Count, ToolMetadata.GetInstanceOutputPorts(tool).Count);
                 double portPitch = tool.IsGroupCollapsed ? 24 : 40;
                 tool.GraphHeight = tool.ShowFlowDetails
                     ? Math.Min(tool.IsGroupCollapsed ? 230 : 320, Math.Max(tool.IsGroupCollapsed ? 110 : 150, 78 + portRows * portPitch))
@@ -1310,7 +1329,7 @@ namespace HalconWinFormsDemo
             VmToolInstance selected = FlowToolList == null ? null : FlowToolList.SelectedItem as VmToolInstance;
             foreach (VmToolInstance target in flowTools)
             {
-                IList<VmPortDefinition> targetPorts = ToolMetadata.GetInputPorts(target.Kind);
+                IList<VmPortDefinition> targetPorts = ToolMetadata.GetInstanceInputPorts(target);
                 foreach (VmToolInputBindingData binding in GetFlowGraphBindings(target))
                 {
                     if (binding == null || string.IsNullOrWhiteSpace(binding.TargetPortName)) continue;
@@ -1329,7 +1348,7 @@ namespace HalconWinFormsDemo
                     if (target.Kind == VmToolKind.NumericJudge) error = GetNumericJudgeConfigurationError(target);
                     if (source != null)
                     {
-                        IList<VmPortDefinition> sourcePorts = ToolMetadata.GetOutputPorts(source.Kind);
+                        IList<VmPortDefinition> sourcePorts = ToolMetadata.GetInstanceOutputPorts(source);
                         int sourcePortIndex = sourcePorts.ToList().FindIndex(item => string.Equals(item.PortName, binding.SourcePortName, StringComparison.OrdinalIgnoreCase));
                         sourceX = source.GraphX + nodeWidth;
                         sourceY = GetFlowPortCenterY(source, Math.Max(0, sourcePortIndex));
@@ -1485,6 +1504,9 @@ namespace HalconWinFormsDemo
             else if (string.Equals(dataType, "Region", StringComparison.OrdinalIgnoreCase)) color = System.Windows.Media.Color.FromRgb(124, 58, 237);
             else if (string.Equals(dataType, "XLD", StringComparison.OrdinalIgnoreCase)) color = System.Windows.Media.Color.FromRgb(217, 119, 6);
             else if (string.Equals(dataType, "Number", StringComparison.OrdinalIgnoreCase)) color = System.Windows.Media.Color.FromRgb(5, 150, 105);
+            else if (string.Equals(dataType, "Pose2D", StringComparison.OrdinalIgnoreCase)) color = System.Windows.Media.Color.FromRgb(219, 39, 119);
+            else if (string.Equals(dataType, "Point2D", StringComparison.OrdinalIgnoreCase)) color = System.Windows.Media.Color.FromRgb(245, 158, 11);
+            else if (string.Equals(dataType, "Point2D[]", StringComparison.OrdinalIgnoreCase)) color = System.Windows.Media.Color.FromRgb(234, 88, 12);
             else if (string.Equals(dataType, "Error", StringComparison.OrdinalIgnoreCase)) color = System.Windows.Media.Color.FromRgb(220, 38, 38);
             else color = System.Windows.Media.Color.FromRgb(100, 116, 139);
             SolidColorBrush brush = new SolidColorBrush(color);
@@ -1543,7 +1565,8 @@ namespace HalconWinFormsDemo
                 Kind = kind,
                 Name = ToolMetadata.GetDisplayName(kind),
                 Category = ToolMetadata.GetCategory(kind),
-                Description = ToolMetadata.GetDescription(kind)
+                Description = ToolMetadata.GetDescription(kind),
+                CategoryOrder = ToolMetadata.GetCategoryOrder(kind)
             };
         }
 
@@ -1598,6 +1621,26 @@ namespace HalconWinFormsDemo
             {
                 instance.ConnectionStatus = "待连接 2 路 Image";
                 instance.ConnectionSummary = "ImageA + ImageB ← 请选择两路上游图像";
+            }
+            else if (kind == VmToolKind.GlobalVariableRead)
+            {
+                instance.ConnectionStatus = "待选择变量";
+                instance.ConnectionSummary = "全局变量 → 强类型值";
+            }
+            else if (kind == VmToolKind.GlobalVariableWrite)
+            {
+                instance.ConnectionStatus = "待选择变量并连接输入";
+                instance.ConnectionSummary = "强类型值 → 全局变量";
+            }
+            else if (kind == VmToolKind.PositionCorrection2D)
+            {
+                instance.ConnectionStatus = "待连接 Pose2D 或兼容三路 Number";
+                instance.ConnectionSummary = "Pose2D（优先）或兼容 Row + Column + Angle → HALCON 2D 刚体修正";
+            }
+            else if (kind == VmToolKind.PointSetGeometryStatistics)
+            {
+                instance.ConnectionStatus = "待连接 Point2D[]";
+                instance.ConnectionSummary = "Points ← 请选择上游类型化图像像素点集";
             }
             else
             {
@@ -1700,6 +1743,20 @@ namespace HalconWinFormsDemo
                     return "String/Number/ResultCode → 模板/分隔符/格式 → Text";
                 case VmToolKind.TextParser:
                     return "String → 字面分隔/正则匹配 → Text + Number + 状态";
+                case VmToolKind.NumericCalculation:
+                    return "NumberA + 可选 NumberB → 八类有限数值运算 → Number";
+                case VmToolKind.ResultLogicAggregation:
+                    return "ResultCodeA + 可选 ResultCodeB → 结果逻辑 → OK/NG + PassedCount";
+                case VmToolKind.CSharpDllScript:
+                    return "可选 Number/String/ResultCode + 参数 → 受信任 C# / DLL → Number/Text/OK-NG";
+                case VmToolKind.GlobalVariableRead:
+                    return "当前方案全局变量 → 强类型值 + ResultCode";
+                case VmToolKind.GlobalVariableWrite:
+                    return "强类型上游值 → 当前方案全局变量 + Changed";
+                case VmToolKind.PositionCorrection2D:
+                    return "Current Row/Column/Angle → HALCON vector_angle_to_rigid → HomMat2D + 位姿差";
+                case VmToolKind.PointSetGeometryStatistics:
+                    return "Point2D[] → HALCON 点集图形 → 质心/边界/跨度/XLD";
                 case VmToolKind.XldContourSegmentation:
                     return "XLD → HALCON 轮廓分段 → XLD + Number";
                 case VmToolKind.XldLineFitting:
@@ -1769,6 +1826,7 @@ namespace HalconWinFormsDemo
             }
             if (FlowPortDragPreviewPath != null) FlowPortDragPreviewPath.Visibility = Visibility.Collapsed;
             if (FlowPortDragStatusBorder != null) FlowPortDragStatusBorder.Visibility = Visibility.Collapsed;
+            DisposeAllShapeToolResources();
             DisposeFlowTools();
             flowTools.Clear();
 
@@ -1838,6 +1896,7 @@ namespace HalconWinFormsDemo
                 BindLegacyRoiToFlowTools();
             }
 
+            ApplyLegacyShapeResourceToFlow(recipe);
             SyncLegacyToolChecksFromFlow();
             RefreshRoiLayerBindingSummaries();
             if (FlowToolList != null && flowTools.Count > 0)
@@ -1882,16 +1941,20 @@ namespace HalconWinFormsDemo
         private FlowEditSnapshot CaptureFlowEditSnapshot()
         {
             List<ToolFlowRecipeItem> toolFlow = CaptureFlowRecipe();
+            List<VmGlobalVariableData> globalVariableSnapshots = CaptureGlobalVariables();
+            List<VmExternalResourceData> externalResourceSnapshots = CaptureExternalResources();
             List<RoiLayerRecipeData> roiLayerSnapshots = CaptureRoiLayers();
             List<ResultLayerStyleRecipeData> resultStyleSnapshots = CaptureResultLayerStyles();
             VmProductionRunLayoutData productionLayoutSnapshot = productionRunLayout.CloneNormalized();
-            VisionRecipe fingerprintRecipe = new VisionRecipe { ToolFlow = toolFlow, RoiLayers = roiLayerSnapshots, ResultLayerStyles = resultStyleSnapshots, ProductionRunLayout = productionLayoutSnapshot };
+            VisionRecipe fingerprintRecipe = new VisionRecipe { ToolFlow = toolFlow, GlobalVariables = globalVariableSnapshots, ExternalResources = externalResourceSnapshots, RoiLayers = roiLayerSnapshots, ResultLayerStyles = resultStyleSnapshots, ProductionRunLayout = productionLayoutSnapshot };
             List<VmToolInstance> selected = GetSelectedFlowToolsInSequence();
             VmToolInstance primary = FlowToolList == null ? null : FlowToolList.SelectedItem as VmToolInstance;
             VmRoiLayer selectedRoi = RoiLayerList == null ? null : RoiLayerList.SelectedItem as VmRoiLayer;
             return new FlowEditSnapshot
             {
                 ToolFlow = toolFlow,
+                GlobalVariables = globalVariableSnapshots,
+                ExternalResources = externalResourceSnapshots,
                 RoiLayers = roiLayerSnapshots,
                 ResultLayerStyles = resultStyleSnapshots,
                 ProductionRunLayout = productionLayoutSnapshot,
@@ -1970,6 +2033,8 @@ namespace HalconWinFormsDemo
             try
             {
                 CancelRoiGeometryDraft(false);
+                LoadGlobalVariablesFromRecipe(new VisionRecipe { GlobalVariables = snapshot.GlobalVariables });
+                LoadExternalResourcesFromRecipe(new VisionRecipe { ExternalResources = snapshot.ExternalResources });
                 LoadRoiLayersFromRecipe(new VisionRecipe { RoiLayers = snapshot.RoiLayers });
                 LoadResultLayerStyles(new VisionRecipe { ResultLayerStyles = snapshot.ResultLayerStyles });
                 productionRunLayout = (snapshot.ProductionRunLayout ?? VmProductionRunLayoutData.CreateDefault()).CloneNormalized();
@@ -1991,6 +2056,8 @@ namespace HalconWinFormsDemo
                 if (RoiLayerList != null) RoiLayerList.SelectedItem = selectedRoi;
                 SelectRoiLayer(selectedRoi);
                 RefreshResultOverlayLayers();
+                RefreshGlobalVariableSubscriptions();
+                RefreshExternalResourceReferences();
             }
             finally
             {
@@ -2100,13 +2167,13 @@ namespace HalconWinFormsDemo
             IEnumerable<VmToolInstance> candidates = judgeIndex < 0
                 ? flowTools.AsEnumerable().Reverse()
                 : flowTools.Take(judgeIndex).Reverse();
-            VmToolInstance source = candidates.FirstOrDefault(item => ToolMetadata.GetNumericOutputPorts(item.Kind).Count > 0);
+            VmToolInstance source = candidates.FirstOrDefault(item => ToolMetadata.GetInstanceNumericOutputPorts(item).Count > 0);
             if (source == null)
             {
                 return;
             }
 
-            VmPortDefinition port = ToolMetadata.GetNumericOutputPorts(source.Kind).FirstOrDefault();
+            VmPortDefinition port = ToolMetadata.GetInstanceNumericOutputPorts(source).FirstOrDefault();
             if (port == null)
             {
                 return;
@@ -2137,7 +2204,7 @@ namespace HalconWinFormsDemo
                 return string.Empty;
             }
 
-            VmPortDefinition targetPort = ToolMetadata.GetInputPorts(target.Kind)
+            VmPortDefinition targetPort = ToolMetadata.GetInstanceInputPorts(target)
                 .FirstOrDefault(item => string.Equals(item.PortName, binding.TargetPortName, StringComparison.OrdinalIgnoreCase));
             if (targetPort == null)
             {
@@ -2162,16 +2229,25 @@ namespace HalconWinFormsDemo
                 return "上游工具已停用。";
             }
 
-            VmPortDefinition sourcePort = ToolMetadata.GetOutputPorts(source.Kind)
+            VmPortDefinition sourcePort = ToolMetadata.GetInstanceOutputPorts(source)
                 .FirstOrDefault(item => string.Equals(item.PortName, binding.SourcePortName, StringComparison.OrdinalIgnoreCase));
             if (sourcePort == null)
             {
                 return "上游输出端口不存在：" + binding.SourcePortName;
             }
 
+            string globalVariableOutputError = GetGlobalVariableOutputConfigurationError(source, sourcePort.PortName);
+            if (!string.IsNullOrWhiteSpace(globalVariableOutputError)) return globalVariableOutputError;
+
             if (!string.Equals(sourcePort.DataType, targetPort.DataType, StringComparison.OrdinalIgnoreCase))
             {
                 return "端口类型不匹配：" + sourcePort.DataType + " → " + targetPort.DataType;
+            }
+
+            if (target.Kind == VmToolKind.PositionCorrection2D)
+            {
+                string modeError = GetPositionCorrectionInputModeError(target, false);
+                if (!string.IsNullOrWhiteSpace(modeError)) return modeError;
             }
 
             if (string.Equals(targetPort.DataType, "Region", StringComparison.OrdinalIgnoreCase))
@@ -2548,7 +2624,7 @@ namespace HalconWinFormsDemo
                 return "上游工具已停用。";
             }
 
-            VmPortDefinition port = ToolMetadata.GetNumericOutputPorts(source.Kind)
+            VmPortDefinition port = ToolMetadata.GetInstanceNumericOutputPorts(source)
                 .FirstOrDefault(item => string.Equals(item.PortName, tool.InputPortName, StringComparison.OrdinalIgnoreCase));
             if (port == null)
             {
@@ -2735,6 +2811,11 @@ namespace HalconWinFormsDemo
                 else if (tool.Kind == VmToolKind.TcpClientExchange) tool.ConnectionSummary = "String/Number/ResultCode → TCP 发送/响应";
                 else if (tool.Kind == VmToolKind.TextAssembly) tool.ConnectionSummary = "String/Number/ResultCode → Text";
                 else if (tool.Kind == VmToolKind.TextParser) tool.ConnectionSummary = "String → Text/Number/状态";
+                else if (tool.Kind == VmToolKind.NumericCalculation) tool.ConnectionSummary = "NumberA + 可选 NumberB → Number";
+                else if (tool.Kind == VmToolKind.ResultLogicAggregation) tool.ConnectionSummary = "ResultCodeA + 可选 ResultCodeB → OK/NG";
+                else if (tool.Kind == VmToolKind.CSharpDllScript) tool.ConnectionSummary = "可选类型化输入 + 参数 → C# / DLL → 类型化输出";
+                else if (tool.Kind == VmToolKind.GlobalVariableRead) tool.ConnectionSummary = "全局变量 → 强类型值";
+                else if (tool.Kind == VmToolKind.GlobalVariableWrite) tool.ConnectionSummary = "强类型值 → 全局变量";
                 else if (tool.Kind == VmToolKind.ImageDifference) tool.ConnectionSummary = "ImageA + ImageB → 双图像差分";
                 else if (tool.Kind == VmToolKind.DynamicThreshold) tool.ConnectionSummary = "OriginalImage + ReferenceImage → 动态阈值分割";
                 else if (tool.Kind == VmToolKind.ImageChannel || tool.Kind == VmToolKind.ImageFilter || tool.Kind == VmToolKind.ImageEnhancement || tool.Kind == VmToolKind.ImageResize || tool.Kind == VmToolKind.ImageMirror || tool.Kind == VmToolKind.ImageRotate || tool.Kind == VmToolKind.ImageAffineTransform || tool.Kind == VmToolKind.ImageProjectiveTransform || tool.Kind == VmToolKind.PolarImageUnwrap || tool.Kind == VmToolKind.RoiImageExtraction || tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.CaliperEdgePairMeasurement || tool.Kind == VmToolKind.LinearCaliperArrayMeasurement || tool.Kind == VmToolKind.CircularCaliperCircleFinder || tool.Kind == VmToolKind.RingWallThicknessMeasurement) tool.ConnectionSummary = "Image → " + tool.DisplayType;
@@ -2855,6 +2936,119 @@ namespace HalconWinFormsDemo
                     tool.ConnectionSummary = source == null || binding == null
                         ? "String ← 请选择上游文本"
                         : source.InstanceName + "." + binding.SourcePortName + " → Text/Number";
+                    break;
+                }
+                case VmToolKind.NumericCalculation:
+                {
+                    VmToolInputBindingData bindingA = tool.GetInputBinding("NumberA");
+                    VmToolInputBindingData bindingB = tool.GetInputBinding("NumberB");
+                    VmToolInstance sourceA = GetInputSourceTool(bindingA);
+                    VmToolInstance sourceB = GetInputSourceTool(bindingB);
+                    object rawA;
+                    object rawB;
+                    bool readyA = sourceA != null && bindingA != null && sourceA.TryGetOutputValue(bindingA.SourcePortName, out rawA) && rawA != null;
+                    bool needsB = VmNumericCalculationOperation.RequiresSecondOperand(parameters.NumericCalculationOperation);
+                    bool readyB = !needsB || (sourceB != null && bindingB != null && sourceB.TryGetOutputValue(bindingB.SourcePortName, out rawB) && rawB != null);
+                    tool.ConfigurationStatus = bindingA == null || (needsB && bindingB == null) ? "待连接数值" : (readyA && readyB ? "就绪" : "等待上游");
+                    tool.ConnectionStatus = bindingA == null
+                        ? "NumberA 未连接"
+                        : (needsB && bindingB == null ? "当前双目运算需要 NumberB" : (readyA && readyB ? "数值输入已连接 · 有值" : "数值输入已连接 · 等待上游"));
+                    tool.ConnectionSummary = BuildNumericCalculationInputSummary(tool) + " → Number";
+                    break;
+                }
+                case VmToolKind.PositionCorrection2D:
+                {
+                    string[] requiredPorts = { "CurrentRow", "CurrentColumn", "CurrentAngle" };
+                    bool connected = requiredPorts.All(name => tool.GetInputBinding(name) != null);
+                    bool ready = connected && requiredPorts.All(name =>
+                    {
+                        VmToolInputBindingData binding = tool.GetInputBinding(name);
+                        VmToolInstance source = GetInputSourceTool(binding);
+                        object raw;
+                        return source != null && source.TryGetOutputValue(binding.SourcePortName, out raw) && raw != null;
+                    });
+                    tool.ConfigurationStatus = !connected ? "待连接位姿" : (ready ? "就绪" : "等待上游");
+                    tool.ConnectionStatus = !connected ? "CurrentRow / CurrentColumn / CurrentAngle 必须全部连接" : (ready ? "3 路位姿已连接 · 有值" : "3 路位姿已连接 · 等待上游");
+                    tool.ConnectionSummary = BuildPositionCorrectionInputSummary(tool) + " → HomMat2D / ΔRow / ΔColumn / ΔAngle";
+                    break;
+                }
+                case VmToolKind.PointSetGeometryStatistics:
+                    RefreshPointSetGeometryConnectionStatusS65(tool);
+                    break;
+                case VmToolKind.ResultLogicAggregation:
+                {
+                    VmToolInputBindingData bindingA = tool.GetInputBinding("ResultCodeA");
+                    VmToolInputBindingData bindingB = tool.GetInputBinding("ResultCodeB");
+                    VmToolInstance sourceA = GetInputSourceTool(bindingA);
+                    VmToolInstance sourceB = GetInputSourceTool(bindingB);
+                    object rawA;
+                    object rawB;
+                    bool readyA = sourceA != null && bindingA != null && sourceA.TryGetOutputValue(bindingA.SourcePortName, out rawA) && rawA != null;
+                    bool needsB = VmResultLogicOperation.RequiresSecondInput(parameters.ResultLogicOperation);
+                    bool readyB = !needsB || (sourceB != null && bindingB != null && sourceB.TryGetOutputValue(bindingB.SourcePortName, out rawB) && rawB != null);
+                    tool.ConfigurationStatus = bindingA == null || (needsB && bindingB == null) ? "待连接结果码" : (readyA && readyB ? "就绪" : "等待上游");
+                    tool.ConnectionStatus = bindingA == null
+                        ? "ResultCodeA 未连接"
+                        : (needsB && bindingB == null ? "当前双目逻辑需要 ResultCodeB" : (readyA && readyB ? "结果码输入已连接 · 有值" : "结果码输入已连接 · 等待上游"));
+                    tool.ConnectionSummary = BuildResultLogicInputSummary(tool) + " → OK/NG";
+                    break;
+                }
+                case VmToolKind.CSharpDllScript:
+                {
+                    IList<VmPortDefinition> ports = ToolMetadata.GetInstanceInputPorts(tool);
+                    List<string> waiting = new List<string>();
+                    List<string> missingRequired = new List<string>();
+                    int connected = 0;
+                    foreach (VmPortDefinition port in ports)
+                    {
+                        VmToolInputBindingData binding = tool.GetInputBinding(port.PortName);
+                        if (binding == null) continue;
+                        connected++;
+                        VmToolInstance source = GetInputSourceTool(binding);
+                        object raw;
+                        if (source == null || !source.TryGetOutputValue(binding.SourcePortName, out raw) || raw == null) waiting.Add(port.PortName);
+                    }
+                    foreach (VmScriptInterfaceMemberData member in parameters.ScriptInterfaceMembers.Where(item => item.Direction == VmScriptMemberDirection.Input && item.IsRequired))
+                    {
+                        if (tool.GetInputBinding(member.PortName) == null) missingRequired.Add(member.Name);
+                    }
+                    tool.ConfigurationStatus = missingRequired.Count > 0 ? "待连接脚本输入" : (waiting.Count == 0 ? "就绪" : "等待上游");
+                    tool.ConnectionStatus = missingRequired.Count > 0
+                        ? "必需输入未连接：" + string.Join("、", missingRequired)
+                        : (waiting.Count == 0
+                        ? (connected == 0 ? "无订阅 · 使用受控参数" : connected.ToString(CultureInfo.InvariantCulture) + " 路输入已连接 · 有值")
+                        : "等待输入：" + string.Join("、", waiting));
+                    tool.ConnectionSummary = BuildScriptInputSummary(tool) + " → Number/Text/OK-NG";
+                    break;
+                }
+                case VmToolKind.GlobalVariableRead:
+                case VmToolKind.GlobalVariableWrite:
+                {
+                    VmGlobalVariableData variable = parameters == null ? null : globalVariables.FirstOrDefault(item => string.Equals(item.VariableId, parameters.GlobalVariableId, StringComparison.OrdinalIgnoreCase));
+                    if (variable == null)
+                    {
+                        tool.ConfigurationStatus = "待选择变量";
+                        tool.ConnectionStatus = "变量无效或不存在";
+                        tool.ConnectionSummary = tool.Kind == VmToolKind.GlobalVariableRead ? "全局变量 → 强类型值" : "强类型值 → 全局变量";
+                    }
+                    else if (tool.Kind == VmToolKind.GlobalVariableRead)
+                    {
+                        tool.ConfigurationStatus = "就绪";
+                        tool.ConnectionStatus = variable.TypeDisplayText + " · 当前有值";
+                        tool.ConnectionSummary = BuildGlobalVariableToolInputSummary(tool) + " → " + VmGlobalVariableType.GetWritePortName(variable.ValueType);
+                    }
+                    else
+                    {
+                        string activePort = VmGlobalVariableType.GetWritePortName(variable.ValueType);
+                        VmToolInputBindingData binding = tool.GetInputBinding(activePort);
+                        VmToolInstance source = GetInputSourceTool(binding);
+                        object raw;
+                        bool ready = source != null && binding != null && source.TryGetOutputValue(binding.SourcePortName, out raw) && raw != null;
+                        bool incompatible = tool.InputBindings.Any(item => !string.Equals(item.TargetPortName, activePort, StringComparison.OrdinalIgnoreCase));
+                        tool.ConfigurationStatus = incompatible ? "类型冲突" : (binding == null ? "待连接 " + activePort : (ready ? "就绪" : "等待上游"));
+                        tool.ConnectionStatus = incompatible ? "存在非目标类型订阅" : (binding == null ? activePort + " 未连接" : (ready ? activePort + " 已连接 · 有值" : activePort + " 已连接 · 等待上游"));
+                        tool.ConnectionSummary = BuildGlobalVariableToolInputSummary(tool) + " → " + variable.Name;
+                    }
                     break;
                 }
                 case VmToolKind.RegionMorphology:
@@ -2998,7 +3192,7 @@ namespace HalconWinFormsDemo
                     break;
                 }
                 case VmToolKind.ShapeMatch:
-                    tool.ConfigurationStatus = currentTemplateItem == null || !currentTemplateItem.HasModel
+                    tool.ConfigurationStatus = !HasShapeModelResource(tool)
                         ? "待配置模板"
                         : (GetBoundDetectionRoiLayers(tool).Count == 0 ? "待绑定检测区" : "就绪");
                     tool.ConnectionStatus = tool.ConfigurationStatus == "就绪" ? "系统输入 · 已就绪" : "系统输入 · 待配置";
@@ -3055,7 +3249,7 @@ namespace HalconWinFormsDemo
             int judgeIndex = flowTools.IndexOf(tool);
             List<VmSourceToolOption> sourceOptions = flowTools
                 .Take(Math.Max(0, judgeIndex))
-                .Where(item => ToolMetadata.GetNumericOutputPorts(item.Kind).Count > 0)
+                .Where(item => ToolMetadata.GetInstanceNumericOutputPorts(item).Count > 0)
                 .Select(item => new VmSourceToolOption
                 {
                     ToolId = item.ToolId,
@@ -3068,7 +3262,7 @@ namespace HalconWinFormsDemo
             VmToolInstance source = GetInputSourceTool(tool);
             List<VmSourcePortOption> portOptions = source == null
                 ? new List<VmSourcePortOption>()
-                : ToolMetadata.GetNumericOutputPorts(source.Kind)
+                : ToolMetadata.GetInstanceNumericOutputPorts(source)
                     .Select(item => new VmSourcePortOption
                     {
                         PortName = item.PortName,
@@ -3111,12 +3305,12 @@ namespace HalconWinFormsDemo
             IoRunCurrentButton.IsEnabled = tool.IsEnabled;
             IoOpenParametersButton.IsEnabled = true;
 
-            foreach (VmPortDefinition port in ToolMetadata.GetInputPorts(tool.Kind))
+            foreach (VmPortDefinition port in ToolMetadata.GetInstanceInputPorts(tool))
             {
                 inputPortRows.Add(BuildInputPortRow(tool, port));
             }
 
-            foreach (VmPortDefinition port in ToolMetadata.GetOutputPorts(tool.Kind))
+            foreach (VmPortDefinition port in ToolMetadata.GetInstanceOutputPorts(tool))
             {
                 object raw;
                 bool hasValue = tool.TryGetOutputValue(port.PortName, out raw);
@@ -3265,7 +3459,7 @@ namespace HalconWinFormsDemo
 
             tool.InputToolId = NumericSourceToolComboBox.SelectedValue as string;
             VmToolInstance source = GetInputSourceTool(tool);
-            VmPortDefinition firstPort = source == null ? null : ToolMetadata.GetNumericOutputPorts(source.Kind).FirstOrDefault();
+            VmPortDefinition firstPort = source == null ? null : ToolMetadata.GetInstanceNumericOutputPorts(source).FirstOrDefault();
             tool.InputPortName = firstPort == null ? null : firstPort.PortName;
             RefreshUiState();
         }
@@ -3500,6 +3694,7 @@ namespace HalconWinFormsDemo
             ClearMeasurementDomainContext();
             ClearPendingRoi();
             DisposeFlowTools();
+            DisposeAllShapeToolResources();
 
             if (currentTemplateItem != null)
             {
@@ -3917,8 +4112,8 @@ namespace HalconWinFormsDemo
             productionLayoutDesignMode = false;
             productionLayoutDraftDirty = false;
             if (ProductionLayoutDesignerPanel != null) ProductionLayoutDesignerPanel.Visibility = Visibility.Collapsed;
-            ToolCatalogColumn.MinWidth = 180;
-            ToolCatalogColumn.Width = new GridLength(210);
+            ToolCatalogColumn.MinWidth = 210;
+            ToolCatalogColumn.Width = new GridLength(240);
             if (!keepProductionMode) SetProductionRunMode(false);
             if (discardedDraft) HeaderStatusText.Text = "运行界面未应用草稿已取消，当前方案布局未改变。";
         }
@@ -4807,8 +5002,8 @@ namespace HalconWinFormsDemo
                 if (batchTraceStorageSettings.SaveImages)
                 {
                     VmToolInstance imageTool = flowTools.OrderByDescending(tool => tool.Sequence).FirstOrDefault(tool =>
-                        ToolMetadata.GetOutputPorts(tool.Kind).Any(port => string.Equals(port.DataType, "Image", StringComparison.OrdinalIgnoreCase)) &&
-                        ToolMetadata.GetOutputPorts(tool.Kind).Any(port =>
+                        ToolMetadata.GetInstanceOutputPorts(tool).Any(port => string.Equals(port.DataType, "Image", StringComparison.OrdinalIgnoreCase)) &&
+                        ToolMetadata.GetInstanceOutputPorts(tool).Any(port =>
                         {
                             if (!string.Equals(port.DataType, "Image", StringComparison.OrdinalIgnoreCase)) return false;
                             object raw;
@@ -4817,7 +5012,7 @@ namespace HalconWinFormsDemo
                         }));
                     if (imageTool != null)
                     {
-                        foreach (VmPortDefinition port in ToolMetadata.GetOutputPorts(imageTool.Kind).Where(port => string.Equals(port.DataType, "Image", StringComparison.OrdinalIgnoreCase)))
+                        foreach (VmPortDefinition port in ToolMetadata.GetInstanceOutputPorts(imageTool).Where(port => string.Equals(port.DataType, "Image", StringComparison.OrdinalIgnoreCase)))
                         {
                             object raw;
                             VmImageSnapshot snapshot = imageTool.TryGetOutputValue(port.PortName, out raw) ? raw as VmImageSnapshot : null;
@@ -4892,7 +5087,7 @@ namespace HalconWinFormsDemo
                     Outputs = new List<VmBatchTraceToolOutputData>()
                 };
                 int outputIndex = 0;
-                foreach (VmPortDefinition port in ToolMetadata.GetOutputPorts(tool.Kind).Where(port =>
+                foreach (VmPortDefinition port in ToolMetadata.GetInstanceOutputPorts(tool).Where(port =>
                     string.Equals(port.DataType, "Number", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(port.DataType, "String", StringComparison.OrdinalIgnoreCase)))
                 {
@@ -6194,7 +6389,7 @@ namespace HalconWinFormsDemo
         private void OpenDebugMonitorInputButton_Click(object sender, RoutedEventArgs e)
         {
             VmToolInstance selected = GetDebugMonitorTool();
-            VmPortDefinition port = selected == null ? null : ToolMetadata.GetInputPorts(selected.Kind).FirstOrDefault();
+            VmPortDefinition port = selected == null ? null : ToolMetadata.GetInstanceInputPorts(selected).FirstOrDefault();
             if (selected == null || port == null)
             {
                 HeaderStatusText.Text = selected == null ? "请先选择监视模块。" : selected.InstanceName + " 没有输入端口。";
@@ -6267,6 +6462,7 @@ namespace HalconWinFormsDemo
                     : "确定性执行器 · 空闲";
                 DebugMonitorBreakpointCountText.Text = breakpoints.Count.ToString(CultureInfo.InvariantCulture) + " 个";
                 DebugRunToSelectedButton.IsEnabled = selected != null && selected.IsEnabled && !isFlowExecutionActive && !isContinuousRunning;
+                RefreshPortDataMonitorS64(selected);
             }
             finally
             {
@@ -6395,13 +6591,13 @@ namespace HalconWinFormsDemo
                     ResultLayer = layer
                 });
             }
-            if (currentTemplateItem != null || flowTools.Any(item => item.Kind == VmToolKind.ShapeMatch || item.Kind == VmToolKind.HDevelop))
+            if (flowTools.Any(item => item.Kind == VmToolKind.HDevelop))
             {
                 refreshed.Add(new VmUnifiedLayerItem
                 {
-                    LayerKey = "compatibility:shape",
+                    LayerKey = "compatibility:hdevelop",
                     LayerKind = "Compatibility",
-                    DisplayName = "Shape/HDevelop 兼容叠加",
+                    DisplayName = "HDevelop 兼容叠加",
                     SourceText = "兼容绘制通道",
                     TypeText = "待迁移到托管结果图层",
                     StateText = "兼容",
@@ -6510,7 +6706,7 @@ namespace HalconWinFormsDemo
             VmUnifiedLayerItem item = UnifiedLayerList.SelectedItem as VmUnifiedLayerItem;
             if (item == null || item.IsCompatibilityLayer)
             {
-                HeaderStatusText.Text = item == null ? "请先选择图层。" : "Shape/HDevelop 兼容叠加仍待迁移，当前只展示迁移状态。";
+                HeaderStatusText.Text = item == null ? "请先选择图层。" : "HDevelop 兼容叠加仍待迁移，当前只展示迁移状态。";
                 return;
             }
             bool requestedLock = UnifiedLayerLockCheckBox.IsChecked == true;
@@ -7269,12 +7465,21 @@ namespace HalconWinFormsDemo
             toolCatalogView.Refresh();
             int visibleCount = toolCatalogView.Cast<object>().Count();
             ToolCatalogEmptyText.Visibility = visibleCount == 0 ? Visibility.Visible : Visibility.Collapsed;
+            int totalCategoryCount = toolCatalog.Select(item => item.Category).Distinct(StringComparer.Ordinal).Count();
+            if (ToolCatalogCapabilityText != null)
+            {
+                ToolCatalogCapabilityText.Text = toolCatalog.Count.ToString(CultureInfo.InvariantCulture) + " 个工具 · " +
+                                                 totalCategoryCount.ToString(CultureInfo.InvariantCulture) + " 类";
+            }
             string modeText = string.Equals(toolCatalogMode, "Common", StringComparison.OrdinalIgnoreCase)
                 ? "常用"
                 : string.Equals(toolCatalogMode, "Favorite", StringComparison.OrdinalIgnoreCase)
                 ? "收藏"
                 : (string.Equals(toolCatalogMode, "Recent", StringComparison.OrdinalIgnoreCase) ? "最近使用" : "全部分类");
-            ToolCatalogStatusText.Text = modeText + " · " + visibleCount.ToString(CultureInfo.InvariantCulture) + " 个工具 · 双击追加或拖入指定位置";
+            int visibleCategoryCount = toolCatalogView.Cast<VmToolCatalogItem>().Select(item => item.Category).Distinct(StringComparer.Ordinal).Count();
+            ToolCatalogStatusText.Text = modeText + " · " + visibleCount.ToString(CultureInfo.InvariantCulture) + " 个工具 / " +
+                                         visibleCategoryCount.ToString(CultureInfo.InvariantCulture) + " 类 · 双击/Enter 追加，拖拽插入";
+            ToolCatalogStatusText.ToolTip = null;
             UpdateToolCatalogModeButtons();
         }
 
@@ -7309,6 +7514,24 @@ namespace HalconWinFormsDemo
                 return;
             }
 
+            ToggleToolCatalogFavorite(item);
+            e.Handled = true;
+        }
+
+        private void ToolCatalogToggleFavoriteMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            VmToolCatalogItem item = ToolCatalogList == null ? null : ToolCatalogList.SelectedItem as VmToolCatalogItem;
+            if (item == null)
+            {
+                HeaderStatusText.Text = "请先在工具箱选择工具。";
+                return;
+            }
+
+            ToggleToolCatalogFavorite(item);
+        }
+
+        private void ToggleToolCatalogFavorite(VmToolCatalogItem item)
+        {
             if (!favoriteToolKinds.Add(item.Kind))
             {
                 favoriteToolKinds.Remove(item.Kind);
@@ -7316,7 +7539,27 @@ namespace HalconWinFormsDemo
             RefreshToolCatalogView();
             SaveLayoutState();
             HeaderStatusText.Text = item.Name + (favoriteToolKinds.Contains(item.Kind) ? " 已加入收藏。" : " 已取消收藏。");
+        }
+
+        private void ToolCatalogList_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter)
+            {
+                return;
+            }
+
+            AddSelectedCatalogTool();
             e.Handled = true;
+        }
+
+        private void ToolCatalogList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            ListBoxItem container = ItemsControl.ContainerFromElement(ToolCatalogList, e.OriginalSource as DependencyObject) as ListBoxItem;
+            if (container != null)
+            {
+                container.IsSelected = true;
+                container.Focus();
+            }
         }
 
         private void ToolCatalogList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -7326,13 +7569,14 @@ namespace HalconWinFormsDemo
             toolCatalogDragItem = container == null ? null : container.DataContext as VmToolCatalogItem;
         }
 
-        private void ToolCatalogList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void ToolCatalogShowDescriptionMenuItem_Click(object sender, RoutedEventArgs e)
         {
             VmToolCatalogItem item = ToolCatalogList == null ? null : ToolCatalogList.SelectedItem as VmToolCatalogItem;
-            if (ToolCatalogSelectionDetail == null) return;
-            ToolCatalogSelectionDetail.Visibility = item == null ? Visibility.Collapsed : Visibility.Visible;
-            ToolCatalogSelectionTitleText.Text = item == null ? string.Empty : item.Name + " · " + item.Category;
-            ToolCatalogSelectionDescriptionText.Text = item == null ? string.Empty : item.Description;
+            if (item == null) return;
+            RefreshToolCapabilityPreviewS65(item);
+            ToolCapabilityExpander.IsExpanded = true;
+            ToolCatalogStatusText.Text = item.Name + " · 已显示真实能力与端口契约";
+            ToolCatalogStatusText.ToolTip = item.Description;
         }
 
         private void ToolCatalogList_PreviewMouseMove(object sender, MouseEventArgs e)
@@ -8175,6 +8419,7 @@ namespace HalconWinFormsDemo
                 FlowToolList.SelectedItem = target;
             }
             RefreshFlowPortVisualization();
+            RefreshFlowDebugMonitor();
             HeaderStatusText.Text = "已选择真实连接：" + connection.SourceEndpointText + " → " + connection.TargetEndpointText;
         }
 
@@ -8365,8 +8610,8 @@ namespace HalconWinFormsDemo
 
             VmToolInstance source = flowTools.FirstOrDefault(item => string.Equals(item.ToolId, sourceChip.OwnerToolId, StringComparison.OrdinalIgnoreCase));
             VmToolInstance target = flowTools.FirstOrDefault(item => string.Equals(item.ToolId, targetChip.OwnerToolId, StringComparison.OrdinalIgnoreCase));
-            VmPortDefinition sourcePort = source == null ? null : ToolMetadata.GetOutputPorts(source.Kind).FirstOrDefault(item => string.Equals(item.PortName, sourceChip.PortName, StringComparison.OrdinalIgnoreCase));
-            VmPortDefinition targetPort = target == null ? null : ToolMetadata.GetInputPorts(target.Kind).FirstOrDefault(item => string.Equals(item.PortName, targetChip.PortName, StringComparison.OrdinalIgnoreCase));
+            VmPortDefinition sourcePort = source == null ? null : ToolMetadata.GetInstanceOutputPorts(source).FirstOrDefault(item => string.Equals(item.PortName, sourceChip.PortName, StringComparison.OrdinalIgnoreCase));
+            VmPortDefinition targetPort = target == null ? null : ToolMetadata.GetInstanceInputPorts(target).FirstOrDefault(item => string.Equals(item.PortName, targetChip.PortName, StringComparison.OrdinalIgnoreCase));
             if (source == null || target == null || sourcePort == null || targetPort == null)
             {
                 error = "端口所属模块或端口定义已失效。";
@@ -8405,7 +8650,7 @@ namespace HalconWinFormsDemo
             if (!EvaluateFlowPortConnection(sourceChip, targetChip, out error)) return false;
             VmToolInstance source = flowTools.First(item => string.Equals(item.ToolId, sourceChip.OwnerToolId, StringComparison.OrdinalIgnoreCase));
             VmToolInstance target = flowTools.First(item => string.Equals(item.ToolId, targetChip.OwnerToolId, StringComparison.OrdinalIgnoreCase));
-            VmPortDefinition targetPort = ToolMetadata.GetInputPorts(target.Kind).First(item => string.Equals(item.PortName, targetChip.PortName, StringComparison.OrdinalIgnoreCase));
+            VmPortDefinition targetPort = ToolMetadata.GetInstanceInputPorts(target).First(item => string.Equals(item.PortName, targetChip.PortName, StringComparison.OrdinalIgnoreCase));
             VmToolInputBindingData previousBinding = target.GetInputBinding(targetPort.PortName);
             previousBinding = previousBinding == null ? null : previousBinding.Clone();
             string previousInputToolId = target.InputToolId;
@@ -8494,7 +8739,7 @@ namespace HalconWinFormsDemo
             bool input = string.Equals(selectedFlowPortDirection, "IN", StringComparison.OrdinalIgnoreCase);
             VmPortDefinition port = tool == null
                 ? null
-                : (input ? ToolMetadata.GetInputPorts(tool.Kind) : ToolMetadata.GetOutputPorts(tool.Kind))
+                : (input ? ToolMetadata.GetInstanceInputPorts(tool) : ToolMetadata.GetInstanceOutputPorts(tool))
                     .FirstOrDefault(item => string.Equals(item.PortName, selectedFlowPortName, StringComparison.OrdinalIgnoreCase));
             bool graphVisible = FlowGraphViewport != null && FlowGraphViewport.Visibility == Visibility.Visible;
             if (tool == null || port == null || !graphVisible)
@@ -8546,7 +8791,7 @@ namespace HalconWinFormsDemo
             {
                 foreach (VmToolInstance source in flowTools.Take(Math.Max(0, targetIndex)))
                 {
-                    foreach (VmPortDefinition sourcePort in ToolMetadata.GetOutputPorts(source.Kind)
+                    foreach (VmPortDefinition sourcePort in ToolMetadata.GetInstanceOutputPorts(source)
                         .Where(item => string.Equals(item.DataType, port.DataType, StringComparison.OrdinalIgnoreCase)))
                     {
                         flowPortSourceOptions.Add(new VmInputSourceOption
@@ -8695,7 +8940,7 @@ namespace HalconWinFormsDemo
             target = flowTools.FirstOrDefault(item => string.Equals(item.ToolId, selectedFlowPortToolId, StringComparison.OrdinalIgnoreCase));
             port = target == null || !string.Equals(selectedFlowPortDirection, "IN", StringComparison.OrdinalIgnoreCase)
                 ? null
-                : ToolMetadata.GetInputPorts(target.Kind).FirstOrDefault(item => string.Equals(item.PortName, selectedFlowPortName, StringComparison.OrdinalIgnoreCase));
+                : ToolMetadata.GetInstanceInputPorts(target).FirstOrDefault(item => string.Equals(item.PortName, selectedFlowPortName, StringComparison.OrdinalIgnoreCase));
             return target != null && port != null;
         }
 
@@ -8928,7 +9173,7 @@ namespace HalconWinFormsDemo
                 : flowTools.FirstOrDefault(item => string.Equals(item.ToolId, connection.TargetToolId, StringComparison.OrdinalIgnoreCase));
             VmPortDefinition targetPort = target == null
                 ? null
-                : ToolMetadata.GetInputPorts(target.Kind).FirstOrDefault(item => string.Equals(item.PortName, connection.TargetPortName, StringComparison.OrdinalIgnoreCase));
+                : ToolMetadata.GetInstanceInputPorts(target).FirstOrDefault(item => string.Equals(item.PortName, connection.TargetPortName, StringComparison.OrdinalIgnoreCase));
             if (target == null || targetPort == null)
             {
                 HeaderStatusText.Text = "目标端口不存在，无法自动修复。";
@@ -8940,7 +9185,7 @@ namespace HalconWinFormsDemo
             VmPortDefinition repairedPort = null;
             foreach (VmToolInstance source in flowTools.Take(Math.Max(0, targetIndex)).Reverse().Where(item => item.IsEnabled))
             {
-                foreach (VmPortDefinition sourcePort in ToolMetadata.GetOutputPorts(source.Kind).Where(item => string.Equals(item.DataType, targetPort.DataType, StringComparison.OrdinalIgnoreCase)))
+                foreach (VmPortDefinition sourcePort in ToolMetadata.GetInstanceOutputPorts(source).Where(item => string.Equals(item.DataType, targetPort.DataType, StringComparison.OrdinalIgnoreCase)))
                 {
                     if (IsDuplicateMultiInputEndpoint(target, connection.TargetPortName, source.ToolId, sourcePort.PortName))
                     {
@@ -9546,6 +9791,25 @@ namespace HalconWinFormsDemo
                     }
                 }
 
+                if (target.Parameters != null && !string.IsNullOrWhiteSpace(target.Parameters.PositionCorrectionToolId))
+                {
+                    string mappedCorrectionId;
+                    if (idMap.TryGetValue(target.Parameters.PositionCorrectionToolId, out mappedCorrectionId))
+                    {
+                        target.Parameters.PositionCorrectionToolId = mappedCorrectionId;
+                    }
+                    string correctionError = GetPositionCorrectionBindingConfigurationError(target, target.Parameters.PositionCorrectionToolId, false);
+                    if (string.IsNullOrWhiteSpace(correctionError))
+                    {
+                        retainedBindings++;
+                    }
+                    else
+                    {
+                        target.Parameters.PositionCorrectionToolId = string.Empty;
+                        clearedBindings++;
+                    }
+                }
+
                 InvalidateToolRunResult(target, "由流程剪贴板创建，等待运行");
             }
 
@@ -9716,11 +9980,11 @@ namespace HalconWinFormsDemo
                 VmToolInstance selected = selectedTool;
                 string automaticContext = selected == null
                     ? VmImageContextOption.GlobalInput
-                    : (dualImageMode && ToolMetadata.GetOutputPorts(selected.Kind).Any(item => string.Equals(item.DataType, "Image", StringComparison.OrdinalIgnoreCase))
+                    : (dualImageMode && ToolMetadata.GetInstanceOutputPorts(selected).Any(item => string.Equals(item.DataType, "Image", StringComparison.OrdinalIgnoreCase))
                         ? VmImageContextOption.ModuleOutput
                         : (selected.Kind == VmToolKind.ImageSource
                         ? VmImageContextOption.ModuleOutput
-                        : (selected.Kind == VmToolKind.RegionMorphology || selected.Kind == VmToolKind.RegionFeatureFilter || selected.Kind == VmToolKind.RegionSetOperation || selected.Kind == VmToolKind.RegionContourMeasurement || selected.Kind == VmToolKind.XldContourFilter || selected.Kind == VmToolKind.XldAdjacentContourUnion || selected.Kind == VmToolKind.XldContourSmoothing || selected.Kind == VmToolKind.XldAffineTransform || selected.Kind == VmToolKind.XldProjectiveTransform || selected.Kind == VmToolKind.XldContourCrop || selected.Kind == VmToolKind.XldLengthClassification || selected.Kind == VmToolKind.XldContourSegmentation || selected.Kind == VmToolKind.XldLineFitting || selected.Kind == VmToolKind.XldCircleFitting || selected.Kind == VmToolKind.XldEllipseFitting || selected.Kind == VmToolKind.XldRectangleFitting || selected.Kind == VmToolKind.XldLineRelationMeasurement || ToolMetadata.GetInputPorts(selected.Kind).Any(item => string.Equals(item.DataType, "Image", StringComparison.OrdinalIgnoreCase))
+                        : (selected.Kind == VmToolKind.RegionMorphology || selected.Kind == VmToolKind.RegionFeatureFilter || selected.Kind == VmToolKind.RegionSetOperation || selected.Kind == VmToolKind.RegionContourMeasurement || selected.Kind == VmToolKind.XldContourFilter || selected.Kind == VmToolKind.XldAdjacentContourUnion || selected.Kind == VmToolKind.XldContourSmoothing || selected.Kind == VmToolKind.XldAffineTransform || selected.Kind == VmToolKind.XldProjectiveTransform || selected.Kind == VmToolKind.XldContourCrop || selected.Kind == VmToolKind.XldLengthClassification || selected.Kind == VmToolKind.XldContourSegmentation || selected.Kind == VmToolKind.XldLineFitting || selected.Kind == VmToolKind.XldCircleFitting || selected.Kind == VmToolKind.XldEllipseFitting || selected.Kind == VmToolKind.XldRectangleFitting || selected.Kind == VmToolKind.XldLineRelationMeasurement || ToolMetadata.GetInstanceInputPorts(selected).Any(item => string.Equals(item.DataType, "Image", StringComparison.OrdinalIgnoreCase))
                             ? VmImageContextOption.ModuleInput
                             : VmImageContextOption.GlobalInput)));
                 SetImageContextSelection(automaticContext);
@@ -9847,7 +10111,8 @@ namespace HalconWinFormsDemo
 
         private static bool SupportsDockConfiguration(VmToolKind kind)
         {
-            return kind == VmToolKind.ImageSource ||
+            return kind == VmToolKind.ShapeMatch ||
+                   kind == VmToolKind.ImageSource ||
                    kind == VmToolKind.ImageChannel ||
                    kind == VmToolKind.ImageFilter ||
                    kind == VmToolKind.ImageEnhancement ||
@@ -9884,6 +10149,13 @@ namespace HalconWinFormsDemo
                    kind == VmToolKind.TcpClientExchange ||
                    kind == VmToolKind.TextAssembly ||
                    kind == VmToolKind.TextParser ||
+                   kind == VmToolKind.NumericCalculation ||
+                   kind == VmToolKind.ResultLogicAggregation ||
+                   kind == VmToolKind.CSharpDllScript ||
+                   kind == VmToolKind.GlobalVariableRead ||
+                   kind == VmToolKind.GlobalVariableWrite ||
+                   kind == VmToolKind.PositionCorrection2D ||
+                   kind == VmToolKind.PointSetGeometryStatistics ||
                    kind == VmToolKind.XldContourSegmentation ||
                    kind == VmToolKind.XldLineFitting ||
                    kind == VmToolKind.XldCircleFitting ||
@@ -10130,6 +10402,32 @@ namespace HalconWinFormsDemo
                 DockTextParserTrimCheckBox.IsChecked = p.TextParserTrim;
                 DockTextParserEmptyPolicyComboBox.SelectedValue = VmTextAssemblyEmptyPolicy.Normalize(p.TextParserEmptyPolicy);
                 DockTextParserConvertNumberCheckBox.IsChecked = p.TextParserConvertNumber;
+                DockNumericCalculationOperationComboBox.SelectedValue = VmNumericCalculationOperation.Normalize(p.NumericCalculationOperation);
+                DockNumericCalculationRoundDigitsTextBox.Text = p.NumericCalculationRoundDigits.ToString(CultureInfo.InvariantCulture);
+                DockPositionCorrectionReferenceRowTextBox.Text = p.PositionCorrectionReferenceRow.ToString("0.###", CultureInfo.InvariantCulture);
+                DockPositionCorrectionReferenceColumnTextBox.Text = p.PositionCorrectionReferenceColumn.ToString("0.###", CultureInfo.InvariantCulture);
+                DockPositionCorrectionReferenceAngleTextBox.Text = p.PositionCorrectionReferenceAngleDegrees.ToString("0.###", CultureInfo.InvariantCulture);
+                DockPointSetMinimumCountTextBox.Text = p.PointSetMinimumCount.ToString(CultureInfo.InvariantCulture);
+                DockPointSetAbnormalPolicyComboBox.SelectedValue = VmPointSetAbnormalPolicy.Normalize(p.PointSetAbnormalPolicy);
+                LoadShapeDockDraftFields(tool, p);
+                RefreshDockPositionCorrectionOptions(tool, p.PositionCorrectionToolId);
+                DockResultLogicOperationComboBox.SelectedValue = VmResultLogicOperation.Normalize(p.ResultLogicOperation);
+                DockResultLogicCaseSensitiveCheckBox.IsChecked = p.ResultLogicCaseSensitive;
+                DockResultLogicTrimInputCheckBox.IsChecked = p.ResultLogicTrimInput;
+                DockScriptExecutionModeComboBox.SelectedValue = VmScriptExecutionMode.Normalize(p.ScriptExecutionMode);
+                DockScriptTimeoutTextBox.Text = p.ScriptTimeoutMilliseconds.ToString(CultureInfo.InvariantCulture);
+                DockScriptParameterNumberTextBox.Text = p.ScriptParameterNumber.ToString("0.###", CultureInfo.InvariantCulture);
+                DockScriptParameterTextTextBox.Text = p.ScriptParameterText ?? string.Empty;
+                DockScriptInlineCodeTextBox.Text = p.ScriptInlineCode ?? VmScriptExecutionMode.DefaultInlineCode;
+                DockScriptAssemblyPathTextBox.Text = p.ScriptAssemblyPath ?? string.Empty;
+                DockScriptTypeNameTextBox.Text = p.ScriptTypeName ?? string.Empty;
+                DockScriptMethodNameTextBox.Text = p.ScriptMethodName ?? string.Empty;
+                DockScriptResourceComboBox.SelectedValue = p.ScriptResourceId ?? string.Empty;
+                DockGlobalVariableComboBox.SelectedValue = p.GlobalVariableId ?? string.Empty;
+                if (tool.Kind == VmToolKind.CSharpDllScript) DockScriptEditorExpander.IsExpanded = false;
+                UpdateDockScriptModeUi();
+                RefreshDockScriptResourceSummary();
+                RefreshDockGlobalVariableSummary();
                 DockXldSegmentModeComboBox.SelectedValue = VmXldSegmentMode.Normalize(p.XldSegmentMode);
                 DockXldSegmentSmoothTextBox.Text = p.XldSegmentSmooth.ToString(CultureInfo.InvariantCulture);
                 DockXldSegmentDistance1TextBox.Text = p.XldSegmentMaxLineDistance1.ToString("0.###", CultureInfo.InvariantCulture);
@@ -10292,6 +10590,13 @@ namespace HalconWinFormsDemo
             DockTcpClientPanel.Visibility = kind == VmToolKind.TcpClientExchange ? Visibility.Visible : Visibility.Collapsed;
             DockTextAssemblyPanel.Visibility = kind == VmToolKind.TextAssembly ? Visibility.Visible : Visibility.Collapsed;
             DockTextParserPanel.Visibility = kind == VmToolKind.TextParser ? Visibility.Visible : Visibility.Collapsed;
+            DockNumericCalculationPanel.Visibility = kind == VmToolKind.NumericCalculation ? Visibility.Visible : Visibility.Collapsed;
+            DockShapeMatchPanel.Visibility = kind == VmToolKind.ShapeMatch ? Visibility.Visible : Visibility.Collapsed;
+            DockPositionCorrectionPanel.Visibility = kind == VmToolKind.PositionCorrection2D ? Visibility.Visible : Visibility.Collapsed;
+            DockPointSetGeometryPanel.Visibility = kind == VmToolKind.PointSetGeometryStatistics ? Visibility.Visible : Visibility.Collapsed;
+            DockResultLogicAggregationPanel.Visibility = kind == VmToolKind.ResultLogicAggregation ? Visibility.Visible : Visibility.Collapsed;
+            DockScriptPanel.Visibility = kind == VmToolKind.CSharpDllScript ? Visibility.Visible : Visibility.Collapsed;
+            DockGlobalVariablePanel.Visibility = kind == VmToolKind.GlobalVariableRead || kind == VmToolKind.GlobalVariableWrite ? Visibility.Visible : Visibility.Collapsed;
             DockTcpClientTimeoutPanel.Visibility = kind == VmToolKind.TcpClientExchange ? Visibility.Visible : Visibility.Collapsed;
             DockXldContourSegmentationPanel.Visibility = kind == VmToolKind.XldContourSegmentation ? Visibility.Visible : Visibility.Collapsed;
             DockXldLineFittingPanel.Visibility = kind == VmToolKind.XldLineFitting ? Visibility.Visible : Visibility.Collapsed;
@@ -10307,7 +10612,8 @@ namespace HalconWinFormsDemo
             DockGrayPanel.Visibility = kind == VmToolKind.GrayStat ? Visibility.Visible : Visibility.Collapsed;
             DockEdgePanel.Visibility = kind == VmToolKind.EdgeMeasure ? Visibility.Visible : Visibility.Collapsed;
             DockNumericPanel.Visibility = kind == VmToolKind.NumericJudge ? Visibility.Visible : Visibility.Collapsed;
-            DockCompatibilityPanel.Visibility = kind == VmToolKind.ShapeMatch || kind == VmToolKind.HDevelop ? Visibility.Visible : Visibility.Collapsed;
+            DockCompatibilityPanel.Visibility = kind == VmToolKind.HDevelop ? Visibility.Visible : Visibility.Collapsed;
+            DockRoiPositionCorrectionPanel.Visibility = tool != null && ToolMetadata.SupportsRoi(tool.Kind) ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void DockAdvancedParameterToggleButton_Click(object sender, RoutedEventArgs e)
@@ -10540,6 +10846,14 @@ namespace HalconWinFormsDemo
                     : (string.Equals(tool.ResultCode, "NG", StringComparison.OrdinalIgnoreCase) || !string.IsNullOrWhiteSpace(tool.ErrorMessage)
                         ? System.Windows.Media.Color.FromRgb(254, 202, 202)
                         : System.Windows.Media.Color.FromRgb(191, 219, 254)));
+            if (tool.Kind == VmToolKind.CSharpDllScript && DockScriptDiagnosticsText != null)
+            {
+                object diagnostics;
+                DockScriptDiagnosticsText.Text = tool.TryGetOutputValue("Diagnostics", out diagnostics) && diagnostics != null
+                    ? Convert.ToString(diagnostics, CultureInfo.InvariantCulture)
+                    : "尚未编译或运行。";
+            }
+            RefreshShapeCandidateGrid(tool);
             DockModuleTitleText.ToolTip = DockModuleTypeText.Text + Environment.NewLine + DockQuickInputText.Text;
             DockRoiResultsDataGrid.ItemsSource = tool.RoiResults;
             foreach (VmInputPortEditorRow row in dockInputPortRows)
@@ -10567,6 +10881,12 @@ namespace HalconWinFormsDemo
             {
                 UpdateDockRoiSummary();
             }
+            if (ReferenceEquals(sender, DockRoiPositionCorrectionComboBox))
+            {
+                UpdateDockPositionCorrectionStatus(
+                    dockEditingTool,
+                    DockRoiPositionCorrectionComboBox.SelectedValue as string);
+            }
             if (ReferenceEquals(sender, DockImageFilterModeComboBox))
             {
                 UpdateDockImageFilterParameterState();
@@ -10588,6 +10908,68 @@ namespace HalconWinFormsDemo
                 RefreshProjectiveGeometryPreviewFromDock();
             }
             UpdateDockAdvancedParameterLayout(dockEditingTool);
+        }
+
+        private void DockScriptExecutionModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateDockScriptModeUi();
+            DockDraftValue_Changed(sender, e);
+        }
+
+        private void UpdateDockScriptModeUi()
+        {
+            if (DockScriptExecutionModeComboBox == null || DockScriptInlinePanel == null || DockScriptDllPanel == null) return;
+            bool dll = VmScriptExecutionMode.Normalize(DockScriptExecutionModeComboBox.SelectedValue as string) == VmScriptExecutionMode.Dll;
+            DockScriptInlinePanel.Visibility = dll ? Visibility.Collapsed : Visibility.Visible;
+            DockScriptDllPanel.Visibility = dll ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void DockScriptBrowseButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog dialog = new OpenFileDialog
+            {
+                Title = "选择受信任脚本程序集",
+                Filter = "程序集 (*.dll)|*.dll|所有文件 (*.*)|*.*",
+                CheckFileExists = true,
+                Multiselect = false
+            };
+            if (dialog.ShowDialog(this) != true) return;
+            DockScriptResourceComboBox.SelectedIndex = -1;
+            DockScriptAssemblyPathTextBox.Text = dialog.FileName;
+            DockScriptEditorExpander.IsExpanded = true;
+            DockScriptLegacyPathExpander.IsExpanded = true;
+        }
+
+        private void DockScriptValidateButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (dockEditingTool == null || dockEditingTool.Kind != VmToolKind.CSharpDllScript) return;
+            try
+            {
+                int timeout;
+                if (!int.TryParse(DockScriptTimeoutTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out timeout))
+                    throw new InvalidOperationException("脚本超时必须是整数毫秒。");
+                VmToolParameterData draft = (dockEditingTool.Parameters ?? new VmToolParameterData()).Clone();
+                draft.ScriptExecutionMode = VmScriptExecutionMode.Normalize(DockScriptExecutionModeComboBox.SelectedValue as string);
+                draft.ScriptInlineCode = DockScriptInlineCodeTextBox.Text ?? string.Empty;
+                draft.ScriptAssemblyPath = (DockScriptAssemblyPathTextBox.Text ?? string.Empty).Trim();
+                draft.ScriptTypeName = (DockScriptTypeNameTextBox.Text ?? string.Empty).Trim();
+                draft.ScriptMethodName = (DockScriptMethodNameTextBox.Text ?? string.Empty).Trim();
+                draft.ScriptResourceId = (DockScriptResourceComboBox.SelectedValue as string ?? string.Empty).Trim();
+                draft.ScriptTimeoutMilliseconds = timeout;
+                draft.Normalize();
+                string validation = draft.Validate(VmToolKind.CSharpDllScript);
+                if (!string.IsNullOrWhiteSpace(validation)) throw new InvalidOperationException(validation);
+                string resourceValidation = ValidateScriptResourceDockDraft(draft);
+                if (!string.IsNullOrWhiteSpace(resourceValidation)) throw new InvalidOperationException(resourceValidation);
+                ScriptToolExecutionReport report = scriptToolService.Validate(CreateScriptExecutionRequest(draft, null));
+                DockScriptDiagnosticsText.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(4, 120, 87));
+                DockScriptDiagnosticsText.Text = report.Diagnostics;
+            }
+            catch (Exception ex)
+            {
+                DockScriptDiagnosticsText.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(185, 28, 28));
+                DockScriptDiagnosticsText.Text = ex.Message;
+            }
         }
 
         private void UpdateDockImageFilterParameterState()
@@ -11393,6 +11775,56 @@ namespace HalconWinFormsDemo
                 parameters.TextParserEmptyPolicy = VmTextAssemblyEmptyPolicy.Normalize(DockTextParserEmptyPolicyComboBox.SelectedValue as string);
                 parameters.TextParserConvertNumber = DockTextParserConvertNumberCheckBox.IsChecked == true;
             }
+            else if (tool.Kind == VmToolKind.NumericCalculation)
+            {
+                parameters.NumericCalculationOperation = VmNumericCalculationOperation.Normalize(DockNumericCalculationOperationComboBox.SelectedValue as string);
+                if (!int.TryParse(DockNumericCalculationRoundDigitsTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("数值运算小数位数必须是整数。");
+                parameters.NumericCalculationRoundDigits = integer;
+            }
+            else if (tool.Kind == VmToolKind.PositionCorrection2D)
+            {
+                if (!TryParseUiDouble(DockPositionCorrectionReferenceRowTextBox.Text, out number)) return FailDockDraft("2D 位置修正基准 Row 必须是数值。");
+                parameters.PositionCorrectionReferenceRow = number;
+                if (!TryParseUiDouble(DockPositionCorrectionReferenceColumnTextBox.Text, out number)) return FailDockDraft("2D 位置修正基准 Column 必须是数值。");
+                parameters.PositionCorrectionReferenceColumn = number;
+                if (!TryParseUiDouble(DockPositionCorrectionReferenceAngleTextBox.Text, out number)) return FailDockDraft("2D 位置修正基准角度必须是数值。");
+                parameters.PositionCorrectionReferenceAngleDegrees = number;
+            }
+            else if (tool.Kind == VmToolKind.PointSetGeometryStatistics)
+            {
+                if (!int.TryParse(DockPointSetMinimumCountTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("点集几何统计最小点数必须是整数。");
+                parameters.PointSetMinimumCount = integer;
+                parameters.PointSetAbnormalPolicy = VmPointSetAbnormalPolicy.Normalize(DockPointSetAbnormalPolicyComboBox.SelectedValue as string);
+            }
+            else if (tool.Kind == VmToolKind.ShapeMatch)
+            {
+                string shapeError;
+                if (!TryReadShapeDockDraftFields(parameters, out shapeError)) return FailDockDraft(shapeError);
+            }
+            else if (tool.Kind == VmToolKind.ResultLogicAggregation)
+            {
+                parameters.ResultLogicOperation = VmResultLogicOperation.Normalize(DockResultLogicOperationComboBox.SelectedValue as string);
+                parameters.ResultLogicCaseSensitive = DockResultLogicCaseSensitiveCheckBox.IsChecked == true;
+                parameters.ResultLogicTrimInput = DockResultLogicTrimInputCheckBox.IsChecked == true;
+            }
+            else if (tool.Kind == VmToolKind.CSharpDllScript)
+            {
+                parameters.ScriptExecutionMode = VmScriptExecutionMode.Normalize(DockScriptExecutionModeComboBox.SelectedValue as string);
+                if (!int.TryParse(DockScriptTimeoutTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("脚本超时必须是整数毫秒。");
+                parameters.ScriptTimeoutMilliseconds = integer;
+                if (!TryParseUiDouble(DockScriptParameterNumberTextBox.Text, out number)) return FailDockDraft("脚本参数数值必须是数值。");
+                parameters.ScriptParameterNumber = number;
+                parameters.ScriptParameterText = DockScriptParameterTextTextBox.Text ?? string.Empty;
+                parameters.ScriptInlineCode = DockScriptInlineCodeTextBox.Text ?? string.Empty;
+                parameters.ScriptAssemblyPath = (DockScriptAssemblyPathTextBox.Text ?? string.Empty).Trim();
+                parameters.ScriptTypeName = (DockScriptTypeNameTextBox.Text ?? string.Empty).Trim();
+                parameters.ScriptMethodName = (DockScriptMethodNameTextBox.Text ?? string.Empty).Trim();
+                parameters.ScriptResourceId = (DockScriptResourceComboBox.SelectedValue as string ?? string.Empty).Trim();
+            }
+            else if (tool.Kind == VmToolKind.GlobalVariableRead || tool.Kind == VmToolKind.GlobalVariableWrite)
+            {
+                parameters.GlobalVariableId = (DockGlobalVariableComboBox.SelectedValue as string ?? string.Empty).Trim();
+            }
             else if (tool.Kind == VmToolKind.XldContourSegmentation)
             {
                 parameters.XldSegmentMode = VmXldSegmentMode.Normalize(DockXldSegmentModeComboBox.SelectedValue as string);
@@ -11607,9 +12039,19 @@ namespace HalconWinFormsDemo
             {
                 parameters.RoiExecutionMode = VmRoiExecutionMode.Normalize(DockRoiExecutionModeComboBox.SelectedValue as string);
             }
+            if (ToolMetadata.SupportsRoi(tool.Kind))
+            {
+                parameters.PositionCorrectionToolId = (DockRoiPositionCorrectionComboBox.SelectedValue as string ?? string.Empty).Trim();
+                string correctionError = GetPositionCorrectionBindingConfigurationError(tool, parameters.PositionCorrectionToolId, false);
+                if (!string.IsNullOrWhiteSpace(correctionError)) return FailDockDraft(correctionError);
+            }
             parameters.Normalize();
             string parameterError = parameters.Validate(tool.Kind);
             if (!string.IsNullOrWhiteSpace(parameterError)) return FailDockDraft(parameterError);
+            string resourceError = tool.Kind == VmToolKind.CSharpDllScript ? ValidateScriptResourceDockDraft(parameters) : string.Empty;
+            if (!string.IsNullOrWhiteSpace(resourceError)) return FailDockDraft(resourceError);
+            string variableError = ValidateGlobalVariableDockDraft(tool.Kind, parameters);
+            if (!string.IsNullOrWhiteSpace(variableError)) return FailDockDraft(variableError);
             string inputError = ValidateDockInputDraft(parameters);
             if (!string.IsNullOrWhiteSpace(inputError)) return FailDockDraft(inputError);
             DockValidationText.Text = string.Empty;
@@ -11685,6 +12127,8 @@ namespace HalconWinFormsDemo
             RefreshRoiLayerBindingSummaries();
             ScheduleRecipeStateCheck();
             CommitFlowEditHistory("应用配置：" + tool.InstanceName, before);
+            if (tool.Kind == VmToolKind.GlobalVariableRead || tool.Kind == VmToolKind.GlobalVariableWrite) RefreshGlobalVariableSubscriptions();
+            if (tool.Kind == VmToolKind.CSharpDllScript) RefreshExternalResourceReferences();
             if (SupportsInteractiveMeasurementDomain(tool.Kind))
             {
                 RefreshMeasurementDomainPreviewFromDock();
@@ -11796,7 +12240,7 @@ namespace HalconWinFormsDemo
 
             int toolIndex = flowTools.IndexOf(tool);
             IEnumerable<VmToolInstance> previousTools = toolIndex < 0 ? Enumerable.Empty<VmToolInstance>() : flowTools.Take(toolIndex);
-            foreach (VmPortDefinition port in ToolMetadata.GetInputPorts(tool.Kind))
+            foreach (VmPortDefinition port in ToolMetadata.GetInstanceInputPorts(tool))
             {
                 List<VmInputSourceOption> options = new List<VmInputSourceOption>
                 {
@@ -11813,7 +12257,7 @@ namespace HalconWinFormsDemo
                 {
                     foreach (VmToolInstance source in previousTools)
                     {
-                        foreach (VmPortDefinition output in ToolMetadata.GetOutputPorts(source.Kind).Where(item => string.Equals(item.DataType, port.DataType, StringComparison.OrdinalIgnoreCase)))
+                        foreach (VmPortDefinition output in ToolMetadata.GetInstanceOutputPorts(source).Where(item => string.Equals(item.DataType, port.DataType, StringComparison.OrdinalIgnoreCase) && IsGlobalVariableOutputPortActive(source, item.PortName)))
                         {
                             options.Add(new VmInputSourceOption
                             {
@@ -11874,6 +12318,12 @@ namespace HalconWinFormsDemo
             }
 
             if (tool.Kind == VmToolKind.TextParser && port.PortName == "String") return true;
+            if (tool.Kind == VmToolKind.NumericCalculation && (port.PortName == "NumberA" || port.PortName == "NumberB")) return true;
+            if (tool.Kind == VmToolKind.ResultLogicAggregation && (port.PortName == "ResultCodeA" || port.PortName == "ResultCodeB")) return true;
+            if (tool.Kind == VmToolKind.CSharpDllScript &&
+                (port.PortName == "NumberA" || port.PortName == "NumberB" || port.PortName == "String" || port.PortName == "ResultCode")) return true;
+            if (tool.Kind == VmToolKind.GlobalVariableWrite &&
+                (port.PortName == "NumberValue" || port.PortName == "TextValue" || port.PortName == "BooleanValue" || port.PortName == "ResultCodeValue")) return true;
 
             if (port.PortName == "Image")
             {
@@ -12378,6 +12828,7 @@ namespace HalconWinFormsDemo
             ApplyFlowToolSelection(new VmToolInstance[0], null, false);
             foreach (VmToolInstance tool in selected)
             {
+                DisposeShapeToolResource(tool.ToolId);
                 if (string.Equals(measurementDomainToolId, tool.ToolId, StringComparison.OrdinalIgnoreCase))
                 {
                     ClearMeasurementDomainContext();
@@ -12767,7 +13218,7 @@ namespace HalconWinFormsDemo
                 CrosshairTargetComboBox.SelectedValue = "Right";
             }
             VmToolInstance selectedTool = FlowToolList == null ? null : FlowToolList.SelectedItem as VmToolInstance;
-            if (enabled && selectedTool != null && ToolMetadata.GetOutputPorts(selectedTool.Kind).Any(item => string.Equals(item.DataType, "Image", StringComparison.OrdinalIgnoreCase)))
+            if (enabled && selectedTool != null && ToolMetadata.GetInstanceOutputPorts(selectedTool).Any(item => string.Equals(item.DataType, "Image", StringComparison.OrdinalIgnoreCase)))
             {
                 SetImageContextSelection(VmImageContextOption.ModuleOutput);
             }
@@ -13991,7 +14442,7 @@ namespace HalconWinFormsDemo
 
             if (requested == VmImageContextOption.ModuleOutput && selected != null)
             {
-                VmPortDefinition imagePort = ToolMetadata.GetOutputPorts(selected.Kind)
+                VmPortDefinition imagePort = ToolMetadata.GetInstanceOutputPorts(selected)
                     .FirstOrDefault(item => string.Equals(item.DataType, "Image", StringComparison.OrdinalIgnoreCase));
                 VmImageSnapshot snapshot = GetImageSnapshot(selected, imagePort == null ? null : imagePort.PortName);
                 if (snapshot != null && !snapshot.IsDisposed)
@@ -14024,7 +14475,7 @@ namespace HalconWinFormsDemo
         {
             VmPortDefinition imageInputPort = tool == null
                 ? null
-                : ToolMetadata.GetInputPorts(tool.Kind).FirstOrDefault(item => string.Equals(item.DataType, "Image", StringComparison.OrdinalIgnoreCase));
+                : ToolMetadata.GetInstanceInputPorts(tool).FirstOrDefault(item => string.Equals(item.DataType, "Image", StringComparison.OrdinalIgnoreCase));
             if (imageInputPort != null)
             {
                 VmToolInputBindingData binding = tool.GetInputBinding(imageInputPort.PortName);
@@ -14090,7 +14541,7 @@ namespace HalconWinFormsDemo
                     continue;
                 }
 
-                VmPortDefinition sourcePort = ToolMetadata.GetOutputPorts(source.Kind)
+                VmPortDefinition sourcePort = ToolMetadata.GetInstanceOutputPorts(source)
                     .FirstOrDefault(item => string.Equals(item.PortName, binding.SourcePortName, StringComparison.OrdinalIgnoreCase));
                 if (sourcePort != null && string.Equals(sourcePort.DataType, "Image", StringComparison.OrdinalIgnoreCase))
                 {
@@ -14165,7 +14616,7 @@ namespace HalconWinFormsDemo
             string selectedPortName = DualInputPortComboBox.SelectedValue as string;
             List<VmPortDefinition> ports = tool == null
                 ? new List<VmPortDefinition>()
-                : ToolMetadata.GetInputPorts(tool.Kind)
+                : ToolMetadata.GetInstanceInputPorts(tool)
                     .Where(item => string.Equals(item.DataType, "Image", StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
@@ -14224,7 +14675,7 @@ namespace HalconWinFormsDemo
                 return CreateEmptyImageContext("DualModuleInput", "请选择一个具有 Image 输入的当前模块。", "当前模块输入");
             }
 
-            List<VmPortDefinition> imagePorts = ToolMetadata.GetInputPorts(tool.Kind)
+            List<VmPortDefinition> imagePorts = ToolMetadata.GetInstanceInputPorts(tool)
                 .Where(item => string.Equals(item.DataType, "Image", StringComparison.OrdinalIgnoreCase))
                 .ToList();
             string selectedPortName = DualInputPortComboBox == null ? null : DualInputPortComboBox.SelectedValue as string;
@@ -16411,6 +16862,10 @@ namespace HalconWinFormsDemo
                 TryPickXldContour(false, imagePoint, GetXldHitTolerance(viewport, imageWindow, e.Location));
                 return;
             }
+            if (TrySelectShapeCandidateAt(imagePoint, GetXldHitTolerance(viewport, imageWindow, e.Location)))
+            {
+                return;
+            }
             if (BeginProjectiveGeometryDrag(false, imagePoint, e.Location, viewport, imageWindow))
             {
                 return;
@@ -17311,7 +17766,7 @@ namespace HalconWinFormsDemo
             HashSet<string> invalidIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (VmToolInstance tool in flowTools)
             {
-                bool usesGlobalImage = ToolMetadata.GetInputPorts(tool.Kind)
+                bool usesGlobalImage = ToolMetadata.GetInstanceInputPorts(tool)
                     .Where(port => string.Equals(port.DataType, "Image", StringComparison.OrdinalIgnoreCase))
                     .Any(port => tool.GetInputBinding(port.PortName) == null);
                 if (usesGlobalImage)
@@ -18213,8 +18668,11 @@ namespace HalconWinFormsDemo
                         }
                         break;
                     case VmToolKind.ShapeMatch:
-                        EnsureImage();
-                        record = RunShapeMatchTool(tool, source);
+                        using (HImage inputImage = CreateToolInputImage(tool))
+                        {
+                            record = RunShapeMatchToolS63(tool, source, inputImage);
+                            ApplyRecordImage(record, tool, inputImage);
+                        }
                         tool.InputSummary = "Image + " + GetRoiBindingSummary(tool) + " + ShapeModel";
                         tool.OutputSummary = currentMatches.Count == 0
                             ? "Matches=0"
@@ -18276,6 +18734,41 @@ namespace HalconWinFormsDemo
                         tool.InputSummary = BuildTextParserInputSummary(tool);
                         tool.OutputSummary = record.Message;
                         break;
+                    case VmToolKind.NumericCalculation:
+                        record = RunNumericCalculationTool(tool);
+                        tool.InputSummary = BuildNumericCalculationInputSummary(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.PositionCorrection2D:
+                        record = RunPositionCorrection2DTool(tool);
+                        tool.InputSummary = BuildPositionCorrectionInputSummary(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.PointSetGeometryStatistics:
+                        record = RunPointSetGeometryStatisticsToolS65(tool);
+                        tool.InputSummary = BuildPointSetGeometryInputSummaryS65(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.ResultLogicAggregation:
+                        record = RunResultLogicAggregationTool(tool);
+                        tool.InputSummary = BuildResultLogicInputSummary(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.CSharpDllScript:
+                        record = RunScriptTool(tool);
+                        tool.InputSummary = BuildScriptInputSummary(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.GlobalVariableRead:
+                        record = RunGlobalVariableReadTool(tool);
+                        tool.InputSummary = BuildGlobalVariableToolInputSummary(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.GlobalVariableWrite:
+                        record = RunGlobalVariableWriteTool(tool);
+                        tool.InputSummary = BuildGlobalVariableToolInputSummary(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
                     default:
                         throw new NotSupportedException("不支持的工具类型：" + tool.Kind);
                 }
@@ -18283,7 +18776,7 @@ namespace HalconWinFormsDemo
                 PublishToolOutputs(tool, record);
                 tool.ResultCode = record.ResultCode;
                 tool.RunStatus = string.Equals(record.ResultCode, "OK", StringComparison.OrdinalIgnoreCase) ? "完成" : "异常";
-                if (tool.Kind == VmToolKind.ImageSource || tool.Kind == VmToolKind.ImageChannel || tool.Kind == VmToolKind.ImageFilter || tool.Kind == VmToolKind.ImageEnhancement || tool.Kind == VmToolKind.ImageResize || tool.Kind == VmToolKind.ImageMirror || tool.Kind == VmToolKind.ImageRotate || tool.Kind == VmToolKind.ImageAffineTransform || tool.Kind == VmToolKind.ImageProjectiveTransform || tool.Kind == VmToolKind.SubpixelEdgeExtraction || tool.Kind == VmToolKind.PolarImageUnwrap || tool.Kind == VmToolKind.RoiImageExtraction || tool.Kind == VmToolKind.ImageDifference || tool.Kind == VmToolKind.DynamicThreshold || tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.RegionMorphology || tool.Kind == VmToolKind.RegionFeatureFilter || tool.Kind == VmToolKind.RegionSetOperation || tool.Kind == VmToolKind.RegionContourMeasurement || tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldAdjacentContourUnion || tool.Kind == VmToolKind.XldContourSmoothing || tool.Kind == VmToolKind.XldAffineTransform || tool.Kind == VmToolKind.XldProjectiveTransform || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting || tool.Kind == VmToolKind.XldLineRelationMeasurement || tool.Kind == VmToolKind.CaliperEdgePairMeasurement || tool.Kind == VmToolKind.LinearCaliperArrayMeasurement || tool.Kind == VmToolKind.CircularCaliperCircleFinder || tool.Kind == VmToolKind.RingWallThicknessMeasurement)
+                if (tool.Kind == VmToolKind.ShapeMatch || tool.Kind == VmToolKind.ImageSource || tool.Kind == VmToolKind.ImageChannel || tool.Kind == VmToolKind.ImageFilter || tool.Kind == VmToolKind.ImageEnhancement || tool.Kind == VmToolKind.ImageResize || tool.Kind == VmToolKind.ImageMirror || tool.Kind == VmToolKind.ImageRotate || tool.Kind == VmToolKind.ImageAffineTransform || tool.Kind == VmToolKind.ImageProjectiveTransform || tool.Kind == VmToolKind.SubpixelEdgeExtraction || tool.Kind == VmToolKind.PolarImageUnwrap || tool.Kind == VmToolKind.RoiImageExtraction || tool.Kind == VmToolKind.ImageDifference || tool.Kind == VmToolKind.DynamicThreshold || tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.RegionMorphology || tool.Kind == VmToolKind.RegionFeatureFilter || tool.Kind == VmToolKind.RegionSetOperation || tool.Kind == VmToolKind.RegionContourMeasurement || tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldAdjacentContourUnion || tool.Kind == VmToolKind.XldContourSmoothing || tool.Kind == VmToolKind.XldAffineTransform || tool.Kind == VmToolKind.XldProjectiveTransform || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting || tool.Kind == VmToolKind.XldLineRelationMeasurement || tool.Kind == VmToolKind.CaliperEdgePairMeasurement || tool.Kind == VmToolKind.LinearCaliperArrayMeasurement || tool.Kind == VmToolKind.CircularCaliperCircleFinder || tool.Kind == VmToolKind.RingWallThicknessMeasurement)
                 {
                     UpdateImageContextViewport(true);
                     ScheduleRefreshDisplay();
@@ -18565,6 +19058,287 @@ namespace HalconWinFormsDemo
             return record;
         }
 
+        private InspectionRecord RunNumericCalculationTool(VmToolInstance tool)
+        {
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            parameters.Normalize();
+            string validationError = parameters.Validate(VmToolKind.NumericCalculation);
+            if (!string.IsNullOrWhiteSpace(validationError)) throw new InvalidOperationException(validationError);
+
+            double numberA = ResolveFiniteNumericCalculationInput(tool, "NumberA", true);
+            string operation = VmNumericCalculationOperation.Normalize(parameters.NumericCalculationOperation);
+            bool requiresNumberB = VmNumericCalculationOperation.RequiresSecondOperand(operation);
+            double numberB = requiresNumberB ? ResolveFiniteNumericCalculationInput(tool, "NumberB", true) : 0;
+            double result;
+            switch (operation)
+            {
+                case VmNumericCalculationOperation.Subtract:
+                    result = numberA - numberB;
+                    break;
+                case VmNumericCalculationOperation.Multiply:
+                    result = numberA * numberB;
+                    break;
+                case VmNumericCalculationOperation.Divide:
+                    if (numberB == 0) throw new InvalidOperationException("数值运算除数 NumberB 不能为零。");
+                    result = numberA / numberB;
+                    break;
+                case VmNumericCalculationOperation.Minimum:
+                    result = Math.Min(numberA, numberB);
+                    break;
+                case VmNumericCalculationOperation.Maximum:
+                    result = Math.Max(numberA, numberB);
+                    break;
+                case VmNumericCalculationOperation.Absolute:
+                    result = Math.Abs(numberA);
+                    break;
+                case VmNumericCalculationOperation.Round:
+                    result = Math.Round(numberA, parameters.NumericCalculationRoundDigits, MidpointRounding.AwayFromZero);
+                    break;
+                default:
+                    result = numberA + numberB;
+                    break;
+            }
+
+            if (double.IsNaN(result) || double.IsInfinity(result))
+                throw new InvalidOperationException("数值运算结果不是有限数值，请检查输入范围和运算类型。");
+
+            double operandCount = requiresNumberB ? 2 : 1;
+            tool.SetOutputValue("Number", result);
+            tool.SetOutputValue("OperandCount", operandCount);
+            tool.SetOutputValue("Operation", operation);
+            tool.SetOutputValue("ResultCode", "OK");
+            string message = string.Format(
+                CultureInfo.InvariantCulture,
+                "数值运算完成 · Operation={0} · A={1:0.############}{2} · Number={3:0.############}",
+                operation,
+                numberA,
+                requiresNumberB ? " · B=" + numberB.ToString("0.############", CultureInfo.InvariantCulture) : string.Empty,
+                result);
+            InspectionRecord record = CreateRecord("NumericCalculation", "OK", result, message, tool);
+            resultStore.Add(record);
+            LogInfo(tool.InstanceName + " 完成：" + message);
+            return record;
+        }
+
+        private InspectionRecord RunResultLogicAggregationTool(VmToolInstance tool)
+        {
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            parameters.Normalize();
+            string validationError = parameters.Validate(VmToolKind.ResultLogicAggregation);
+            if (!string.IsNullOrWhiteSpace(validationError)) throw new InvalidOperationException(validationError);
+
+            string operation = VmResultLogicOperation.Normalize(parameters.ResultLogicOperation);
+            bool requiresB = VmResultLogicOperation.RequiresSecondInput(operation);
+            bool stateA = ResolveResultLogicInputState(tool, "ResultCodeA", parameters);
+            bool stateB = requiresB && ResolveResultLogicInputState(tool, "ResultCodeB", parameters);
+            bool isOk;
+            switch (operation)
+            {
+                case VmResultLogicOperation.AnyOk:
+                    isOk = stateA || stateB;
+                    break;
+                case VmResultLogicOperation.Not:
+                    isOk = !stateA;
+                    break;
+                case VmResultLogicOperation.PassThrough:
+                    isOk = stateA;
+                    break;
+                default:
+                    isOk = stateA && stateB;
+                    break;
+            }
+
+            double inputCount = requiresB ? 2 : 1;
+            double passedCount = (stateA ? 1 : 0) + (requiresB && stateB ? 1 : 0);
+            string resultCode = isOk ? "OK" : "NG";
+            tool.SetOutputValue("ResultCode", resultCode);
+            tool.SetOutputValue("IsOk", isOk);
+            tool.SetOutputValue("InputCount", inputCount);
+            tool.SetOutputValue("PassedCount", passedCount);
+            string message = string.Format(
+                CultureInfo.InvariantCulture,
+                "结果逻辑汇总完成 · Operation={0} · InputCount={1:0} · PassedCount={2:0} · ResultCode={3}",
+                operation,
+                inputCount,
+                passedCount,
+                resultCode);
+            InspectionRecord record = CreateRecord("ResultLogicAggregation", resultCode, passedCount, message, tool);
+            resultStore.Add(record);
+            if (isOk) LogInfo(tool.InstanceName + " 完成：" + message);
+            else AppendAlarm(tool.InstanceName + " 判定 NG：" + message);
+            return record;
+        }
+
+        private InspectionRecord RunScriptTool(VmToolInstance tool)
+        {
+            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            parameters.Normalize();
+            string validationError = parameters.Validate(VmToolKind.CSharpDllScript);
+            if (!string.IsNullOrWhiteSpace(validationError)) throw new InvalidOperationException(validationError);
+            if (VmScriptExecutionMode.Normalize(parameters.ScriptExecutionMode) == VmScriptExecutionMode.Dll &&
+                !string.IsNullOrWhiteSpace(parameters.ScriptResourceId))
+            {
+                // Report missing or damaged managed resources before resolving optional
+                // upstream values so the operator sees the actionable root cause first.
+                externalResourceService.EnsureReadyForExecution(GetExternalResourceById(parameters.ScriptResourceId));
+            }
+
+            ScriptToolContext context = new ScriptToolContext
+            {
+                ParameterNumber = parameters.ScriptParameterNumber,
+                ParameterText = parameters.ScriptParameterText ?? string.Empty
+            };
+            object raw;
+            if (TryResolveOptionalToolInputValue(tool, "NumberA", out raw))
+            {
+                context.NumberA = ConvertScriptNumber(raw, "NumberA");
+                context.HasNumberA = true;
+            }
+            if (TryResolveOptionalToolInputValue(tool, "NumberB", out raw))
+            {
+                context.NumberB = ConvertScriptNumber(raw, "NumberB");
+                context.HasNumberB = true;
+            }
+            if (TryResolveOptionalToolInputValue(tool, "String", out raw))
+            {
+                context.Text = Convert.ToString(raw, CultureInfo.InvariantCulture) ?? string.Empty;
+                context.HasText = true;
+            }
+            if (TryResolveOptionalToolInputValue(tool, "ResultCode", out raw))
+            {
+                context.ResultCode = Convert.ToString(raw, CultureInfo.InvariantCulture) ?? string.Empty;
+                context.HasResultCode = true;
+            }
+            PopulateScriptNamedContext(tool, parameters, context);
+
+            ScriptToolExecutionReport report;
+            try
+            {
+                report = scriptToolService.Execute(CreateScriptExecutionRequest(parameters, context));
+            }
+            catch (Exception ex)
+            {
+                tool.SetOutputValue("Number", null);
+                tool.SetOutputValue("Text", string.Empty);
+                tool.SetOutputValue("ResultCode", "NG");
+                tool.SetOutputValue("IsOk", false);
+                tool.SetOutputValue("AssemblyVersion", string.Empty);
+                tool.SetOutputValue("AssemblySha256", string.Empty);
+                tool.SetOutputValue("Diagnostics", ex.Message);
+                tool.SetOutputValue("ExecutionMs", 0d);
+                throw;
+            }
+
+            ScriptToolResult result = report.Result;
+            ApplyScriptNamedOutputs(tool, parameters, result);
+            tool.SetOutputValue("Number", result.HasNumber ? (object)result.Number : null);
+            tool.SetOutputValue("Text", result.Text ?? string.Empty);
+            tool.SetOutputValue("ResultCode", result.ResultCode);
+            tool.SetOutputValue("IsOk", result.IsOk);
+            tool.SetOutputValue("AssemblyVersion", report.AssemblyVersion ?? string.Empty);
+            tool.SetOutputValue("AssemblySha256", report.AssemblySha256 ?? string.Empty);
+            tool.SetOutputValue("Diagnostics", report.Diagnostics ?? string.Empty);
+            tool.SetOutputValue("ExecutionMs", report.ElapsedMilliseconds);
+            string numberText = result.HasNumber ? result.Number.ToString("0.############", CultureInfo.InvariantCulture) : "--";
+            string message = string.Format(
+                CultureInfo.InvariantCulture,
+                "脚本 {0} · Number={1} · Text={2} · {3} · {4:0.###} ms · {5}",
+                result.ResultCode,
+                numberText,
+                ShortenScriptText(result.Text),
+                BuildScriptNamedOutputSummary(parameters, result),
+                report.ElapsedMilliseconds,
+                report.Diagnostics);
+            InspectionRecord record = CreateRecord("CSharpDllScript", result.ResultCode, result.HasNumber ? result.Number : 0, message, tool);
+            resultStore.Add(record);
+            if (result.IsOk) LogInfo(tool.InstanceName + " 完成：" + message);
+            else AppendAlarm(tool.InstanceName + " 返回 NG：" + message);
+            return record;
+        }
+
+        private static double ConvertScriptNumber(object value, string portName)
+        {
+            double number;
+            try { number = Convert.ToDouble(value, CultureInfo.InvariantCulture); }
+            catch (Exception ex) { throw new InvalidOperationException("脚本输入 " + portName + " 不能转换为数值：" + ex.Message, ex); }
+            if (double.IsNaN(number) || double.IsInfinity(number))
+                throw new InvalidOperationException("脚本输入 " + portName + " 必须是有限数值。");
+            return number;
+        }
+
+        private static string ShortenScriptText(string value)
+        {
+            string text = (value ?? string.Empty).Replace("\r", " ").Replace("\n", " ");
+            return text.Length <= 80 ? text : text.Substring(0, 77) + "...";
+        }
+
+        private string BuildScriptInputSummary(VmToolInstance tool)
+        {
+            List<string> items = new List<string>();
+            foreach (string portName in new[] { "NumberA", "NumberB", "String", "ResultCode" })
+            {
+                VmToolInputBindingData binding = tool == null ? null : tool.GetInputBinding(portName);
+                VmToolInstance source = GetInputSourceTool(binding);
+                if (binding != null && source != null) items.Add(portName + "←" + source.InstanceName + "." + binding.SourcePortName);
+            }
+            if (tool != null && tool.Parameters != null)
+            {
+                tool.Parameters.Normalize();
+                foreach (VmScriptInterfaceMemberData member in tool.Parameters.ScriptInterfaceMembers.Where(item => item.Direction == VmScriptMemberDirection.Input))
+                {
+                    VmToolInputBindingData binding = tool.GetInputBinding(member.PortName);
+                    VmToolInstance source = GetInputSourceTool(binding);
+                    if (binding != null && source != null) items.Add(member.Name + "←" + source.InstanceName + "." + binding.SourcePortName);
+                    else if (!string.IsNullOrEmpty(member.DefaultValue)) items.Add(member.Name + "=默认");
+                    else if (member.IsRequired) items.Add(member.Name + "=缺失");
+                }
+                int parameterCount = tool.Parameters.ScriptInterfaceMembers.Count(item => item.Direction == VmScriptMemberDirection.Parameter);
+                if (parameterCount > 0) items.Add("命名参数×" + parameterCount.ToString(CultureInfo.InvariantCulture));
+            }
+            return items.Count == 0 ? "受控参数（无订阅）" : string.Join(" + ", items);
+        }
+
+        private bool ResolveResultLogicInputState(VmToolInstance tool, string portName, VmToolParameterData parameters)
+        {
+            object rawValue;
+            if (!TryResolveOptionalToolInputValue(tool, portName, out rawValue) || rawValue == null)
+                throw new InvalidOperationException("结果逻辑汇总必须连接 " + portName + " 输入，且上游必须已输出结果码。");
+
+            string value = Convert.ToString(rawValue, CultureInfo.InvariantCulture) ?? string.Empty;
+            if (parameters.ResultLogicTrimInput) value = value.Trim();
+            if (value.Length == 0)
+                throw new InvalidOperationException("结果逻辑汇总 " + portName + " 不能为空；仅允许 OK 或 NG。");
+
+            StringComparison comparison = parameters.ResultLogicCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            if (string.Equals(value, "OK", comparison)) return true;
+            if (string.Equals(value, "NG", comparison)) return false;
+            throw new InvalidOperationException("结果逻辑汇总 " + portName + " 的值“" + value + "”无效；仅允许 OK 或 NG。" +
+                                                (parameters.ResultLogicCaseSensitive ? "当前严格区分大小写。" : "当前不区分大小写。"));
+        }
+
+        private double ResolveFiniteNumericCalculationInput(VmToolInstance tool, string portName, bool required)
+        {
+            object rawValue;
+            if (!TryResolveOptionalToolInputValue(tool, portName, out rawValue))
+            {
+                if (required) throw new InvalidOperationException("数值运算必须连接 " + portName + " 输入。");
+                return 0;
+            }
+
+            double value;
+            try
+            {
+                value = Convert.ToDouble(rawValue, CultureInfo.InvariantCulture);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(portName + " 输入无法转换为数值：" + ex.Message, ex);
+            }
+            if (double.IsNaN(value) || double.IsInfinity(value))
+                throw new InvalidOperationException(portName + " 输入必须是有限数值，不能为 NaN 或 Infinity。");
+            return value;
+        }
+
         private bool TryResolveOptionalToolInputValue(VmToolInstance tool, string portName, out object value)
         {
             value = null;
@@ -18648,6 +19422,30 @@ namespace HalconWinFormsDemo
             return binding == null || source == null
                 ? "String 未连接"
                 : "String ← " + source.InstanceName + "." + binding.SourcePortName;
+        }
+
+        private string BuildNumericCalculationInputSummary(VmToolInstance tool)
+        {
+            List<string> values = new List<string>();
+            foreach (string portName in new[] { "NumberA", "NumberB" })
+            {
+                VmToolInputBindingData binding = tool.GetInputBinding(portName);
+                VmToolInstance source = GetInputSourceTool(binding);
+                if (binding != null && source != null) values.Add(portName + " ← " + source.InstanceName + "." + binding.SourcePortName);
+            }
+            return values.Count == 0 ? "NumberA 未连接" : string.Join(" · ", values);
+        }
+
+        private string BuildResultLogicInputSummary(VmToolInstance tool)
+        {
+            List<string> values = new List<string>();
+            foreach (string portName in new[] { "ResultCodeA", "ResultCodeB" })
+            {
+                VmToolInputBindingData binding = tool.GetInputBinding(portName);
+                VmToolInstance source = GetInputSourceTool(binding);
+                if (binding != null && source != null) values.Add(portName + " ← " + source.InstanceName + "." + binding.SourcePortName);
+            }
+            return values.Count == 0 ? "ResultCodeA 未连接" : string.Join(" · ", values);
         }
 
         private InspectionRecord RunLocalImageSourceTool(VmToolInstance tool)
@@ -19534,6 +20332,7 @@ namespace HalconWinFormsDemo
                 tool.SetOutputValue("FailedCount", (double)failedIndices.Count);
                 tool.SetOutputValue("MaxResidual", maxResidual);
                 tool.SetOutputValue("MeanAmplitude", meanAmplitude);
+                tool.SetOutputValue("EdgePoints", VmPoint2DArray.CreateImagePixel(edgeRows, edgeColumns, GetImageCoordinateContextIdS65(tool, "Image")));
                 tool.SetOutputValue("EdgeRows", FormatIndexedDoubleValues(validIndices, edgeRows));
                 tool.SetOutputValue("EdgeColumns", FormatIndexedDoubleValues(validIndices, edgeColumns));
                 tool.SetOutputValue("EdgeAmplitudes", FormatIndexedDoubleValues(validIndices, edgeAmplitudes));
@@ -24894,22 +25693,16 @@ namespace HalconWinFormsDemo
                 case VmToolKind.TcpClientExchange:
                 case VmToolKind.TextAssembly:
                 case VmToolKind.TextParser:
+                case VmToolKind.NumericCalculation:
+                case VmToolKind.ResultLogicAggregation:
+                case VmToolKind.CSharpDllScript:
+                case VmToolKind.GlobalVariableRead:
+                case VmToolKind.GlobalVariableWrite:
+                case VmToolKind.PositionCorrection2D:
+                case VmToolKind.PointSetGeometryStatistics:
                     break;
                 case VmToolKind.ShapeMatch:
-                    tool.SetOutputValue("Score", record.Score);
-                    tool.SetOutputValue("MatchCount", currentMatches.Count);
-                    if (record.MatchRow.HasValue)
-                    {
-                        tool.SetOutputValue("Row", record.MatchRow.Value);
-                    }
-                    if (record.MatchColumn.HasValue)
-                    {
-                        tool.SetOutputValue("Column", record.MatchColumn.Value);
-                    }
-                    if (record.MatchAngle.HasValue)
-                    {
-                        tool.SetOutputValue("Angle", record.MatchAngle.Value);
-                    }
+                    PublishShapeMatchOutputs(tool, record);
                     break;
                 case VmToolKind.Blob:
                     tool.SetOutputValue("Area", record.Score);
@@ -25652,7 +26445,7 @@ namespace HalconWinFormsDemo
 
             foreach (VmToolInstance tool in flowTools.OrderBy(item => item.Sequence))
             {
-                IList<VmPortDefinition> outputPorts = ToolMetadata.GetOutputPorts(tool.Kind);
+                IList<VmPortDefinition> outputPorts = ToolMetadata.GetInstanceOutputPorts(tool);
                 foreach (VmPortDefinition port in outputPorts.Where(item =>
                     string.Equals(item.DataType, "Region", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(item.DataType, "XLD", StringComparison.OrdinalIgnoreCase)))
@@ -26087,6 +26880,7 @@ namespace HalconWinFormsDemo
                 bool transformedModuleOutput = IsTransformedModuleOutputContext(context, selectedTool);
                 bool showInputCoordinateRoi = showRoiOverlay && !transformedModuleOutput;
                 DrawManagedLayers(imageWindow.HalconWindow, false, showInputCoordinateRoi, selectedLayer);
+                DrawPositionCorrectedRoiPreview(imageWindow.HalconWindow, false, showInputCoordinateRoi, selectedTool);
 
                 RoiData templateRoi = currentTemplateItem == null ? null : currentTemplateItem.TemplateRoi;
                 RoiData confirmedBoundary = templateRoi;
@@ -26103,6 +26897,7 @@ namespace HalconWinFormsDemo
                     false,
                     showInputCoordinateRoi && confirmedBoundary != null && currentMatches.Count == 0,
                     showResultOverlay && ShowResultFrameCheckBox.IsChecked == true);
+                DrawShapeTaskAnnotations(imageWindow.HalconWindow, selectedTool, false);
                 if (showInputCoordinateRoi && measurementDomainPreview != null && !string.IsNullOrWhiteSpace(measurementDomainToolId))
                 {
                     overlayRenderer.DrawRoiLayer(
@@ -26152,6 +26947,7 @@ namespace HalconWinFormsDemo
 
                 VmRoiLayer selectedLayer = RoiLayerList == null ? null : RoiLayerList.SelectedItem as VmRoiLayer;
                 DrawManagedLayers(comparisonImageWindow.HalconWindow, true, true, selectedLayer);
+                DrawPositionCorrectedRoiPreview(comparisonImageWindow.HalconWindow, true, true, FlowToolList == null ? null : FlowToolList.SelectedItem as VmToolInstance);
 
                 RoiData templateRoi = currentTemplateItem == null ? null : currentTemplateItem.TemplateRoi;
                 ShapeTemplateService service = currentTemplateItem == null ? null : currentTemplateItem.Service;
@@ -26167,6 +26963,7 @@ namespace HalconWinFormsDemo
                     false,
                     templateRoi != null && currentMatches.Count == 0,
                     false);
+                DrawShapeTaskAnnotations(comparisonImageWindow.HalconWindow, FlowToolList == null ? null : FlowToolList.SelectedItem as VmToolInstance, true);
                 if (measurementDomainPreview != null && !string.IsNullOrWhiteSpace(measurementDomainToolId))
                 {
                     overlayRenderer.DrawRoiLayer(
@@ -26742,6 +27539,8 @@ namespace HalconWinFormsDemo
 
             LoadRoiLayersFromRecipe(recipe);
             LoadResultLayerStyles(recipe);
+            LoadGlobalVariablesFromRecipe(recipe);
+            LoadExternalResourcesFromRecipe(recipe);
 
             ReplaceTemplate(null);
 
@@ -26771,6 +27570,8 @@ namespace HalconWinFormsDemo
                 suppressResultLayerStyleCapture = false;
             }
             RefreshResultOverlayLayers();
+            RefreshGlobalVariableSubscriptions();
+            RefreshExternalResourceReferences();
             ResetFlowEditHistory();
 
             RefreshUiState();
@@ -26787,8 +27588,8 @@ namespace HalconWinFormsDemo
                 Name = string.IsNullOrWhiteSpace(RecipeNameEditTextBox.Text) ? "DefaultRecipe" : RecipeNameEditTextBox.Text.Trim(),
                 LastImageDirectory = string.IsNullOrWhiteSpace(currentImagePath) ? string.Empty : Path.GetDirectoryName(currentImagePath),
                 SearchRoi = ToRecipeRoi(GetLegacySearchRoi()),
-                TemplatePath = currentTemplateItem == null ? string.Empty : currentTemplateItem.TemplatePath,
-                TemplateOptions = ToRecipeOptions(currentTemplateItem == null ? null : currentTemplateItem.Options),
+                TemplatePath = GetPrimaryShapeModelPathForRecipe(),
+                TemplateOptions = ToRecipeOptions(GetPrimaryShapeOptionsForRecipe()),
                 EnableShapeMatch = HasEnabledTool(VmToolKind.ShapeMatch),
                 EnableBlob = HasEnabledTool(VmToolKind.Blob),
                 EnableGrayStat = HasEnabledTool(VmToolKind.GrayStat),
@@ -26808,6 +27609,8 @@ namespace HalconWinFormsDemo
                 TcpEncoding = GetTcpEncodingText(),
                 AutoSendResult = AutoSendMatchResultCheckBox.IsChecked == true,
                 ToolFlow = CaptureFlowRecipe(),
+                GlobalVariables = CaptureGlobalVariables(),
+                ExternalResources = CaptureExternalResources(),
                 RoiLayers = CaptureRoiLayers(),
                 ResultLayerStyles = CaptureResultLayerStyles(),
                 ProductionRunLayout = productionRunLayout.CloneNormalized(),
@@ -27607,7 +28410,7 @@ namespace HalconWinFormsDemo
                 return null;
             }
 
-            using (HRegion detectionRegion = CreateUnionRoiRegion(detectionLayers))
+            using (HRegion detectionRegion = CreatePositionCorrectedUnionRoiRegion(tool, detectionLayers))
             {
                 return CreateEffectiveRegionFromBase(tool, detectionRegion, new List<VmRoiLayer>(), maskLayers, false);
             }
@@ -27651,7 +28454,7 @@ namespace HalconWinFormsDemo
                 HOperatorSet.CopyObj(baseRegion, out current, 1, -1);
                 if (intersectDetectionLayers && detectionLayers != null && detectionLayers.Count > 0)
                 {
-                    using (HRegion detectionRegion = CreateUnionRoiRegion(detectionLayers))
+                    using (HRegion detectionRegion = CreatePositionCorrectedUnionRoiRegion(tool, detectionLayers))
                     {
                         HOperatorSet.Intersection(current, detectionRegion, out next);
                     }
@@ -27662,7 +28465,7 @@ namespace HalconWinFormsDemo
 
                 if (maskLayers != null && maskLayers.Count > 0)
                 {
-                    using (HRegion maskRegion = CreateUnionRoiRegion(maskLayers))
+                    using (HRegion maskRegion = CreatePositionCorrectedUnionRoiRegion(tool, maskLayers))
                     {
                         HOperatorSet.Difference(current, maskRegion, out next);
                     }
@@ -27699,12 +28502,15 @@ namespace HalconWinFormsDemo
 
         private HRegion CreatePerRoiEffectiveRegion(VmToolInstance tool, VmRoiLayer detectionLayer)
         {
-            return CreateEffectiveRegionFromBase(
-                tool,
-                detectionLayer.Geometry.Region,
-                new List<VmRoiLayer>(),
-                GetBoundMaskRoiLayers(tool),
-                false);
+            using (HRegion correctedDetection = CreatePositionCorrectedRoiRegion(tool, detectionLayer.Geometry.Region))
+            {
+                return CreateEffectiveRegionFromBase(
+                    tool,
+                    correctedDetection,
+                    new List<VmRoiLayer>(),
+                    GetBoundMaskRoiLayers(tool),
+                    false);
+            }
         }
 
         private string GetRoiBindingSummary(VmToolInstance tool)
@@ -27718,20 +28524,24 @@ namespace HalconWinFormsDemo
             if (binding != null)
             {
                 VmToolInstance source = GetInputSourceTool(binding);
-                return source == null
+                return AppendPositionCorrectionSummary(tool, source == null
                     ? "Region 订阅无效"
-                    : "Region ← " + source.InstanceName + "." + binding.SourcePortName;
+                    : "Region ← " + source.InstanceName + "." + binding.SourcePortName);
             }
 
             List<VmRoiLayer> detections = GetBoundDetectionRoiLayers(tool);
             List<VmRoiLayer> masks = GetBoundMaskRoiLayers(tool);
             if (detections.Count == 0 && masks.Count == 0)
             {
-                return ToolMetadata.RequiresRoi(tool.Kind) ? "ROI 未绑定" : "全图运行 · ROI 可选";
+                return AppendPositionCorrectionSummary(
+                    tool,
+                    ToolMetadata.RequiresRoi(tool.Kind) ? "ROI 未绑定" : "全图运行 · ROI 可选");
             }
             if (detections.Count == 0)
             {
-                return "检测区 0 · 屏蔽区 ×" + masks.Count.ToString(CultureInfo.InvariantCulture) + " · 无有效运行域";
+                return AppendPositionCorrectionSummary(
+                    tool,
+                    "检测区 0 · 屏蔽区 ×" + masks.Count.ToString(CultureInfo.InvariantCulture) + " · 无有效运行域");
             }
 
             string summary = "检测区 ×" + detections.Count.ToString(CultureInfo.InvariantCulture) +
@@ -27747,7 +28557,9 @@ namespace HalconWinFormsDemo
             {
                 summary += " · " + ex.Message;
             }
-            return summary + " · " + string.Join(", ", detections.Concat(masks).Select(item => item.Name));
+            return AppendPositionCorrectionSummary(
+                tool,
+                summary + " · " + string.Join(", ", detections.Concat(masks).Select(item => item.Name)));
         }
 
         private void RefreshRoiLayerBindingSummaries()
@@ -27864,7 +28676,8 @@ namespace HalconWinFormsDemo
                 foreach (VmToolInstance downstream in flowTools.Where(item => item != source && !invalidSourceIds.Contains(item.ToolId)))
                 {
                     bool dependsOnSource = downstream.InputBindings.Any(binding => invalidSourceIds.Contains(binding.SourceToolId)) ||
-                                           downstream.Kind == VmToolKind.NumericJudge && invalidSourceIds.Contains(downstream.InputToolId ?? string.Empty);
+                                           downstream.Kind == VmToolKind.NumericJudge && invalidSourceIds.Contains(downstream.InputToolId ?? string.Empty) ||
+                                           downstream.Parameters != null && invalidSourceIds.Contains(downstream.Parameters.PositionCorrectionToolId ?? string.Empty);
                     if (dependsOnSource)
                     {
                         InvalidateToolRunResult(downstream, reason);
@@ -27878,6 +28691,7 @@ namespace HalconWinFormsDemo
 
         private void DisposeFlowTools()
         {
+            ClearPortMonitorPinsS64();
             foreach (VmToolInstance tool in flowTools.ToList())
             {
                 tool.Dispose();
@@ -27969,6 +28783,8 @@ namespace HalconWinFormsDemo
                 MaxMatches = options.MaxMatches,
                 AngleStartDeg = options.AngleStartDeg,
                 AngleExtentDeg = options.AngleExtentDeg,
+                ScaleMin = options.ScaleMin,
+                ScaleMax = options.ScaleMax,
                 LimitToSearchRoi = options.LimitToSearchRoi
             };
         }

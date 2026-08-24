@@ -33,6 +33,8 @@ namespace HalconWinFormsDemo.Models
             RightImageCrosshairs = VmImageCrosshairViewSettings.CreateDefault();
             LeftImageCrosshairs = VmImageCrosshairViewSettings.CreateDefault();
             ProductionRunLayout = VmProductionRunLayoutData.CreateDefault();
+            GlobalVariables = new List<VmGlobalVariableData>();
+            ExternalResources = new List<VmExternalResourceData>();
         }
 
         [DataMember(Order = 1)]
@@ -130,6 +132,12 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 32, EmitDefaultValue = false)]
         public VmProductionRunLayoutData ProductionRunLayout { get; set; }
+
+        [DataMember(Order = 33, EmitDefaultValue = false)]
+        public List<VmGlobalVariableData> GlobalVariables { get; set; }
+
+        [DataMember(Order = 34, EmitDefaultValue = false)]
+        public List<VmExternalResourceData> ExternalResources { get; set; }
 
     }
 
@@ -486,6 +494,12 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 5)]
         public bool LimitToSearchRoi { get; set; }
+
+        [DataMember(Order = 6, EmitDefaultValue = false)]
+        public double ScaleMin { get; set; }
+
+        [DataMember(Order = 7, EmitDefaultValue = false)]
+        public double ScaleMax { get; set; }
     }
 
     [DataContract]

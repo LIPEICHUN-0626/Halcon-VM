@@ -18,9 +18,9 @@ function Field([string]$name){$f=$mainType.GetField($name,$all);if($null-eq$f){t
 function Tool([string]$kind,[string]$name){$mainType.GetMethod('CreateFlowTool',$private).Invoke($window,[object[]]@([Enum]::Parse($kindType,$kind),$name,$true,$null))}
 function Out($tool,[string]$port){$value=$null;if(-not$tool.TryGetOutputValue($port,[ref]$value)){throw "Missing output $port"};$value}
 
-# A: compact selected node, curated default catalog, and one label per module dependency.
-Assert((Field 'toolCatalogMode')-eq'Common') 'Toolbox does not default to the curated common set'
-$catalogView=Field 'toolCatalogView';$visible=@($catalogView|ForEach-Object{$_});Assert($visible.Count-eq8) 'Default toolbox is not the curated eight-tool task set'
+# A: compact selected node and one label per module dependency. S62 intentionally restored the full categorized catalog as the default.
+Assert((Field 'toolCatalogMode')-eq'All') 'Toolbox does not default to the full categorized catalog'
+$catalogView=Field 'toolCatalogView';$visible=@($catalogView|ForEach-Object{$_});Assert($visible.Count -eq (Field 'toolCatalog').Count) 'Default toolbox does not expose every implemented tool after S62'
 $flow=Field 'flowTools';$flow.Clear();$source=Tool RegionFeatureFilter 'Source';$target=Tool RegionSetOperation 'Target';$target.SetInputBinding('RegionA',$source.ToolId,'Region');$target.SetInputBinding('RegionB',$source.ToolId,'Region');$flow.Add($source);$flow.Add($target);$mainType.GetMethod('RefreshFlowPortVisualization',$private).Invoke($window,@())|Out-Null
 (Field 'FlowToolList').SelectedItem=$target;$mainType.GetMethod('FlowToolList_SelectionChanged',$private).Invoke($window,[object[]]@((Field 'FlowToolList'),$null))|Out-Null
 Assert($target.GraphHeight-eq84) 'Selecting a node still exposes the full port wall'

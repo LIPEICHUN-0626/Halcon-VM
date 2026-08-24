@@ -5,7 +5,7 @@ namespace HalconWinFormsDemo.Models
 {
     public sealed class TemplateDefinition : IDisposable
     {
-        public const int CurrentMetadataVersion = 2;
+        public const int CurrentMetadataVersion = 3;
 
         public TemplateDefinition()
         {
@@ -87,6 +87,8 @@ namespace HalconWinFormsDemo.Models
                 MaxMatches = source.MaxMatches,
                 AngleStartDeg = source.AngleStartDeg,
                 AngleExtentDeg = source.AngleExtentDeg,
+                ScaleMin = source.ScaleMin,
+                ScaleMax = source.ScaleMax,
                 MaxOverlap = source.MaxOverlap,
                 Greediness = source.Greediness,
                 NumLevels = source.NumLevels,

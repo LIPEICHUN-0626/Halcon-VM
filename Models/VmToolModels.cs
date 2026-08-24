@@ -196,7 +196,14 @@ namespace HalconWinFormsDemo.Models
         XldDirectionConsistencyMeasurement,
         TcpClientExchange,
         TextAssembly,
-        TextParser
+        TextParser,
+        NumericCalculation,
+        ResultLogicAggregation,
+        CSharpDllScript,
+        GlobalVariableRead,
+        GlobalVariableWrite,
+        PositionCorrection2D,
+        PointSetGeometryStatistics
     }
 
     public sealed class VmToolCatalogItem : INotifyPropertyChanged
@@ -212,7 +219,11 @@ namespace HalconWinFormsDemo.Models
 
         public string Category { get; set; }
 
+        public string ImplementedCategory { get { return "已实现 · " + Category; } }
+
         public string Description { get; set; }
+
+        public int CategoryOrder { get; set; }
 
         public bool IsFavorite
         {
@@ -316,6 +327,8 @@ namespace HalconWinFormsDemo.Models
         private readonly ObservableCollection<VmRoiRunResult> roiResults = new ObservableCollection<VmRoiRunResult>();
         private readonly ObservableCollection<VmFlowPortChip> flowInputPorts = new ObservableCollection<VmFlowPortChip>();
         private readonly ObservableCollection<VmFlowPortChip> flowOutputPorts = new ObservableCollection<VmFlowPortChip>();
+        private long runtimeOutputVersion;
+        private DateTime? lastOutputUtc;
 
         public VmToolInstance()
         {
@@ -918,6 +931,8 @@ namespace HalconWinFormsDemo.Models
             }
             runtimeOutputs.Clear();
             roiResults.Clear();
+            runtimeOutputVersion++;
+            lastOutputUtc = null;
         }
 
         public void SetOutputValue(string portName, object value)
@@ -938,7 +953,12 @@ namespace HalconWinFormsDemo.Models
             }
 
             runtimeOutputs[portName] = value;
+            lastOutputUtc = DateTime.UtcNow;
         }
+
+        public long RuntimeOutputVersion { get { return runtimeOutputVersion; } }
+
+        public DateTime? LastOutputUtc { get { return lastOutputUtc; } }
 
         public bool TryGetOutputValue(string portName, out object value)
         {
@@ -1005,6 +1025,24 @@ namespace HalconWinFormsDemo.Models
             if (xldSnapshot != null)
             {
                 return xldSnapshot.DisplayText;
+            }
+
+            VmPose2D pose = value as VmPose2D;
+            if (pose != null)
+            {
+                return pose.ToDisplayString();
+            }
+
+            VmPoint2D point = value as VmPoint2D;
+            if (point != null)
+            {
+                return point.ToDisplayString();
+            }
+
+            VmPoint2DArray points = value as VmPoint2DArray;
+            if (points != null)
+            {
+                return points.ToDisplayString();
             }
 
             IEnumerable<VmRoiRunResult> roiResultItems = value as IEnumerable<VmRoiRunResult>;
@@ -1091,6 +1129,20 @@ namespace HalconWinFormsDemo.Models
                     return "文本组装";
                 case VmToolKind.TextParser:
                     return "文本解析";
+                case VmToolKind.NumericCalculation:
+                    return "数值运算";
+                case VmToolKind.ResultLogicAggregation:
+                    return "结果逻辑汇总";
+                case VmToolKind.CSharpDllScript:
+                    return "C# / DLL 脚本";
+                case VmToolKind.GlobalVariableRead:
+                    return "读取全局变量";
+                case VmToolKind.GlobalVariableWrite:
+                    return "写入全局变量";
+                case VmToolKind.PositionCorrection2D:
+                    return "2D 位置修正";
+                case VmToolKind.PointSetGeometryStatistics:
+                    return "点集几何统计";
                 case VmToolKind.PolarImageUnwrap:
                     return "极坐标展开";
                 case VmToolKind.RoiImageExtraction:
@@ -1155,9 +1207,8 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.ImageSource:
                     return "采集/输入";
                 case VmToolKind.ShapeMatch:
+                case VmToolKind.PositionCorrection2D:
                     return "定位";
-                case VmToolKind.Blob:
-                case VmToolKind.GrayStat:
                 case VmToolKind.ImageChannel:
                 case VmToolKind.ImageFilter:
                 case VmToolKind.ImageEnhancement:
@@ -1166,16 +1217,19 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.ImageRotate:
                 case VmToolKind.ImageAffineTransform:
                 case VmToolKind.ImageProjectiveTransform:
-                case VmToolKind.SubpixelEdgeExtraction:
                 case VmToolKind.PolarImageUnwrap:
-                case VmToolKind.RoiImageExtraction:
                 case VmToolKind.ImageDifference:
+                    return "图像处理";
+                case VmToolKind.Blob:
+                case VmToolKind.GrayStat:
+                case VmToolKind.SubpixelEdgeExtraction:
+                case VmToolKind.RoiImageExtraction:
                 case VmToolKind.DynamicThreshold:
                 case VmToolKind.ImageThreshold:
                 case VmToolKind.RegionMorphology:
                 case VmToolKind.RegionFeatureFilter:
                 case VmToolKind.RegionSetOperation:
-                    return "图像处理";
+                    return "检测/分割";
                 case VmToolKind.RegionContourMeasurement:
                 case VmToolKind.XldContourFilter:
                 case VmToolKind.XldAdjacentContourUnion:
@@ -1189,10 +1243,12 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.XldAreaDirectionFilter:
                 case VmToolKind.XldBoundingCompactnessFilter:
                 case VmToolKind.XldCircularityConvexityFilter:
+                case VmToolKind.XldContourSegmentation:
+                    return "轮廓处理";
                 case VmToolKind.XldEnclosingCircleDiameterMeasurement:
                 case VmToolKind.XldMinimumRectangleDirectionMeasurement:
                 case VmToolKind.XldDirectionConsistencyMeasurement:
-                case VmToolKind.XldContourSegmentation:
+                case VmToolKind.PointSetGeometryStatistics:
                 case VmToolKind.XldLineFitting:
                 case VmToolKind.XldCircleFitting:
                 case VmToolKind.XldEllipseFitting:
@@ -1206,15 +1262,37 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.EdgeMeasure:
                     return "测量";
                 case VmToolKind.HDevelop:
+                case VmToolKind.CSharpDllScript:
                     return "脚本";
                 case VmToolKind.NumericJudge:
                 case VmToolKind.TextAssembly:
                 case VmToolKind.TextParser:
+                case VmToolKind.NumericCalculation:
+                case VmToolKind.ResultLogicAggregation:
+                case VmToolKind.GlobalVariableRead:
+                case VmToolKind.GlobalVariableWrite:
                     return "逻辑/计算";
                 case VmToolKind.TcpClientExchange:
                     return "通讯";
                 default:
                     return "其他";
+            }
+        }
+
+        public static int GetCategoryOrder(VmToolKind kind)
+        {
+            switch (GetCategory(kind))
+            {
+                case "采集/输入": return 10;
+                case "图像处理": return 20;
+                case "检测/分割": return 30;
+                case "定位": return 40;
+                case "轮廓处理": return 50;
+                case "测量": return 60;
+                case "逻辑/计算": return 70;
+                case "通讯": return 80;
+                case "脚本": return 90;
+                default: return 100;
             }
         }
 
@@ -1296,6 +1374,20 @@ namespace HalconWinFormsDemo.Models
                     return "订阅可选 String、Number、ResultCode，按模板、分隔符、数值格式和空值策略生成可继续订阅的工业文本。";
                 case VmToolKind.TextParser:
                     return "订阅 String，按字面分隔或正则匹配提取指定字段，可选执行 InvariantCulture 数值转换，并输出可继续订阅的文本、数值和匹配状态。";
+                case VmToolKind.NumericCalculation:
+                    return "订阅必需 NumberA 和按运算类型使用的可选 NumberB，执行加、减、乘、除、最小、最大、绝对值或四舍五入，并输出可继续订阅的有限数值。";
+                case VmToolKind.ResultLogicAggregation:
+                    return "订阅必需 ResultCodeA 和按逻辑模式使用的可选 ResultCodeB，对规范 OK/NG 结果执行全部、任一、取反或一元透传，并输出汇总结果与通过数量。";
+                case VmToolKind.CSharpDllScript:
+                    return "受信任扩展流程工具：把类型化 Number/String/ResultCode 输入和受控参数传入内联 C# 或约定 DLL，输出 Number、Text、ResultCode 与 IsOk；使用可卸载 AppDomain 隔离超时，但不是安全沙箱。";
+                case VmToolKind.GlobalVariableRead:
+                    return "按稳定 VariableId 读取当前方案中的强类型全局变量，并发布 Number、String、Boolean 或 ResultCode 值供后续工具订阅。";
+                case VmToolKind.GlobalVariableWrite:
+                    return "订阅与目标变量类型一致的上游端口，在确定性流程中写入当前方案变量，并发布写后值、Changed 与执行结果。";
+                case VmToolKind.PositionCorrection2D:
+                    return "优先订阅类型化 Pose2D，也兼容旧版 Row、Column、Angle 三路输入；以 HALCON vector_angle_to_rigid 计算从基准位姿到当前位姿的 2D 刚体修正，并为下游 ROI/屏蔽区跟随提供稳定来源。";
+                case VmToolKind.PointSetGeometryStatistics:
+                    return "订阅同一图像像素坐标上下文的类型化 Point2D[]，校验点数和异常策略，计算质心、边界与跨度，并使用 HALCON 生成可显示的点集、质心和外接框 XLD。";
                 case VmToolKind.XldContourSegmentation:
                     return "订阅上游 XLD，使用 HALCON 将轮廓分为直线段及圆弧或椭圆弧，并输出分类、长度与可继续订阅的 XLD。";
                 case VmToolKind.XldLineFitting:
@@ -1449,6 +1541,46 @@ namespace HalconWinFormsDemo.Models
                     };
                 case VmToolKind.TextParser:
                     return new[] { Port("String", "待解析文本", "String", false) };
+                case VmToolKind.NumericCalculation:
+                    return new[]
+                    {
+                        Port("NumberA", "数值 A", "Number", false),
+                        Port("NumberB", "数值 B（双目运算）", "Number", true)
+                    };
+                case VmToolKind.ResultLogicAggregation:
+                    return new[]
+                    {
+                        Port("ResultCodeA", "结果码 A", "String", false),
+                        Port("ResultCodeB", "结果码 B（双目逻辑）", "String", true)
+                    };
+                case VmToolKind.CSharpDllScript:
+                    return new[]
+                    {
+                        Port("NumberA", "可选数值 A", "Number", true),
+                        Port("NumberB", "可选数值 B", "Number", true),
+                        Port("String", "可选字符串", "String", true),
+                        Port("ResultCode", "可选结果码", "String", true)
+                    };
+                case VmToolKind.GlobalVariableRead:
+                    return new VmPortDefinition[0];
+                case VmToolKind.GlobalVariableWrite:
+                    return new[]
+                    {
+                        Port("NumberValue", "数值写入值", "Number", true),
+                        Port("TextValue", "字符串写入值", "String", true),
+                        Port("BooleanValue", "布尔写入值", "Boolean", true),
+                        Port("ResultCodeValue", "结果码写入值", "String", true)
+                    };
+                case VmToolKind.PositionCorrection2D:
+                    return new[]
+                    {
+                        Port("Pose2D", "当前位姿", "Pose2D", true),
+                        Port("CurrentRow", "当前 Row（兼容）", "Number", true),
+                        Port("CurrentColumn", "当前 Column（兼容）", "Number", true),
+                        Port("CurrentAngle", "当前角度（兼容 °）", "Number", true)
+                    };
+                case VmToolKind.PointSetGeometryStatistics:
+                    return new[] { Port("Points", "图像像素点集", "Point2D[]", false) };
                 default:
                     return new VmPortDefinition[0];
             }
@@ -1493,6 +1625,92 @@ namespace HalconWinFormsDemo.Models
                         Port("Number", "解析数值", "Number", false),
                         Port("FieldCount", "字段数量", "Number", false),
                         Port("Matched", "是否匹配", "Boolean", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.NumericCalculation:
+                    return new[]
+                    {
+                        Port("Number", "运算结果", "Number", false),
+                        Port("OperandCount", "操作数数量", "Number", false),
+                        Port("Operation", "运算类型", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.ResultLogicAggregation:
+                    return new[]
+                    {
+                        Port("ResultCode", "汇总结果码", "String", false),
+                        Port("IsOk", "汇总是否 OK", "Boolean", false),
+                        Port("InputCount", "参与输入数量", "Number", false),
+                        Port("PassedCount", "输入 OK 数量", "Number", false)
+                    };
+                case VmToolKind.CSharpDllScript:
+                    return new[]
+                    {
+                        Port("Number", "脚本数值输出", "Number", false),
+                        Port("Text", "脚本文本输出", "String", false),
+                        Port("ResultCode", "脚本结果码", "String", false),
+                        Port("IsOk", "脚本是否 OK", "Boolean", false),
+                        Port("AssemblyVersion", "程序集版本", "String", false),
+                        Port("AssemblySha256", "程序集 SHA-256", "String", false),
+                        Port("Diagnostics", "编译/调用诊断", "String", false),
+                        Port("ExecutionMs", "脚本执行耗时", "Number", false)
+                    };
+                case VmToolKind.GlobalVariableRead:
+                    return new[]
+                    {
+                        Port("NumberValue", "数值变量值", "Number", false),
+                        Port("TextValue", "字符串变量值", "String", false),
+                        Port("BooleanValue", "布尔变量值", "Boolean", false),
+                        Port("ResultCodeValue", "结果码变量值", "String", false),
+                        Port("VariableName", "变量名称", "String", false),
+                        Port("ValueType", "变量类型", "String", false),
+                        Port("ResultCode", "执行结果码", "String", false)
+                    };
+                case VmToolKind.GlobalVariableWrite:
+                    return new[]
+                    {
+                        Port("NumberValue", "写后数值", "Number", false),
+                        Port("TextValue", "写后字符串", "String", false),
+                        Port("BooleanValue", "写后布尔值", "Boolean", false),
+                        Port("ResultCodeValue", "写后结果码", "String", false),
+                        Port("Changed", "值是否改变", "Boolean", false),
+                        Port("VariableName", "变量名称", "String", false),
+                        Port("ValueType", "变量类型", "String", false),
+                        Port("ResultCode", "执行结果码", "String", false)
+                    };
+                case VmToolKind.PositionCorrection2D:
+                    return new[]
+                    {
+                        Port("ReferenceRow", "基准 Row", "Number", false),
+                        Port("ReferenceColumn", "基准 Column", "Number", false),
+                        Port("ReferenceAngle", "基准角度（°）", "Number", false),
+                        Port("CurrentRow", "当前 Row", "Number", false),
+                        Port("CurrentColumn", "当前 Column", "Number", false),
+                        Port("CurrentAngle", "当前角度（°）", "Number", false),
+                        Port("DeltaRow", "Row 偏移", "Number", false),
+                        Port("DeltaColumn", "Column 偏移", "Number", false),
+                        Port("DeltaAngle", "角度偏移（°）", "Number", false),
+                        Port("HomMat2D", "2D 刚体矩阵", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.PointSetGeometryStatistics:
+                    return new[]
+                    {
+                        Port("XLD", "点集/质心/外接框", "XLD", false),
+                        Port("Centroid", "点集质心", "Point2D", false),
+                        Port("PointCount", "有效点数量", "Number", false),
+                        Port("SkippedCount", "跳过异常点数量", "Number", false),
+                        Port("CentroidRow", "质心 Row", "Number", false),
+                        Port("CentroidColumn", "质心 Column", "Number", false),
+                        Port("MinRow", "最小 Row", "Number", false),
+                        Port("MinColumn", "最小 Column", "Number", false),
+                        Port("MaxRow", "最大 Row", "Number", false),
+                        Port("MaxColumn", "最大 Column", "Number", false),
+                        Port("RowSpan", "Row 跨度", "Number", false),
+                        Port("ColumnSpan", "Column 跨度", "Number", false),
+                        Port("MaxSpan", "最大跨度", "Number", false),
+                        Port("CoordinateContext", "坐标上下文", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
                         Port("ResultCode", "结果码", "String", false)
                     };
                 case VmToolKind.CaliperEdgePairMeasurement:
@@ -1540,6 +1758,7 @@ namespace HalconWinFormsDemo.Models
                         Port("FailedCount", "失败卡尺数量", "Number", false),
                         Port("MaxResidual", "最大径向残差", "Number", false),
                         Port("MeanAmplitude", "平均边缘幅值", "Number", false),
+                        Port("EdgePoints", "类型化边缘点集", "Point2D[]", false),
                         Port("EdgeRows", "边缘点 Row 数组", "String", false),
                         Port("EdgeColumns", "边缘点 Column 数组", "String", false),
                         Port("EdgeAmplitudes", "边缘幅值数组", "String", false),
@@ -2227,11 +2446,15 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.ShapeMatch:
                     return new[]
                     {
+                        Port("XLD", "候选模型轮廓", "XLD", true),
+                        Port("Pose2D", "最佳目标位姿", "Pose2D", true),
                         Port("Score", "最高匹配分数", "Number", false),
                         Port("MatchCount", "匹配数量", "Number", false),
                         Port("Row", "中心 Row", "Number", false),
                         Port("Column", "中心 Column", "Number", false),
                         Port("Angle", "角度", "Number", false),
+                        Port("Scale", "尺度", "Number", false),
+                        Port("Candidates", "候选摘要", "String", false),
                         Port("ResultCode", "结果码", "String", false)
                     };
                 case VmToolKind.Blob:
@@ -2275,9 +2498,40 @@ namespace HalconWinFormsDemo.Models
             }
         }
 
+        public static IList<VmPortDefinition> GetInstanceInputPorts(VmToolInstance tool)
+        {
+            List<VmPortDefinition> ports = GetInputPorts(tool == null ? VmToolKind.ImageSource : tool.Kind).ToList();
+            if (tool == null || tool.Kind != VmToolKind.CSharpDllScript || tool.Parameters == null) return ports;
+            tool.Parameters.Normalize();
+            foreach (VmScriptInterfaceMemberData member in tool.Parameters.ScriptInterfaceMembers
+                .Where(item => item != null && string.Equals(item.Direction, VmScriptMemberDirection.Input, StringComparison.OrdinalIgnoreCase)))
+            {
+                ports.Add(Port(member.PortName, member.Name, VmScriptScalarType.ToPortDataType(member.ValueType), !member.IsRequired));
+            }
+            return ports;
+        }
+
+        public static IList<VmPortDefinition> GetInstanceOutputPorts(VmToolInstance tool)
+        {
+            List<VmPortDefinition> ports = GetOutputPorts(tool == null ? VmToolKind.ImageSource : tool.Kind).ToList();
+            if (tool == null || tool.Kind != VmToolKind.CSharpDllScript || tool.Parameters == null) return ports;
+            tool.Parameters.Normalize();
+            foreach (VmScriptInterfaceMemberData member in tool.Parameters.ScriptInterfaceMembers
+                .Where(item => item != null && string.Equals(item.Direction, VmScriptMemberDirection.Output, StringComparison.OrdinalIgnoreCase)))
+            {
+                ports.Add(Port(member.PortName, member.Name, VmScriptScalarType.ToPortDataType(member.ValueType), !member.IsRequired));
+            }
+            return ports;
+        }
+
         public static IList<VmPortDefinition> GetNumericOutputPorts(VmToolKind kind)
         {
             return GetOutputPorts(kind).Where(item => item.DataType == "Number").ToList();
+        }
+
+        public static IList<VmPortDefinition> GetInstanceNumericOutputPorts(VmToolInstance tool)
+        {
+            return GetInstanceOutputPorts(tool).Where(item => string.Equals(item.DataType, "Number", StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
         public static bool SupportsRoi(VmToolKind kind)

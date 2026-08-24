@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -113,6 +114,41 @@ namespace HalconWinFormsDemo.Models
             TextParserTrim = true;
             TextParserEmptyPolicy = VmTextAssemblyEmptyPolicy.Keep;
             TextParserConvertNumber = false;
+            NumericCalculationOperation = VmNumericCalculationOperation.Add;
+            NumericCalculationRoundDigits = 0;
+            ResultLogicOperation = VmResultLogicOperation.AllOk;
+            ResultLogicCaseSensitive = false;
+            ResultLogicTrimInput = true;
+            ScriptExecutionMode = VmScriptExecutionMode.InlineCSharp;
+            ScriptInlineCode = VmScriptExecutionMode.DefaultInlineCode;
+            ScriptAssemblyPath = string.Empty;
+            ScriptTypeName = "UserScripts.ScriptEntry";
+            ScriptMethodName = "Execute";
+            ScriptTimeoutMilliseconds = 1000;
+            ScriptParameterNumber = 0;
+            ScriptParameterText = string.Empty;
+            ScriptInterfaceMembers = new List<VmScriptInterfaceMemberData>();
+            GlobalVariableId = string.Empty;
+            PositionCorrectionReferenceRow = 0;
+            PositionCorrectionReferenceColumn = 0;
+            PositionCorrectionReferenceAngleDegrees = 0;
+            PositionCorrectionToolId = string.Empty;
+            PointSetMinimumCount = 3;
+            PointSetAbnormalPolicy = VmPointSetAbnormalPolicy.Reject;
+            ShapeModelPath = string.Empty;
+            ShapeModelName = "ShapeModel_001";
+            ShapeTrainingRoiId = string.Empty;
+            ShapeMinScore = 0.60;
+            ShapeMaxMatches = 1;
+            ShapeAngleStartDegrees = -180;
+            ShapeAngleExtentDegrees = 360;
+            ShapeScaleMin = 1.0;
+            ShapeScaleMax = 1.0;
+            ShapeMaxOverlap = 0.5;
+            ShapeGreediness = 0.9;
+            ShapeNumLevels = "auto";
+            ShapeMetric = "use_polarity";
+            ShapeSubPixel = "least_squares";
             XldCircleFitAlgorithm = VmXldCircleFitAlgorithm.ATukey;
             XldCircleFitMaxNumPoints = -1;
             XldCircleFitMaxClosureDistance = 1.5;
@@ -505,6 +541,42 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 262, EmitDefaultValue = false)] public bool TextParserTrim { get; set; }
         [DataMember(Order = 263, EmitDefaultValue = false)] public string TextParserEmptyPolicy { get; set; }
         [DataMember(Order = 264, EmitDefaultValue = false)] public bool TextParserConvertNumber { get; set; }
+        [DataMember(Order = 265, EmitDefaultValue = false)] public string NumericCalculationOperation { get; set; }
+        [DataMember(Order = 266, EmitDefaultValue = false)] public int NumericCalculationRoundDigits { get; set; }
+        [DataMember(Order = 267, EmitDefaultValue = false)] public string ResultLogicOperation { get; set; }
+        [DataMember(Order = 268, EmitDefaultValue = false)] public bool ResultLogicCaseSensitive { get; set; }
+        [DataMember(Order = 269, EmitDefaultValue = false)] public bool ResultLogicTrimInput { get; set; }
+        [DataMember(Order = 270, EmitDefaultValue = false)] public string ScriptExecutionMode { get; set; }
+        [DataMember(Order = 271, EmitDefaultValue = false)] public string ScriptInlineCode { get; set; }
+        [DataMember(Order = 272, EmitDefaultValue = false)] public string ScriptAssemblyPath { get; set; }
+        [DataMember(Order = 273, EmitDefaultValue = false)] public string ScriptTypeName { get; set; }
+        [DataMember(Order = 274, EmitDefaultValue = false)] public string ScriptMethodName { get; set; }
+        [DataMember(Order = 275, EmitDefaultValue = false)] public int ScriptTimeoutMilliseconds { get; set; }
+        [DataMember(Order = 276, EmitDefaultValue = false)] public double ScriptParameterNumber { get; set; }
+        [DataMember(Order = 277, EmitDefaultValue = false)] public string ScriptParameterText { get; set; }
+        [DataMember(Order = 278, EmitDefaultValue = false)] public string GlobalVariableId { get; set; }
+        [DataMember(Order = 279, EmitDefaultValue = false)] public string ScriptResourceId { get; set; }
+        [DataMember(Order = 280, EmitDefaultValue = false)] public List<VmScriptInterfaceMemberData> ScriptInterfaceMembers { get; set; }
+        [DataMember(Order = 281, EmitDefaultValue = false)] public double PositionCorrectionReferenceRow { get; set; }
+        [DataMember(Order = 282, EmitDefaultValue = false)] public double PositionCorrectionReferenceColumn { get; set; }
+        [DataMember(Order = 283, EmitDefaultValue = false)] public double PositionCorrectionReferenceAngleDegrees { get; set; }
+        [DataMember(Order = 284, EmitDefaultValue = false)] public string PositionCorrectionToolId { get; set; }
+        [DataMember(Order = 285, EmitDefaultValue = false)] public string ShapeModelPath { get; set; }
+        [DataMember(Order = 286, EmitDefaultValue = false)] public string ShapeModelName { get; set; }
+        [DataMember(Order = 287, EmitDefaultValue = false)] public string ShapeTrainingRoiId { get; set; }
+        [DataMember(Order = 288, EmitDefaultValue = false)] public double ShapeMinScore { get; set; }
+        [DataMember(Order = 289, EmitDefaultValue = false)] public int ShapeMaxMatches { get; set; }
+        [DataMember(Order = 290, EmitDefaultValue = false)] public double ShapeAngleStartDegrees { get; set; }
+        [DataMember(Order = 291, EmitDefaultValue = false)] public double ShapeAngleExtentDegrees { get; set; }
+        [DataMember(Order = 292, EmitDefaultValue = false)] public double ShapeScaleMin { get; set; }
+        [DataMember(Order = 293, EmitDefaultValue = false)] public double ShapeScaleMax { get; set; }
+        [DataMember(Order = 294, EmitDefaultValue = false)] public double ShapeMaxOverlap { get; set; }
+        [DataMember(Order = 295, EmitDefaultValue = false)] public double ShapeGreediness { get; set; }
+        [DataMember(Order = 296, EmitDefaultValue = false)] public string ShapeNumLevels { get; set; }
+        [DataMember(Order = 297, EmitDefaultValue = false)] public string ShapeMetric { get; set; }
+        [DataMember(Order = 298, EmitDefaultValue = false)] public string ShapeSubPixel { get; set; }
+        [DataMember(Order = 299, EmitDefaultValue = false)] public int PointSetMinimumCount { get; set; }
+        [DataMember(Order = 300, EmitDefaultValue = false)] public string PointSetAbnormalPolicy { get; set; }
 
         private void SetDefaultXldProjectivePoints()
         {
@@ -529,6 +601,9 @@ namespace HalconWinFormsDemo.Models
         public VmToolParameterData Clone()
         {
             VmToolParameterData clone = (VmToolParameterData)MemberwiseClone();
+            clone.ScriptInterfaceMembers = ScriptInterfaceMembers == null
+                ? new List<VmScriptInterfaceMemberData>()
+                : ScriptInterfaceMembers.Where(item => item != null).Select(item => item.Clone()).ToList();
             clone.Normalize();
             return clone;
         }
@@ -894,6 +969,73 @@ namespace HalconWinFormsDemo.Models
             TextParserMode = VmTextParserMode.Normalize(TextParserMode);
             if (TextParserPattern == null) TextParserPattern = ",";
             TextParserEmptyPolicy = VmTextAssemblyEmptyPolicy.Normalize(TextParserEmptyPolicy);
+            if (NumericCalculationOperation == null)
+            {
+                NumericCalculationOperation = VmNumericCalculationOperation.Add;
+                NumericCalculationRoundDigits = 0;
+            }
+            else
+            {
+                NumericCalculationOperation = NumericCalculationOperation.Trim();
+            }
+            if (ResultLogicOperation == null)
+            {
+                ResultLogicOperation = VmResultLogicOperation.AllOk;
+                ResultLogicCaseSensitive = false;
+                ResultLogicTrimInput = true;
+            }
+            else
+            {
+                ResultLogicOperation = ResultLogicOperation.Trim();
+            }
+            if (ScriptExecutionMode == null && ScriptInlineCode == null && ScriptAssemblyPath == null &&
+                ScriptTypeName == null && ScriptMethodName == null && ScriptTimeoutMilliseconds == 0 &&
+                ScriptParameterNumber == 0 && ScriptParameterText == null)
+            {
+                ScriptExecutionMode = VmScriptExecutionMode.InlineCSharp;
+                ScriptInlineCode = VmScriptExecutionMode.DefaultInlineCode;
+                ScriptAssemblyPath = string.Empty;
+                ScriptTypeName = "UserScripts.ScriptEntry";
+                ScriptMethodName = "Execute";
+                ScriptTimeoutMilliseconds = 1000;
+                ScriptParameterText = string.Empty;
+            }
+            ScriptExecutionMode = VmScriptExecutionMode.Normalize(ScriptExecutionMode);
+            if (ScriptInlineCode == null) ScriptInlineCode = VmScriptExecutionMode.DefaultInlineCode;
+            ScriptAssemblyPath = (ScriptAssemblyPath ?? string.Empty).Trim();
+            ScriptTypeName = (ScriptTypeName ?? string.Empty).Trim();
+            ScriptMethodName = (ScriptMethodName ?? string.Empty).Trim();
+            if (ScriptTimeoutMilliseconds <= 0) ScriptTimeoutMilliseconds = 1000;
+            if (ScriptParameterText == null) ScriptParameterText = string.Empty;
+            GlobalVariableId = (GlobalVariableId ?? string.Empty).Trim();
+            ScriptResourceId = (ScriptResourceId ?? string.Empty).Trim();
+            ScriptInterfaceMembers = (ScriptInterfaceMembers ?? new List<VmScriptInterfaceMemberData>())
+                .Where(item => item != null)
+                .Select(item => { item.Normalize(); return item; })
+                .ToList();
+            PositionCorrectionToolId = (PositionCorrectionToolId ?? string.Empty).Trim();
+            if (PointSetMinimumCount == 0) PointSetMinimumCount = 3;
+            PointSetAbnormalPolicy = VmPointSetAbnormalPolicy.Normalize(PointSetAbnormalPolicy);
+            if (ShapeModelPath == null && ShapeModelName == null && ShapeTrainingRoiId == null &&
+                ShapeMinScore == 0 && ShapeMaxMatches == 0 && ShapeAngleStartDegrees == 0 &&
+                ShapeAngleExtentDegrees == 0 && ShapeScaleMin == 0 && ShapeScaleMax == 0 &&
+                ShapeMaxOverlap == 0 && ShapeGreediness == 0 && ShapeNumLevels == null)
+            {
+                ShapeMinScore = 0.60;
+                ShapeMaxMatches = 1;
+                ShapeAngleStartDegrees = -180;
+                ShapeAngleExtentDegrees = 360;
+                ShapeScaleMin = 1.0;
+                ShapeScaleMax = 1.0;
+                ShapeMaxOverlap = 0.5;
+                ShapeGreediness = 0.9;
+            }
+            ShapeModelPath = (ShapeModelPath ?? string.Empty).Trim();
+            ShapeModelName = string.IsNullOrWhiteSpace(ShapeModelName) ? "ShapeModel_001" : ShapeModelName.Trim();
+            ShapeTrainingRoiId = (ShapeTrainingRoiId ?? string.Empty).Trim();
+            ShapeNumLevels = string.IsNullOrWhiteSpace(ShapeNumLevels) ? "auto" : ShapeNumLevels.Trim();
+            ShapeMetric = string.IsNullOrWhiteSpace(ShapeMetric) ? "use_polarity" : ShapeMetric.Trim();
+            ShapeSubPixel = string.IsNullOrWhiteSpace(ShapeSubPixel) ? "least_squares" : ShapeSubPixel.Trim();
             if (string.IsNullOrWhiteSpace(RegionFeature))
             {
                 RegionFeature = VmRegionFeature.Area;
@@ -1409,6 +1551,83 @@ namespace HalconWinFormsDemo.Models
                         return "文本解析正则表达式无效。";
                     }
                 }
+            }
+
+            if (kind == VmToolKind.NumericCalculation)
+            {
+                if (!VmNumericCalculationOperation.IsSupported(NumericCalculationOperation))
+                    return "数值运算仅支持加、减、乘、除、最小、最大、绝对值或四舍五入。";
+                if (NumericCalculationRoundDigits < 0 || NumericCalculationRoundDigits > 15)
+                    return "数值运算四舍五入精度必须是 0 到 15 位。";
+            }
+
+            if (kind == VmToolKind.ResultLogicAggregation && !VmResultLogicOperation.IsSupported(ResultLogicOperation))
+                return "结果逻辑汇总仅支持全部 OK、任一 OK、取反或一元透传。";
+
+            if (kind == VmToolKind.CSharpDllScript)
+            {
+                string interfaceError = ValidateScriptInterfaceMembers(ScriptInterfaceMembers);
+                if (!string.IsNullOrWhiteSpace(interfaceError)) return interfaceError;
+                if (!VmScriptExecutionMode.IsSupported(ScriptExecutionMode))
+                    return "脚本执行方式仅支持受信任的内联 C# 或外部 DLL。";
+                if (ScriptTimeoutMilliseconds < 50 || ScriptTimeoutMilliseconds > 30000)
+                    return "脚本超时必须是 50 到 30000 毫秒。";
+                if (!IsFinite(ScriptParameterNumber))
+                    return "脚本参数数值必须是有限值。";
+                if (VmScriptExecutionMode.Normalize(ScriptExecutionMode) == VmScriptExecutionMode.InlineCSharp)
+                {
+                    if (string.IsNullOrWhiteSpace(ScriptInlineCode) || ScriptInlineCode.Length > 262144)
+                        return "内联 C# 方法体必须填写，且不能超过 262144 个字符。";
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(ScriptResourceId) && string.IsNullOrWhiteSpace(ScriptAssemblyPath))
+                        return "DLL 模式必须选择受管资源；旧配方可继续使用兼容 DLL 路径。";
+                    if (string.IsNullOrWhiteSpace(ScriptResourceId) && !File.Exists(ScriptAssemblyPath))
+                        return "脚本 DLL 不存在：" + ScriptAssemblyPath;
+                    if (string.IsNullOrWhiteSpace(ScriptTypeName) || ScriptTypeName.Length > 512)
+                        return "DLL 类型全名必须填写，且不能超过 512 个字符。";
+                    if (string.IsNullOrWhiteSpace(ScriptMethodName) || ScriptMethodName.Length > 128)
+                        return "DLL 方法名必须填写，且不能超过 128 个字符。";
+                }
+            }
+
+            if ((kind == VmToolKind.GlobalVariableRead || kind == VmToolKind.GlobalVariableWrite) && string.IsNullOrWhiteSpace(GlobalVariableId))
+                return "请选择一个全局变量。";
+
+            if (kind == VmToolKind.PositionCorrection2D)
+            {
+                if (!IsFinite(PositionCorrectionReferenceRow) || !IsFinite(PositionCorrectionReferenceColumn))
+                    return "2D 位置修正基准 Row/Column 必须是有限数值。";
+                if (!IsFinite(PositionCorrectionReferenceAngleDegrees) || Math.Abs(PositionCorrectionReferenceAngleDegrees) > 360000)
+                    return "2D 位置修正基准角度必须是 -360000° 到 360000° 之间的有限数值。";
+            }
+
+            if (kind == VmToolKind.PointSetGeometryStatistics)
+            {
+                if (PointSetMinimumCount < 1 || PointSetMinimumCount > 1000000)
+                    return "点集几何统计最小点数必须在 1 到 1000000 之间。";
+                if (!VmPointSetAbnormalPolicy.IsSupported(PointSetAbnormalPolicy))
+                    return "点集几何统计异常点策略无效。";
+            }
+
+            if (kind == VmToolKind.ShapeMatch)
+            {
+                if (string.IsNullOrWhiteSpace(ShapeModelName) || ShapeModelName.Length > 128)
+                    return "Shape 模型名称必须填写，且不能超过 128 个字符。";
+                if (!IsFinite(ShapeMinScore) || ShapeMinScore <= 0 || ShapeMinScore > 1)
+                    return "Shape 最小分数必须大于 0 且不大于 1。";
+                if (ShapeMaxMatches < 1 || ShapeMaxMatches > 1000)
+                    return "Shape 最大匹配数量必须是 1 到 1000。";
+                if (!IsFinite(ShapeAngleStartDegrees) || !IsFinite(ShapeAngleExtentDegrees) ||
+                    ShapeAngleExtentDegrees <= 0 || ShapeAngleExtentDegrees > 360)
+                    return "Shape 角度范围必须是大于 0 且不超过 360° 的有限数值。";
+                if (!IsFinite(ShapeScaleMin) || !IsFinite(ShapeScaleMax) || ShapeScaleMin <= 0 || ShapeScaleMax < ShapeScaleMin || ShapeScaleMax > 10)
+                    return "Shape 尺度范围必须满足 0 < 最小尺度 <= 最大尺度 <= 10。";
+                if (!IsFinite(ShapeMaxOverlap) || ShapeMaxOverlap < 0 || ShapeMaxOverlap > 1)
+                    return "Shape 最大重叠必须在 0 到 1 之间。";
+                if (!IsFinite(ShapeGreediness) || ShapeGreediness < 0 || ShapeGreediness > 1)
+                    return "Shape 贪婪度必须在 0 到 1 之间。";
             }
 
             if (kind == VmToolKind.DynamicThreshold)
@@ -1941,6 +2160,49 @@ namespace HalconWinFormsDemo.Models
             }
 
             return string.Empty;
+        }
+
+        public static string ValidateScriptInterfaceMembers(IEnumerable<VmScriptInterfaceMemberData> members)
+        {
+            List<VmScriptInterfaceMemberData> list = (members ?? Enumerable.Empty<VmScriptInterfaceMemberData>()).Where(item => item != null).ToList();
+            if (list.Count > 64) return "脚本接口最多允许 64 个成员。";
+            HashSet<string> ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> portNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (VmScriptInterfaceMemberData member in list)
+            {
+                member.Normalize();
+                if (member.MemberId.Length > 64 || !member.MemberId.All(char.IsLetterOrDigit))
+                    return "脚本接口成员 ID 无效；仅允许 1..64 个字母或数字。";
+                if (!ids.Add(member.MemberId)) return "脚本接口成员 ID 重复：" + member.MemberId;
+                if (!VmScriptMemberDirection.IsSupported(member.Direction)) return "脚本接口方向无效：" + member.Direction;
+                if (!VmScriptScalarType.IsSupported(member.ValueType)) return "脚本接口类型无效：" + member.ValueType;
+                if (string.IsNullOrWhiteSpace(member.Name) || member.Name.Length > 64)
+                    return "脚本接口名称必须填写，且不能超过 64 个字符。";
+                if (!IsValidScriptMemberName(member.Name))
+                    return "脚本接口名称只能使用字母、数字或下划线，且不能以数字开头：" + member.Name;
+                if (!names.Add(member.Name)) return "脚本接口名称重复：" + member.Name;
+                if (member.Direction != VmScriptMemberDirection.Parameter && !portNames.Add(member.PortName))
+                    return "脚本接口稳定端口重复：" + member.PortName;
+                if (member.Description != null && member.Description.Length > 256)
+                    return "脚本接口说明不能超过 256 个字符：" + member.Name;
+                if (member.Direction != VmScriptMemberDirection.Output && member.DefaultValue.Length > 4096)
+                    return "脚本接口默认值不能超过 4096 个字符：" + member.Name;
+                object parsed;
+                string error;
+                if (member.Direction != VmScriptMemberDirection.Output &&
+                    !VmScriptScalarType.TryParseDefault(member.ValueType, member.DefaultValue,
+                        member.Direction == VmScriptMemberDirection.Input,
+                        out parsed, out error))
+                    return member.Name + "：" + error;
+            }
+            return string.Empty;
+        }
+
+        private static bool IsValidScriptMemberName(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || !(char.IsLetter(value[0]) || value[0] == '_')) return false;
+            return value.All(character => char.IsLetterOrDigit(character) || character == '_');
         }
 
         private static bool IsFinite(double value)
@@ -3403,6 +3665,135 @@ namespace HalconWinFormsDemo.Models
         }
     }
 
+    public static class VmNumericCalculationOperation
+    {
+        public const string Add = "Add";
+        public const string Subtract = "Subtract";
+        public const string Multiply = "Multiply";
+        public const string Divide = "Divide";
+        public const string Minimum = "Minimum";
+        public const string Maximum = "Maximum";
+        public const string Absolute = "Absolute";
+        public const string Round = "Round";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, Add, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Subtract, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Multiply, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Divide, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Minimum, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Maximum, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Absolute, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Round, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.Equals(value, Subtract, StringComparison.OrdinalIgnoreCase)) return Subtract;
+            if (string.Equals(value, Multiply, StringComparison.OrdinalIgnoreCase)) return Multiply;
+            if (string.Equals(value, Divide, StringComparison.OrdinalIgnoreCase)) return Divide;
+            if (string.Equals(value, Minimum, StringComparison.OrdinalIgnoreCase)) return Minimum;
+            if (string.Equals(value, Maximum, StringComparison.OrdinalIgnoreCase)) return Maximum;
+            if (string.Equals(value, Absolute, StringComparison.OrdinalIgnoreCase)) return Absolute;
+            if (string.Equals(value, Round, StringComparison.OrdinalIgnoreCase)) return Round;
+            return Add;
+        }
+
+        public static bool RequiresSecondOperand(string value)
+        {
+            string normalized = Normalize(value);
+            return normalized != Absolute && normalized != Round;
+        }
+
+        public static VmTcpOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmTcpOption { Key = Add, DisplayText = "加法 A + B" },
+                new VmTcpOption { Key = Subtract, DisplayText = "减法 A - B" },
+                new VmTcpOption { Key = Multiply, DisplayText = "乘法 A × B" },
+                new VmTcpOption { Key = Divide, DisplayText = "除法 A ÷ B" },
+                new VmTcpOption { Key = Minimum, DisplayText = "最小值 min(A, B)" },
+                new VmTcpOption { Key = Maximum, DisplayText = "最大值 max(A, B)" },
+                new VmTcpOption { Key = Absolute, DisplayText = "绝对值 abs(A)" },
+                new VmTcpOption { Key = Round, DisplayText = "四舍五入 round(A)" }
+            };
+        }
+    }
+
+    public static class VmResultLogicOperation
+    {
+        public const string AllOk = "AllOk";
+        public const string AnyOk = "AnyOk";
+        public const string Not = "Not";
+        public const string PassThrough = "PassThrough";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, AllOk, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, AnyOk, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Not, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, PassThrough, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.Equals(value, AnyOk, StringComparison.OrdinalIgnoreCase)) return AnyOk;
+            if (string.Equals(value, Not, StringComparison.OrdinalIgnoreCase)) return Not;
+            if (string.Equals(value, PassThrough, StringComparison.OrdinalIgnoreCase)) return PassThrough;
+            return AllOk;
+        }
+
+        public static bool RequiresSecondInput(string value)
+        {
+            string normalized = Normalize(value);
+            return normalized == AllOk || normalized == AnyOk;
+        }
+
+        public static VmTcpOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmTcpOption { Key = AllOk, DisplayText = "全部 OK（A AND B）" },
+                new VmTcpOption { Key = AnyOk, DisplayText = "任一 OK（A OR B）" },
+                new VmTcpOption { Key = Not, DisplayText = "取反（NOT A）" },
+                new VmTcpOption { Key = PassThrough, DisplayText = "一元透传（A）" }
+            };
+        }
+    }
+
+    public static class VmScriptExecutionMode
+    {
+        public const string InlineCSharp = "InlineCSharp";
+        public const string Dll = "Dll";
+        public const string DefaultInlineCode =
+            "double total = (input.HasNumberA ? input.NumberA : 0) +\r\n" +
+            "               (input.HasNumberB ? input.NumberB : 0) +\r\n" +
+            "               input.ParameterNumber;\r\n" +
+            "return ScriptToolResult.Ok(total, (input.Text ?? string.Empty) + input.ParameterText);";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, InlineCSharp, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Dll, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            return string.Equals(value, Dll, StringComparison.OrdinalIgnoreCase) ? Dll : InlineCSharp;
+        }
+
+        public static VmTcpOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmTcpOption { Key = InlineCSharp, DisplayText = "受信任内联 C#" },
+                new VmTcpOption { Key = Dll, DisplayText = "外部 DLL" }
+            };
+        }
+    }
+
     public static class VmImageChannelMode
     {
         public const string Keep = "Keep";
@@ -3599,6 +3990,38 @@ namespace HalconWinFormsDemo.Models
     {
         public string Key { get; set; }
 
+        public string DisplayText { get; set; }
+    }
+
+    public static class VmPointSetAbnormalPolicy
+    {
+        public const string Reject = "Reject";
+        public const string SkipInvalid = "SkipInvalid";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, Reject, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, SkipInvalid, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            return string.Equals(value, SkipInvalid, StringComparison.OrdinalIgnoreCase) ? SkipInvalid : Reject;
+        }
+
+        public static VmPointSetAbnormalPolicyOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmPointSetAbnormalPolicyOption { Key = Reject, DisplayText = "严格拒绝（推荐）" },
+                new VmPointSetAbnormalPolicyOption { Key = SkipInvalid, DisplayText = "跳过异常点并标记 NG" }
+            };
+        }
+    }
+
+    public sealed class VmPointSetAbnormalPolicyOption
+    {
+        public string Key { get; set; }
         public string DisplayText { get; set; }
     }
 

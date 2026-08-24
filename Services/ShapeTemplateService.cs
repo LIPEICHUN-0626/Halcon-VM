@@ -43,11 +43,14 @@ namespace HalconWinFormsDemo.Services
             try
             {
                 HOperatorSet.ReduceDomain(image, templateDefinition.TrainingMask, out reduced);
-                HOperatorSet.CreateShapeModel(
+                HOperatorSet.CreateScaledShapeModel(
                     reduced,
                     ResolveNumLevels(options.NumLevels),
                     DegToRad(options.AngleStartDeg),
                     DegToRad(options.AngleExtentDeg),
+                    "auto",
+                    options.ScaleMin,
+                    options.ScaleMax,
                     "auto",
                     "auto",
                     ResolveMetric(options.Metric),
@@ -128,13 +131,16 @@ namespace HalconWinFormsDemo.Services
                 HTuple row;
                 HTuple column;
                 HTuple angle;
+                HTuple scale;
                 HTuple score;
 
-                HOperatorSet.FindShapeModel(
+                HOperatorSet.FindScaledShapeModel(
                     matchImage,
                     modelId,
                     DegToRad(resolvedOptions.AngleStartDeg),
                     DegToRad(resolvedOptions.AngleExtentDeg),
+                    resolvedOptions.ScaleMin,
+                    resolvedOptions.ScaleMax,
                     resolvedOptions.MinScore,
                     Math.Max(1, resolvedOptions.MaxMatches),
                     Clamp(resolvedOptions.MaxOverlap, 0.0, 1.0),
@@ -144,9 +150,10 @@ namespace HalconWinFormsDemo.Services
                     out row,
                     out column,
                     out angle,
+                    out scale,
                     out score);
 
-                return BuildResults(row, column, angle, score);
+                return BuildResults(row, column, angle, scale, score);
             }
             finally
             {
@@ -169,8 +176,10 @@ namespace HalconWinFormsDemo.Services
                 foreach (ShapeMatchResult match in matches)
                 {
                     HTuple homMat2D;
+                    HTuple scaledHomMat2D;
                     HOperatorSet.VectorAngleToRigid(0, 0, 0, match.Row, match.Column, DegToRad(match.AngleDeg), out homMat2D);
-                    HOperatorSet.AffineTransContourXld(contours, out transformed, homMat2D);
+                    HOperatorSet.HomMat2dScale(homMat2D, match.Scale, match.Scale, match.Row, match.Column, out scaledHomMat2D);
+                    HOperatorSet.AffineTransContourXld(contours, out transformed, scaledHomMat2D);
                     window.DispObj(transformed);
                     transformed.Dispose();
                     transformed = null;
@@ -212,11 +221,61 @@ namespace HalconWinFormsDemo.Services
             Clear();
         }
 
-        private List<ShapeMatchResult> BuildResults(HTuple row, HTuple column, HTuple angle, HTuple score)
+        public HObject CreateMatchContours(IEnumerable<ShapeMatchResult> matches)
+        {
+            EnsureModel();
+            HObject modelContours = null;
+            HObject accumulated = null;
+            try
+            {
+                HOperatorSet.GetShapeModelContours(out modelContours, modelId, 1);
+                foreach (ShapeMatchResult match in matches ?? new ShapeMatchResult[0])
+                {
+                    HTuple rigid;
+                    HTuple scaled;
+                    HObject transformed = null;
+                    HObject combined = null;
+                    try
+                    {
+                        HOperatorSet.VectorAngleToRigid(0, 0, 0, match.Row, match.Column, DegToRad(match.AngleDeg), out rigid);
+                        HOperatorSet.HomMat2dScale(rigid, match.Scale, match.Scale, match.Row, match.Column, out scaled);
+                        HOperatorSet.AffineTransContourXld(modelContours, out transformed, scaled);
+                        if (accumulated == null)
+                        {
+                            HOperatorSet.CopyObj(transformed, out accumulated, 1, -1);
+                        }
+                        else
+                        {
+                            HOperatorSet.ConcatObj(accumulated, transformed, out combined);
+                            accumulated.Dispose();
+                            accumulated = combined;
+                            combined = null;
+                        }
+                    }
+                    finally
+                    {
+                        if (combined != null) combined.Dispose();
+                        if (transformed != null) transformed.Dispose();
+                    }
+                }
+                if (accumulated == null) HOperatorSet.GenEmptyObj(out accumulated);
+                HObject result = accumulated;
+                accumulated = null;
+                return result;
+            }
+            finally
+            {
+                if (accumulated != null) accumulated.Dispose();
+                if (modelContours != null) modelContours.Dispose();
+            }
+        }
+
+        private List<ShapeMatchResult> BuildResults(HTuple row, HTuple column, HTuple angle, HTuple scale, HTuple score)
         {
             double[] rows = row.ToDArr();
             double[] columns = column.ToDArr();
             double[] angles = angle.ToDArr();
+            double[] scales = scale.ToDArr();
             double[] scores = score.ToDArr();
             List<ShapeMatchResult> results = new List<ShapeMatchResult>();
             RoiData displayFrame = definition == null ? null : definition.DisplayFrame;
@@ -228,6 +287,7 @@ namespace HalconWinFormsDemo.Services
                     Row = rows[i],
                     Column = columns[i],
                     AngleDeg = RadToDeg(angles[i]),
+                    Scale = scales[i],
                     Score = scores[i],
                     RoiShapeType = displayFrame == null ? (RoiShapeType?)null : displayFrame.ShapeType,
                     RoiWidth = displayFrame == null ? 0 : Math.Abs(displayFrame.Column2 - displayFrame.Column1),
@@ -236,7 +296,16 @@ namespace HalconWinFormsDemo.Services
                 });
             }
 
-            return results;
+            List<ShapeMatchResult> ordered = new List<ShapeMatchResult>(results);
+            ordered.Sort(delegate(ShapeMatchResult left, ShapeMatchResult right)
+            {
+                int scoreOrder = right.Score.CompareTo(left.Score);
+                if (scoreOrder != 0) return scoreOrder;
+                int rowOrder = left.Row.CompareTo(right.Row);
+                return rowOrder != 0 ? rowOrder : left.Column.CompareTo(right.Column);
+            });
+            for (int index = 0; index < ordered.Count; index++) ordered[index].Index = index + 1;
+            return ordered;
         }
 
         private void EnsureModel()
@@ -284,7 +353,7 @@ namespace HalconWinFormsDemo.Services
 
         private static string MaskPath(string modelPath)
         {
-            return modelPath + ".mask";
+            return modelPath + ".mask.reg";
         }
 
         private static string RoiSidecarPath(string modelPath)
@@ -316,6 +385,8 @@ namespace HalconWinFormsDemo.Services
             WriteOption(lines, "maxMatches", options.MaxMatches);
             WriteOption(lines, "angleStartDeg", options.AngleStartDeg);
             WriteOption(lines, "angleExtentDeg", options.AngleExtentDeg);
+            WriteOption(lines, "scaleMin", options.ScaleMin);
+            WriteOption(lines, "scaleMax", options.ScaleMax);
             WriteOption(lines, "maxOverlap", options.MaxOverlap);
             WriteOption(lines, "greediness", options.Greediness);
             lines.Add("numLevels=" + (options.NumLevels ?? "auto"));
@@ -411,6 +482,8 @@ namespace HalconWinFormsDemo.Services
                 MaxMatches = ReadInt(values, "maxMatches", 1),
                 AngleStartDeg = ReadDouble(values, "angleStartDeg", -180),
                 AngleExtentDeg = ReadDouble(values, "angleExtentDeg", 360),
+                ScaleMin = ReadDouble(values, "scaleMin", 1.0),
+                ScaleMax = ReadDouble(values, "scaleMax", 1.0),
                 MaxOverlap = ReadDouble(values, "maxOverlap", 0.5),
                 Greediness = ReadDouble(values, "greediness", 0.9),
                 NumLevels = ReadString(values, "numLevels", "auto"),
