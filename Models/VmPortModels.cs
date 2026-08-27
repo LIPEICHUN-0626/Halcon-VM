@@ -400,6 +400,10 @@ namespace HalconWinFormsDemo.Models
 
         public bool IsSelected { get; set; }
 
+        public bool IsFocusPath { get; set; }
+
+        public bool IsVisible { get; set; }
+
         public string Label { get; set; }
 
         public string FullLabel { get; set; }
@@ -415,6 +419,8 @@ namespace HalconWinFormsDemo.Models
         public Brush LabelBrush { get; set; }
 
         public double StrokeThickness { get; set; }
+
+        public double StrokeOpacity { get; set; }
 
         public DoubleCollection StrokeDashArray { get; set; }
 

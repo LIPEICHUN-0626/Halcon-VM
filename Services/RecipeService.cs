@@ -58,6 +58,11 @@ namespace HalconWinFormsDemo.Services
             get { return Path.Combine(stateDirectory, "active-recipe-recovery.json"); }
         }
 
+        public string FlowSnippetPath
+        {
+            get { return Path.Combine(stateDirectory, "flow-snippets.json"); }
+        }
+
         public void SaveRecipe(string path, VisionRecipe recipe)
         {
             if (string.IsNullOrWhiteSpace(path))
@@ -202,6 +207,31 @@ namespace HalconWinFormsDemo.Services
             catch
             {
                 return new UiLayoutState();
+            }
+        }
+
+        public void SaveFlowSnippets(VmFlowSnippetLibraryData library)
+        {
+            if (library == null) throw new ArgumentNullException("library");
+            library.Normalize();
+            WriteJsonAtomic(FlowSnippetPath, library, typeof(VmFlowSnippetLibraryData), FlowSnippetPath + ".bak");
+        }
+
+        public VmFlowSnippetLibraryData LoadFlowSnippets(out string error)
+        {
+            error = string.Empty;
+            if (!File.Exists(FlowSnippetPath)) return new VmFlowSnippetLibraryData();
+            try
+            {
+                VmFlowSnippetLibraryData library = (VmFlowSnippetLibraryData)ReadJson(FlowSnippetPath, typeof(VmFlowSnippetLibraryData));
+                if (library == null) throw new InvalidDataException("流程片段文件内容为空。");
+                library.Normalize();
+                return library;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return new VmFlowSnippetLibraryData();
             }
         }
 

@@ -15,6 +15,8 @@ namespace HalconWinFormsDemo
         private void ToolCatalogList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             RefreshToolCapabilityPreviewS65(ToolCatalogList == null ? null : ToolCatalogList.SelectedItem as VmToolCatalogItem);
+            RefreshRecommendationSelectionPreviewS67(ToolCatalogList == null ? null : ToolCatalogList.SelectedItem as VmToolCatalogItem);
+            RefreshInputSourceCatalogSelectionPreviewS68(ToolCatalogList == null ? null : ToolCatalogList.SelectedItem as VmToolCatalogItem);
         }
 
         private void ToolCapabilityExpander_Expanded(object sender, RoutedEventArgs e)
@@ -33,6 +35,7 @@ namespace HalconWinFormsDemo
                 ToolCapabilityInputText.Text = "IN  --";
                 ToolCapabilityOutputText.Text = "OUT --";
                 ToolCapabilityGraphicsText.Text = "ROI / 图形 --";
+                RefreshToolInsertionPreviewS66(null);
                 return;
             }
 
@@ -50,8 +53,10 @@ namespace HalconWinFormsDemo
             if (outputs.Any(port => string.Equals(port.DataType, "Image", StringComparison.OrdinalIgnoreCase))) capabilities.Add("图像输出");
             if (outputs.Any(port => string.Equals(port.DataType, "Region", StringComparison.OrdinalIgnoreCase))) capabilities.Add("Region 图层");
             if (outputs.Any(port => string.Equals(port.DataType, "XLD", StringComparison.OrdinalIgnoreCase))) capabilities.Add("XLD 图层");
-            if (outputs.Any(port => string.Equals(port.DataType, "Pose2D", StringComparison.OrdinalIgnoreCase) || string.Equals(port.DataType, "Point2D", StringComparison.OrdinalIgnoreCase) || string.Equals(port.DataType, "Point2D[]", StringComparison.OrdinalIgnoreCase))) capabilities.Add("类型化几何");
+            if (outputs.Any(port => string.Equals(port.DataType, "Pose2D", StringComparison.OrdinalIgnoreCase) || string.Equals(port.DataType, "Point2D", StringComparison.OrdinalIgnoreCase) || string.Equals(port.DataType, "Point2D[]", StringComparison.OrdinalIgnoreCase) || string.Equals(port.DataType, "Line2D", StringComparison.OrdinalIgnoreCase) || string.Equals(port.DataType, "Circle2D", StringComparison.OrdinalIgnoreCase) || string.Equals(port.DataType, "Ellipse2D", StringComparison.OrdinalIgnoreCase))) capabilities.Add("类型化几何");
             ToolCapabilityGraphicsText.Text = "ROI / 图形 " + (capabilities.Count == 0 ? "无专用图形能力" : string.Join(" · ", capabilities));
+            RefreshToolInsertionPreviewS66(item);
+            RefreshRecommendationSelectionPreviewS67(item);
         }
 
         private static string FormatCapabilityPortsS65(IEnumerable<VmPortDefinition> ports, bool showOptional)

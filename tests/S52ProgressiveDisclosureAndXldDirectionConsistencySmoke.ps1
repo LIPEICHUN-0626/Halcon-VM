@@ -23,9 +23,10 @@ Assert((Field 'toolCatalogMode')-eq'All') 'Toolbox does not default to the full 
 $catalogView=Field 'toolCatalogView';$visible=@($catalogView|ForEach-Object{$_});Assert($visible.Count -eq (Field 'toolCatalog').Count) 'Default toolbox does not expose every implemented tool after S62'
 $flow=Field 'flowTools';$flow.Clear();$source=Tool RegionFeatureFilter 'Source';$target=Tool RegionSetOperation 'Target';$target.SetInputBinding('RegionA',$source.ToolId,'Region');$target.SetInputBinding('RegionB',$source.ToolId,'Region');$flow.Add($source);$flow.Add($target);$mainType.GetMethod('RefreshFlowPortVisualization',$private).Invoke($window,@())|Out-Null
 (Field 'FlowToolList').SelectedItem=$target;$mainType.GetMethod('FlowToolList_SelectionChanged',$private).Invoke($window,[object[]]@((Field 'FlowToolList'),$null))|Out-Null
-Assert($target.GraphHeight-eq84) 'Selecting a node still exposes the full port wall'
-$connections=Field 'flowConnections';Assert($connections.Count-eq2-and($connections|Where-Object IsLabelVisible).Count-eq1) 'Duplicate connection labels were not merged per dependency'
-$target.IsFlowDetailExpanded=$true;$mainType.GetMethod('RefreshFlowPortVisualization',$private).Invoke($window,@())|Out-Null;Assert($target.GraphHeight-gt84) 'Explicit port expansion no longer works'
+Assert($target.GraphHeight-eq68) 'Selecting a node still exposes the full port wall'
+$connections=Field 'flowConnections';Assert($connections.Count-eq2-and($connections|Where-Object IsLabelVisible).Count-eq0) 'S72 quiet focus should not expand dependency labels for node selection alone'
+$mainType.GetField('selectedFlowConnectionKey',$private).SetValue($window,$connections[0].ConnectionKey);$mainType.GetMethod('RefreshFlowPortVisualization',$private).Invoke($window,@())|Out-Null;$connections=Field 'flowConnections';Assert(($connections|Where-Object IsLabelVisible).Count-eq1) 'Explicit connection selection did not expose one merged dependency label'
+$target.IsFlowDetailExpanded=$true;$mainType.GetMethod('RefreshFlowPortVisualization',$private).Invoke($window,@())|Out-Null;Assert($target.GraphHeight-gt68) 'Explicit port expansion no longer works'
 
 # B: HALCON main-axis direction, half-turn deviation, instability, output ownership and downstream value.
 $kind=[Enum]::Parse($kindType,'XldDirectionConsistencyMeasurement');$inputs=$metadataType.GetMethod('GetInputPorts',$static).Invoke($null,[object[]]@($kind));$outputs=$metadataType.GetMethod('GetOutputPorts',$static).Invoke($null,[object[]]@($kind));Assert(($inputs|Where-Object PortName -eq XLD).Count-eq1-and($outputs|Where-Object PortName -eq AbsoluteDeviation).DataType-eq'Number'-and($outputs|Where-Object PortName -eq XLD).DataType-eq'XLD') 'Typed direction consistency ports missing'

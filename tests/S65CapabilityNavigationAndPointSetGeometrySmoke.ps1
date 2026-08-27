@@ -82,7 +82,7 @@ function Point([double]$Row, [double]$Column, [string]$Context) {
 try {
     # A: the full catalog stays compact; detail is selected-tool metadata, not a new permanent command.
     $catalog = Field 'toolCatalog'
-    Assert ($catalog.Count -eq 60) 'S65 catalog is not the expected 60 real tools.'
+    Assert ($catalog.Count -eq [Enum]::GetValues($kindType).Count -and $catalog.Count -ge 60) 'S65 catalog baseline or full implemented-tool coverage regressed.'
     Assert (-not (Field 'ToolCapabilityExpander').IsExpanded) 'Capability preview is not collapsed by default.'
     Assert ((Field 'DeveloperToolbarPanel').Children.Count -eq 7) 'S65 added a permanent toolbar command.'
     $item = $catalog | Where-Object { $_.Kind.ToString() -eq 'PointSetGeometryStatistics' } | Select-Object -First 1
@@ -185,7 +185,7 @@ try {
     Assert ($copyStats.GetInputBinding('Points').SourceToolId -eq $copyCircle.ToolId) 'Point-set block copy did not remap ToolId.'
     $stats.SetOutputValue('MaxSpan', [double]180); $stats.ResultCode = 'OK'; Method 'InvalidateDownstreamResults' ([object[]]@($circle, 'S65 rerun')) | Out-Null
     Assert ($stats.ResultCode -eq '--') 'Upstream invalidation retained point-set results.'
-    Write-Output 'S65 on-demand capability preview + 60 real tools + Point2D/Point2D[] + real circular EdgePoints + HALCON point geometry + connection/monitor/recipe/copy/failures passed; BSB not implemented.'
+    Write-Output 'S65 on-demand capability preview + 60-tool baseline + Point2D/Point2D[] + real circular EdgePoints + HALCON point geometry + connection/monitor/recipe/copy/failures passed; BSB not implemented.'
 }
 finally {
     $main.GetField('recipeCloseConfirmed', $private).SetValue($window, $true)

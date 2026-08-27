@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -135,6 +136,22 @@ namespace HalconWinFormsDemo.Models
             PositionCorrectionToolId = string.Empty;
             PointSetMinimumCount = 3;
             PointSetAbnormalPolicy = VmPointSetAbnormalPolicy.Reject;
+            PointLineSideConvention = VmPointLineSideConvention.LeftPositive;
+            PointLineOverlayCrossSize = 10;
+            PointCircleSignConvention = VmPointCircleSignConvention.OutsidePositive;
+            PointCircleOverlayCrossSize = 10;
+            PointEllipseBoundaryTolerance = 0.25;
+            PointEllipseOverlayCrossSize = 10;
+            PointEllipseContourResolution = 0.25;
+            LineCircleIntersectionOrder = VmLineCircleIntersectionOrder.AlongLine;
+            LineCircleOverlayCrossSize = 10;
+            CircleCircleIntersectionOrder = VmCircleCircleIntersectionOrder.RowColumnAscending;
+            CircleCircleOverlayCrossSize = 10;
+            PointPairMinimumDistance = 0.000001;
+            PointPairOverlayCrossSize = 10;
+            LineLineParallelToleranceDegrees = 0.01;
+            LineLineCoincidenceDistanceTolerance = 0.01;
+            LineLineOverlayCrossSize = 10;
             ShapeModelPath = string.Empty;
             ShapeModelName = "ShapeModel_001";
             ShapeTrainingRoiId = string.Empty;
@@ -577,6 +594,22 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 298, EmitDefaultValue = false)] public string ShapeSubPixel { get; set; }
         [DataMember(Order = 299, EmitDefaultValue = false)] public int PointSetMinimumCount { get; set; }
         [DataMember(Order = 300, EmitDefaultValue = false)] public string PointSetAbnormalPolicy { get; set; }
+        [DataMember(Order = 301, EmitDefaultValue = false)] public string PointLineSideConvention { get; set; }
+        [DataMember(Order = 302, EmitDefaultValue = false)] public double PointLineOverlayCrossSize { get; set; }
+        [DataMember(Order = 303, EmitDefaultValue = false)] public string PointCircleSignConvention { get; set; }
+        [DataMember(Order = 304, EmitDefaultValue = false)] public double PointCircleOverlayCrossSize { get; set; }
+        [DataMember(Order = 305, EmitDefaultValue = false)] public string LineCircleIntersectionOrder { get; set; }
+        [DataMember(Order = 306, EmitDefaultValue = false)] public double LineCircleOverlayCrossSize { get; set; }
+        [DataMember(Order = 307, EmitDefaultValue = false)] public string CircleCircleIntersectionOrder { get; set; }
+        [DataMember(Order = 308, EmitDefaultValue = false)] public double CircleCircleOverlayCrossSize { get; set; }
+        [DataMember(Order = 309, EmitDefaultValue = false)] public double PointPairMinimumDistance { get; set; }
+        [DataMember(Order = 310, EmitDefaultValue = false)] public double PointPairOverlayCrossSize { get; set; }
+        [DataMember(Order = 311, EmitDefaultValue = false)] public double LineLineParallelToleranceDegrees { get; set; }
+        [DataMember(Order = 312, EmitDefaultValue = false)] public double LineLineCoincidenceDistanceTolerance { get; set; }
+        [DataMember(Order = 313, EmitDefaultValue = false)] public double LineLineOverlayCrossSize { get; set; }
+        [DataMember(Order = 314, EmitDefaultValue = false)] public double PointEllipseBoundaryTolerance { get; set; }
+        [DataMember(Order = 315, EmitDefaultValue = false)] public double PointEllipseOverlayCrossSize { get; set; }
+        [DataMember(Order = 316, EmitDefaultValue = false)] public double PointEllipseContourResolution { get; set; }
 
         private void SetDefaultXldProjectivePoints()
         {
@@ -1016,6 +1049,22 @@ namespace HalconWinFormsDemo.Models
             PositionCorrectionToolId = (PositionCorrectionToolId ?? string.Empty).Trim();
             if (PointSetMinimumCount == 0) PointSetMinimumCount = 3;
             PointSetAbnormalPolicy = VmPointSetAbnormalPolicy.Normalize(PointSetAbnormalPolicy);
+            PointLineSideConvention = VmPointLineSideConvention.Normalize(PointLineSideConvention);
+            if (PointLineOverlayCrossSize == 0) PointLineOverlayCrossSize = 10;
+            PointCircleSignConvention = VmPointCircleSignConvention.Normalize(PointCircleSignConvention);
+            if (PointCircleOverlayCrossSize == 0) PointCircleOverlayCrossSize = 10;
+            if (PointEllipseBoundaryTolerance == 0) PointEllipseBoundaryTolerance = 0.25;
+            if (PointEllipseOverlayCrossSize == 0) PointEllipseOverlayCrossSize = 10;
+            if (PointEllipseContourResolution == 0) PointEllipseContourResolution = 0.25;
+            LineCircleIntersectionOrder = VmLineCircleIntersectionOrder.Normalize(LineCircleIntersectionOrder);
+            if (LineCircleOverlayCrossSize == 0) LineCircleOverlayCrossSize = 10;
+            CircleCircleIntersectionOrder = VmCircleCircleIntersectionOrder.Normalize(CircleCircleIntersectionOrder);
+            if (CircleCircleOverlayCrossSize == 0) CircleCircleOverlayCrossSize = 10;
+            if (PointPairMinimumDistance == 0) PointPairMinimumDistance = 0.000001;
+            if (PointPairOverlayCrossSize == 0) PointPairOverlayCrossSize = 10;
+            if (LineLineParallelToleranceDegrees == 0) LineLineParallelToleranceDegrees = 0.01;
+            if (LineLineCoincidenceDistanceTolerance == 0) LineLineCoincidenceDistanceTolerance = 0.01;
+            if (LineLineOverlayCrossSize == 0) LineLineOverlayCrossSize = 10;
             if (ShapeModelPath == null && ShapeModelName == null && ShapeTrainingRoiId == null &&
                 ShapeMinScore == 0 && ShapeMaxMatches == 0 && ShapeAngleStartDegrees == 0 &&
                 ShapeAngleExtentDegrees == 0 && ShapeScaleMin == 0 && ShapeScaleMax == 0 &&
@@ -1603,12 +1652,73 @@ namespace HalconWinFormsDemo.Models
                     return "2D 位置修正基准角度必须是 -360000° 到 360000° 之间的有限数值。";
             }
 
-            if (kind == VmToolKind.PointSetGeometryStatistics)
+            if (kind == VmToolKind.PointSetGeometryStatistics || kind == VmToolKind.TypedPointSetLineFittingMeasurement || kind == VmToolKind.TypedPointSetCircleFittingMeasurement || kind == VmToolKind.TypedPointSetEllipseFittingMeasurement)
             {
-                if (PointSetMinimumCount < 1 || PointSetMinimumCount > 1000000)
-                    return "点集几何统计最小点数必须在 1 到 1000000 之间。";
+                int minimumPointCount = kind == VmToolKind.TypedPointSetEllipseFittingMeasurement ? 5 : (kind == VmToolKind.TypedPointSetCircleFittingMeasurement ? 3 : (kind == VmToolKind.TypedPointSetLineFittingMeasurement ? 2 : 1));
+                if (PointSetMinimumCount < minimumPointCount || PointSetMinimumCount > 1000000)
+                    return "点集最小点数必须在 " + minimumPointCount.ToString(CultureInfo.InvariantCulture) + " 到 1000000 之间。";
                 if (!VmPointSetAbnormalPolicy.IsSupported(PointSetAbnormalPolicy))
-                    return "点集几何统计异常点策略无效。";
+                    return "点集异常点策略无效。";
+            }
+
+            if (kind == VmToolKind.PointToLineDistanceMeasurement)
+            {
+                if (!VmPointLineSideConvention.IsSupported(PointLineSideConvention))
+                    return "点到直线距离的侧向正值约定无效。";
+                if (!IsFinite(PointLineOverlayCrossSize) || PointLineOverlayCrossSize < 1 || PointLineOverlayCrossSize > 200)
+                    return "点到直线距离的图形十字尺寸必须在 1 到 200 像素之间。";
+            }
+
+            if (kind == VmToolKind.PointToCircleRadialDeviationMeasurement)
+            {
+                if (!VmPointCircleSignConvention.IsSupported(PointCircleSignConvention))
+                    return "点到圆径向偏差的正负值约定无效。";
+                if (!IsFinite(PointCircleOverlayCrossSize) || PointCircleOverlayCrossSize < 1 || PointCircleOverlayCrossSize > 200)
+                    return "点到圆径向偏差的图形十字尺寸必须在 1 到 200 像素之间。";
+            }
+
+            if (kind == VmToolKind.PointToEllipseDistanceMeasurement)
+            {
+                if (!IsFinite(PointEllipseBoundaryTolerance) || PointEllipseBoundaryTolerance < 0.001 || PointEllipseBoundaryTolerance > 100)
+                    return "点到椭圆测量的边界容差必须在 0.001 到 100 像素之间。";
+                if (!IsFinite(PointEllipseOverlayCrossSize) || PointEllipseOverlayCrossSize < 1 || PointEllipseOverlayCrossSize > 200)
+                    return "点到椭圆测量的图形十字尺寸必须在 1 到 200 像素之间。";
+                if (!IsFinite(PointEllipseContourResolution) || PointEllipseContourResolution < 0.05 || PointEllipseContourResolution > 5)
+                    return "点到椭圆测量的轮廓分辨率必须在 0.05 到 5 像素之间。";
+            }
+
+            if (kind == VmToolKind.LineCircleIntersectionMeasurement)
+            {
+                if (!VmLineCircleIntersectionOrder.IsSupported(LineCircleIntersectionOrder))
+                    return "直线圆交点的交点排序约定无效。";
+                if (!IsFinite(LineCircleOverlayCrossSize) || LineCircleOverlayCrossSize < 1 || LineCircleOverlayCrossSize > 200)
+                    return "直线圆交点的图形十字尺寸必须在 1 到 200 像素之间。";
+            }
+
+            if (kind == VmToolKind.CircleCircleIntersectionMeasurement)
+            {
+                if (!VmCircleCircleIntersectionOrder.IsSupported(CircleCircleIntersectionOrder))
+                    return "圆圆交点的交点排序约定无效。";
+                if (!IsFinite(CircleCircleOverlayCrossSize) || CircleCircleOverlayCrossSize < 1 || CircleCircleOverlayCrossSize > 200)
+                    return "圆圆交点的图形十字尺寸必须在 1 到 200 像素之间。";
+            }
+
+            if (kind == VmToolKind.PointPairLineConstructionMeasurement)
+            {
+                if (!IsFinite(PointPairMinimumDistance) || PointPairMinimumDistance <= 0 || PointPairMinimumDistance > 1000000)
+                    return "两点构线的最小点距必须大于 0 且不超过 1000000 像素。";
+                if (!IsFinite(PointPairOverlayCrossSize) || PointPairOverlayCrossSize < 1 || PointPairOverlayCrossSize > 200)
+                    return "两点构线的图形十字尺寸必须在 1 到 200 像素之间。";
+            }
+
+            if (kind == VmToolKind.TypedLineLineRelationMeasurement)
+            {
+                if (!IsFinite(LineLineParallelToleranceDegrees) || LineLineParallelToleranceDegrees <= 0 || LineLineParallelToleranceDegrees > 10)
+                    return "双直线关系的平行角容差必须大于 0 且不超过 10°。";
+                if (!IsFinite(LineLineCoincidenceDistanceTolerance) || LineLineCoincidenceDistanceTolerance < 0 || LineLineCoincidenceDistanceTolerance > 1000000)
+                    return "双直线关系的重合距离容差必须在 0 到 1000000 像素之间。";
+                if (!IsFinite(LineLineOverlayCrossSize) || LineLineOverlayCrossSize < 1 || LineLineOverlayCrossSize > 200)
+                    return "双直线关系的交点十字尺寸必须在 1 到 200 像素之间。";
             }
 
             if (kind == VmToolKind.ShapeMatch)
@@ -1705,7 +1815,7 @@ namespace HalconWinFormsDemo.Models
                 }
             }
 
-            if (kind == VmToolKind.XldLineFitting || kind == VmToolKind.XldLineRelationMeasurement)
+            if (kind == VmToolKind.XldLineFitting || kind == VmToolKind.XldLineRelationMeasurement || kind == VmToolKind.TypedPointSetLineFittingMeasurement)
             {
                 if (!VmXldLineFitAlgorithm.IsSupported(XldLineFitAlgorithm))
                 {
@@ -1974,7 +2084,7 @@ namespace HalconWinFormsDemo.Models
                 }
             }
 
-            if (kind == VmToolKind.XldCircleFitting)
+            if (kind == VmToolKind.XldCircleFitting || kind == VmToolKind.TypedPointSetCircleFittingMeasurement)
             {
                 if (!VmXldCircleFitAlgorithm.IsSupported(XldCircleFitAlgorithm))
                 {
@@ -2007,7 +2117,7 @@ namespace HalconWinFormsDemo.Models
                 }
             }
 
-            if (kind == VmToolKind.XldEllipseFitting)
+            if (kind == VmToolKind.XldEllipseFitting || kind == VmToolKind.TypedPointSetEllipseFittingMeasurement)
             {
                 if (!VmXldEllipseFitAlgorithm.IsSupported(XldEllipseFitAlgorithm))
                 {
@@ -4023,6 +4133,110 @@ namespace HalconWinFormsDemo.Models
     {
         public string Key { get; set; }
         public string DisplayText { get; set; }
+    }
+
+    public static class VmPointLineSideConvention
+    {
+        public const string LeftPositive = "LeftPositive";
+        public const string RightPositive = "RightPositive";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, LeftPositive, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, RightPositive, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            return string.Equals(value, RightPositive, StringComparison.OrdinalIgnoreCase) ? RightPositive : LeftPositive;
+        }
+
+        public static VmPointSetAbnormalPolicyOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmPointSetAbnormalPolicyOption { Key = LeftPositive, DisplayText = "起点→终点左侧为正" },
+                new VmPointSetAbnormalPolicyOption { Key = RightPositive, DisplayText = "起点→终点右侧为正" }
+            };
+        }
+    }
+
+    public static class VmPointCircleSignConvention
+    {
+        public const string OutsidePositive = "OutsidePositive";
+        public const string InsidePositive = "InsidePositive";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, OutsidePositive, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, InsidePositive, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            return string.Equals(value, InsidePositive, StringComparison.OrdinalIgnoreCase) ? InsidePositive : OutsidePositive;
+        }
+
+        public static VmPointSetAbnormalPolicyOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmPointSetAbnormalPolicyOption { Key = OutsidePositive, DisplayText = "圆外为正（推荐）" },
+                new VmPointSetAbnormalPolicyOption { Key = InsidePositive, DisplayText = "圆内为正" }
+            };
+        }
+    }
+
+    public static class VmLineCircleIntersectionOrder
+    {
+        public const string AlongLine = "AlongLine";
+        public const string ReverseAlongLine = "ReverseAlongLine";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, AlongLine, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, ReverseAlongLine, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            return string.Equals(value, ReverseAlongLine, StringComparison.OrdinalIgnoreCase) ? ReverseAlongLine : AlongLine;
+        }
+
+        public static VmPointSetAbnormalPolicyOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmPointSetAbnormalPolicyOption { Key = AlongLine, DisplayText = "沿起点→终点（推荐）" },
+                new VmPointSetAbnormalPolicyOption { Key = ReverseAlongLine, DisplayText = "沿终点→起点" }
+            };
+        }
+    }
+
+    public static class VmCircleCircleIntersectionOrder
+    {
+        public const string RowColumnAscending = "RowColumnAscending";
+        public const string RowColumnDescending = "RowColumnDescending";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, RowColumnAscending, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, RowColumnDescending, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            return string.Equals(value, RowColumnDescending, StringComparison.OrdinalIgnoreCase) ? RowColumnDescending : RowColumnAscending;
+        }
+
+        public static VmPointSetAbnormalPolicyOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmPointSetAbnormalPolicyOption { Key = RowColumnAscending, DisplayText = "Row/Column 升序（推荐）" },
+                new VmPointSetAbnormalPolicyOption { Key = RowColumnDescending, DisplayText = "Row/Column 降序" }
+            };
+        }
     }
 
     public static class VmNumericJudgeParameterValidator

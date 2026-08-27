@@ -92,6 +92,36 @@
     <Compile Include="MainWindow.S65.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="MainWindow.S66.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S67.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S68.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S69.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S70.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S71.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S72.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S73.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S74.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S75.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="TemplateCreateWindow.xaml.cs">
       <DependentUpon>TemplateCreateWindow.xaml</DependentUpon>
     </Compile>
@@ -121,6 +151,10 @@
     <Compile Include="Models\VmPortModels.cs" />
     <Compile Include="Models\VmPose2D.cs" />
     <Compile Include="Models\VmPoint2D.cs" />
+    <Compile Include="Models\VmLine2D.cs" />
+    <Compile Include="Models\VmCircle2D.cs" />
+    <Compile Include="Models\VmEllipse2D.cs" />
+    <Compile Include="Models\VmFlowSnippetModels.cs" />
     <Compile Include="Models\VmRoiModels.cs" />
     <Compile Include="Models\VmFlowExecutionModels.cs" />
     <Compile Include="Models\VmToolModels.cs" />

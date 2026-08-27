@@ -149,6 +149,12 @@ namespace HalconWinFormsDemo
             if (point != null) return point.CoordinateContext + " · " + point.CoordinateContextId;
             VmPoint2DArray points = raw as VmPoint2DArray;
             if (points != null) return points.CoordinateContext + " · " + points.CoordinateContextId + " · " + points.Count.ToString(CultureInfo.InvariantCulture) + " 点";
+            VmLine2D line = raw as VmLine2D;
+            if (line != null) return line.CoordinateContext + " · " + line.CoordinateContextId + " · L=" + line.Length.ToString("0.###", CultureInfo.InvariantCulture) + "px";
+            VmCircle2D circle = raw as VmCircle2D;
+            if (circle != null) return circle.CoordinateContext + " · " + circle.CoordinateContextId + " · R=" + circle.Radius.ToString("0.###", CultureInfo.InvariantCulture) + "px";
+            VmEllipse2D ellipse = raw as VmEllipse2D;
+            if (ellipse != null) return ellipse.CoordinateContext + " · " + ellipse.CoordinateContextId + " · R1/R2=" + ellipse.Radius1.ToString("0.###", CultureInfo.InvariantCulture) + "/" + ellipse.Radius2.ToString("0.###", CultureInfo.InvariantCulture) + "px";
             string name = port == null ? string.Empty : port.PortName ?? string.Empty;
             string type = port == null ? string.Empty : port.DataType ?? string.Empty;
             if (name.IndexOf("Angle", StringComparison.OrdinalIgnoreCase) >= 0) return "° · 图像坐标";
@@ -156,7 +162,7 @@ namespace HalconWinFormsDemo
                 name.IndexOf("Width", StringComparison.OrdinalIgnoreCase) >= 0 || name.IndexOf("Height", StringComparison.OrdinalIgnoreCase) >= 0) return "px · 图像坐标";
             if (string.Equals(type, "Image", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "Region", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "XLD", StringComparison.OrdinalIgnoreCase)) return "图像像素坐标";
             if (string.Equals(type, "Pose2D", StringComparison.OrdinalIgnoreCase)) return "ImagePixel · 等待值";
-            if (string.Equals(type, "Point2D", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "Point2D[]", StringComparison.OrdinalIgnoreCase)) return "ImagePixel · 等待值";
+            if (string.Equals(type, "Point2D", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "Point2D[]", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "Line2D", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "Circle2D", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "Ellipse2D", StringComparison.OrdinalIgnoreCase)) return "ImagePixel · 等待值";
             return "流程标量";
         }
 

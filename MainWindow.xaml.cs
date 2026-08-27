@@ -29,7 +29,7 @@ namespace HalconWinFormsDemo
 {
     public partial class MainWindow : Window
     {
-        private const string VersionStamp = "HALCON VM S62 2026-08-21";
+        private const string VersionStamp = "HALCON 工业视觉平台 S74 2026-08-27";
         private const string ToolCatalogDragFormat = "HalconVm.ToolCatalogItem";
         private const double FlowLayoutGridSize = 24;
         private const int FlowEditHistoryLimit = 50;
@@ -833,6 +833,16 @@ namespace HalconWinFormsDemo
                 CreateCatalogItem(VmToolKind.GlobalVariableWrite),
                 CreateCatalogItem(VmToolKind.PositionCorrection2D),
                 CreateCatalogItem(VmToolKind.PointSetGeometryStatistics),
+                CreateCatalogItem(VmToolKind.PointToLineDistanceMeasurement),
+                CreateCatalogItem(VmToolKind.PointToCircleRadialDeviationMeasurement),
+                CreateCatalogItem(VmToolKind.PointToEllipseDistanceMeasurement),
+                CreateCatalogItem(VmToolKind.LineCircleIntersectionMeasurement),
+                CreateCatalogItem(VmToolKind.CircleCircleIntersectionMeasurement),
+                CreateCatalogItem(VmToolKind.PointPairLineConstructionMeasurement),
+                CreateCatalogItem(VmToolKind.TypedLineLineRelationMeasurement),
+                CreateCatalogItem(VmToolKind.TypedPointSetLineFittingMeasurement),
+                CreateCatalogItem(VmToolKind.TypedPointSetCircleFittingMeasurement),
+                CreateCatalogItem(VmToolKind.TypedPointSetEllipseFittingMeasurement),
                 CreateCatalogItem(VmToolKind.XldContourSegmentation),
                 CreateCatalogItem(VmToolKind.XldLineFitting),
                 CreateCatalogItem(VmToolKind.XldCircleFitting),
@@ -857,11 +867,15 @@ namespace HalconWinFormsDemo
             toolCatalogView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
             toolCatalogView.Filter = FilterToolCatalogItem;
             ToolCatalogList.ItemsSource = toolCatalogView;
+            ToolInputSourceSuggestionList.ItemsSource = inputSourceSuggestionsS68;
+            FlowConnectionIssueListBox.ItemsSource = connectionIssuesS69;
             FlowToolList.ItemsSource = flowTools;
             FlowGraphNodeItemsControl.ItemsSource = flowTools;
             FlowGroupItemsControl.ItemsSource = flowGroupVisuals;
             FlowConnectionItemsControl.ItemsSource = flowConnections;
             FlowConnectionLabelItemsControl.ItemsSource = flowConnections;
+            FlowNavigatorItemsS73.ItemsSource = flowNavigatorItemsS73;
+            FlowAggregatePortItemsS75.ItemsSource = aggregatePortFlyoutItemsS75;
             FlowPortSourceComboBox.ItemsSource = flowPortSourceOptions;
             FlowPortConsumerListBox.ItemsSource = flowPortConsumers;
             DebugMonitorToolComboBox.ItemsSource = flowTools;
@@ -922,6 +936,16 @@ namespace HalconWinFormsDemo
             DockTextParserEmptyPolicyComboBox.ItemsSource = VmTextAssemblyEmptyPolicy.CreateAll();
             DockNumericCalculationOperationComboBox.ItemsSource = VmNumericCalculationOperation.CreateAll();
             DockPointSetAbnormalPolicyComboBox.ItemsSource = VmPointSetAbnormalPolicy.CreateAll();
+            DockTypedPointSetLineFitAbnormalPolicyComboBox.ItemsSource = VmPointSetAbnormalPolicy.CreateAll();
+            DockTypedPointSetLineFitAlgorithmComboBox.ItemsSource = VmXldLineFitAlgorithm.CreateAll();
+            DockTypedPointSetCircleFitAbnormalPolicyComboBox.ItemsSource = VmPointSetAbnormalPolicy.CreateAll();
+            DockTypedPointSetCircleFitAlgorithmComboBox.ItemsSource = VmXldCircleFitAlgorithm.CreateAll();
+            DockTypedPointSetEllipseFitAbnormalPolicyComboBox.ItemsSource = VmPointSetAbnormalPolicy.CreateAll();
+            DockTypedPointSetEllipseFitAlgorithmComboBox.ItemsSource = VmXldEllipseFitAlgorithm.CreateAll();
+            DockPointLineSideConventionComboBox.ItemsSource = VmPointLineSideConvention.CreateAll();
+            DockPointCircleSignConventionComboBox.ItemsSource = VmPointCircleSignConvention.CreateAll();
+            DockLineCircleIntersectionOrderComboBox.ItemsSource = VmLineCircleIntersectionOrder.CreateAll();
+            DockCircleCircleIntersectionOrderComboBox.ItemsSource = VmCircleCircleIntersectionOrder.CreateAll();
             DockResultLogicOperationComboBox.ItemsSource = VmResultLogicOperation.CreateAll();
             DockScriptExecutionModeComboBox.ItemsSource = VmScriptExecutionMode.CreateAll();
             DockXldAreaDirectionModeComboBox.ItemsSource = VmXldAreaDirectionMode.CreateAll();
@@ -1272,46 +1296,29 @@ namespace HalconWinFormsDemo
                 return;
             }
 
-            const double nodeWidth = 360;
-            const double leftMargin = 42;
-            const double topMargin = 38;
-            const double levelPitch = 500;
-            const double nodeGap = 28;
+            const double nodeWidth = 280;
+            double automaticCanvasWidthS73 = GetAutomaticFlowCanvasWidthS73();
+            double leftMargin = isManualFlowLayout ? 64 : Math.Max(38, Math.Min(110, (automaticCanvasWidthS73 - 400) * 0.5));
+            const double topMargin = 34;
+            const double nodeGap = 34;
 
             Dictionary<string, VmToolInstance> byId = new Dictionary<string, VmToolInstance>(StringComparer.OrdinalIgnoreCase);
             foreach (VmToolInstance tool in flowTools)
             {
                 if (!string.IsNullOrWhiteSpace(tool.ToolId) && !byId.ContainsKey(tool.ToolId)) byId.Add(tool.ToolId, tool);
             }
-            Dictionary<string, int> levels = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            Dictionary<int, double> nextYByLevel = new Dictionary<int, double>();
+            double nextAutomaticY = topMargin;
 
             for (int index = 0; index < flowTools.Count; index++)
             {
                 VmToolInstance tool = flowTools[index];
-                List<VmToolInstance> parents = GetFlowGraphBindings(tool)
-                    .Select(item => byId.ContainsKey(item.SourceToolId ?? string.Empty) ? byId[item.SourceToolId] : null)
-                    .Where(item => item != null && flowTools.IndexOf(item) < index)
-                    .Distinct()
-                    .ToList();
-                int level = parents.Count == 0 ? 0 : parents.Max(item => levels.ContainsKey(item.ToolId) ? levels[item.ToolId] + 1 : 1);
-                levels[tool.ToolId] = level;
-
                 int portRows = Math.Max(ToolMetadata.GetInstanceInputPorts(tool).Count, ToolMetadata.GetInstanceOutputPorts(tool).Count);
-                double portPitch = tool.IsGroupCollapsed ? 24 : 40;
+                double portPitch = tool.IsGroupCollapsed ? 22 : 34;
                 tool.GraphHeight = tool.ShowFlowDetails
-                    ? Math.Min(tool.IsGroupCollapsed ? 230 : 320, Math.Max(tool.IsGroupCollapsed ? 110 : 150, 78 + portRows * portPitch))
-                    : 84;
-                double automaticX = leftMargin + level * levelPitch;
-
-                double desiredY = topMargin;
-                if (parents.Count > 0)
-                {
-                    desiredY = parents.Average(item => item.GraphY + item.GraphHeight / 2.0) - tool.GraphHeight / 2.0;
-                }
-                double nextY;
-                if (!nextYByLevel.TryGetValue(level, out nextY)) nextY = topMargin;
-                double automaticY = Math.Max(topMargin, Math.Max(desiredY, nextY));
+                    ? Math.Min(tool.IsGroupCollapsed ? 205 : 280, Math.Max(tool.IsGroupCollapsed ? 104 : 132, 68 + portRows * portPitch))
+                    : 68;
+                double automaticX = leftMargin;
+                double automaticY = nextAutomaticY;
                 if (!isManualFlowLayout || !tool.HasManualGraphPosition ||
                     double.IsNaN(tool.GraphX) || double.IsInfinity(tool.GraphX) ||
                     double.IsNaN(tool.GraphY) || double.IsInfinity(tool.GraphY))
@@ -1320,7 +1327,7 @@ namespace HalconWinFormsDemo
                     tool.GraphY = automaticY;
                     tool.HasManualGraphPosition = isManualFlowLayout;
                 }
-                nextYByLevel[level] = automaticY + tool.GraphHeight + nodeGap;
+                nextAutomaticY = automaticY + tool.GraphHeight + nodeGap;
             }
 
             RefreshFlowGroupVisuals();
@@ -1339,10 +1346,10 @@ namespace HalconWinFormsDemo
                     int targetPortIndex = targetPorts.ToList().FindIndex(item => string.Equals(item.PortName, binding.TargetPortName, StringComparison.OrdinalIgnoreCase));
                     VmToolInstance source;
                     byId.TryGetValue(binding.SourceToolId ?? string.Empty, out source);
-                    double targetX = target.GraphX;
-                    double targetY = GetFlowPortCenterY(target, Math.Max(0, targetPortIndex));
-                    double sourceX = targetX - 150;
-                    double sourceY = targetY;
+                    double targetX = target.GraphX + nodeWidth / 2.0;
+                    double targetY = target.GraphY;
+                    double sourceX = targetX - 80;
+                    double sourceY = targetY - 80;
                     string sourceName = "缺失来源";
                     string error = source == null ? "上游模块不存在或已删除。" : GetInputBindingConfigurationError(target, binding);
                     if (target.Kind == VmToolKind.NumericJudge) error = GetNumericJudgeConfigurationError(target);
@@ -1350,8 +1357,8 @@ namespace HalconWinFormsDemo
                     {
                         IList<VmPortDefinition> sourcePorts = ToolMetadata.GetInstanceOutputPorts(source);
                         int sourcePortIndex = sourcePorts.ToList().FindIndex(item => string.Equals(item.PortName, binding.SourcePortName, StringComparison.OrdinalIgnoreCase));
-                        sourceX = source.GraphX + nodeWidth;
-                        sourceY = GetFlowPortCenterY(source, Math.Max(0, sourcePortIndex));
+                        sourceX = source.GraphX + nodeWidth / 2.0;
+                        sourceY = source.GraphY + source.GraphHeight;
                         sourceName = source.InstanceName;
                     }
 
@@ -1360,7 +1367,16 @@ namespace HalconWinFormsDemo
                                  string.Equals(source.ResultCode, "OK", StringComparison.OrdinalIgnoreCase) && value != "--";
                     string connectionKey = BuildFlowConnectionKey(binding.SourceToolId, binding.SourcePortName, target.ToolId, binding.TargetPortName);
                     bool connectionSelected = string.Equals(selectedFlowConnectionKey, connectionKey, StringComparison.OrdinalIgnoreCase);
-                    bool highlighted = selected != null && (ReferenceEquals(selected, source) || ReferenceEquals(selected, target));
+                    bool selectedPath = selected != null && (ReferenceEquals(selected, source) || ReferenceEquals(selected, target));
+                    bool executionPath = target.IsExecutionPointer || source != null && source.IsExecutionPointer ||
+                        !string.IsNullOrWhiteSpace(debugLastExecutedToolId) &&
+                        (string.Equals(debugLastExecutedToolId, target.ToolId, StringComparison.OrdinalIgnoreCase) ||
+                         source != null && string.Equals(debugLastExecutedToolId, source.ToolId, StringComparison.OrdinalIgnoreCase));
+                    bool focusPath = selectedPath || executionPath;
+                    bool breakpointPath = target.IsBreakpoint || source != null && source.IsBreakpoint;
+                    bool connectionVisibleS74 = !flowTaskFocusModeS74 ||
+                        selected == null && !isFlowExecutionActive && string.IsNullOrWhiteSpace(debugLastExecutedToolId) ||
+                        connectionSelected || focusPath || breakpointPath || !string.IsNullOrWhiteSpace(error);
                     SolidColorBrush typeBrush = GetFlowConnectionBrush(string.IsNullOrWhiteSpace(error) ? targetPort.DataType : "Error");
                     string fullLabel = sourceName + "." + (binding.SourcePortName ?? "?") + " → " + target.InstanceName + "." + binding.TargetPortName + " · " + targetPort.DataType;
                     flowConnections.Add(new VmFlowConnectionVisual
@@ -1380,16 +1396,19 @@ namespace HalconWinFormsDemo
                         StateKey = string.IsNullOrWhiteSpace(error) ? (ready ? "Ready" : "Waiting") : "Error",
                         StateText = string.IsNullOrWhiteSpace(error) ? (ready ? "连接有效 · 本周期有值" : "连接有效 · 等待上游 OK 本周期输出") : "连接异常",
                         IsSelected = connectionSelected,
+                        IsFocusPath = focusPath,
+                        IsVisible = connectionVisibleS74,
                         Label = fullLabel,
                         FullLabel = fullLabel + Environment.NewLine + (string.IsNullOrWhiteSpace(error) ? (ready ? "连接有效 · 本周期有值" : "连接有效 · 等待上游 OK 本周期输出") : error),
                         StatusText = fullLabel + Environment.NewLine + (string.IsNullOrWhiteSpace(error) ? (ready ? "连接有效 · 本周期有值" : "连接有效 · 等待上游 OK 本周期输出") : error),
-                        Geometry = CreateFlowConnectionGeometry(sourceX, sourceY, targetX, targetY),
+                        Geometry = CreateFlowConnectionGeometry(sourceX, sourceY, targetX, targetY, Math.Max(0, targetPortIndex) + Math.Max(0, source == null ? 0 : ToolMetadata.GetInstanceOutputPorts(source).ToList().FindIndex(item => string.Equals(item.PortName, binding.SourcePortName, StringComparison.OrdinalIgnoreCase)))),
                         Stroke = typeBrush,
                         LabelBrush = typeBrush,
-                        StrokeThickness = connectionSelected ? 5.5 : (highlighted ? 4 : 2.4),
-                        StrokeDashArray = string.IsNullOrWhiteSpace(error) && ready ? null : new DoubleCollection { 5, 3 },
-                        LabelX = (sourceX + targetX) / 2.0 - 90,
-                        LabelY = (sourceY + targetY) / 2.0 - 16
+                        StrokeThickness = connectionSelected ? 2.8 : (focusPath ? 2.0 : (string.IsNullOrWhiteSpace(error) ? 1.15 : 2.0)),
+                        StrokeOpacity = connectionSelected ? 1.0 : (!string.IsNullOrWhiteSpace(error) ? 0.95 : (focusPath ? 0.82 : (ready ? 0.42 : 0.5))),
+                        StrokeDashArray = string.IsNullOrWhiteSpace(error) ? null : new DoubleCollection { 4, 3 },
+                        LabelX = GetFlowConnectionLaneXS72(sourceX, targetX, Math.Max(0, targetPortIndex) + Math.Max(0, source == null ? 0 : ToolMetadata.GetInstanceOutputPorts(source).ToList().FindIndex(item => string.Equals(item.PortName, binding.SourcePortName, StringComparison.OrdinalIgnoreCase)))) + 10,
+                        LabelY = (sourceY + targetY) / 2.0 - 10
                     });
                 }
             }
@@ -1399,8 +1418,8 @@ namespace HalconWinFormsDemo
                 StringComparer.OrdinalIgnoreCase))
             {
                 List<VmFlowConnectionVisual> members = dependency.ToList();
-                VmFlowConnectionVisual representative = members.FirstOrDefault(item => item.IsSelected) ?? members.First();
-                representative.IsLabelVisible = true;
+                VmFlowConnectionVisual representative = members.FirstOrDefault(item => item.IsVisible && item.IsSelected) ?? members.FirstOrDefault(item => item.IsVisible) ?? members.First();
+                representative.IsLabelVisible = representative.IsVisible && members.Any(item => item.IsSelected || string.Equals(item.StateKey, "Error", StringComparison.OrdinalIgnoreCase));
                 representative.Label = representative.IsSelected
                     ? representative.FullLabel.Split(new[] { Environment.NewLine }, StringSplitOptions.None)[0]
                     : representative.SourceToolName + " → " + representative.TargetToolName + (members.Count > 1 ? " · " + members.Count.ToString(CultureInfo.InvariantCulture) + " 路" : " · " + representative.DataType);
@@ -1408,14 +1427,16 @@ namespace HalconWinFormsDemo
 
             double groupRight = flowGroupVisuals.Select(item => item.X + item.Width).DefaultIfEmpty(0).Max();
             double groupBottom = flowGroupVisuals.Select(item => item.Y + item.Height).DefaultIfEmpty(0).Max();
-            double canvasWidth = flowTools.Count == 0 ? 1000 : Math.Max(1000, Math.Max(flowTools.Max(item => item.GraphX) + nodeWidth + 100, groupRight + 40));
+            double canvasWidth = isManualFlowLayout
+                ? (flowTools.Count == 0 ? 1000 : Math.Max(1000, Math.Max(flowTools.Max(item => item.GraphX) + nodeWidth + 100, groupRight + 40)))
+                : automaticCanvasWidthS73;
             double canvasHeight = flowTools.Count == 0 ? 700 : Math.Max(700, Math.Max(flowTools.Max(item => item.GraphY + item.GraphHeight) + 100, groupBottom + 40));
             FlowGraphCanvas.Width = canvasWidth;
             FlowGraphCanvas.Height = canvasHeight;
             FlowGraphEmptyState.Visibility = flowTools.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             if (FlowLayoutModeText != null)
             {
-                FlowLayoutModeText.Text = isManualFlowLayout ? "布局：手动 · 已入配方" : "布局：自动 · 按依赖";
+                FlowLayoutModeText.Text = isManualFlowLayout ? "布局：手动 · 已入配方" : "布局：自动 · 纵向顺序";
                 FlowLayoutModeText.Foreground = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(isManualFlowLayout ? "#B45309" : "#0F766E"));
             }
             if (!string.IsNullOrWhiteSpace(selectedFlowConnectionKey) && !flowConnections.Any(item => item.IsSelected))
@@ -1424,6 +1445,7 @@ namespace HalconWinFormsDemo
             }
             UpdateFlowConnectionInspector();
             UpdateFlowPortInspector();
+            RefreshFlowNavigatorS73();
         }
 
         private static double GetFlowPortCenterY(VmToolInstance tool, int portIndex)
@@ -1468,7 +1490,7 @@ namespace HalconWinFormsDemo
                     !string.IsNullOrWhiteSpace(item.ErrorMessage));
                 double left = Math.Max(6, members.Min(item => item.GraphX) - 22);
                 double top = Math.Max(4, members.Min(item => item.GraphY) - 62);
-                double right = members.Max(item => item.GraphX + 360) + 22;
+                double right = members.Max(item => item.GraphX + 280) + 22;
                 double bottom = members.Max(item => item.GraphY + item.GraphHeight) + 22;
                 bool collapsed = members.All(item => item.IsGroupCollapsed);
                 int breakpointCount = members.Count(item => item.IsBreakpoint);
@@ -1480,7 +1502,7 @@ namespace HalconWinFormsDemo
                     IsCollapsed = collapsed,
                     X = left,
                     Y = top,
-                    Width = Math.Max(404, right - left),
+                    Width = Math.Max(344, right - left),
                     Height = Math.Max(150, bottom - top),
                     StateText = collapsed ? "安全折叠 · 全部真实端口仍可见" : "已展开 · 组织容器",
                     MemberSummary = "成员 " + members.Count.ToString(CultureInfo.InvariantCulture) + "：" + string.Join("、", members.Select(item => "#" + item.SequenceText + " " + item.InstanceName)),
@@ -1514,24 +1536,50 @@ namespace HalconWinFormsDemo
             return brush;
         }
 
-        private static Geometry CreateFlowConnectionGeometry(double sourceX, double sourceY, double targetX, double targetY)
+        private Geometry CreateFlowConnectionGeometry(double sourceX, double sourceY, double targetX, double targetY)
         {
-            double control = Math.Max(65, Math.Min(190, Math.Abs(targetX - sourceX) * 0.45));
+            return CreateFlowConnectionGeometry(sourceX, sourceY, targetX, targetY, 0);
+        }
+
+        private Geometry CreateFlowConnectionGeometry(double sourceX, double sourceY, double targetX, double targetY, int routeIndex)
+        {
             StreamGeometry geometry = new StreamGeometry();
             using (StreamGeometryContext context = geometry.Open())
             {
                 context.BeginFigure(new System.Windows.Point(sourceX, sourceY), false, false);
-                context.BezierTo(
-                    new System.Windows.Point(sourceX + control, sourceY),
-                    new System.Windows.Point(targetX - control, targetY),
-                    new System.Windows.Point(targetX, targetY), true, false);
-                context.BeginFigure(new System.Windows.Point(targetX, targetY), false, false);
-                context.LineTo(new System.Windows.Point(targetX - 11, targetY - 6), true, false);
-                context.BeginFigure(new System.Windows.Point(targetX, targetY), false, false);
-                context.LineTo(new System.Windows.Point(targetX - 11, targetY + 6), true, false);
+                if (Math.Abs(sourceX - targetX) < 0.5 && targetY > sourceY)
+                {
+                    context.LineTo(new System.Windows.Point(targetX, targetY), true, false);
+                }
+                else if (targetY > sourceY + 24)
+                {
+                    double middleY = sourceY + (targetY - sourceY) / 2.0;
+                    context.LineTo(new System.Windows.Point(sourceX, middleY), true, false);
+                    context.LineTo(new System.Windows.Point(targetX, middleY), true, false);
+                    context.LineTo(new System.Windows.Point(targetX, targetY), true, false);
+                }
+                else
+                {
+                    double laneX = GetFlowConnectionLaneXS72(sourceX, targetX, routeIndex);
+                    context.LineTo(new System.Windows.Point(sourceX, sourceY + 14), true, false);
+                    context.LineTo(new System.Windows.Point(laneX, sourceY + 14), true, false);
+                    context.LineTo(new System.Windows.Point(laneX, targetY - 14), true, false);
+                    context.LineTo(new System.Windows.Point(targetX, targetY - 14), true, false);
+                    context.LineTo(new System.Windows.Point(targetX, targetY), true, false);
+                }
             }
             geometry.Freeze();
             return geometry;
+        }
+
+        private double GetFlowConnectionLaneXS72(double sourceX, double targetX, int routeIndex)
+        {
+            double clearance = 184.0 + Math.Min(4, routeIndex % 5) * 18.0;
+            double desired = Math.Max(sourceX, targetX) + clearance;
+            if (isManualFlowLayout) return desired;
+            double nodeRight = Math.Max(sourceX, targetX) + 140.0;
+            double laneLimit = Math.Max(nodeRight + 24.0, GetAutomaticFlowCanvasWidthS73() - 30.0);
+            return Math.Min(desired, laneLimit);
         }
 
         private void FlowToolEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -1641,6 +1689,56 @@ namespace HalconWinFormsDemo
             {
                 instance.ConnectionStatus = "待连接 Point2D[]";
                 instance.ConnectionSummary = "Points ← 请选择上游类型化图像像素点集";
+            }
+            else if (kind == VmToolKind.TypedPointSetLineFittingMeasurement)
+            {
+                instance.ConnectionStatus = "待连接 Point2D[]";
+                instance.ConnectionSummary = "Points ← 请选择上游类型化图像像素点集";
+            }
+            else if (kind == VmToolKind.TypedPointSetCircleFittingMeasurement)
+            {
+                instance.ConnectionStatus = "待连接 Point2D[]";
+                instance.ConnectionSummary = "Points ← 请选择上游类型化图像像素点集";
+            }
+            else if (kind == VmToolKind.TypedPointSetEllipseFittingMeasurement)
+            {
+                instance.ConnectionStatus = "待连接 Point2D[]";
+                instance.ConnectionSummary = "Points ← 请选择上游类型化图像像素点集";
+            }
+            else if (kind == VmToolKind.PointToLineDistanceMeasurement)
+            {
+                instance.ConnectionStatus = "待连接 Point2D + Line2D";
+                instance.ConnectionSummary = "Point + Line ← 请选择同图像类型化几何";
+            }
+            else if (kind == VmToolKind.PointToCircleRadialDeviationMeasurement)
+            {
+                instance.ConnectionStatus = "待连接 Point2D + Circle2D";
+                instance.ConnectionSummary = "Point + Circle ← 请选择同图像类型化几何";
+            }
+            else if (kind == VmToolKind.PointToEllipseDistanceMeasurement)
+            {
+                instance.ConnectionStatus = "待连接 Point2D + Ellipse2D";
+                instance.ConnectionSummary = "Point + Ellipse ← 请选择同图像类型化几何";
+            }
+            else if (kind == VmToolKind.LineCircleIntersectionMeasurement)
+            {
+                instance.ConnectionStatus = "待连接 Line2D + Circle2D";
+                instance.ConnectionSummary = "Line + Circle ← 请选择同图像类型化几何";
+            }
+            else if (kind == VmToolKind.CircleCircleIntersectionMeasurement)
+            {
+                instance.ConnectionStatus = "待连接两路不同 Circle2D";
+                instance.ConnectionSummary = "CircleA + CircleB ← 请选择同图像类型化圆";
+            }
+            else if (kind == VmToolKind.PointPairLineConstructionMeasurement)
+            {
+                instance.ConnectionStatus = "待连接两路不同 Point2D";
+                instance.ConnectionSummary = "PointA + PointB ← 请选择同图像类型化点";
+            }
+            else if (kind == VmToolKind.TypedLineLineRelationMeasurement)
+            {
+                instance.ConnectionStatus = "待连接两路不同 Line2D";
+                instance.ConnectionSummary = "LineA + LineB ← 请选择同图像类型化直线";
             }
             else
             {
@@ -1757,6 +1855,26 @@ namespace HalconWinFormsDemo
                     return "Current Row/Column/Angle → HALCON vector_angle_to_rigid → HomMat2D + 位姿差";
                 case VmToolKind.PointSetGeometryStatistics:
                     return "Point2D[] → HALCON 点集图形 → 质心/边界/跨度/XLD";
+                case VmToolKind.TypedPointSetLineFittingMeasurement:
+                    return "Point2D[] → HALCON fit_line_contour_xld → Line2D/端点/残差/XLD";
+                case VmToolKind.TypedPointSetCircleFittingMeasurement:
+                    return "Point2D[] → HALCON fit_circle_contour_xld → Circle2D/圆心/半径/残差/XLD";
+                case VmToolKind.TypedPointSetEllipseFittingMeasurement:
+                    return "Point2D[] → HALCON fit_ellipse_contour_xld → Ellipse2D/中心/半轴/残差/XLD";
+                case VmToolKind.PointToLineDistanceMeasurement:
+                    return "Point2D + Line2D → HALCON 点线距离 → 垂足/距离/XLD";
+                case VmToolKind.PointToCircleRadialDeviationMeasurement:
+                    return "Point2D + Circle2D → HALCON 圆/径向图形 → 最近点/径向偏差/XLD";
+                case VmToolKind.PointToEllipseDistanceMeasurement:
+                    return "Point2D + Ellipse2D → HALCON distance_pc → 最近点/距离/位置/XLD";
+                case VmToolKind.LineCircleIntersectionMeasurement:
+                    return "Line2D + Circle2D → HALCON intersection_line_circle → Point2D[]/关系/弦长/XLD";
+                case VmToolKind.CircleCircleIntersectionMeasurement:
+                    return "Circle2D + Circle2D → HALCON intersection_circles → Point2D[]/关系/圆心距/XLD";
+                case VmToolKind.PointPairLineConstructionMeasurement:
+                    return "Point2D + Point2D → HALCON distance_pp → Line2D/中点/距离/角度/XLD";
+                case VmToolKind.TypedLineLineRelationMeasurement:
+                    return "Line2D + Line2D → HALCON intersection_lines/angle_ll/distance_pl → Point2D/角度/平行距/XLD";
                 case VmToolKind.XldContourSegmentation:
                     return "XLD → HALCON 轮廓分段 → XLD + Number";
                 case VmToolKind.XldLineFitting:
@@ -2823,6 +2941,16 @@ namespace HalconWinFormsDemo
                 else if (tool.Kind == VmToolKind.RegionMorphology || tool.Kind == VmToolKind.RegionFeatureFilter || tool.Kind == VmToolKind.RegionContourMeasurement) tool.ConnectionSummary = "Region → " + tool.DisplayType;
                 else if (tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldAdjacentContourUnion || tool.Kind == VmToolKind.XldContourSmoothing || tool.Kind == VmToolKind.XldAffineTransform || tool.Kind == VmToolKind.XldProjectiveTransform || tool.Kind == VmToolKind.XldContourCrop || tool.Kind == VmToolKind.XldLengthClassification || tool.Kind == VmToolKind.XldLengthSortSelection || tool.Kind == VmToolKind.XldPointClosureFilter || tool.Kind == VmToolKind.XldAreaDirectionFilter || tool.Kind == VmToolKind.XldBoundingCompactnessFilter || tool.Kind == VmToolKind.XldCircularityConvexityFilter || tool.Kind == VmToolKind.XldEnclosingCircleDiameterMeasurement || tool.Kind == VmToolKind.XldMinimumRectangleDirectionMeasurement || tool.Kind == VmToolKind.XldDirectionConsistencyMeasurement || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting) tool.ConnectionSummary = "XLD → " + tool.DisplayType;
                 else if (tool.Kind == VmToolKind.XldLineRelationMeasurement) tool.ConnectionSummary = "LineA + LineB → " + tool.DisplayType;
+                else if (tool.Kind == VmToolKind.PointToLineDistanceMeasurement) tool.ConnectionSummary = "Point2D + Line2D → FootPoint / Distance / XLD";
+                else if (tool.Kind == VmToolKind.PointToCircleRadialDeviationMeasurement) tool.ConnectionSummary = "Point2D + Circle2D → ClosestPoint / RadialDeviation / XLD";
+                else if (tool.Kind == VmToolKind.PointToEllipseDistanceMeasurement) tool.ConnectionSummary = "Point2D + Ellipse2D → ClosestPoint / Distance / Relation / XLD";
+                else if (tool.Kind == VmToolKind.LineCircleIntersectionMeasurement) tool.ConnectionSummary = "Line2D + Circle2D → Point2D[] / Relation / ChordLength / XLD";
+                else if (tool.Kind == VmToolKind.CircleCircleIntersectionMeasurement) tool.ConnectionSummary = "Circle2D + Circle2D → Point2D[] / Relation / CenterDistance / XLD";
+                else if (tool.Kind == VmToolKind.PointPairLineConstructionMeasurement) tool.ConnectionSummary = "Point2D + Point2D → Line2D / MidPoint / Distance / XLD";
+                else if (tool.Kind == VmToolKind.TypedLineLineRelationMeasurement) tool.ConnectionSummary = "Line2D + Line2D → IntersectionPoint / Angle / ParallelDistance / XLD";
+                else if (tool.Kind == VmToolKind.TypedPointSetLineFittingMeasurement) tool.ConnectionSummary = "Point2D[] → Line2D / Residual / XLD";
+                else if (tool.Kind == VmToolKind.TypedPointSetCircleFittingMeasurement) tool.ConnectionSummary = "Point2D[] → Circle2D / Radius / Residual / XLD";
+                else if (tool.Kind == VmToolKind.TypedPointSetEllipseFittingMeasurement) tool.ConnectionSummary = "Point2D[] → Ellipse2D / Axis / Residual / XLD";
                 else tool.ConnectionSummary = "系统.Image + " + GetRoiBindingSummary(tool);
                 return;
             }
@@ -2834,7 +2962,27 @@ namespace HalconWinFormsDemo
             {
                 tool.ConfigurationStatus = "输入异常";
                 tool.ConnectionStatus = inputBindingError;
-                tool.ConnectionSummary = tool.Kind == VmToolKind.RegionSetOperation
+                tool.ConnectionSummary = tool.Kind == VmToolKind.TypedLineLineRelationMeasurement
+                    ? "Line2D + Line2D ← 输入连接异常"
+                    : tool.Kind == VmToolKind.TypedPointSetLineFittingMeasurement
+                    ? "Point2D[] ← 输入连接异常"
+                    : tool.Kind == VmToolKind.TypedPointSetCircleFittingMeasurement
+                    ? "Point2D[] ← 输入连接异常"
+                    : tool.Kind == VmToolKind.TypedPointSetEllipseFittingMeasurement
+                    ? "Point2D[] ← 输入连接异常"
+                    : tool.Kind == VmToolKind.PointPairLineConstructionMeasurement
+                    ? "Point2D + Point2D ← 输入连接异常"
+                    : tool.Kind == VmToolKind.CircleCircleIntersectionMeasurement
+                    ? "Circle2D + Circle2D ← 输入连接异常"
+                    : tool.Kind == VmToolKind.LineCircleIntersectionMeasurement
+                    ? "Line2D + Circle2D ← 输入连接异常"
+                    : tool.Kind == VmToolKind.PointToCircleRadialDeviationMeasurement
+                    ? "Point2D + Circle2D ← 输入连接异常"
+                    : tool.Kind == VmToolKind.PointToEllipseDistanceMeasurement
+                    ? "Point2D + Ellipse2D ← 输入连接异常"
+                    : tool.Kind == VmToolKind.PointToLineDistanceMeasurement
+                    ? "Point2D + Line2D ← 输入连接异常"
+                    : tool.Kind == VmToolKind.RegionSetOperation
                     ? "RegionA + RegionB ← 输入连接异常"
                     : (tool.Kind == VmToolKind.XldLineRelationMeasurement
                         ? "LineA + LineB ← 输入连接异常"
@@ -2974,6 +3122,36 @@ namespace HalconWinFormsDemo
                 }
                 case VmToolKind.PointSetGeometryStatistics:
                     RefreshPointSetGeometryConnectionStatusS65(tool);
+                    break;
+                case VmToolKind.PointToLineDistanceMeasurement:
+                    RefreshPointToLineConnectionStatusS66(tool);
+                    break;
+                case VmToolKind.PointToCircleRadialDeviationMeasurement:
+                    RefreshPointToCircleConnectionStatusS67(tool);
+                    break;
+                case VmToolKind.PointToEllipseDistanceMeasurement:
+                    RefreshPointToEllipseConnectionStatusS75(tool);
+                    break;
+                case VmToolKind.LineCircleIntersectionMeasurement:
+                    RefreshLineCircleConnectionStatusS68(tool);
+                    break;
+                case VmToolKind.CircleCircleIntersectionMeasurement:
+                    RefreshCircleCircleConnectionStatusS69(tool);
+                    break;
+                case VmToolKind.PointPairLineConstructionMeasurement:
+                    RefreshPointPairLineConnectionStatusS70(tool);
+                    break;
+                case VmToolKind.TypedLineLineRelationMeasurement:
+                    RefreshTypedLineLineConnectionStatusS71(tool);
+                    break;
+                case VmToolKind.TypedPointSetLineFittingMeasurement:
+                    RefreshTypedPointSetLineFitConnectionStatusS72(tool);
+                    break;
+                case VmToolKind.TypedPointSetCircleFittingMeasurement:
+                    RefreshTypedPointSetCircleFitConnectionStatusS73(tool);
+                    break;
+                case VmToolKind.TypedPointSetEllipseFittingMeasurement:
+                    RefreshTypedPointSetEllipseFitConnectionStatusS74(tool);
                     break;
                 case VmToolKind.ResultLogicAggregation:
                 {
@@ -7403,6 +7581,11 @@ namespace HalconWinFormsDemo
 
         private void ToolSearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
+            if (IsToolboxSnippetModeActiveS71)
+            {
+                RefreshToolboxSnippetItemsS71();
+                return;
+            }
             RefreshToolCatalogView();
         }
 
@@ -7420,6 +7603,16 @@ namespace HalconWinFormsDemo
             if (!string.IsNullOrWhiteSpace(query) && !item.SearchText.Contains(query))
             {
                 return false;
+            }
+
+            if (IsInputSourceContextActiveS68)
+            {
+                return !HasValidInputSourceSuggestionsS68 && IsInputSourceProducerToolS68(item);
+            }
+
+            if (IsToolRecommendationContextActiveS67)
+            {
+                return IsRecommendedToolS67(item);
             }
 
             if (string.Equals(toolCatalogMode, "Common", StringComparison.OrdinalIgnoreCase))
@@ -7442,6 +7635,7 @@ namespace HalconWinFormsDemo
 
         private void ToolCatalogModeButton_Click(object sender, RoutedEventArgs e)
         {
+            ExitToolboxSnippetModeS71(false);
             Button button = sender as Button;
             toolCatalogMode = button == null || button.Tag == null ? "All" : button.Tag.ToString();
             RefreshToolCatalogView();
@@ -7462,25 +7656,44 @@ namespace HalconWinFormsDemo
                 item.RecentRank = recentIndex < 0 ? int.MaxValue : recentIndex;
             }
 
+            if (IsInputSourceContextActiveS68) RebuildInputSourceSuggestionsS68();
+
             toolCatalogView.Refresh();
             int visibleCount = toolCatalogView.Cast<object>().Count();
             ToolCatalogEmptyText.Visibility = visibleCount == 0 ? Visibility.Visible : Visibility.Collapsed;
+            ToolCatalogEmptyText.Text = IsInputSourceContextActiveS68 && HasValidInputSourceSuggestionsS68
+                ? "已有可直接绑定的前序来源，请先在上方复用；新工具目录暂不展开。"
+                : (IsInputSourceContextActiveS68
+                    ? "当前没有能产生所需类型的真实工具。"
+                    : "当前筛选没有工具。可切换“全部”或清空搜索。");
             int totalCategoryCount = toolCatalog.Select(item => item.Category).Distinct(StringComparer.Ordinal).Count();
             if (ToolCatalogCapabilityText != null)
             {
                 ToolCatalogCapabilityText.Text = toolCatalog.Count.ToString(CultureInfo.InvariantCulture) + " 个工具 · " +
                                                  totalCategoryCount.ToString(CultureInfo.InvariantCulture) + " 类";
             }
-            string modeText = string.Equals(toolCatalogMode, "Common", StringComparison.OrdinalIgnoreCase)
+            string modeText = IsInputSourceContextActiveS68
+                ? "输入补源"
+                : IsToolRecommendationContextActiveS67
+                ? "端口推荐"
+                : string.Equals(toolCatalogMode, "Common", StringComparison.OrdinalIgnoreCase)
                 ? "常用"
                 : string.Equals(toolCatalogMode, "Favorite", StringComparison.OrdinalIgnoreCase)
                 ? "收藏"
                 : (string.Equals(toolCatalogMode, "Recent", StringComparison.OrdinalIgnoreCase) ? "最近使用" : "全部分类");
             int visibleCategoryCount = toolCatalogView.Cast<VmToolCatalogItem>().Select(item => item.Category).Distinct(StringComparer.Ordinal).Count();
-            ToolCatalogStatusText.Text = modeText + " · " + visibleCount.ToString(CultureInfo.InvariantCulture) + " 个工具 / " +
-                                         visibleCategoryCount.ToString(CultureInfo.InvariantCulture) + " 类 · 双击/Enter 追加，拖拽插入";
+            ToolCatalogStatusText.Text = IsInputSourceContextActiveS68
+                ? (HasValidInputSourceSuggestionsS68
+                    ? modeText + " · " + inputSourceSuggestionsS68.Count(item => item.IsValid).ToString(CultureInfo.InvariantCulture) + " 个现有来源可绑定"
+                    : modeText + " · " + visibleCount.ToString(CultureInfo.InvariantCulture) + " 个工具可创建 " + inputSourceTargetDataTypeS68 + " 来源")
+                : IsToolRecommendationContextActiveS67
+                ? modeText + " · " + visibleCount.ToString(CultureInfo.InvariantCulture) + " 个兼容工具 · 双击或 Enter 插入并连接"
+                : modeText + " · " + visibleCount.ToString(CultureInfo.InvariantCulture) + " 个工具 / " +
+                  visibleCategoryCount.ToString(CultureInfo.InvariantCulture) + " 类 · Enter 追加，Ctrl+Enter / Ctrl+Shift+Enter 按锚点插入";
             ToolCatalogStatusText.ToolTip = null;
             UpdateToolCatalogModeButtons();
+            RefreshToolRecommendationBannerS67();
+            RefreshInputSourceContextBannerS68();
         }
 
         private void UpdateToolCatalogModeButtons()
@@ -7489,6 +7702,7 @@ namespace HalconWinFormsDemo
             UpdateToolCatalogModeButton(ToolCatalogAllButton, "All");
             UpdateToolCatalogModeButton(ToolCatalogFavoriteButton, "Favorite");
             UpdateToolCatalogModeButton(ToolCatalogRecentButton, "Recent");
+            UpdateToolboxSnippetModeButtonS71();
         }
 
         private void UpdateToolCatalogModeButton(Button button, string mode)
@@ -7548,7 +7762,22 @@ namespace HalconWinFormsDemo
                 return;
             }
 
-            AddSelectedCatalogTool();
+            if (IsInputSourceContextActiveS68 && (Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control)
+            {
+                InsertSelectedInputSourceToolS68();
+            }
+            else if (IsToolRecommendationContextActiveS67 && (Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control)
+            {
+                InsertSelectedRecommendedToolS67();
+            }
+            else if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                InsertSelectedCatalogToolAtAnchorS66((Keyboard.Modifiers & ModifierKeys.Shift) != ModifierKeys.Shift);
+            }
+            else
+            {
+                AddSelectedCatalogTool();
+            }
             e.Handled = true;
         }
 
@@ -7602,16 +7831,18 @@ namespace HalconWinFormsDemo
 
         private void FlowToolList_PreviewDragOver(object sender, DragEventArgs e)
         {
-            if (!e.Data.GetDataPresent(ToolCatalogDragFormat))
+            if (!e.Data.GetDataPresent(ToolCatalogDragFormat) && !IsFlowSnippetDragS71(e))
             {
                 e.Effects = DragDropEffects.None;
                 return;
             }
 
             int insertionIndex = GetFlowDropInsertionIndex(e);
-            FlowDropHintText.Text = insertionIndex >= flowTools.Count
-                ? "插入位置：流程末尾（第 " + (flowTools.Count + 1).ToString(CultureInfo.InvariantCulture) + " 步）"
-                : "插入位置：第 " + (insertionIndex + 1).ToString(CultureInfo.InvariantCulture) + " 步之前";
+            FlowDropHintText.Text = IsFlowSnippetDragS71(e)
+                ? (insertionIndex >= flowTools.Count ? "片段插入位置：流程末尾" : "片段插入位置：第 " + (insertionIndex + 1).ToString(CultureInfo.InvariantCulture) + " 步之前")
+                : (insertionIndex >= flowTools.Count
+                    ? "插入位置：流程末尾（第 " + (flowTools.Count + 1).ToString(CultureInfo.InvariantCulture) + " 步）"
+                    : "插入位置：第 " + (insertionIndex + 1).ToString(CultureInfo.InvariantCulture) + " 步之前");
             FlowDropHintBorder.Visibility = Visibility.Visible;
             e.Effects = DragDropEffects.Copy;
             e.Handled = true;
@@ -7644,6 +7875,12 @@ namespace HalconWinFormsDemo
 
         private void FlowToolList_Drop(object sender, DragEventArgs e)
         {
+            if (TryInsertDraggedFlowSnippetToListS71(e))
+            {
+                HideFlowDropHint();
+                e.Handled = true;
+                return;
+            }
             VmToolCatalogItem catalogItem = e.Data.GetData(ToolCatalogDragFormat) as VmToolCatalogItem;
             if (catalogItem == null)
             {
@@ -7658,13 +7895,15 @@ namespace HalconWinFormsDemo
 
         private void FlowGraphViewport_PreviewDragOver(object sender, DragEventArgs e)
         {
-            if (!e.Data.GetDataPresent(ToolCatalogDragFormat))
+            if (!e.Data.GetDataPresent(ToolCatalogDragFormat) && !IsFlowSnippetDragS71(e))
             {
                 e.Effects = DragDropEffects.None;
                 return;
             }
 
-            FlowDropHintText.Text = "插入位置：流程末尾（二维画布按依赖自动布局；精确顺序可在顺序列表调整）";
+            FlowDropHintText.Text = IsFlowSnippetDragS71(e)
+                ? "片段插在当前锚点之后（内部连接保持，画布按真实依赖布局）"
+                : "插入位置：流程末尾（二维画布按依赖自动布局；精确顺序可在顺序列表调整）";
             FlowDropHintBorder.Visibility = Visibility.Visible;
             e.Effects = DragDropEffects.Copy;
             e.Handled = true;
@@ -7672,6 +7911,12 @@ namespace HalconWinFormsDemo
 
         private void FlowGraphViewport_Drop(object sender, DragEventArgs e)
         {
+            if (TryInsertDraggedFlowSnippetToGraphS71(e))
+            {
+                HideFlowDropHint();
+                e.Handled = true;
+                return;
+            }
             VmToolCatalogItem catalogItem = e.Data.GetData(ToolCatalogDragFormat) as VmToolCatalogItem;
             if (catalogItem == null) return;
             FlowEditSnapshot before = CaptureFlowEditSnapshot();
@@ -7684,7 +7929,7 @@ namespace HalconWinFormsDemo
             if (inserted != null)
             {
                 EnableManualFlowLayout();
-                inserted.GraphX = SnapFlowCoordinate(Math.Max(16, dropPoint.X - 180));
+                inserted.GraphX = SnapFlowCoordinate(Math.Max(16, dropPoint.X - 140));
                 inserted.GraphY = SnapFlowCoordinate(Math.Max(16, dropPoint.Y - 40));
                 inserted.HasManualGraphPosition = true;
                 CommitManualLayoutOperation("已将 " + inserted.InstanceName + " 放到网格位置", before);
@@ -7919,7 +8164,8 @@ namespace HalconWinFormsDemo
                 VmFlowPortChip targetPort = null;
                 string validationError = string.Empty;
                 bool valid = TryResolveFlowPortDragEndpoints(flowPortDragSession, hoverPort, out sourcePort, out targetPort, out validationError);
-                UpdateFlowPortDragPreview(dragPoint, sourcePort, targetPort, hoverPort != null, valid, validationError);
+                if (!valid && !string.IsNullOrWhiteSpace(aggregatePortHoverErrorS75)) validationError = aggregatePortHoverErrorS75;
+                UpdateFlowPortDragPreview(dragPoint, sourcePort, targetPort, hoverPort != null || aggregatePortHoverDetectedS75, valid, validationError);
                 e.Handled = true;
                 return;
             }
@@ -7957,7 +8203,7 @@ namespace HalconWinFormsDemo
         private List<VmToolInstance> GetFlowToolsIntersectingSelection(Rect selection)
         {
             return flowTools
-                .Where(tool => selection.IntersectsWith(new Rect(tool.GraphX, tool.GraphY, 360, tool.GraphHeight)))
+                .Where(tool => selection.IntersectsWith(new Rect(tool.GraphX, tool.GraphY, 280, tool.GraphHeight)))
                 .OrderBy(tool => flowTools.IndexOf(tool))
                 .ToList();
         }
@@ -7996,6 +8242,7 @@ namespace HalconWinFormsDemo
                 string validationError = string.Empty;
                 bool valid = flowPortDragSession.HasMoved &&
                     TryResolveFlowPortDragEndpoints(flowPortDragSession, hoverPort, out sourcePort, out targetPort, out validationError);
+                if (!valid && !string.IsNullOrWhiteSpace(aggregatePortHoverErrorS75)) validationError = aggregatePortHoverErrorS75;
                 if (!flowPortDragSession.HasMoved)
                 {
                     CancelFlowPortDrag(null, false);
@@ -8269,7 +8516,7 @@ namespace HalconWinFormsDemo
 
             System.Windows.Point point = e.GetPosition(FlowGraphCanvas);
             VmToolInstance nearest = flowTools
-                .OrderBy(item => Math.Pow(item.GraphX + 180 - point.X, 2) + Math.Pow(item.GraphY + item.GraphHeight * 0.5 - point.Y, 2))
+                .OrderBy(item => Math.Pow(item.GraphX + 140 - point.X, 2) + Math.Pow(item.GraphY + item.GraphHeight * 0.5 - point.Y, 2))
                 .FirstOrDefault();
             flowPasteInsertionIndex = nearest == null ? flowTools.Count : flowTools.IndexOf(nearest) + 1;
             HeaderStatusText.Text = nearest == null
@@ -8355,6 +8602,28 @@ namespace HalconWinFormsDemo
                 return;
             }
 
+            if ((Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt)
+            {
+                if (e.Key == Key.Up)
+                {
+                    SelectAdjacentFlowToolS72(-1, "快捷键");
+                    e.Handled = true;
+                    return;
+                }
+                if (e.Key == Key.Down)
+                {
+                    SelectAdjacentFlowToolS72(1, "快捷键");
+                    e.Handled = true;
+                    return;
+                }
+                if (e.Key == Key.Enter || e.SystemKey == Key.Enter)
+                {
+                    LocateExecutionPointerS72();
+                    e.Handled = true;
+                    return;
+                }
+            }
+
             if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control)
             {
                 return;
@@ -8421,6 +8690,8 @@ namespace HalconWinFormsDemo
             RefreshFlowPortVisualization();
             RefreshFlowDebugMonitor();
             HeaderStatusText.Text = "已选择真实连接：" + connection.SourceEndpointText + " → " + connection.TargetEndpointText;
+            if (IsInputSourceContextActiveS68) ExitInputSourceContextS68(false);
+            EnterToolRecommendationContextS67(connection.SourceToolId, connection.SourcePortName);
         }
 
         private VmFlowConnectionVisual GetSelectedFlowConnection()
@@ -8477,6 +8748,10 @@ namespace HalconWinFormsDemo
             }
             bool dragStarted = IsFlowGraphDescendant(element) && BeginFlowPortDrag(chip, element, e.GetPosition(FlowGraphCanvas));
             RefreshFlowPortVisualization();
+            if (string.Equals(chip.Direction, "IN", StringComparison.OrdinalIgnoreCase))
+                EnterInputSourceContextS68(chip.OwnerToolId, chip.PortName);
+            else
+                EnterToolRecommendationContextS67(chip.OwnerToolId, chip.PortName);
             HeaderStatusText.Text = dragStarted
                 ? (string.Equals(chip.Direction, "IN", StringComparison.OrdinalIgnoreCase)
                     ? "正在重连：拖到新的兼容 OUT 端口，Esc 或空白处放开可取消。"
@@ -8542,12 +8817,21 @@ namespace HalconWinFormsDemo
 
         private VmFlowPortChip FindFlowPortChipAt(System.Windows.Point point)
         {
+            aggregatePortHoverDetectedS75 = false;
+            aggregatePortHoverErrorS75 = string.Empty;
             DependencyObject current = FlowGraphCanvas == null ? null : FlowGraphCanvas.InputHitTest(point) as DependencyObject;
             while (current != null && !ReferenceEquals(current, FlowGraphCanvas))
             {
                 FrameworkElement element = current as FrameworkElement;
                 VmFlowPortChip chip = element == null ? null : element.Tag as VmFlowPortChip;
                 if (chip != null) return chip;
+                VmToolInstance aggregateOwner = element == null ? null : element.Tag as VmToolInstance;
+                if (aggregateOwner != null && !string.IsNullOrWhiteSpace(element.Uid) && element.Uid.StartsWith("S75:", StringComparison.Ordinal))
+                {
+                    aggregatePortHoverDetectedS75 = true;
+                    VmFlowPortChip aggregatePort = ResolveAggregateHoverPortS75(aggregateOwner, element.Uid.EndsWith("IN", StringComparison.OrdinalIgnoreCase) ? "IN" : "OUT", out aggregatePortHoverErrorS75);
+                    if (aggregatePort != null) return aggregatePort;
+                }
                 current = GetFlowVisualParent(current);
             }
             return null;
@@ -8866,6 +9150,7 @@ namespace HalconWinFormsDemo
             selectedFlowPortToolId = null;
             selectedFlowPortName = null;
             selectedFlowPortDirection = null;
+            if (IsInputSourceContextActiveS68) ExitInputSourceContextS68(false);
             RefreshFlowPortVisualization();
             HeaderStatusText.Text = "已关闭端口订阅与消费者导航器。";
         }
@@ -9090,7 +9375,7 @@ namespace HalconWinFormsDemo
             Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(delegate
             {
                 double zoom = FlowZoomSlider == null ? 1 : FlowZoomSlider.Value;
-                FlowGraphViewport.ScrollToHorizontalOffset(Math.Max(0, (tool.GraphX + 180) * zoom - FlowGraphViewport.ViewportWidth / 2.0));
+                FlowGraphViewport.ScrollToHorizontalOffset(Math.Max(0, (tool.GraphX + 140) * zoom - FlowGraphViewport.ViewportWidth / 2.0));
                 FlowGraphViewport.ScrollToVerticalOffset(Math.Max(0, (tool.GraphY + tool.GraphHeight / 2.0) * zoom - FlowGraphViewport.ViewportHeight / 2.0));
             }));
             HeaderStatusText.Text = statusText;
@@ -9265,7 +9550,7 @@ namespace HalconWinFormsDemo
 
         private bool IsDuplicateMultiInputEndpoint(VmToolInstance target, string targetPortName, string sourceToolId, string sourcePortName)
         {
-            if (target == null || target.Kind != VmToolKind.RegionSetOperation && target.Kind != VmToolKind.DynamicThreshold && target.Kind != VmToolKind.ImageDifference)
+            if (target == null || target.Kind != VmToolKind.RegionSetOperation && target.Kind != VmToolKind.DynamicThreshold && target.Kind != VmToolKind.ImageDifference && target.Kind != VmToolKind.TypedLineLineRelationMeasurement)
             {
                 return false;
             }
@@ -9290,7 +9575,7 @@ namespace HalconWinFormsDemo
             SetFlowEditorView(true);
             double left = Math.Min(source.GraphX, target.GraphX);
             double top = Math.Min(source.GraphY, target.GraphY);
-            double right = Math.Max(source.GraphX + 360, target.GraphX + 360);
+            double right = Math.Max(source.GraphX + 280, target.GraphX + 280);
             double bottom = Math.Max(source.GraphY + source.GraphHeight, target.GraphY + target.GraphHeight);
             double availableWidth = Math.Max(320, FlowGraphViewport.ActualWidth - 80);
             double availableHeight = Math.Max(240, FlowGraphViewport.ActualHeight - 80);
@@ -9344,7 +9629,7 @@ namespace HalconWinFormsDemo
             ScheduleRecipeStateCheck();
             CommitFlowEditHistory("恢复自动布局", before);
             LogInfo("连接画布已恢复依赖自动布局；配方中的手动坐标已清除，执行顺序和连接保持不变。");
-            HeaderStatusText.Text = "已按真实输入依赖自动分层布局；这不改变确定性执行顺序。";
+            HeaderStatusText.Text = "已按确定性执行顺序恢复从上到下的紧凑布局；真实依赖连线采用可绕行曲线。";
         }
 
         private void EnableManualFlowLayout()
@@ -9472,6 +9757,7 @@ namespace HalconWinFormsDemo
         private void FlowGraphViewport_PreviewMouseMiddleButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ChangedButton != MouseButton.Middle) return;
+            PauseFlowExecutionFollowS72("用户已手动平移，执行跟随暂停；Alt+Enter 可恢复并定位当前步骤。");
             isFlowGraphPanning = true;
             flowGraphPanStart = e.GetPosition(FlowGraphViewport);
             flowGraphPanHorizontalOffset = FlowGraphViewport.HorizontalOffset;
@@ -9507,7 +9793,9 @@ namespace HalconWinFormsDemo
 
         private void ToolCatalogList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            AddSelectedCatalogTool();
+            if (IsInputSourceContextActiveS68) InsertSelectedInputSourceToolS68();
+            else if (IsToolRecommendationContextActiveS67) InsertSelectedRecommendedToolS67();
+            else AddSelectedCatalogTool();
         }
 
         private void AddToolButton_Click(object sender, RoutedEventArgs e)
@@ -9813,6 +10101,10 @@ namespace HalconWinFormsDemo
                 InvalidateToolRunResult(target, "由流程剪贴板创建，等待运行");
             }
 
+            if (flowPastePostProcessS70 != null)
+            {
+                flowPastePostProcessS70(pasted, idMap);
+            }
             NormalizeFlowGroups();
 
             ApplyFlowToolSelection(pasted, pasted[pasted.Count - 1], false);
@@ -9821,7 +10113,9 @@ namespace HalconWinFormsDemo
             RefreshRoiLayerBindingSummaries();
             RefreshUiState();
             ScheduleRecipeStateCheck();
-            CommitFlowEditHistory("粘贴 " + pasted.Count.ToString(CultureInfo.InvariantCulture) + " 个模块", before);
+            CommitFlowEditHistory(string.IsNullOrWhiteSpace(flowPasteHistoryDescriptionS70)
+                ? "粘贴 " + pasted.Count.ToString(CultureInfo.InvariantCulture) + " 个模块"
+                : flowPasteHistoryDescriptionS70, before);
             string bindingText = retainedBindings.ToString(CultureInfo.InvariantCulture) + " 条连接保留" +
                                  (clearedBindings == 0 ? string.Empty : "，" + clearedBindings.ToString(CultureInfo.InvariantCulture) + " 条无效连接已清除");
             HeaderStatusText.Text = "已粘贴 " + pasted.Count.ToString(CultureInfo.InvariantCulture) + " 个模块（" + bindingText + "）；新模块等待运行。";
@@ -9937,6 +10231,7 @@ namespace HalconWinFormsDemo
             }
 
             VmToolInstance selectedTool = FlowToolList.SelectedItem as VmToolInstance;
+            RefreshToolInsertionPreviewS66(ToolCatalogList == null ? null : ToolCatalogList.SelectedItem as VmToolCatalogItem);
             if (!string.IsNullOrWhiteSpace(selectedFlowPortToolId) &&
                 (selectedTool == null || !string.Equals(selectedTool.ToolId, selectedFlowPortToolId, StringComparison.OrdinalIgnoreCase)))
             {
@@ -10016,6 +10311,7 @@ namespace HalconWinFormsDemo
             UpdateComparisonImageViewport(true);
             RefreshFlowPortVisualization();
             RefreshFlowSelectionFlags();
+            if (FlowSnippetLibraryPanel != null && FlowSnippetLibraryPanel.Visibility == Visibility.Visible) RefreshFlowSnippetAnchorS70();
             ScheduleRefreshDisplay();
         }
 
@@ -10156,6 +10452,16 @@ namespace HalconWinFormsDemo
                    kind == VmToolKind.GlobalVariableWrite ||
                    kind == VmToolKind.PositionCorrection2D ||
                    kind == VmToolKind.PointSetGeometryStatistics ||
+                   kind == VmToolKind.PointToLineDistanceMeasurement ||
+                   kind == VmToolKind.PointToCircleRadialDeviationMeasurement ||
+                   kind == VmToolKind.PointToEllipseDistanceMeasurement ||
+                   kind == VmToolKind.LineCircleIntersectionMeasurement ||
+                   kind == VmToolKind.CircleCircleIntersectionMeasurement ||
+                   kind == VmToolKind.PointPairLineConstructionMeasurement ||
+                   kind == VmToolKind.TypedLineLineRelationMeasurement ||
+                   kind == VmToolKind.TypedPointSetLineFittingMeasurement ||
+                   kind == VmToolKind.TypedPointSetCircleFittingMeasurement ||
+                   kind == VmToolKind.TypedPointSetEllipseFittingMeasurement ||
                    kind == VmToolKind.XldContourSegmentation ||
                    kind == VmToolKind.XldLineFitting ||
                    kind == VmToolKind.XldCircleFitting ||
@@ -10409,6 +10715,46 @@ namespace HalconWinFormsDemo
                 DockPositionCorrectionReferenceAngleTextBox.Text = p.PositionCorrectionReferenceAngleDegrees.ToString("0.###", CultureInfo.InvariantCulture);
                 DockPointSetMinimumCountTextBox.Text = p.PointSetMinimumCount.ToString(CultureInfo.InvariantCulture);
                 DockPointSetAbnormalPolicyComboBox.SelectedValue = VmPointSetAbnormalPolicy.Normalize(p.PointSetAbnormalPolicy);
+                DockTypedPointSetLineFitMinimumCountTextBox.Text = p.PointSetMinimumCount.ToString(CultureInfo.InvariantCulture);
+                DockTypedPointSetLineFitAbnormalPolicyComboBox.SelectedValue = VmPointSetAbnormalPolicy.Normalize(p.PointSetAbnormalPolicy);
+                DockTypedPointSetLineFitAlgorithmComboBox.SelectedValue = VmXldLineFitAlgorithm.Normalize(p.XldLineFitAlgorithm);
+                DockTypedPointSetLineFitMaxPointsTextBox.Text = p.XldLineFitMaxNumPoints.ToString(CultureInfo.InvariantCulture);
+                DockTypedPointSetLineFitClipEndpointsTextBox.Text = p.XldLineFitClippingEndPoints.ToString(CultureInfo.InvariantCulture);
+                DockTypedPointSetLineFitIterationsTextBox.Text = p.XldLineFitIterations.ToString(CultureInfo.InvariantCulture);
+                DockTypedPointSetLineFitClippingFactorTextBox.Text = p.XldLineFitClippingFactor.ToString("0.###", CultureInfo.InvariantCulture);
+                DockTypedPointSetCircleFitMinimumCountTextBox.Text = p.PointSetMinimumCount.ToString(CultureInfo.InvariantCulture);
+                DockTypedPointSetCircleFitAbnormalPolicyComboBox.SelectedValue = VmPointSetAbnormalPolicy.Normalize(p.PointSetAbnormalPolicy);
+                DockTypedPointSetCircleFitAlgorithmComboBox.SelectedValue = VmXldCircleFitAlgorithm.Normalize(p.XldCircleFitAlgorithm);
+                DockTypedPointSetCircleFitMaxPointsTextBox.Text = p.XldCircleFitMaxNumPoints.ToString(CultureInfo.InvariantCulture);
+                DockTypedPointSetCircleFitMaxClosureTextBox.Text = p.XldCircleFitMaxClosureDistance.ToString("0.###", CultureInfo.InvariantCulture);
+                DockTypedPointSetCircleFitClipEndpointsTextBox.Text = p.XldCircleFitClippingEndPoints.ToString(CultureInfo.InvariantCulture);
+                DockTypedPointSetCircleFitIterationsTextBox.Text = p.XldCircleFitIterations.ToString(CultureInfo.InvariantCulture);
+                DockTypedPointSetCircleFitClippingFactorTextBox.Text = p.XldCircleFitClippingFactor.ToString("0.###", CultureInfo.InvariantCulture);
+                DockTypedPointSetEllipseFitMinimumCountTextBox.Text = p.PointSetMinimumCount.ToString(CultureInfo.InvariantCulture);
+                DockTypedPointSetEllipseFitAbnormalPolicyComboBox.SelectedValue = VmPointSetAbnormalPolicy.Normalize(p.PointSetAbnormalPolicy);
+                DockTypedPointSetEllipseFitAlgorithmComboBox.SelectedValue = VmXldEllipseFitAlgorithm.Normalize(p.XldEllipseFitAlgorithm);
+                DockTypedPointSetEllipseFitMaxPointsTextBox.Text = p.XldEllipseFitMaxNumPoints.ToString(CultureInfo.InvariantCulture);
+                DockTypedPointSetEllipseFitMaxClosureTextBox.Text = p.XldEllipseFitMaxClosureDistance.ToString("0.###", CultureInfo.InvariantCulture);
+                DockTypedPointSetEllipseFitClipEndpointsTextBox.Text = p.XldEllipseFitClippingEndPoints.ToString(CultureInfo.InvariantCulture);
+                DockTypedPointSetEllipseFitVossTableTextBox.Text = p.XldEllipseFitVossTabSize.ToString(CultureInfo.InvariantCulture);
+                DockTypedPointSetEllipseFitIterationsTextBox.Text = p.XldEllipseFitIterations.ToString(CultureInfo.InvariantCulture);
+                DockTypedPointSetEllipseFitClippingFactorTextBox.Text = p.XldEllipseFitClippingFactor.ToString("0.###", CultureInfo.InvariantCulture);
+                DockPointLineSideConventionComboBox.SelectedValue = VmPointLineSideConvention.Normalize(p.PointLineSideConvention);
+                DockPointLineCrossSizeTextBox.Text = p.PointLineOverlayCrossSize.ToString("0.###", CultureInfo.InvariantCulture);
+                DockPointCircleSignConventionComboBox.SelectedValue = VmPointCircleSignConvention.Normalize(p.PointCircleSignConvention);
+                DockPointCircleCrossSizeTextBox.Text = p.PointCircleOverlayCrossSize.ToString("0.###", CultureInfo.InvariantCulture);
+                DockPointEllipseBoundaryToleranceTextBox.Text = p.PointEllipseBoundaryTolerance.ToString("0.###", CultureInfo.InvariantCulture);
+                DockPointEllipseCrossSizeTextBox.Text = p.PointEllipseOverlayCrossSize.ToString("0.###", CultureInfo.InvariantCulture);
+                DockPointEllipseContourResolutionTextBox.Text = p.PointEllipseContourResolution.ToString("0.###", CultureInfo.InvariantCulture);
+                DockLineCircleIntersectionOrderComboBox.SelectedValue = VmLineCircleIntersectionOrder.Normalize(p.LineCircleIntersectionOrder);
+                DockLineCircleCrossSizeTextBox.Text = p.LineCircleOverlayCrossSize.ToString("0.###", CultureInfo.InvariantCulture);
+                DockCircleCircleIntersectionOrderComboBox.SelectedValue = VmCircleCircleIntersectionOrder.Normalize(p.CircleCircleIntersectionOrder);
+                DockCircleCircleCrossSizeTextBox.Text = p.CircleCircleOverlayCrossSize.ToString("0.###", CultureInfo.InvariantCulture);
+                DockPointPairMinimumDistanceTextBox.Text = p.PointPairMinimumDistance.ToString("0.############", CultureInfo.InvariantCulture);
+                DockPointPairCrossSizeTextBox.Text = p.PointPairOverlayCrossSize.ToString("0.###", CultureInfo.InvariantCulture);
+                DockLineLineParallelToleranceTextBox.Text = p.LineLineParallelToleranceDegrees.ToString("0.######", CultureInfo.InvariantCulture);
+                DockLineLineCoincidenceToleranceTextBox.Text = p.LineLineCoincidenceDistanceTolerance.ToString("0.######", CultureInfo.InvariantCulture);
+                DockLineLineCrossSizeTextBox.Text = p.LineLineOverlayCrossSize.ToString("0.###", CultureInfo.InvariantCulture);
                 LoadShapeDockDraftFields(tool, p);
                 RefreshDockPositionCorrectionOptions(tool, p.PositionCorrectionToolId);
                 DockResultLogicOperationComboBox.SelectedValue = VmResultLogicOperation.Normalize(p.ResultLogicOperation);
@@ -10594,6 +10940,16 @@ namespace HalconWinFormsDemo
             DockShapeMatchPanel.Visibility = kind == VmToolKind.ShapeMatch ? Visibility.Visible : Visibility.Collapsed;
             DockPositionCorrectionPanel.Visibility = kind == VmToolKind.PositionCorrection2D ? Visibility.Visible : Visibility.Collapsed;
             DockPointSetGeometryPanel.Visibility = kind == VmToolKind.PointSetGeometryStatistics ? Visibility.Visible : Visibility.Collapsed;
+            DockTypedPointSetLineFitPanel.Visibility = kind == VmToolKind.TypedPointSetLineFittingMeasurement ? Visibility.Visible : Visibility.Collapsed;
+            DockTypedPointSetCircleFitPanel.Visibility = kind == VmToolKind.TypedPointSetCircleFittingMeasurement ? Visibility.Visible : Visibility.Collapsed;
+            DockTypedPointSetEllipseFitPanel.Visibility = kind == VmToolKind.TypedPointSetEllipseFittingMeasurement ? Visibility.Visible : Visibility.Collapsed;
+            DockPointToLineDistancePanel.Visibility = kind == VmToolKind.PointToLineDistanceMeasurement ? Visibility.Visible : Visibility.Collapsed;
+            DockPointToCircleRadialDeviationPanel.Visibility = kind == VmToolKind.PointToCircleRadialDeviationMeasurement ? Visibility.Visible : Visibility.Collapsed;
+            DockPointToEllipseDistancePanel.Visibility = kind == VmToolKind.PointToEllipseDistanceMeasurement ? Visibility.Visible : Visibility.Collapsed;
+            DockLineCircleIntersectionPanel.Visibility = kind == VmToolKind.LineCircleIntersectionMeasurement ? Visibility.Visible : Visibility.Collapsed;
+            DockCircleCircleIntersectionPanel.Visibility = kind == VmToolKind.CircleCircleIntersectionMeasurement ? Visibility.Visible : Visibility.Collapsed;
+            DockPointPairLineConstructionPanel.Visibility = kind == VmToolKind.PointPairLineConstructionMeasurement ? Visibility.Visible : Visibility.Collapsed;
+            DockTypedLineLineRelationPanel.Visibility = kind == VmToolKind.TypedLineLineRelationMeasurement ? Visibility.Visible : Visibility.Collapsed;
             DockResultLogicAggregationPanel.Visibility = kind == VmToolKind.ResultLogicAggregation ? Visibility.Visible : Visibility.Collapsed;
             DockScriptPanel.Visibility = kind == VmToolKind.CSharpDllScript ? Visibility.Visible : Visibility.Collapsed;
             DockGlobalVariablePanel.Visibility = kind == VmToolKind.GlobalVariableRead || kind == VmToolKind.GlobalVariableWrite ? Visibility.Visible : Visibility.Collapsed;
@@ -11796,6 +12152,106 @@ namespace HalconWinFormsDemo
                 parameters.PointSetMinimumCount = integer;
                 parameters.PointSetAbnormalPolicy = VmPointSetAbnormalPolicy.Normalize(DockPointSetAbnormalPolicyComboBox.SelectedValue as string);
             }
+            else if (tool.Kind == VmToolKind.TypedPointSetLineFittingMeasurement)
+            {
+                if (!int.TryParse(DockTypedPointSetLineFitMinimumCountTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("点集直线拟合最小点数必须是整数。");
+                parameters.PointSetMinimumCount = integer;
+                parameters.PointSetAbnormalPolicy = VmPointSetAbnormalPolicy.Normalize(DockTypedPointSetLineFitAbnormalPolicyComboBox.SelectedValue as string);
+                parameters.XldLineFitAlgorithm = VmXldLineFitAlgorithm.Normalize(DockTypedPointSetLineFitAlgorithmComboBox.SelectedValue as string);
+                if (!int.TryParse(DockTypedPointSetLineFitMaxPointsTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("点集直线拟合最大采样点必须是整数。");
+                parameters.XldLineFitMaxNumPoints = integer;
+                if (!int.TryParse(DockTypedPointSetLineFitClipEndpointsTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("点集直线拟合端点裁剪必须是整数。");
+                parameters.XldLineFitClippingEndPoints = integer;
+                if (!int.TryParse(DockTypedPointSetLineFitIterationsTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("点集直线拟合迭代次数必须是整数。");
+                parameters.XldLineFitIterations = integer;
+                if (!TryParseUiDouble(DockTypedPointSetLineFitClippingFactorTextBox.Text, out number)) return FailDockDraft("点集直线拟合裁剪因子必须是数值。");
+                parameters.XldLineFitClippingFactor = number;
+            }
+            else if (tool.Kind == VmToolKind.TypedPointSetCircleFittingMeasurement)
+            {
+                if (!int.TryParse(DockTypedPointSetCircleFitMinimumCountTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("点集圆拟合最小点数必须是整数。");
+                parameters.PointSetMinimumCount = integer;
+                parameters.PointSetAbnormalPolicy = VmPointSetAbnormalPolicy.Normalize(DockTypedPointSetCircleFitAbnormalPolicyComboBox.SelectedValue as string);
+                parameters.XldCircleFitAlgorithm = VmXldCircleFitAlgorithm.Normalize(DockTypedPointSetCircleFitAlgorithmComboBox.SelectedValue as string);
+                if (!int.TryParse(DockTypedPointSetCircleFitMaxPointsTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("点集圆拟合最大采样点必须是整数。");
+                parameters.XldCircleFitMaxNumPoints = integer;
+                if (!TryParseUiDouble(DockTypedPointSetCircleFitMaxClosureTextBox.Text, out number)) return FailDockDraft("点集圆拟合最大闭合距离必须是数值。");
+                parameters.XldCircleFitMaxClosureDistance = number;
+                if (!int.TryParse(DockTypedPointSetCircleFitClipEndpointsTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("点集圆拟合端点裁剪必须是整数。");
+                parameters.XldCircleFitClippingEndPoints = integer;
+                if (!int.TryParse(DockTypedPointSetCircleFitIterationsTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("点集圆拟合迭代次数必须是整数。");
+                parameters.XldCircleFitIterations = integer;
+                if (!TryParseUiDouble(DockTypedPointSetCircleFitClippingFactorTextBox.Text, out number)) return FailDockDraft("点集圆拟合裁剪因子必须是数值。");
+                parameters.XldCircleFitClippingFactor = number;
+            }
+            else if (tool.Kind == VmToolKind.TypedPointSetEllipseFittingMeasurement)
+            {
+                if (!int.TryParse(DockTypedPointSetEllipseFitMinimumCountTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("点集椭圆拟合最小点数必须是整数。");
+                parameters.PointSetMinimumCount = integer;
+                parameters.PointSetAbnormalPolicy = VmPointSetAbnormalPolicy.Normalize(DockTypedPointSetEllipseFitAbnormalPolicyComboBox.SelectedValue as string);
+                parameters.XldEllipseFitAlgorithm = VmXldEllipseFitAlgorithm.Normalize(DockTypedPointSetEllipseFitAlgorithmComboBox.SelectedValue as string);
+                if (!int.TryParse(DockTypedPointSetEllipseFitMaxPointsTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("点集椭圆拟合最大采样点必须是整数。");
+                parameters.XldEllipseFitMaxNumPoints = integer;
+                if (!TryParseUiDouble(DockTypedPointSetEllipseFitMaxClosureTextBox.Text, out number)) return FailDockDraft("点集椭圆拟合最大闭合距离必须是数值。");
+                parameters.XldEllipseFitMaxClosureDistance = number;
+                if (!int.TryParse(DockTypedPointSetEllipseFitClipEndpointsTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("点集椭圆拟合端点裁剪必须是整数。");
+                parameters.XldEllipseFitClippingEndPoints = integer;
+                if (!int.TryParse(DockTypedPointSetEllipseFitVossTableTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("点集椭圆拟合 Voss 表大小必须是整数。");
+                parameters.XldEllipseFitVossTabSize = integer;
+                if (!int.TryParse(DockTypedPointSetEllipseFitIterationsTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("点集椭圆拟合迭代次数必须是整数。");
+                parameters.XldEllipseFitIterations = integer;
+                if (!TryParseUiDouble(DockTypedPointSetEllipseFitClippingFactorTextBox.Text, out number)) return FailDockDraft("点集椭圆拟合裁剪因子必须是数值。");
+                parameters.XldEllipseFitClippingFactor = number;
+            }
+            else if (tool.Kind == VmToolKind.PointToLineDistanceMeasurement)
+            {
+                parameters.PointLineSideConvention = VmPointLineSideConvention.Normalize(DockPointLineSideConventionComboBox.SelectedValue as string);
+                if (!TryParseUiDouble(DockPointLineCrossSizeTextBox.Text, out number)) return FailDockDraft("点到直线距离十字尺寸必须是数值。");
+                parameters.PointLineOverlayCrossSize = number;
+            }
+            else if (tool.Kind == VmToolKind.PointToCircleRadialDeviationMeasurement)
+            {
+                parameters.PointCircleSignConvention = VmPointCircleSignConvention.Normalize(DockPointCircleSignConventionComboBox.SelectedValue as string);
+                if (!TryParseUiDouble(DockPointCircleCrossSizeTextBox.Text, out number)) return FailDockDraft("点到圆径向偏差十字尺寸必须是数值。");
+                parameters.PointCircleOverlayCrossSize = number;
+            }
+            else if (tool.Kind == VmToolKind.PointToEllipseDistanceMeasurement)
+            {
+                if (!TryParseUiDouble(DockPointEllipseBoundaryToleranceTextBox.Text, out number)) return FailDockDraft("点到椭圆边界容差必须是数值。");
+                parameters.PointEllipseBoundaryTolerance = number;
+                if (!TryParseUiDouble(DockPointEllipseCrossSizeTextBox.Text, out number)) return FailDockDraft("点到椭圆十字尺寸必须是数值。");
+                parameters.PointEllipseOverlayCrossSize = number;
+                if (!TryParseUiDouble(DockPointEllipseContourResolutionTextBox.Text, out number)) return FailDockDraft("点到椭圆轮廓分辨率必须是数值。");
+                parameters.PointEllipseContourResolution = number;
+            }
+            else if (tool.Kind == VmToolKind.LineCircleIntersectionMeasurement)
+            {
+                parameters.LineCircleIntersectionOrder = VmLineCircleIntersectionOrder.Normalize(DockLineCircleIntersectionOrderComboBox.SelectedValue as string);
+                if (!TryParseUiDouble(DockLineCircleCrossSizeTextBox.Text, out number)) return FailDockDraft("直线圆交点十字尺寸必须是数值。");
+                parameters.LineCircleOverlayCrossSize = number;
+            }
+            else if (tool.Kind == VmToolKind.CircleCircleIntersectionMeasurement)
+            {
+                parameters.CircleCircleIntersectionOrder = VmCircleCircleIntersectionOrder.Normalize(DockCircleCircleIntersectionOrderComboBox.SelectedValue as string);
+                if (!TryParseUiDouble(DockCircleCircleCrossSizeTextBox.Text, out number)) return FailDockDraft("圆圆交点十字尺寸必须是数值。");
+                parameters.CircleCircleOverlayCrossSize = number;
+            }
+            else if (tool.Kind == VmToolKind.PointPairLineConstructionMeasurement)
+            {
+                if (!TryParseUiDouble(DockPointPairMinimumDistanceTextBox.Text, out number)) return FailDockDraft("两点构线最小有效距离必须是数值。");
+                parameters.PointPairMinimumDistance = number;
+                if (!TryParseUiDouble(DockPointPairCrossSizeTextBox.Text, out number)) return FailDockDraft("两点构线十字尺寸必须是数值。");
+                parameters.PointPairOverlayCrossSize = number;
+            }
+            else if (tool.Kind == VmToolKind.TypedLineLineRelationMeasurement)
+            {
+                if (!TryParseUiDouble(DockLineLineParallelToleranceTextBox.Text, out number)) return FailDockDraft("双直线平行角容差必须是数值。");
+                parameters.LineLineParallelToleranceDegrees = number;
+                if (!TryParseUiDouble(DockLineLineCoincidenceToleranceTextBox.Text, out number)) return FailDockDraft("双直线重合距离容差必须是数值。");
+                parameters.LineLineCoincidenceDistanceTolerance = number;
+                if (!TryParseUiDouble(DockLineLineCrossSizeTextBox.Text, out number)) return FailDockDraft("双直线交点十字尺寸必须是数值。");
+                parameters.LineLineOverlayCrossSize = number;
+            }
             else if (tool.Kind == VmToolKind.ShapeMatch)
             {
                 string shapeError;
@@ -12956,6 +13412,7 @@ namespace HalconWinFormsDemo
                 FlowGraphScaleTransform.ScaleX = e.NewValue;
                 FlowGraphScaleTransform.ScaleY = e.NewValue;
             }
+            ScheduleResponsiveFlowRefreshS73();
         }
 
         private void FitFlowButton_Click(object sender, RoutedEventArgs e)
@@ -12985,8 +13442,8 @@ namespace HalconWinFormsDemo
         {
             System.Windows.MessageBox.Show(
                 this,
-                VersionStamp + Environment.NewLine + "VisionMaster 风格工作流，HALCON 视觉内核。",
-                "关于 HALCON VM",
+                VersionStamp + Environment.NewLine + "自主工业视觉工作流，HALCON 视觉内核。",
+                "关于本软件",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
         }
@@ -17872,6 +18329,7 @@ namespace HalconWinFormsDemo
             debugPausedToolId = tool == null ? null : tool.ToolId;
             RefreshFlowPortVisualization();
             RefreshFlowDebugMonitor();
+            FollowFlowExecutionToolS72(tool);
         }
 
         private void ResetFlowDebugRuntimeState(bool clearPause)
@@ -17907,6 +18365,7 @@ namespace HalconWinFormsDemo
             bool executionError = false;
 
             isFlowExecutionActive = true;
+            ResetFlowExecutionFollowS72();
             debugLastExecutedToolId = null;
             debugExecutionRangeText = plan.RangeText;
             debugPauseReason = "未暂停";
@@ -18749,6 +19208,56 @@ namespace HalconWinFormsDemo
                         tool.InputSummary = BuildPointSetGeometryInputSummaryS65(tool);
                         tool.OutputSummary = record.Message;
                         break;
+                    case VmToolKind.PointToLineDistanceMeasurement:
+                        record = RunPointToLineDistanceToolS66(tool);
+                        tool.InputSummary = BuildPointToLineInputSummaryS66(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.PointToCircleRadialDeviationMeasurement:
+                        record = RunPointToCircleRadialDeviationToolS67(tool);
+                        tool.InputSummary = BuildPointToCircleInputSummaryS67(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.PointToEllipseDistanceMeasurement:
+                        record = RunPointToEllipseDistanceToolS75(tool);
+                        tool.InputSummary = BuildPointToEllipseInputSummaryS75(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.LineCircleIntersectionMeasurement:
+                        record = RunLineCircleIntersectionToolS68(tool);
+                        tool.InputSummary = BuildLineCircleInputSummaryS68(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.CircleCircleIntersectionMeasurement:
+                        record = RunCircleCircleIntersectionToolS69(tool);
+                        tool.InputSummary = BuildCircleCircleInputSummaryS69(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.PointPairLineConstructionMeasurement:
+                        record = RunPointPairLineConstructionToolS70(tool);
+                        tool.InputSummary = BuildPointPairLineInputSummaryS70(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.TypedLineLineRelationMeasurement:
+                        record = RunTypedLineLineRelationToolS71(tool);
+                        tool.InputSummary = BuildTypedLineLineInputSummaryS71(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.TypedPointSetLineFittingMeasurement:
+                        record = RunTypedPointSetLineFittingToolS72(tool);
+                        tool.InputSummary = BuildTypedPointSetLineFitInputSummaryS72(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.TypedPointSetCircleFittingMeasurement:
+                        record = RunTypedPointSetCircleFittingToolS73(tool);
+                        tool.InputSummary = BuildTypedPointSetCircleFitInputSummaryS73(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
+                    case VmToolKind.TypedPointSetEllipseFittingMeasurement:
+                        record = RunTypedPointSetEllipseFittingToolS74(tool);
+                        tool.InputSummary = BuildTypedPointSetEllipseFitInputSummaryS74(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
                     case VmToolKind.ResultLogicAggregation:
                         record = RunResultLogicAggregationTool(tool);
                         tool.InputSummary = BuildResultLogicInputSummary(tool);
@@ -18776,7 +19285,12 @@ namespace HalconWinFormsDemo
                 PublishToolOutputs(tool, record);
                 tool.ResultCode = record.ResultCode;
                 tool.RunStatus = string.Equals(record.ResultCode, "OK", StringComparison.OrdinalIgnoreCase) ? "完成" : "异常";
-                if (tool.Kind == VmToolKind.ShapeMatch || tool.Kind == VmToolKind.ImageSource || tool.Kind == VmToolKind.ImageChannel || tool.Kind == VmToolKind.ImageFilter || tool.Kind == VmToolKind.ImageEnhancement || tool.Kind == VmToolKind.ImageResize || tool.Kind == VmToolKind.ImageMirror || tool.Kind == VmToolKind.ImageRotate || tool.Kind == VmToolKind.ImageAffineTransform || tool.Kind == VmToolKind.ImageProjectiveTransform || tool.Kind == VmToolKind.SubpixelEdgeExtraction || tool.Kind == VmToolKind.PolarImageUnwrap || tool.Kind == VmToolKind.RoiImageExtraction || tool.Kind == VmToolKind.ImageDifference || tool.Kind == VmToolKind.DynamicThreshold || tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.RegionMorphology || tool.Kind == VmToolKind.RegionFeatureFilter || tool.Kind == VmToolKind.RegionSetOperation || tool.Kind == VmToolKind.RegionContourMeasurement || tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldAdjacentContourUnion || tool.Kind == VmToolKind.XldContourSmoothing || tool.Kind == VmToolKind.XldAffineTransform || tool.Kind == VmToolKind.XldProjectiveTransform || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting || tool.Kind == VmToolKind.XldLineRelationMeasurement || tool.Kind == VmToolKind.CaliperEdgePairMeasurement || tool.Kind == VmToolKind.LinearCaliperArrayMeasurement || tool.Kind == VmToolKind.CircularCaliperCircleFinder || tool.Kind == VmToolKind.RingWallThicknessMeasurement)
+                if (tool.Kind == VmToolKind.TypedLineLineRelationMeasurement || tool.Kind == VmToolKind.TypedPointSetLineFittingMeasurement || tool.Kind == VmToolKind.TypedPointSetCircleFittingMeasurement || tool.Kind == VmToolKind.TypedPointSetEllipseFittingMeasurement)
+                {
+                    UpdateImageContextViewport(true);
+                    ScheduleRefreshDisplay();
+                }
+                if (tool.Kind == VmToolKind.ShapeMatch || tool.Kind == VmToolKind.ImageSource || tool.Kind == VmToolKind.ImageChannel || tool.Kind == VmToolKind.ImageFilter || tool.Kind == VmToolKind.ImageEnhancement || tool.Kind == VmToolKind.ImageResize || tool.Kind == VmToolKind.ImageMirror || tool.Kind == VmToolKind.ImageRotate || tool.Kind == VmToolKind.ImageAffineTransform || tool.Kind == VmToolKind.ImageProjectiveTransform || tool.Kind == VmToolKind.SubpixelEdgeExtraction || tool.Kind == VmToolKind.PolarImageUnwrap || tool.Kind == VmToolKind.RoiImageExtraction || tool.Kind == VmToolKind.ImageDifference || tool.Kind == VmToolKind.DynamicThreshold || tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.RegionMorphology || tool.Kind == VmToolKind.RegionFeatureFilter || tool.Kind == VmToolKind.RegionSetOperation || tool.Kind == VmToolKind.RegionContourMeasurement || tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldAdjacentContourUnion || tool.Kind == VmToolKind.XldContourSmoothing || tool.Kind == VmToolKind.XldAffineTransform || tool.Kind == VmToolKind.XldProjectiveTransform || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting || tool.Kind == VmToolKind.XldLineRelationMeasurement || tool.Kind == VmToolKind.TypedPointSetLineFittingMeasurement || tool.Kind == VmToolKind.TypedPointSetCircleFittingMeasurement || tool.Kind == VmToolKind.TypedPointSetEllipseFittingMeasurement || tool.Kind == VmToolKind.PointToLineDistanceMeasurement || tool.Kind == VmToolKind.PointToCircleRadialDeviationMeasurement || tool.Kind == VmToolKind.PointToEllipseDistanceMeasurement || tool.Kind == VmToolKind.LineCircleIntersectionMeasurement || tool.Kind == VmToolKind.CircleCircleIntersectionMeasurement || tool.Kind == VmToolKind.PointPairLineConstructionMeasurement || tool.Kind == VmToolKind.CaliperEdgePairMeasurement || tool.Kind == VmToolKind.LinearCaliperArrayMeasurement || tool.Kind == VmToolKind.CircularCaliperCircleFinder || tool.Kind == VmToolKind.RingWallThicknessMeasurement)
                 {
                     UpdateImageContextViewport(true);
                     ScheduleRefreshDisplay();
@@ -24502,6 +25016,8 @@ namespace HalconWinFormsDemo
                 string resultCode = lineCount > 0 && totalLength > 0 ? "OK" : "NG";
 
                 tool.SetOutputValue("XLD", VmXldSnapshot.Create(fittedLines, tool.ToolId, tool.InstanceName, "XLD"));
+                if (lineCount > 0 && primaryLength > 1e-9)
+                    tool.SetOutputValue("MainLine", VmLine2D.CreateImagePixel(startRow, startColumn, endRow, endColumn, ResolveImagePixelContextIdS66(tool)));
                 tool.SetOutputValue("LineCount", (double)lineCount);
                 tool.SetOutputValue("TotalLength", totalLength);
                 tool.SetOutputValue("MeanAngle", meanAngle);
@@ -24702,6 +25218,8 @@ namespace HalconWinFormsDemo
                 string resultCode = circleCount > 0 && radius > 0 ? "OK" : "NG";
                 string pointOrderText = string.Equals(pointOrder, "negative", StringComparison.OrdinalIgnoreCase) ? "negative（反向）" : "positive（正向）";
                 tool.SetOutputValue("XLD", VmXldSnapshot.Create(fittedCircles, tool.ToolId, tool.InstanceName, "XLD"));
+                if (circleCount > 0 && radius > 1e-9)
+                    tool.SetOutputValue("MainCircle", VmCircle2D.CreateImagePixel(centerRow, centerColumn, radius, ResolveImagePixelContextIdS66(tool)));
                 tool.SetOutputValue("CircleCount", (double)circleCount);
                 tool.SetOutputValue("CenterRow", centerRow);
                 tool.SetOutputValue("CenterColumn", centerColumn);
@@ -25700,6 +26218,9 @@ namespace HalconWinFormsDemo
                 case VmToolKind.GlobalVariableWrite:
                 case VmToolKind.PositionCorrection2D:
                 case VmToolKind.PointSetGeometryStatistics:
+                case VmToolKind.TypedPointSetLineFittingMeasurement:
+                case VmToolKind.TypedPointSetCircleFittingMeasurement:
+                case VmToolKind.TypedPointSetEllipseFittingMeasurement:
                     break;
                 case VmToolKind.ShapeMatch:
                     PublishShapeMatchOutputs(tool, record);

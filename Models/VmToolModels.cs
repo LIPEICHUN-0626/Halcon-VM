@@ -203,7 +203,17 @@ namespace HalconWinFormsDemo.Models
         GlobalVariableRead,
         GlobalVariableWrite,
         PositionCorrection2D,
-        PointSetGeometryStatistics
+        PointSetGeometryStatistics,
+        PointToLineDistanceMeasurement,
+        PointToCircleRadialDeviationMeasurement,
+        PointToEllipseDistanceMeasurement,
+        LineCircleIntersectionMeasurement,
+        CircleCircleIntersectionMeasurement,
+        PointPairLineConstructionMeasurement,
+        TypedLineLineRelationMeasurement,
+        TypedPointSetLineFittingMeasurement,
+        TypedPointSetCircleFittingMeasurement,
+        TypedPointSetEllipseFittingMeasurement
     }
 
     public sealed class VmToolCatalogItem : INotifyPropertyChanged
@@ -1045,6 +1055,24 @@ namespace HalconWinFormsDemo.Models
                 return points.ToDisplayString();
             }
 
+            VmLine2D line = value as VmLine2D;
+            if (line != null)
+            {
+                return line.ToDisplayString();
+            }
+
+            VmCircle2D circle = value as VmCircle2D;
+            if (circle != null)
+            {
+                return circle.ToDisplayString();
+            }
+
+            VmEllipse2D ellipse = value as VmEllipse2D;
+            if (ellipse != null)
+            {
+                return ellipse.ToDisplayString();
+            }
+
             IEnumerable<VmRoiRunResult> roiResultItems = value as IEnumerable<VmRoiRunResult>;
             if (roiResultItems != null)
             {
@@ -1143,6 +1171,26 @@ namespace HalconWinFormsDemo.Models
                     return "2D 位置修正";
                 case VmToolKind.PointSetGeometryStatistics:
                     return "点集几何统计";
+                case VmToolKind.PointToLineDistanceMeasurement:
+                    return "点到直线距离";
+                case VmToolKind.PointToCircleRadialDeviationMeasurement:
+                    return "点到圆径向偏差";
+                case VmToolKind.PointToEllipseDistanceMeasurement:
+                    return "点到椭圆距离/位置";
+                case VmToolKind.LineCircleIntersectionMeasurement:
+                    return "直线圆交点测量";
+                case VmToolKind.CircleCircleIntersectionMeasurement:
+                    return "圆圆关系/交点测量";
+                case VmToolKind.PointPairLineConstructionMeasurement:
+                    return "两点构线/中点测量";
+                case VmToolKind.TypedLineLineRelationMeasurement:
+                    return "类型化双直线关系/交点";
+                case VmToolKind.TypedPointSetLineFittingMeasurement:
+                    return "类型化点集直线拟合";
+                case VmToolKind.TypedPointSetCircleFittingMeasurement:
+                    return "类型化点集圆拟合";
+                case VmToolKind.TypedPointSetEllipseFittingMeasurement:
+                    return "类型化点集椭圆拟合";
                 case VmToolKind.PolarImageUnwrap:
                     return "极坐标展开";
                 case VmToolKind.RoiImageExtraction:
@@ -1249,6 +1297,16 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.XldMinimumRectangleDirectionMeasurement:
                 case VmToolKind.XldDirectionConsistencyMeasurement:
                 case VmToolKind.PointSetGeometryStatistics:
+                case VmToolKind.PointToLineDistanceMeasurement:
+                case VmToolKind.PointToCircleRadialDeviationMeasurement:
+                case VmToolKind.PointToEllipseDistanceMeasurement:
+                case VmToolKind.LineCircleIntersectionMeasurement:
+                case VmToolKind.CircleCircleIntersectionMeasurement:
+                case VmToolKind.PointPairLineConstructionMeasurement:
+                case VmToolKind.TypedLineLineRelationMeasurement:
+                case VmToolKind.TypedPointSetLineFittingMeasurement:
+                case VmToolKind.TypedPointSetCircleFittingMeasurement:
+                case VmToolKind.TypedPointSetEllipseFittingMeasurement:
                 case VmToolKind.XldLineFitting:
                 case VmToolKind.XldCircleFitting:
                 case VmToolKind.XldEllipseFitting:
@@ -1388,6 +1446,26 @@ namespace HalconWinFormsDemo.Models
                     return "优先订阅类型化 Pose2D，也兼容旧版 Row、Column、Angle 三路输入；以 HALCON vector_angle_to_rigid 计算从基准位姿到当前位姿的 2D 刚体修正，并为下游 ROI/屏蔽区跟随提供稳定来源。";
                 case VmToolKind.PointSetGeometryStatistics:
                     return "订阅同一图像像素坐标上下文的类型化 Point2D[]，校验点数和异常策略，计算质心、边界与跨度，并使用 HALCON 生成可显示的点集、质心和外接框 XLD。";
+                case VmToolKind.PointToLineDistanceMeasurement:
+                    return "订阅同一 ImagePixel 上下文的类型化 Point2D 与 Line2D，计算垂足、无符号距离及按直线方向定义的有符号侧值，并使用 HALCON 生成点、垂足和辅助线 XLD。";
+                case VmToolKind.PointToCircleRadialDeviationMeasurement:
+                    return "订阅同一 ImagePixel 上下文的类型化 Point2D 与 Circle2D，计算最近圆周点、圆心距、绝对径向偏差及内外有符号偏差，并使用 HALCON 生成圆与径向辅助 XLD。";
+                case VmToolKind.PointToEllipseDistanceMeasurement:
+                    return "订阅同一 ImagePixel 上下文的类型化 Point2D 与 Ellipse2D，使用 HALCON gen_ellipse_contour_xld 与 distance_pc 求点到椭圆距离，并输出最近点、内外有符号距离、归一化半径、法线方向及托管 XLD。";
+                case VmToolKind.LineCircleIntersectionMeasurement:
+                    return "订阅同一 ImagePixel 上下文的类型化 Line2D 与 Circle2D，调用 HALCON intersection_line_circle 求无限直线与整圆的 0/1/2 个交点，输出类型化点集、相离/相切/相交关系、弦长及托管 XLD。";
+                case VmToolKind.CircleCircleIntersectionMeasurement:
+                    return "订阅同一 ImagePixel 上下文的两路不同 Circle2D，调用 HALCON intersection_circles 求两整圆关系及 0/1/2 个有限交点，明确区分分离、内含、内外切、相交、同心与重合，并输出圆心距、公共弦长及托管 XLD。";
+                case VmToolKind.PointPairLineConstructionMeasurement:
+                    return "订阅同一 ImagePixel 上下文的两路不同 Point2D，使用 HALCON distance_pp 测量点距，以 A→B 构造类型化 Line2D 和中点 Point2D，并输出方向、行列差及托管线段/关键点 XLD。";
+                case VmToolKind.TypedLineLineRelationMeasurement:
+                    return "订阅同一 ImagePixel 上下文的两路不同 Line2D，使用 HALCON intersection_lines、angle_ll 与 distance_pl 区分相交、平行和重合，输出有限交点、夹角、平行距及托管 XLD。";
+                case VmToolKind.TypedPointSetLineFittingMeasurement:
+                    return "订阅同一 ImagePixel 上下文的类型化 Point2D[]，按异常点策略生成 HALCON XLD 点序列并调用 fit_line_contour_xld 鲁棒拟合，输出 MainLine、方向、残差、点数和托管点/线/残差图形。";
+                case VmToolKind.TypedPointSetCircleFittingMeasurement:
+                    return "订阅同一 ImagePixel 上下文的类型化 Point2D[]，按异常点策略生成 HALCON XLD 点序列并调用 fit_circle_contour_xld 鲁棒拟合，输出 MainCircle、圆心、半径、残差、点数和托管点/圆/径向残差图形。";
+                case VmToolKind.TypedPointSetEllipseFittingMeasurement:
+                    return "订阅同一 ImagePixel 上下文的类型化 Point2D[]，按异常点策略生成 HALCON XLD 点序列并调用 fit_ellipse_contour_xld 鲁棒拟合，以 distance_pc 计算点到拟合轮廓残差，输出 MainEllipse、中心、方向、长短半轴、轴比、点数和托管点/椭圆/残差图形。";
                 case VmToolKind.XldContourSegmentation:
                     return "订阅上游 XLD，使用 HALCON 将轮廓分为直线段及圆弧或椭圆弧，并输出分类、长度与可继续订阅的 XLD。";
                 case VmToolKind.XldLineFitting:
@@ -1581,6 +1659,54 @@ namespace HalconWinFormsDemo.Models
                     };
                 case VmToolKind.PointSetGeometryStatistics:
                     return new[] { Port("Points", "图像像素点集", "Point2D[]", false) };
+                case VmToolKind.PointToLineDistanceMeasurement:
+                    return new[]
+                    {
+                        Port("Point", "待测图像点", "Point2D", false),
+                        Port("Line", "参考图像直线", "Line2D", false)
+                    };
+                case VmToolKind.PointToCircleRadialDeviationMeasurement:
+                    return new[]
+                    {
+                        Port("Point", "待测图像点", "Point2D", false),
+                        Port("Circle", "参考图像圆", "Circle2D", false)
+                    };
+                case VmToolKind.PointToEllipseDistanceMeasurement:
+                    return new[]
+                    {
+                        Port("Point", "待测图像点", "Point2D", false),
+                        Port("Ellipse", "参考图像椭圆", "Ellipse2D", false)
+                    };
+                case VmToolKind.LineCircleIntersectionMeasurement:
+                    return new[]
+                    {
+                        Port("Line", "参考图像直线", "Line2D", false),
+                        Port("Circle", "参考图像圆", "Circle2D", false)
+                    };
+                case VmToolKind.CircleCircleIntersectionMeasurement:
+                    return new[]
+                    {
+                        Port("CircleA", "参考图像圆 A", "Circle2D", false),
+                        Port("CircleB", "参考图像圆 B", "Circle2D", false)
+                    };
+                case VmToolKind.PointPairLineConstructionMeasurement:
+                    return new[]
+                    {
+                        Port("PointA", "起点 A", "Point2D", false),
+                        Port("PointB", "终点 B", "Point2D", false)
+                    };
+                case VmToolKind.TypedLineLineRelationMeasurement:
+                    return new[]
+                    {
+                        Port("LineA", "参考图像直线 A", "Line2D", false),
+                        Port("LineB", "参考图像直线 B", "Line2D", false)
+                    };
+                case VmToolKind.TypedPointSetLineFittingMeasurement:
+                    return new[] { Port("Points", "待拟合图像像素点集", "Point2D[]", false) };
+                case VmToolKind.TypedPointSetCircleFittingMeasurement:
+                    return new[] { Port("Points", "待拟合图像像素点集", "Point2D[]", false) };
+                case VmToolKind.TypedPointSetEllipseFittingMeasurement:
+                    return new[] { Port("Points", "待拟合图像像素点集", "Point2D[]", false) };
                 default:
                     return new VmPortDefinition[0];
             }
@@ -1710,6 +1836,159 @@ namespace HalconWinFormsDemo.Models
                         Port("ColumnSpan", "Column 跨度", "Number", false),
                         Port("MaxSpan", "最大跨度", "Number", false),
                         Port("CoordinateContext", "坐标上下文", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.PointToLineDistanceMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "点/垂足/参考线", "XLD", false),
+                        Port("FootPoint", "垂足", "Point2D", false),
+                        Port("Distance", "点线距离", "Number", false),
+                        Port("SignedSide", "有符号侧值", "Number", false),
+                        Port("Side", "点所在侧", "String", false),
+                        Port("CoordinateContext", "坐标上下文", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.PointToCircleRadialDeviationMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "圆/径向线/关键点", "XLD", false),
+                        Port("ClosestPoint", "最近圆周点", "Point2D", false),
+                        Port("CenterDistance", "点到圆心距离", "Number", false),
+                        Port("AbsoluteDeviation", "绝对径向偏差", "Number", false),
+                        Port("SignedDeviation", "有符号径向偏差", "Number", false),
+                        Port("RadialState", "圆内/圆外状态", "String", false),
+                        Port("CoordinateContext", "坐标上下文", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.PointToEllipseDistanceMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "椭圆/测量线/关键点", "XLD", false),
+                        Port("ClosestPoint", "椭圆最近点", "Point2D", false),
+                        Port("Distance", "点到椭圆距离", "Number", false),
+                        Port("SignedDistance", "有符号距离（外正内负）", "Number", false),
+                        Port("Relation", "Inside/Outside/OnBoundary", "String", false),
+                        Port("NormalizedRadius", "椭圆归一化半径", "Number", false),
+                        Port("NormalAngle", "最近点外法线角（°）", "Number", false),
+                        Port("CoordinateContext", "坐标上下文", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.LineCircleIntersectionMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "直线/圆/交点", "XLD", false),
+                        Port("IntersectionPoints", "交点集合", "Point2D[]", false),
+                        Port("PointA", "主交点 A", "Point2D", false),
+                        Port("PointB", "主交点 B", "Point2D", false),
+                        Port("IntersectionCount", "交点数量", "Number", false),
+                        Port("ChordLength", "两交点弦长", "Number", false),
+                        Port("Relation", "相离/相切/相交", "String", false),
+                        Port("CoordinateContext", "坐标上下文", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.CircleCircleIntersectionMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "两圆/圆心线/交点", "XLD", false),
+                        Port("IntersectionPoints", "交点集合", "Point2D[]", false),
+                        Port("PointA", "主交点 A", "Point2D", false),
+                        Port("PointB", "主交点 B", "Point2D", false),
+                        Port("CenterDistance", "两圆心距离", "Number", false),
+                        Port("IntersectionCount", "有限交点数量", "Number", false),
+                        Port("CommonChordLength", "公共弦长度", "Number", false),
+                        Port("Relation", "圆圆关系", "String", false),
+                        Port("IsOverlapping", "是否重合", "Boolean", false),
+                        Port("CoordinateContext", "坐标上下文", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.PointPairLineConstructionMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "两点/线段/中点", "XLD", false),
+                        Port("MainLine", "A 到 B 类型化直线", "Line2D", false),
+                        Port("MidPoint", "两点中点", "Point2D", false),
+                        Port("Distance", "两点距离", "Number", false),
+                        Port("Angle", "A 到 B 方向角（°）", "Number", false),
+                        Port("DeltaRow", "B.Row - A.Row", "Number", false),
+                        Port("DeltaColumn", "B.Column - A.Column", "Number", false),
+                        Port("CoordinateContext", "坐标上下文", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.TypedLineLineRelationMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "两直线/有限交点", "XLD", false),
+                        Port("IntersectionPoint", "有限真实交点", "Point2D", false),
+                        Port("SignedAngle", "A 到 B 有符号角（°）", "Number", false),
+                        Port("AcuteAngle", "无向锐角（°）", "Number", false),
+                        Port("ParallelDistance", "平行线距（px）", "Number", false),
+                        Port("IsParallel", "是否平行", "Boolean", false),
+                        Port("IsCoincident", "是否重合", "Boolean", false),
+                        Port("Relation", "相交/平行/重合", "String", false),
+                        Port("CoordinateContext", "坐标上下文", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.TypedPointSetLineFittingMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "输入点/拟合线/残差", "XLD", false),
+                        Port("MainLine", "类型化拟合主直线", "Line2D", false),
+                        Port("StartPoint", "拟合线起点", "Point2D", false),
+                        Port("EndPoint", "拟合线终点", "Point2D", false),
+                        Port("Angle", "直线方向角（°）", "Number", false),
+                        Port("InputCount", "输入点数量", "Number", false),
+                        Port("ValidCount", "有效点数量", "Number", false),
+                        Port("RejectedCount", "拒绝点数量", "Number", false),
+                        Port("MeanResidual", "平均点线残差", "Number", false),
+                        Port("MaxResidual", "最大点线残差", "Number", false),
+                        Port("CoordinateContext", "坐标上下文", "String", false),
+                        Port("Algorithm", "拟合算法", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.TypedPointSetCircleFittingMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "输入点/拟合圆/径向残差", "XLD", false),
+                        Port("MainCircle", "类型化拟合主圆", "Circle2D", false),
+                        Port("CenterPoint", "类型化圆心", "Point2D", false),
+                        Port("Radius", "拟合半径（px）", "Number", false),
+                        Port("InputCount", "输入点数量", "Number", false),
+                        Port("ValidCount", "有效点数量", "Number", false),
+                        Port("RejectedCount", "拒绝点数量", "Number", false),
+                        Port("MeanResidual", "平均径向残差", "Number", false),
+                        Port("MaxResidual", "最大径向残差", "Number", false),
+                        Port("CoordinateContext", "坐标上下文", "String", false),
+                        Port("Algorithm", "拟合算法", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.TypedPointSetEllipseFittingMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "输入点/拟合椭圆/逐点残差", "XLD", false),
+                        Port("MainEllipse", "类型化拟合主椭圆", "Ellipse2D", false),
+                        Port("CenterPoint", "类型化椭圆中心", "Point2D", false),
+                        Port("Phi", "主轴方向角（°）", "Number", false),
+                        Port("Radius1", "长半轴（px）", "Number", false),
+                        Port("Radius2", "短半轴（px）", "Number", false),
+                        Port("AxisRatio", "长短半轴比", "Number", false),
+                        Port("InputCount", "输入点数量", "Number", false),
+                        Port("ValidCount", "有效点数量", "Number", false),
+                        Port("RejectedCount", "拒绝点数量", "Number", false),
+                        Port("MeanResidual", "平均点椭圆残差", "Number", false),
+                        Port("MaxResidual", "最大点椭圆残差", "Number", false),
+                        Port("CoordinateContext", "坐标上下文", "String", false),
+                        Port("Algorithm", "拟合算法", "String", false),
                         Port("Parameters", "参数摘要", "String", false),
                         Port("ResultCode", "结果码", "String", false)
                     };
@@ -2171,6 +2450,7 @@ namespace HalconWinFormsDemo.Models
                     return new[]
                     {
                         Port("XLD", "拟合直线", "XLD", false),
+                        Port("MainLine", "类型化主直线", "Line2D", false),
                         Port("LineCount", "直线数量", "Number", false),
                         Port("TotalLength", "直线总长度", "Number", false),
                         Port("MeanAngle", "平均方向角", "Number", false),
@@ -2187,6 +2467,7 @@ namespace HalconWinFormsDemo.Models
                     return new[]
                     {
                         Port("XLD", "拟合圆弧", "XLD", false),
+                        Port("MainCircle", "类型化主圆", "Circle2D", false),
                         Port("CircleCount", "圆数量", "Number", false),
                         Port("CenterRow", "主圆圆心行", "Number", false),
                         Port("CenterColumn", "主圆圆心列", "Number", false),

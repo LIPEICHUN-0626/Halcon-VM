@@ -143,13 +143,18 @@ Assert-True ($null -ne $enhancementCatalog -and -not [string]::IsNullOrWhiteSpac
 $flowToolList.SelectedItem = $enhance
 $refresh.Invoke($window, @()) | Out-Null
 Assert-True ($graphViewport.Visibility.ToString() -eq 'Visible' -and $flowToolList.Visibility.ToString() -eq 'Collapsed') 'The connection canvas must be the default flow view.'
-Assert-True ($source.GraphX -lt $enhance.GraphX -and $enhance.GraphX -lt $threshold.GraphX -and $threshold.GraphX -lt $blob.GraphX) 'Dependency-layer graph positions are incorrect.'
+Assert-True ([Math]::Abs($source.GraphX - $enhance.GraphX) -lt 0.01 -and
+    [Math]::Abs($enhance.GraphX - $threshold.GraphX) -lt 0.01 -and
+    [Math]::Abs($threshold.GraphX - $blob.GraphX) -lt 0.01 -and
+    $source.GraphY -lt $enhance.GraphY -and
+    $enhance.GraphY -lt $threshold.GraphY -and
+    $threshold.GraphY -lt $blob.GraphY) 'Compact top-to-bottom graph positions are incorrect.'
 Assert-True ($connections.Count -eq 8) "Expected 8 real binding paths, got $($connections.Count)."
 Assert-True (($connections | Where-Object DataType -eq 'Image').Count -eq 5) 'Image paths are not typed and visible.'
 Assert-True (($connections | Where-Object DataType -eq 'Region').Count -eq 3) 'Region convergence paths are not typed and visible.'
-Assert-True (($connections | Where-Object StrokeThickness -eq 4).Count -eq 5) 'Selected-module incident paths are not highlighted.'
+Assert-True (($connections | Where-Object { $_.IsFocusPath -and $_.IsVisible -and $_.StrokeThickness -ge 1.9 -and $_.StrokeOpacity -ge 0.8 }).Count -eq 5) 'Selected-module incident paths are not highlighted with the quiet S74 focus style.'
 Assert-True (($connections | Where-Object { $null -eq $_.Geometry }).Count -eq 0) 'A graph path has no geometry.'
-Assert-True ($graphCanvas.Width -gt 1000 -and $graphCanvas.Height -ge 700) 'The graph extent was not calculated.'
+Assert-True ($graphCanvas.Width -ge 390 -and $graphCanvas.Height -ge 700) 'The responsive compact vertical graph extent was not calculated.'
 
 $listView.Invoke($window, @($null, $null)) | Out-Null
 Assert-True ($flowToolList.Visibility.ToString() -eq 'Visible' -and $graphViewport.Visibility.ToString() -eq 'Collapsed') 'Sequence-list switching failed.'

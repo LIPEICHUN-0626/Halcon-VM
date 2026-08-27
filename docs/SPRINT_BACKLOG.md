@@ -1,27 +1,239 @@
 # Sprint Backlog
 
-更新日期：2026-08-24
+更新日期：2026-08-27
 
-## 下一 Sprint：S66 VM 式长流程插入导航 + 类型化 Line2D/点线距离工具
+## 下一 Sprint：S76 长流程任务透镜 + 类型化直线段与椭圆交点/弦长
 
-### A 线：长流程中的快速定位与插入
+### A 线：非相关步骤低噪折叠
 
-- 保持 60 工具/9 类完整目录与按需能力预览，增加工具箱、当前节点和真实流程位置之间的联动定位。
-- 从工具行、节点上下文菜单和键盘入口明确执行“插入到所选前/后”；能力预览同时提示当前选择附近的兼容上游输出、下游输入和拒绝原因。
-- 插入结果必须落到真实 `flowTools/InputBindings`，成功位置、自动订阅或拒绝原因可见；不得新增永久顶部按钮，也不得把确定性顺序冒充自由并行 Graph。
+- 默认任务聚焦中，当前步骤、直接依赖、执行、断点、异常和阻断保持完整卡片，其余步骤收为可点击状态行；全部展开从流程 `更多` 按需切换，不新增永久按钮。
+- 紧凑行仍保留序号、短名称、运行状态和真实上下锚点；点击、键盘或导航定位立即切换当前任务。显示变化不得修改 `InputBindings`、顺序、执行、断点、Group、配方或撤销栈。
+- 分支/汇聚、手动布局、聚合端口拖接、连接 Inspector、执行跟随和步骤记录继续通过；双尺度实体 UI 必须量化完整卡片/紧凑行、横向滚动与顶部入口。
 
-### B 线：Line2D 与点线距离（非 BSB）
+### B 线：Line2D + Ellipse2D 交点/弦长（非 BSB）
 
-- 定义正式 `Line2D` 数据契约；现有 XLD 直线拟合在保留旧数值输出的同时发布类型化主线。
-- 新增“点到直线距离”工具，显式订阅同一 ImagePixel 上下文的 `Point2D + Line2D`，输出垂足 `Point2D`、距离、有符号侧向值、托管 XLD、参数和 ResultCode，并驱动 NumericJudge。
-- 覆盖错误类型、退化直线、非有限值、上下文不一致、未运行/失效、配方、复制重映射、监视、日志和生命周期。
-- 首版不做标定、世界单位、跨相机、机器人/振镜或 BSB。
+- 新增有限直线段与椭圆交点工具，订阅同一 `ImagePixel` 的 Line2D 与 Ellipse2D，真实调用 HALCON `gen_contour_polygon_xld + gen_ellipse_contour_xld + intersection_contours_xld`。
+- 输出 IntersectionPoints:Point2D[]、Point1/Point2、IntersectionCount、ChordLength、Relation、上下文、参数、ResultCode 和托管 XLD；Count/ChordLength 驱动 NumericJudge。
+- 覆盖 0/1/2 交点、切线、弦、端点命中、旋转/近圆、短线段、退化/非有限、上下文、陈旧来源、配方、复制、监视、日志和旧快照释放。
 
-### S66 验收
+### S76 验收
 
-- 双尺度实体 UI 证明长流程插入不制造按钮墙；真实插入位置、兼容提示和拒绝诊断可复现。
-- HALCON XLD 直线拟合到类型化 Line2D，再与 Point2D 形成点线距离、垂足 XLD 和 Number 下游真链。
-- Legacy 与 S09-S65 不回退；Debug/Release、独立启动、XAML 入口和 HALCON 图形通过。S66 记为新 Git 批次 `1/10`；BSB 继续未实施/未验证。
+- Legacy 与 S09-S75 不回退；双尺度实体 UI、Debug/Release、双版本启动、XAML、HALCON 图形和差异门禁通过。
+- S76 为下一 Git 批次 `1/10`，不单独提交或推送；BSB 继续未实施/未验证。
+
+## 已完成 Sprint：S75 真实上下连接锚点 + 类型化点到椭圆距离/位置测量
+
+### A 线：把小圆锚点变成真实紧凑端口入口
+
+- 保持约 `280 x 68 px` 纵向模块，顶部输入/底部输出小圆锚点必须可点击并支持真实拖接；单一兼容端口可直接开始，多个端口时在锚点旁打开轻量类型化端口列表。
+- 顶部锚点显示必需输入、当前来源与等待/错误；底部锚点显示输出类型和消费者。创建、替换、清除必须写回真实 `InputBindings`，复用类型、顺序、启用、同源和重复来源校验。
+- 聚合锚点不得隐藏具体端口、类型或消费者；详细端口仍由节点 `端口` 和右侧 I/O 按需展开。非法放开不改原订阅并在锚点旁说明原因。
+- 保持无箭头/无阴影的直线或最少直角折线、任务聚焦/全部依赖、可拖动导航视窗、步骤 `记录` 子页面、手动布局、执行跟随和页面无 VM/VisionMaster 品牌露出。
+
+### B 线：Point2D + Ellipse2D 点到椭圆测量（非 BSB）
+
+- 新增“点到椭圆距离/位置测量”，订阅同一稳定 `ImagePixel` 上下文的 Point2D 与 Ellipse2D；真实使用 HALCON `gen_ellipse_contour_xld + distance_pc`，最近点必须由实际拟合轮廓求得。
+- 输出 ClosestPoint、Distance、SignedDistance、Relation（Inside/Outside/OnBoundary）、NormalizedRadius、NormalAngle、上下文、参数、ResultCode 和托管输入点/椭圆/最短线 XLD。
+- SignedDistance 采用明确且可配置/记录的符号约定；Distance、SignedDistance、NormalizedRadius 必须驱动 NumericJudge，并进入目录、常驻参数、I/O/监视、图层、日志、配方、复制和生命周期。
+- 覆盖内/外/边界、长短轴端、四象限、旋转椭圆、近圆、非有限/退化、混合上下文、同源/顺序、未运行/陈旧、非法参数和旧输出释放。
+
+### S75 验收结果
+
+- 双尺度实体 UI 证明默认首屏仍为紧凑纵向流程、简洁实线、单一分类和 7 个顶部入口；精确端口仅在点击锚点后就地出现，XAML 品牌匹配为 0。
+- 单端口直连、多端口精确选择、歧义拒绝、真实绑定、清除和撤销通过；没有静默猜测端口。
+- 真实 `Point2D + Ellipse2D -> HALCON gen_ellipse_contour_xld/distance_pc -> ClosestPoint/Number/XLD -> NumericJudge` 通过，旋转外点 `Distance=20 px / NormalizedRadius=1.333333 / XLD=4`。
+- `S75AggregateAnchorsAndPointEllipseDistanceSmoke.ps1` 与 Legacy/S09-S75 共 `68/68` 通过；987 个当前审计事件引用/411 个唯一入口/0 缺失，Debug/Release x64 0 警告 0 错误，双版本独立启动 8 秒 `Responding=True`。截图：`artifacts/s75/s75-simple-anchors-point-ellipse-1938x1158.png`、`artifacts/s75/s75-exact-port-flyout-1366x768.png`。
+- S75 达到当前 Git 批次 `10/10`，Debug/Release 0 警告 0 错误、双版本独立启动 8 秒 `Responding=True` 通过，本轮统一提交并推送 GitHub；BSB 继续未实施/未验证。
+
+## 已完成 Sprint：S74 简洁纵向连接/任务聚焦/导航视窗 + 类型化 Point2D[] 椭圆拟合
+
+### A 线验收结果
+
+- 活动页面窗口标题、顶部标识、关于菜单和图像提示已去除把 VM/VisionMaster 当作本软件品牌的文字；顶部使用项目自有 `HALCON VISION` 工业视觉标识。
+- 默认模块从约 300×74 缩至约 `280×68`，顶部/底部增加 10 px 小圆锚点；真实连接改成无箭头、无阴影的直线或最少直角折线，选中线不再使用发光阴影。
+- 流程“更多”内提供任务聚焦/全部依赖；聚焦模式只显示所选直接上下游、执行、断点和错误/阻断，全部依赖恢复完整真实连接且不改 InputBindings/顺序/执行/配方。
+- 24 px 导航新增随滚动、窗口和缩放同步的视窗指示，可点击/拖动真实纵向范围；双尺度自动横向滚动为 0，手动坐标/横向浏览兼容保持。
+
+### B 线验收结果（非 BSB）
+
+- 新“类型化点集椭圆拟合”进入 69 工具/9 类目录和右侧常驻参数，真实调用 HALCON `gen_contour_polygon_xld + fit_ellipse_contour_xld + distance_pc`。
+- 正式 Ellipse2D 支持克隆、确定显示、JSON 往返和有限值/半轴/稳定 ContextId 校验；输出 MainEllipse、CenterPoint、Phi、Radius1/2、AxisRatio、点数、Mean/MaxResidual、上下文、算法、参数、ResultCode 和托管 XLD。
+- 48 点标准椭圆输出 Center=(120,180)、Radius1/2=65/28、MaxResidual=`0.00446695 px`、`98` 对象托管 XLD；MaxResidual 驱动 NumericJudge。
+- Reject/SkipInvalid、近共线、混合上下文、陈旧来源、非法参数、JSON、配方、复制、I/O/监视、日志和旧 XLD 生命周期通过。
+
+### S74 验收
+
+- `S74TaskFocusAndTypedPointSetEllipseFittingSmoke.ps1` 与 Legacy/S09-S74 共 `67/67` 通过。
+- XAML 审计为 998 个事件引用、419 个唯一入口、0 缺失；Debug/Release x64 均 0 警告 0 错误，两个版本独立启动 8 秒且 `Responding=True`。
+- 实体截图：`artifacts/s74/s74-task-focus-ellipse-fit-1938x1158.png`、`artifacts/s74/s74-vertical-anchors-navigator-1366x768.png`；任务聚焦示例显示 5/10 条连接、导航视窗可见、自动横向滚动 0、顶部入口 7。
+- S74 为新 Git 批次 `9/10`，不提交或推送；BSB 按用户指令未实施/未验证。
+
+## 已完成 Sprint：S73 响应式纵向画布/细导航轨 + 类型化 Point2D[] 圆拟合
+
+### A 线验收结果
+
+- 自动画布宽度、节点列和右侧绕线通道已根据真实视口和缩放响应；1938×1158 与 1366×768 截图均为 `HorizontalScroll=0`。手动布局的 GraphX/GraphY、横向滚动和配方语义保持。
+- 流程区内部新增实际宽度 `24 px` 的状态导航，按真实步骤顺序区分选中、下一执行、断点、NG、异常和连接阻断，点击标记复用真实节点定位；没有新增顶部按钮或名称墙。
+- 左侧仍只有一个 `分类` 入口，顶部永久高频入口仍为 7 个，节点继续约 `300 x 74 px` 从上到下排列，步骤 `记录` 子页面保留。
+
+### B 线验收结果（非 BSB）
+
+- 新“类型化点集圆拟合”进入 68 工具/9 类目录和右侧常驻参数，真实调用 HALCON `gen_contour_polygon_xld + fit_circle_contour_xld + distance_pp`。
+- 36 点标准圆输出 Center=(50,80)、Radius=30、MaxResidual=`2.5948e-6`、`74` 对象托管 XLD；MainCircle 驱动点圆、线圆和圆圆，MaxResidual 驱动 NumericJudge。
+- ATukey 离群、Reject/SkipInvalid、混合上下文、共点、近共线、陈旧来源、旧快照释放、配方、复制重映射、I/O/监视和日志通过。
+
+### S73 验收
+
+- `S73ResponsiveFlowNavigatorAndTypedPointSetCircleFittingSmoke.ps1` 与 Legacy/S09-S73 共 `66/66` 通过。
+- XAML 审计为 983 个事件引用、414 个唯一入口、0 缺失；Debug/Release x64 均 0 警告 0 错误，两个版本独立启动 8 秒且 `Responding=True`。
+- 实体截图：`artifacts/s73/s73-responsive-vertical-circle-fit-1938x1158.png`、`artifacts/s73/s73-flow-navigator-circle-fit-1366x768.png`；导航宽度 24、自动横向滚动 0、顶部入口 7。
+- S73 为新 Git 批次 `8/10`，不提交或推送；BSB 按用户指令未实施/未验证。
+
+## 已完成 Sprint：S72 纵向长流程调试聚焦 + 类型化 Point2D[] 点集直线拟合
+
+### A 线验收结果
+
+- 未选合法连接默认无端点标签且仅保留 22%/34% 低权重方向线；选中节点强化真实相邻路径但不自动展开标签，只有明确选中连接或异常才显示单一合并标签。
+- 自动连接统一走模块右侧外部通道，不穿过节点或在左侧被裁切；`Alt+↑/↓/Enter` 与上下文可定位前后模块和当前执行模块，运行当前/到此/从此入口保持按需。
+- 执行指针会在纵向画布自动跟随；滚轮或中键平移后暂停抢焦点，重新定位当前执行模块才恢复。左侧仍只有单一分类入口，顶部永久高频入口仍为 7 个。
+
+### B 线验收结果（非 BSB）
+
+- 新“类型化点集直线拟合”进入 67 工具/9 类目录和右侧常驻配置，订阅同一 ImagePixel `Point2D[]`，真实调用 HALCON `gen_contour_polygon_xld + fit_line_contour_xld + distance_pl`。
+- 输出 MainLine、StartPoint、EndPoint、Angle、Input/Valid/RejectedCount、Mean/MaxResidual、上下文、算法、参数、ResultCode 和托管点/路径/拟合线/逐点残差 XLD。
+- 50 内点 + 1 强离群点的 Tukey 场景得到 `Angle=63.4349488°`、`MaxResidual=156.971972 px`；MainLine 真实驱动 S71 双线关系与点线距离，残差驱动 NumericJudge。
+
+### S72 验收
+
+- `S72VerticalDebugAndTypedPointSetLineFittingSmoke.ps1` 与 Legacy/S09-S72 共 `65/65` 通过；S16/S52 的旧像素/标签硬编码已更新为 S72 克制焦点语义，真实连接数量和类型断言未放宽。
+- XAML 审计为 972 个事件引用、411 个唯一入口、0 缺失；Debug/Release x64 均 0 警告 0 错误，两个版本独立启动 8 秒且 `Responding=True`。
+- 实体截图：`artifacts/s72/s72-vertical-debug-focus-point-fit-1938x1158.png`、`artifacts/s72/s72-execution-follow-point-fit-1366x768.png`；默认展开连接标签为 0，顶部永久入口为 7。
+- S72 为新 Git 批次 `7/10`，不提交或推送；BSB 按用户指令未实施/未验证。
+
+## 已完成 Sprint：S71 单一分类入口、纵向紧凑流程与类型化双直线关系/交点
+
+### A 线验收结果
+
+- 左侧只保留一个可见 `分类` 入口；默认显示 66 工具/9 类，流程片段由同一菜单按需切换。片段名称、顺序、内部连接、外部输入和更新时间可读，双击、Enter、拖拽和右键插入复用 S70 唯一内核。
+- 默认自动布局改为从上到下的确定性序列，节点约 `300 x 74 px`，连接从输出底部进入输入顶部并采用两侧柔性绕行；真实绑定、顺序和手动布局兼容未改变。
+- 每个节点新增紧凑 `记录` 入口，中央专用子页面显示该步骤日志、I/O 摘要和 TCP 收发状态；默认首屏不永久并排展开日志与通讯。
+
+### B 线验收结果（非 BSB）
+
+- 新“类型化双直线关系/交点”订阅同一 ImagePixel 的两路不同 Line2D，真实调用 HALCON 20.11 `IntersectionLines/AngleLl/DistancePl`。
+- 输出有限 IntersectionPoint、SignedAngle、AcuteAngle、ParallelDistance、IsParallel、IsCoincident、Relation、上下文、参数、ResultCode 及 2/3 对象托管 XLD；交点驱动点线距离，锐角驱动 NumericJudge。
+- 相交、平行、重合、近重合、同源、退化、非有限、跨上下文、未运行/陈旧、旧 Point/XLD 清理、配方、复制、监视和日志通过。
+
+### S71 验收
+
+- `S71VerticalToolboxAndTypedLineLineSmoke.ps1` 与 Legacy/S09-S71 共 `64/64` 通过。
+- 382 个唯一 XAML 事件入口/0 缺失；Debug/Release x64 均 0 警告 0 错误，两个版本独立启动 8 秒且 `Responding=True`。
+- 实体截图：`artifacts/s71/s71-vertical-full-toolbox-line-relation-1938x1158.png`、`artifacts/s71/s71-classified-snippet-contract-1366x768.png`、`artifacts/s71/s71-step-log-communication-page-1366x768.png`。
+- S71 为新 Git 批次 `6/10`，不提交或推送；BSB 未实施/未验证。
+
+## 已完成 Sprint：S70 VM 式流程片段模板库 + 类型化两点构线/中点测量
+
+### A 线验收结果
+
+- 流程“更多”内按需打开本机片段库；连续选择至少 2 个真实工具可保存命名片段，显示工具顺序、内部连接、必需/可选外部输入和更新时间，并支持预览、改名、内联二次确认删除及锚点前/后插入。
+- 插入生成新 ToolId、重映射内部 InputBindings，只保留类型/顺序合法的外部来源，并以一次撤销/重做整体回退；JSON 原子保存、单份备份和损坏文件不覆盖诊断通过。
+- HImage/HRegion/XLD、运行结果、错误、耗时、断点、手动坐标和运行指针均未进入片段；顶部仍为 7 个永久入口。
+
+### B 线验收结果（非 BSB）
+
+- 本机 HALCON 20.11 已确认并真实调用 `DistancePp/GenContourPolygonXld/GenCrossContourXld`。
+- 新“两点构线/中点测量”订阅同一 ImagePixel 的两路不同 Point2D，输出 MainLine:Line2D、MidPoint:Point2D、Distance/Angle/DeltaRow/DeltaColumn、上下文、参数、ResultCode 和 4 对象托管 XLD。
+- MainLine 驱动点线距离、Distance 驱动 NumericJudge；同源、重合/近重合、非有限、跨上下文、未运行/陈旧、旧快照释放、配方、块复制、监视、日志和生命周期通过。
+
+### S70 验收
+
+- `S70FlowSnippetAndPointPairLineSmoke.ps1` 与 Legacy/S09-S70 共 `63/63` 通过。
+- 378 个唯一 XAML 事件入口/0 缺失；Debug/Release x64 均 0 警告 0 错误，两个版本独立启动 8 秒且 `Responding=True`。
+- 实体截图：`artifacts/s70/s70-flow-snippet-library-1938x1158.png`、`artifacts/s70/s70-point-pair-line-workbench-1366x768.png`。
+- S70 为新 Git 批次 `5/10`，不提交或推送；BSB 未实施/未验证。
+
+## 已完成 Sprint：S69 VM 式流程连接问题任务清单 + 类型化圆圆关系/交点测量
+
+### A 线验收结果
+
+- 模块箱增至 64 个真实工具/9 类；流程“更多”内按需打开连接问题任务清单，扫描全部启用工具必需 IN，确定性区分未连接、来源缺失、类型/顺序/启用/重复端点错误和结构有效但本周期值不可用。
+- 每项显示严重度、目标工具/端口、所需类型、当前来源和原因，支持前后导航、定位节点、打开 I/O，并把可补源阻断项交给 S68。
+- 扫描及清单本身不改变 `InputBindings`；顶部永久入口仍为 7 个。1938×1158 截图确认任务面只按需覆盖流程区域，默认首屏和图像任务未新增按钮墙。
+
+### B 线验收结果（非 BSB）
+
+- 本机 HALCON 20.11 反射和最小调用确认 `IntersectionCircles` 精确签名及相交、内外切、分离和重合返回语义。
+- 新“圆圆关系/交点测量”订阅同一 ImagePixel 的两路不同 Circle2D，输出圆心距、0/1/2 个有限 Point2D、PointA/B、Separated/Contained/ConcentricContained/ExternalTangent/InternalTangent/Secant/Overlapping、公共弦长、重合标志、上下文、参数、ResultCode 和托管 XLD，并驱动 NumericJudge。
+- 重合整圆归类为 Overlapping 且有限交点数为 0；同源、退化/非有限、跨上下文、未运行/陈旧、旧输出清理、配方、块复制、监视、日志和生命周期通过。
+
+### S69 验收
+
+- `S69ConnectionIssueAndCircleCircleSmoke.ps1` 与 Legacy/S09-S69 共 `62/62` 通过。
+- 353 个唯一 XAML 事件入口/0 缺失；Debug/Release x64 均 0 警告 0 错误，两个版本独立启动 8 秒且 `Responding=True`。
+- 实体截图：`artifacts/s69/s69-connection-issues-1938x1158.png`、`artifacts/s69/s69-circle-circle-workbench-1366x768.png`。
+- S69 为新 Git 批次 `4/10`，不提交或推送；BSB 未实施/未验证。
+
+## 已完成 Sprint：S68 VM 式 IN 端口补源导航 + 类型化直线圆交点测量
+
+### A 线验收结果
+
+- 左侧保持 63 个真实工具/9 类完整目录；选择未绑定或异常 IN 后按需进入“补充上游来源”，已有合法前序 OUT 优先显示，同时保留位于目标之后、停用或重复端点等拒绝原因。
+- 可直接绑定选中现有来源并写回 `InputBindings`、失效目标及下游、进入撤销/重做；没有合法来源时目录只显示可产出目标类型的工具，在目标前插入、自动补齐可推断必需输入并连接目标。
+- “返回全目录”恢复分类、搜索、常用、收藏和最近；未增加永久顶部按钮。1938×1158 现有来源图与 1366×768 创建来源图证明上下文清楚且首屏信息密度受控。
+
+### B 线验收结果（非 BSB）
+
+- 本机 HALCON 20.11 反射确认 `IntersectionLineCircle` 精确 .NET 签名，最小调用验证相交/相切/相离分别返回 2/1/0 个坐标。
+- 新“直线圆交点测量”订阅同一 ImagePixel 的 `Line2D + Circle2D`，支持沿线/反向稳定排序，输出 Point2D[]、PointA/PointB、IntersectionCount、ChordLength、Separated/Tangent/Secant、上下文、参数、ResultCode 及直线/圆/交点十字托管 XLD，并驱动 NumericJudge。
+- 类型、退化/非有限、上下文不一致、未运行/陈旧、0/1/2 交点、陈旧输出清理、配方、块复制、撤销/重做、监视、日志和对象生命周期通过。
+
+### S68 门禁
+
+- `S68InputSourceNavigationAndLineCircleIntersectionSmoke.ps1` 与 Legacy/S09-S68 共 `61/61` 通过。
+- XML 审计 914 个 XAML 事件引用/372 个唯一入口/0 缺失；Debug/Release x64 均 0 警告 0 错误，两个版本独立启动 8 秒且 `Responding=True`。
+- 实体截图：`artifacts/s68/s68-existing-source-navigation-1938x1158.png`、`artifacts/s68/s68-create-source-line-circle-1366x768.png`。
+- S68 为新 Git 批次 `3/10`，不提交或推送；BSB 未实施/未验证。
+
+## 已完成 Sprint：S67 VM 式端口驱动工具推荐 + 类型化 Circle2D/点圆径向偏差
+
+### A 线验收结果
+
+- 左侧保持 62 个真实工具/9 类完整目录；选中真实 OUT 端口或连接后按需进入“推荐下一工具”，仅显示至少一个必需 IN 与来源类型兼容的真实工具。
+- 横幅显示来源工具/端口/类型、本周期状态、推荐数量、计划插入位置及排除摘要；双击、Enter 或右键会在来源后插入、绑定所选来源、尽力补齐其他兼容必需输入、失效并高亮真实下游。
+- “返回全目录”恢复分类、搜索、常用、收藏和最近；未增加永久顶部按钮，1938×1158 推荐上下文图与 1366×768 点圆工作台图证明默认信息密度受控。
+
+### B 线验收结果（非 BSB）
+
+- 新增可克隆、可显示、可 JSON 往返并带 ImagePixel 上下文的正式 `Circle2D`；XLD 圆拟合保留旧标量输出并发布 `MainCircle:Circle2D`。
+- 新“点到圆径向偏差”订阅 `Point2D + Circle2D`，支持外正/内正，输出最近圆周点、中心距、绝对/有符号偏差、径向状态、坐标上下文、参数、ResultCode 及由圆、径向线、中心/最近点/测量点组成的 5 对象托管 XLD，并真实驱动 NumericJudge。
+- 类型、退化/非有限圆、点在圆心、上下文不一致、未运行/陈旧输入、监视、配方、块复制、撤销/重做和对象生命周期通过。
+
+### S67 门禁
+
+- `S67PortRecommendationAndPointCircleSmoke.ps1` 与 Legacy/S09-S67 共 `60/60` 通过。
+- 当前宽口径 379 个唯一 XAML 事件引用/0 缺失；Debug/Release x64 均 0 警告 0 错误，两个版本独立启动 8 秒且 `Responding=True`。
+- 实体截图：`artifacts/s67/s67-port-recommendation-1938x1158.png`、`artifacts/s67/s67-point-circle-workbench-1366x768.png`。
+- S67 为新 Git 批次 `2/10`，不提交或推送；BSB 未实施/未验证。
+
+## 已完成 Sprint：S66 VM 式长流程插入导航 + 类型化 Line2D/点线距离工具
+
+### A 线验收结果
+
+- 左侧模块箱现为 61 个真实工具/9 类；能力面除用途和端口外，按当前流程选择显示插入锚点、附近兼容上游、可桥接/补接的下游以及缺失类型。
+- 工具行、流程节点/顺序列表右键与 `Ctrl+Enter`/`Ctrl+Shift+Enter` 可插入所选后/前；结果写回真实 `flowTools/InputBindings`，已有 XLD 连接可安全桥接，操作进入撤销/重做。
+- 未增加永久顶部按钮；1938×1158 与 1366×768 实体 UI 证明完整目录、流程、图像和当前点线参数仍可同屏。
+
+### B 线验收结果（非 BSB）
+
+- 新增正式 `Line2D`，支持克隆、确定显示、JSON 往返、退化/非有限值和 ImagePixel 上下文校验。
+- XLD 直线拟合保留旧端点/角度/残差并发布 `MainLine:Line2D`；新“点到直线距离”订阅 `Point2D + Line2D`，调用 HALCON `distance_pl` 并生成点、垂足、参考线托管 XLD，输出 FootPoint/Distance/SignedSide/Side/上下文/ResultCode，真实驱动 NumericJudge。
+- 类型、退化、非有限、跨上下文、未运行/陈旧、监视、配方、块复制重映射、撤销/重做和托管生命周期通过。
+
+### S66 门禁
+
+- `S66AnchoredInsertionAndPointLineDistanceSmoke.ps1` 与 Legacy/S09-S66 共 `59/59` 通过。
+- 353 个唯一 XAML 事件入口/0 缺失；Debug/Release x64 均 0 警告 0 错误，两个版本独立启动 8 秒且 `Responding=True`。
+- S66 为新 Git 批次 `1/10`，不提交或推送；BSB 未实施/未验证。
 
 ## 已完成 Sprint：S65 VM 式模块能力导航 + 类型化 Point2D 集合/点集几何工具
 
@@ -1433,6 +1645,18 @@
 | P0 | S62 完整分类模块箱与 HALCON 2D ROI 跟随 | 默认 59 工具/9 类、完整可发现且紧凑 | `vector_angle_to_rigid`、位姿差和 ROI/屏蔽区跟随 | 已验证 |
 | P0 | S63 Shape 定位任务与多目标位姿真链 | 统一训练/搜索/候选任务页 | 多目标 Shape、稳定最佳位姿并驱动 2D 修正 | 已验证实现 |
 | P0 | S64 端口数据监视与 Pose2D 真链 | 按需端口数据表 | Shape.Pose2D 驱动 2D 修正并兼容旧三 Number | 已验证完成 |
+| P0 | S65 模块能力导航与 Point2D[] 点集几何 | 完整目录能力契约按需展开 | 圆周卡尺 EdgePoints 与点集统计真链 | 已验证实现 |
+| P0 | S66 锚点插入与 Line2D 点线距离 | 围绕当前模块前后插入与兼容预览 | 主线类型与 HALCON `distance_pl` | 已验证实现 |
+| P0 | S67 OUT 推荐与 Circle2D 点圆偏差 | 端口驱动下一工具发现/自动绑定 | 主圆类型与点圆径向偏差 | 已验证实现 |
+| P0 | S68 IN 补源与直线圆交点 | 已有来源优先、缺源才插入工具 | HALCON 直线圆 0/1/2 交点 | 已验证实现 |
+| P0 | S69 连接问题任务与圆圆关系 | 只读扫描、定位和补源交接 | HALCON 圆圆关系/交点 | 已验证实现 |
+| P0 | S70 本机流程片段与两点构线 | 连续链保存、契约、重映射和整体撤销 | HALCON 两点距离、MainLine/MidPoint | 已验证实现 |
+| P0 | S71 单一分类、纵向流程与步骤记录 | 66 工具同位切换片段、纵向卡、柔性线和记录子页 | HALCON 双 Line2D 关系/交点 | 已验证实现 |
+| P0 | S72 纵向长流程聚焦与点集拟合 | 低权重柔性连接、执行跟随和上下模块导航 | Point2D[] 经 HALCON 拟合 Line2D/残差/XLD | 已验证实现 |
+| P0 | S73 自动纵向布局与点集圆拟合 | 消除自动布局横向浏览、细状态导航轨 | Point2D[] 经 HALCON 拟合 Circle2D/残差/XLD | 已验证实现 |
+| P0 | S74 简洁纵向连接、任务聚焦与点集椭圆拟合 | 280×68 卡、上下锚点、聚焦/全部、可拖动导航视窗、去品牌露出 | Point2D[] 经 HALCON 拟合 Ellipse2D/残差/XLD | 已验证实现 |
+| P0 | S75 真实上下连接锚点与点到椭圆测量 | 聚合锚点就地端口选择、拖接、替换和拒绝反馈 | Point2D + Ellipse2D 经 HALCON distance_pc 输出最近点/距离/XLD | 已验证实现 |
+| P0 | S76 长流程任务透镜与直线段-椭圆交点 | 非相关步骤低噪状态行，当前任务保持完整卡与真实锚点 | Line2D + Ellipse2D 经 HALCON XLD 交点输出 Point2D[]/弦长/XLD | 下一轮 |
 | P0 | 后续资源管理 | 相机/控制器/IO/光源设备页 | WPF 单帧/连续采集和诊断闭环 | 提议，SDK 前需确认 |
 | P1 | 后续通信管理 | 设备、事件、报文监视 | 心跳、重连、超时、映射、触发和回复 | 提议 |
 | P1 | 后续全局逻辑 | 变量/触发/脚本/队列页面 | 类型化跨流程数据与多流程执行 | 提议 |

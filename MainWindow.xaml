@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wfi="clr-namespace:System.Windows.Forms.Integration;assembly=WindowsFormsIntegration"
-        Title="HALCON VM 工业视觉平台"
+        Title="HALCON 工业视觉平台"
         MinWidth="1120"
         MinHeight="700"
         WindowState="Maximized"
@@ -136,7 +136,7 @@
                         <MenuItem Header="项目自检" Click="DiagnosticsButton_Click" />
                     </MenuItem>
                     <MenuItem Header="帮助">
-                        <MenuItem Header="关于 HALCON VM" Click="AboutMenuItem_Click" />
+                        <MenuItem Header="关于本软件" Click="AboutMenuItem_Click" />
                     </MenuItem>
                 </Menu>
                 <DockPanel x:Name="DeveloperAppBar" Grid.Row="1" LastChildFill="True" Height="32" Margin="8,1">
@@ -155,7 +155,7 @@
                         </Border>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="HALCON VM" FontSize="14" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" Margin="2,0,12,0" ToolTip="HALCON VM 工业视觉平台" />
+                        <TextBlock Text="HALCON VISION" FontSize="14" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" Margin="2,0,12,0" ToolTip="自主工业视觉平台" />
                         <TextBlock x:Name="RecipeNameText" Text="方案：未加载" Foreground="#475569" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="320" />
                         <Border x:Name="RecipeStateBadge" Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="8" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
                             <TextBlock x:Name="RecipeStateBadgeText" Text="新方案" Foreground="#92400E" FontSize="11" FontWeight="SemiBold" />
@@ -229,10 +229,11 @@
                 <ColumnDefinition x:Name="RightPanelColumn" Width="520" MinWidth="390" />
             </Grid.ColumnDefinitions>
 
-            <!-- VM-style toolbox -->
+                    <!-- Compact industrial-vision toolbox -->
             <Border x:Name="ToolCatalogPanel" Grid.Column="0" Grid.RowSpan="3" Background="#182235" BorderBrush="#334155" BorderThickness="1" CornerRadius="4">
                 <Grid>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -245,17 +246,65 @@
                         <TextBlock Text="模块箱" Style="{StaticResource PanelHeader}" />
                     </DockPanel>
                     <TextBox x:Name="ToolSearchTextBox" Grid.Row="1" Margin="8,0,8,8" TextChanged="ToolSearchTextBox_TextChanged" ToolTip="搜索工具名称、分类或说明" />
-                    <UniformGrid Grid.Row="2" Columns="4" Margin="6,0,6,6">
-                        <Button x:Name="ToolCatalogCommonButton" Content="常用" MinWidth="0" MinHeight="25" Padding="3,1" Click="ToolCatalogModeButton_Click" Tag="Common" />
-                        <Button x:Name="ToolCatalogFavoriteButton" Content="★ 收藏" MinWidth="0" MinHeight="25" Padding="3,1" Click="ToolCatalogModeButton_Click" Tag="Favorite" />
-                        <Button x:Name="ToolCatalogRecentButton" Content="最近" MinWidth="0" MinHeight="25" Padding="3,1" Click="ToolCatalogModeButton_Click" Tag="Recent" />
-                        <Button x:Name="ToolCatalogAllButton" Content="分类" MinWidth="0" MinHeight="25" Padding="3,1" Click="ToolCatalogModeButton_Click" Tag="All" ToolTip="按 9 个能力分类浏览全部可运行工具" />
-                    </UniformGrid>
-                    <Grid Grid.Row="3" Margin="6,0">
+                    <Border x:Name="ToolRecommendationContextBorder" Grid.Row="2" Visibility="Collapsed" Background="#102A43" BorderBrush="#38BDF8" BorderThickness="1" CornerRadius="3" Padding="7" Margin="7,0,7,6">
+                        <StackPanel>
+                            <DockPanel>
+                                <Button x:Name="ToolRecommendationBackButton" DockPanel.Dock="Right" Content="返回全目录" MinWidth="76" MinHeight="23" Padding="5,1" Click="ToolRecommendationBackButton_Click" />
+                                <TextBlock Text="推荐下一工具" Foreground="#7DD3FC" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <TextBlock x:Name="ToolRecommendationSourceText" Text="来源 --" Foreground="#E0F2FE" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0" />
+                            <TextBlock x:Name="ToolRecommendationRuleText" Text="计划 --" Foreground="#A7F3D0" FontSize="10" TextWrapping="Wrap" Margin="0,2,0,0" />
+                            <TextBlock x:Name="ToolRecommendationRejectText" Text="拒绝原因 --" Foreground="#94A3B8" FontSize="9" TextWrapping="Wrap" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <Border x:Name="ToolInputSourceContextBorder" Grid.Row="2" Visibility="Collapsed" Background="#172554" BorderBrush="#818CF8" BorderThickness="1" CornerRadius="3" Padding="7" Margin="7,0,7,6">
+                        <StackPanel>
+                            <DockPanel>
+                                <Button x:Name="ToolInputSourceBackButton" DockPanel.Dock="Right" Content="返回全目录" MinWidth="76" MinHeight="23" Padding="5,1" Click="ToolInputSourceBackButton_Click" />
+                                <TextBlock Text="补充上游来源" Foreground="#A5B4FC" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <TextBlock x:Name="ToolInputSourceTargetText" Text="目标 --" Foreground="#EEF2FF" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0" />
+                            <TextBlock x:Name="ToolInputSourceRuleText" Text="来源 --" Foreground="#A7F3D0" FontSize="10" TextWrapping="Wrap" Margin="0,2,0,0" />
+                            <TextBlock x:Name="ToolInputSourceRejectText" Text="拒绝原因 --" Foreground="#94A3B8" FontSize="9" TextWrapping="Wrap" Margin="0,2,0,0" />
+                            <ListBox x:Name="ToolInputSourceSuggestionList" Height="98" Margin="0,5,0,0" Background="#111827" BorderBrush="#334155" Foreground="#E2E8F0" HorizontalContentAlignment="Stretch" MouseDoubleClick="ToolInputSourceSuggestionList_MouseDoubleClick">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="5,3" BorderBrush="#334155" BorderThickness="0,0,0,1">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding DisplayText}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding StatusText}" FontSize="9" Foreground="#94A3B8" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <Button x:Name="BindSelectedInputSourceButton" Content="绑定所选现有来源" MinHeight="24" Margin="0,5,0,0" Foreground="#4F46E5" FontWeight="SemiBold" Click="BindSelectedInputSourceButton_Click" />
+                            <TextBlock x:Name="ToolInputSourceCreateHintText" Text="下方目录已切换为可创建来源；双击或 Enter 将工具插在目标前并连接。" Foreground="#FDE68A" FontSize="9" TextWrapping="Wrap" Margin="0,5,0,0" Visibility="Collapsed" />
+                        </StackPanel>
+                    </Border>
+                    <Grid x:Name="ToolCatalogModePanel" Grid.Row="3" Margin="6,0,6,6">
+                        <Button x:Name="ToolCatalogAllButton" Content="分类 ▾" MinHeight="26" Padding="8,1" Click="ToolCatalogCategoryMenuButton_Click" ToolTip="默认按 9 个能力分类浏览全部工具；流程片段也从这里按需进入">
+                            <Button.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="全部工具 · 9 类" FontWeight="SemiBold" Click="ToolCatalogShowAllMenuItem_Click" />
+                                    <MenuItem Header="本机流程片段" Click="ToolCatalogShowSnippetsMenuItem_Click" />
+                                </ContextMenu>
+                            </Button.ContextMenu>
+                        </Button>
+                        <Button x:Name="ToolCatalogCommonButton" Visibility="Collapsed" Click="ToolCatalogModeButton_Click" Tag="Common" />
+                        <Button x:Name="ToolCatalogFavoriteButton" Visibility="Collapsed" Click="ToolCatalogModeButton_Click" Tag="Favorite" />
+                        <Button x:Name="ToolCatalogRecentButton" Visibility="Collapsed" Click="ToolCatalogModeButton_Click" Tag="Recent" />
+                        <Button x:Name="ToolCatalogSnippetButton" Visibility="Collapsed" Click="ToolCatalogSnippetButton_Click" />
+                    </Grid>
+                    <Grid Grid.Row="4" Margin="6,0">
                         <ListBox x:Name="ToolCatalogList" Background="#111827" BorderThickness="0" Foreground="#E2E8F0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="ToolCatalogList_SelectionChanged" MouseDoubleClick="ToolCatalogList_MouseDoubleClick" PreviewKeyDown="ToolCatalogList_PreviewKeyDown" PreviewMouseRightButtonDown="ToolCatalogList_PreviewMouseRightButtonDown" PreviewMouseLeftButtonDown="ToolCatalogList_PreviewMouseLeftButtonDown" PreviewMouseMove="ToolCatalogList_PreviewMouseMove">
                             <ListBox.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="追加到流程末尾" Click="AddToolButton_Click" />
+                                    <MenuItem Header="插入到所选模块之前" InputGestureText="Ctrl+Shift+Enter" Click="InsertSelectedCatalogToolBeforeButton_Click" />
+                                    <MenuItem Header="插入到所选模块之后" InputGestureText="Ctrl+Enter" Click="InsertSelectedCatalogToolAfterButton_Click" />
+                                    <MenuItem Header="使用所选 OUT 推荐插入" Click="ToolCatalogInsertRecommendationMenuItem_Click" />
+                                    <MenuItem Header="为所选 IN 创建上游来源" Click="ToolCatalogInsertInputSourceMenuItem_Click" />
                                     <MenuItem Header="切换收藏" Click="ToolCatalogToggleFavoriteMenuItem_Click" />
                                     <MenuItem Header="能力与端口预览" Click="ToolCatalogShowDescriptionMenuItem_Click" />
                                 </ContextMenu>
@@ -291,7 +340,7 @@
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
                                             <TextBlock Text="{Binding Category}" Foreground="#0284C7" Margin="0,2,0,0" />
                                             <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,5,0,0" />
-                                            <TextBlock Text="双击或 Enter 追加；拖拽可指定线性插入位置" Foreground="#64748B" Margin="0,5,0,0" />
+                                            <TextBlock Text="Enter 追加；Ctrl+Enter / Ctrl+Shift+Enter 按所选模块插入" Foreground="#64748B" Margin="0,5,0,0" />
                                         </StackPanel>
                                     </Border.ToolTip>
                                     <Grid>
@@ -300,7 +349,7 @@
                                             <TextBlock DockPanel.Dock="Right" Text="{Binding RecentText}" Foreground="#A7F3D0" FontSize="9" Margin="5,0,0,0" />
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                         </DockPanel>
-                                        <Button Grid.Column="1" Content="{Binding FavoriteGlyph}" ToolTip="{Binding FavoriteHint}" Tag="{Binding}" MinWidth="22" Width="22" MinHeight="22" Height="22" Padding="0" Margin="3,0,0,0" Foreground="#FBBF24" Background="Transparent" BorderThickness="0" Click="ToolCatalogFavoriteButton_Click">
+                                        <Button Grid.Column="1" Visibility="Collapsed" Content="{Binding FavoriteGlyph}" ToolTip="{Binding FavoriteHint}" Tag="{Binding}" MinWidth="22" Width="22" MinHeight="22" Height="22" Padding="0" Margin="3,0,0,0" Foreground="#FBBF24" Background="Transparent" BorderThickness="0" Click="ToolCatalogFavoriteButton_Click">
                                             <Button.Style>
                                                 <Style TargetType="Button">
                                                     <Setter Property="Opacity" Value="0" />
@@ -328,9 +377,33 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                         </ListBox>
+                        <ListBox x:Name="ToolSnippetCatalogList" Visibility="Collapsed" Background="#111827" BorderThickness="0" Foreground="#E2E8F0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="ToolSnippetCatalogList_SelectionChanged" MouseDoubleClick="ToolSnippetCatalogList_MouseDoubleClick" PreviewKeyDown="ToolSnippetCatalogList_PreviewKeyDown" PreviewMouseRightButtonDown="ToolSnippetCatalogList_PreviewMouseRightButtonDown" PreviewMouseLeftButtonDown="ToolSnippetCatalogList_PreviewMouseLeftButtonDown" PreviewMouseMove="ToolSnippetCatalogList_PreviewMouseMove">
+                            <ListBox.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="插入到所选模块之前" Click="ToolSnippetInsertBeforeMenuItem_Click" />
+                                    <MenuItem Header="插入到所选模块之后" Click="ToolSnippetInsertAfterMenuItem_Click" />
+                                    <Separator />
+                                    <MenuItem Header="打开片段管理" Click="ToolSnippetOpenManagerMenuItem_Click" />
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="7,5" Margin="1" MinHeight="48" BorderBrush="#334155" BorderThickness="0,0,0,1">
+                                        <StackPanel>
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding UpdatedText}" Foreground="#64748B" FontSize="9" Margin="5,1,0,0" />
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#F8FAFC" TextTrimming="CharacterEllipsis" />
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding ToolSummary}" Foreground="#7DD3FC" FontSize="9" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+                                            <TextBlock Text="{Binding ContractSummary}" Foreground="#FDE68A" FontSize="9" TextTrimming="CharacterEllipsis" Margin="0,1,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
                         <TextBlock x:Name="ToolCatalogEmptyText" Text="当前筛选没有工具。可切换“全部”或清空搜索。" Visibility="Collapsed" Foreground="#94A3B8" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center" Margin="18" IsHitTestVisible="False" />
                     </Grid>
-                    <Expander x:Name="ToolCapabilityExpander" Grid.Row="4" Header="能力 / 端口预览" IsExpanded="False" Margin="7,3,7,0" Foreground="#CBD5E1" Expanded="ToolCapabilityExpander_Expanded">
+                    <Expander x:Name="ToolCapabilityExpander" Grid.Row="5" Header="能力 / 端口预览" IsExpanded="False" Margin="7,3,7,0" Foreground="#CBD5E1" Expanded="ToolCapabilityExpander_Expanded">
                         <Border Background="#0F172A" BorderBrush="#334155" BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,3,0,2">
                             <StackPanel>
                                 <DockPanel>
@@ -341,11 +414,18 @@
                                 <TextBlock x:Name="ToolCapabilityInputText" Text="IN  --" Foreground="#93C5FD" TextWrapping="Wrap" Margin="0,5,0,0" />
                                 <TextBlock x:Name="ToolCapabilityOutputText" Text="OUT --" Foreground="#A7F3D0" TextWrapping="Wrap" Margin="0,3,0,0" />
                                 <TextBlock x:Name="ToolCapabilityGraphicsText" Text="ROI / 图形 --" Foreground="#C4B5FD" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                <Border Background="#172033" BorderBrush="#334155" BorderThickness="1" CornerRadius="3" Padding="6" Margin="0,6,0,0">
+                                    <StackPanel>
+                                        <TextBlock x:Name="ToolCapabilityInsertAnchorText" Text="插入锚点：未选择流程模块" Foreground="#FBBF24" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="ToolCapabilityCompatibilityText" Text="就近兼容：--" Foreground="#93C5FD" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                        <TextBlock x:Name="ToolCapabilityInsertStatusText" Text="从工具行或流程节点右键插入；缺失输入会明确保留为待连接。" Foreground="#94A3B8" FontSize="10" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Border>
                                 <TextBlock Text="规划缺口（不可拖入）：相机 SDK、完整标定、OCR/读码扩展" Foreground="#94A3B8" FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0" />
                             </StackPanel>
                         </Border>
                     </Expander>
-                    <TextBlock x:Name="ToolCatalogStatusText" Grid.Row="5" Text="双击、Enter 或拖入流程" Foreground="#94A3B8" FontSize="10" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Margin="9,5,9,7" />
+                    <TextBlock x:Name="ToolCatalogStatusText" Grid.Row="6" Text="双击、Enter 或拖入流程" Foreground="#94A3B8" FontSize="10" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Margin="9,5,9,7" />
                 </Grid>
             </Border>
 
@@ -389,6 +469,15 @@
                                 <Button x:Name="DebugContinueButton" Content="▶ 继续" MinWidth="58" ToolTip="从断点或单步暂停位置继续确定性执行" Click="DebugContinueButton_Click" />
                                 <Button x:Name="ToggleBreakpointButton" Content="● 断点" MinWidth="58" Foreground="#B91C1C" ToolTip="设置或取消所选模块断点；断点在模块执行前命中" Click="ToggleBreakpointButton_Click" />
                                 <Button Content="运行到此" MinWidth="66" Click="RunToHereButton_Click" /><Button Content="从此运行" MinWidth="66" Click="RunFromHereButton_Click" /><Button x:Name="ClearBreakpointsButton" Content="清断点" MinWidth="54" Click="ClearBreakpointsButton_Click" />
+                                <Button x:Name="OpenConnectionIssuesButton" Content="连接问题" MinWidth="72" Foreground="#B45309" FontWeight="SemiBold" ToolTip="按需扫描全部启用模块的缺失、错误或陈旧必需输入；清单本身不会改线" Click="OpenConnectionIssuesButton_Click" />
+                                <Button x:Name="OpenFlowSnippetLibraryButton" Content="流程片段" MinWidth="72" Foreground="#0369A1" FontWeight="SemiBold" ToolTip="按需保存和插入多模块确定性流程片段；不复制运行态对象" Click="OpenFlowSnippetLibraryButton_Click" />
+                                <Border Margin="4,0,0,0" Padding="4,0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Background="#F8FAFC">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="连线" Margin="0,0,4,0" VerticalAlignment="Center" Foreground="#64748B" />
+                                        <RadioButton x:Name="FlowTaskFocusModeRadioS74" GroupName="FlowConnectionDisplayModeS74" Content="任务聚焦" IsChecked="True" Margin="0,0,6,0" VerticalAlignment="Center" ToolTip="只显示当前步骤直接依赖、执行路径、断点和错误；不修改真实连接" Checked="FlowConnectionDisplayMode_CheckedS74" />
+                                        <RadioButton x:Name="FlowAllDependenciesModeRadioS74" GroupName="FlowConnectionDisplayModeS74" Content="全部依赖" VerticalAlignment="Center" ToolTip="显示完整真实 InputBindings 连接" Checked="FlowConnectionDisplayMode_CheckedS74" />
+                                    </StackPanel>
+                                </Border>
                                 <Separator Width="6" Opacity="0" />
                                 <Button x:Name="UndoFlowEditButton" Visibility="Collapsed" Content="↶ 撤销" MinWidth="58" ToolTip="撤销最近一次真实流程编辑（Ctrl+Z）" Click="UndoFlowEditButton_Click" />
                                 <Button x:Name="RedoFlowEditButton" Visibility="Collapsed" Content="↷ 重做" MinWidth="58" ToolTip="重做最近撤销的流程编辑（Ctrl+Y / Ctrl+Shift+Z）" Click="RedoFlowEditButton_Click" />
@@ -438,7 +527,7 @@
                         <ColumnDefinition Width="5" />
                         <ColumnDefinition x:Name="FlowDebugMonitorColumn" Width="0" />
                     </Grid.ColumnDefinitions>
-                    <ScrollViewer x:Name="FlowGraphViewport" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="#FAFCFF" AllowDrop="True" PreviewDragOver="FlowGraphViewport_PreviewDragOver" DragLeave="FlowToolList_DragLeave" Drop="FlowGraphViewport_Drop" PreviewMouseDown="FlowGraphViewport_PreviewMouseMiddleButtonDown" PreviewMouseUp="FlowGraphViewport_PreviewMouseMiddleButtonUp" PreviewMouseMove="FlowGraphViewport_PreviewMouseMove">
+                    <ScrollViewer x:Name="FlowGraphViewport" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Background="#FAFCFF" AllowDrop="True" SizeChanged="FlowGraphViewport_SizeChangedS73" ScrollChanged="FlowGraphViewport_ScrollChangedS74" PreviewDragOver="FlowGraphViewport_PreviewDragOver" DragLeave="FlowToolList_DragLeave" Drop="FlowGraphViewport_Drop" PreviewMouseDown="FlowGraphViewport_PreviewMouseMiddleButtonDown" PreviewMouseUp="FlowGraphViewport_PreviewMouseMiddleButtonUp" PreviewMouseMove="FlowGraphViewport_PreviewMouseMove" PreviewMouseWheel="FlowGraphViewport_PreviewMouseWheelS72">
                         <Canvas x:Name="FlowGraphCanvas" Width="1000" Height="700" PreviewMouseLeftButtonDown="FlowGraphCanvas_PreviewMouseLeftButtonDown" PreviewMouseLeftButtonUp="FlowGraphCanvas_PreviewMouseLeftButtonUp" MouseMove="FlowGraphCanvas_MouseMove" MouseRightButtonDown="FlowGraphCanvas_MouseRightButtonDown">
                             <Canvas.Background>
                                 <DrawingBrush TileMode="Tile" Viewport="0,0,24,24" ViewportUnits="Absolute">
@@ -463,6 +552,9 @@
                                     <MenuItem Header="清除全部断点" Click="ClearBreakpointsButton_Click" />
                                     <MenuItem Header="单步执行" Click="DebugStepButton_Click" />
                                     <MenuItem Header="继续调试" Click="DebugContinueButton_Click" />
+                                    <MenuItem Header="定位当前执行模块" InputGestureText="Alt+Enter" Click="LocateExecutionPointerMenuItem_ClickS72" />
+                                    <MenuItem Header="上一个模块" InputGestureText="Alt+↑" Click="PreviousFlowToolMenuItem_ClickS72" />
+                                    <MenuItem Header="下一个模块" InputGestureText="Alt+↓" Click="NextFlowToolMenuItem_ClickS72" />
                                     <Separator />
                                     <MenuItem Header="创建流程组合" Click="CreateFlowGroupButton_Click" />
                                     <MenuItem Header="解组" Click="UngroupFlowGroupButton_Click" />
@@ -517,15 +609,10 @@
                                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid>
+                                        <Grid Visibility="{Binding IsVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                                             <Path Data="{Binding Geometry}" Stroke="Transparent" StrokeThickness="16" StrokeLineJoin="Round" Cursor="Hand" Tag="{Binding}" MouseLeftButtonDown="FlowConnectionPath_MouseLeftButtonDown" />
-                                            <Path x:Name="VisibleConnectionPath" Data="{Binding Geometry}" Stroke="{Binding Stroke}" StrokeThickness="{Binding StrokeThickness}" StrokeDashArray="{Binding StrokeDashArray}" StrokeLineJoin="Round" IsHitTestVisible="False" ToolTip="{Binding StatusText}" />
+                                            <Path x:Name="VisibleConnectionPath" Data="{Binding Geometry}" Stroke="{Binding Stroke}" StrokeThickness="{Binding StrokeThickness}" StrokeDashArray="{Binding StrokeDashArray}" Opacity="{Binding StrokeOpacity}" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" IsHitTestVisible="False" ToolTip="{Binding StatusText}" />
                                         </Grid>
-                                        <DataTemplate.Triggers>
-                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                <Setter TargetName="VisibleConnectionPath" Property="Effect"><Setter.Value><DropShadowEffect Color="#1D4ED8" BlurRadius="7" ShadowDepth="0" Opacity="0.8" /></Setter.Value></Setter>
-                                            </DataTrigger>
-                                        </DataTemplate.Triggers>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
@@ -555,14 +642,24 @@
                                 </ItemsControl.ItemContainerStyle>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border x:Name="GraphToolCard" Tag="{Binding}" Width="360" Height="{Binding GraphHeight}" Background="#FFFFFF" BorderBrush="#94A3B8" BorderThickness="1" CornerRadius="5" Cursor="SizeAll" MouseLeftButtonDown="FlowGraphNode_MouseLeftButtonDown" MouseRightButtonDown="FlowGraphNode_MouseRightButtonDown" ToolTip="{Binding DependencySummary}">
+                                        <Border x:Name="GraphToolCard" Tag="{Binding}" Width="280" Height="{Binding GraphHeight}" Background="#FFFFFF" BorderBrush="#94A3B8" BorderThickness="1" CornerRadius="5" Cursor="SizeAll" MouseLeftButtonDown="FlowGraphNode_MouseLeftButtonDown" MouseRightButtonDown="FlowGraphNode_MouseRightButtonDown" ToolTip="{Binding DependencySummary}">
                                             <Border.ContextMenu>
                                                 <ContextMenu>
                                                     <MenuItem Header="配置模块" FontWeight="SemiBold" Click="ConfigureToolButton_Click" />
+                                                    <MenuItem Header="步骤日志 / 通讯" Click="OpenFlowStepActivityMenuItem_Click" />
+                                                    <MenuItem Header="上一个模块" InputGestureText="Alt+↑" Click="PreviousFlowToolMenuItem_ClickS72" />
+                                                    <MenuItem Header="下一个模块" InputGestureText="Alt+↓" Click="NextFlowToolMenuItem_ClickS72" />
+                                                    <MenuItem Header="定位当前执行模块" InputGestureText="Alt+Enter" Click="LocateExecutionPointerMenuItem_ClickS72" />
+                                                    <Separator />
+                                                    <MenuItem Header="运行当前" Click="RunCurrentToolButton_Click" />
+                                                    <MenuItem Header="运行到此" Click="RunToHereButton_Click" />
+                                                    <MenuItem Header="从此运行" Click="RunFromHereButton_Click" />
                                                     <Separator />
                                                     <MenuItem Header="复制模块" InputGestureText="Ctrl+C" Click="CopyFlowToolButton_Click" />
                                                     <MenuItem Header="粘贴到模块之后" InputGestureText="Ctrl+V" Click="PasteFlowToolButton_Click" />
                                                     <MenuItem Header="创建副本" Click="DuplicateFlowToolButton_Click" />
+                                                    <MenuItem Header="从模块箱插入到此前" Click="InsertSelectedCatalogToolBeforeButton_Click" />
+                                                    <MenuItem Header="从模块箱插入到此后" Click="InsertSelectedCatalogToolAfterButton_Click" />
                                                     <Separator />
                                                     <MenuItem Header="启用选中模块" Click="BatchEnableFlowToolsButton_Click" />
                                                     <MenuItem Header="停用选中模块" Click="BatchDisableFlowToolsButton_Click" />
@@ -579,22 +676,23 @@
                                                 </ContextMenu>
                                             </Border.ContextMenu>
                                             <Grid>
-                                                <Grid.RowDefinitions><RowDefinition Height="58" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                                                <Border Background="#263449" CornerRadius="4,4,0,0" Padding="9,6">
+                                                <Grid.RowDefinitions><RowDefinition Height="48" /><RowDefinition Height="20" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                                <Ellipse x:Name="S75InputAnchor" Uid="S75:IN" Tag="{Binding}" Panel.ZIndex="12" Width="10" Height="10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-5,0,0" Fill="#FFFFFF" Stroke="#64748B" StrokeThickness="2" Cursor="Hand" ToolTip="输入连接点：点击查看精确端口；单端口可直接拖接" MouseLeftButtonDown="FlowAggregateAnchor_MouseLeftButtonDownS75" />
+                                                <Ellipse x:Name="S75OutputAnchor" Uid="S75:OUT" Tag="{Binding}" Panel.ZIndex="12" Width="10" Height="10" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,-5" Fill="#FFFFFF" Stroke="#0F766E" StrokeThickness="2" Cursor="Hand" ToolTip="输出连接点：点击查看精确端口；单端口可直接拖接" MouseLeftButtonDown="FlowAggregateAnchor_MouseLeftButtonDownS75" />
+                                                <Border Background="#263449" CornerRadius="4,4,0,0" Padding="7,5">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                                        <Border Width="32" Height="32" CornerRadius="16" Background="#E0F2FE" Margin="0,0,8,0"><TextBlock Text="{Binding SequenceText}" Foreground="#0369A1" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                                                        <Border Width="28" Height="28" CornerRadius="14" Background="#E0F2FE" Margin="0,0,7,0"><TextBlock Text="{Binding SequenceText}" Foreground="#0369A1" FontWeight="Bold" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
                                                         <StackPanel Grid.Column="1">
                                                             <TextBlock Text="{Binding InstanceName}" Foreground="White" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                                             <TextBlock Text="{Binding DisplayType}" Foreground="#CBD5E1" FontSize="10" TextTrimming="CharacterEllipsis" />
                                                             <TextBlock Text="{Binding RunStatus}" Foreground="#93C5FD" FontSize="9" />
-                                                            <TextBlock Text="{Binding GroupBadgeText}" Foreground="#FCD34D" FontSize="8" TextTrimming="CharacterEllipsis" />
                                                         </StackPanel>
                                                         <StackPanel Grid.Column="2" VerticalAlignment="Top">
                                                             <Border Background="#E2E8F0" CornerRadius="9" Padding="7,2" HorizontalAlignment="Right"><TextBlock Text="{Binding ResultCode}" Foreground="#334155" FontWeight="Bold" /></Border>
                                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,2,0,0">
-                                                                <TextBlock Text="{Binding ElapsedText}" Foreground="#CBD5E1" FontSize="9" VerticalAlignment="Center" Margin="0,0,5,0" />
-                                                                <ToggleButton Content="{Binding FlowDetailToggleText}" Tag="{Binding}" MinWidth="38" Height="20" Padding="3,0" FontSize="9" Click="ToggleFlowNodeDetailsButton_Click" ToolTip="按需展开或收起完整端口；默认只显示关键依赖摘要" />
+                                                                <Button Content="记录" Tag="{Binding}" MinWidth="34" Height="19" Padding="2,0" FontSize="9" Margin="0,0,3,0" Click="OpenFlowStepActivityButton_Click" ToolTip="按需打开该步骤的日志与通讯子页面" />
+                                                                <ToggleButton Content="{Binding FlowDetailToggleText}" Tag="{Binding}" MinWidth="34" Height="19" Padding="2,0" FontSize="9" Click="ToggleFlowNodeDetailsButton_Click" ToolTip="按需展开或收起完整端口；默认只显示关键依赖摘要" />
                                                             </StackPanel>
                                                         </StackPanel>
                                                     </Grid>
@@ -658,13 +756,48 @@
                                             <DataTrigger Binding="{Binding DependencyState}" Value="Selected"><Setter TargetName="GraphToolCard" Property="Background" Value="#EFF6FF" /><Setter TargetName="GraphToolCard" Property="BorderBrush" Value="#2563EB" /><Setter TargetName="GraphToolCard" Property="BorderThickness" Value="3" /></DataTrigger>
                                             <DataTrigger Binding="{Binding DependencyState}" Value="ConnectionSource"><Setter TargetName="GraphToolCard" Property="Background" Value="#ECFEFF" /><Setter TargetName="GraphToolCard" Property="BorderBrush" Value="#0891B2" /><Setter TargetName="GraphToolCard" Property="BorderThickness" Value="4" /></DataTrigger>
                                             <DataTrigger Binding="{Binding DependencyState}" Value="ConnectionTarget"><Setter TargetName="GraphToolCard" Property="Background" Value="#EFF6FF" /><Setter TargetName="GraphToolCard" Property="BorderBrush" Value="#1D4ED8" /><Setter TargetName="GraphToolCard" Property="BorderThickness" Value="4" /></DataTrigger>
-                                            <DataTrigger Binding="{Binding IsFlowSelected}" Value="True"><Setter TargetName="GraphToolCard" Property="Background" Value="#DBEAFE" /><Setter TargetName="GraphToolCard" Property="BorderBrush" Value="#2563EB" /><Setter TargetName="GraphToolCard" Property="BorderThickness" Value="4" /><Setter TargetName="GraphToolCard" Property="Effect"><Setter.Value><DropShadowEffect Color="#2563EB" BlurRadius="8" ShadowDepth="0" Opacity="0.45" /></Setter.Value></Setter></DataTrigger>
-                                            <DataTrigger Binding="{Binding IsExecutionPointer}" Value="True"><Setter TargetName="GraphToolCard" Property="Background" Value="#FFF7ED" /><Setter TargetName="GraphToolCard" Property="BorderBrush" Value="#F59E0B" /><Setter TargetName="GraphToolCard" Property="BorderThickness" Value="5" /><Setter TargetName="GraphToolCard" Property="Effect"><Setter.Value><DropShadowEffect Color="#F59E0B" BlurRadius="12" ShadowDepth="0" Opacity="0.7" /></Setter.Value></Setter></DataTrigger>
+                                            <DataTrigger Binding="{Binding IsFlowSelected}" Value="True"><Setter TargetName="GraphToolCard" Property="Background" Value="#DBEAFE" /><Setter TargetName="GraphToolCard" Property="BorderBrush" Value="#2563EB" /><Setter TargetName="GraphToolCard" Property="BorderThickness" Value="4" /></DataTrigger>
+                                            <DataTrigger Binding="{Binding IsExecutionPointer}" Value="True"><Setter TargetName="GraphToolCard" Property="Background" Value="#FFF7ED" /><Setter TargetName="GraphToolCard" Property="BorderBrush" Value="#F59E0B" /><Setter TargetName="GraphToolCard" Property="BorderThickness" Value="5" /></DataTrigger>
                                         </DataTemplate.Triggers>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                            <Path x:Name="FlowPortDragPreviewPath" Panel.ZIndex="38" Visibility="Collapsed" IsHitTestVisible="False" Stroke="#2563EB" StrokeThickness="4" StrokeDashArray="7,4" StrokeLineJoin="Round" />
+                            <Border x:Name="FlowAggregatePortFlyoutS75" Panel.ZIndex="42" Visibility="Collapsed" Width="292" MaxHeight="360" Background="#FCFFFFFF" BorderBrush="#64748B" BorderThickness="1" CornerRadius="5" Padding="8">
+                                <Grid>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="×" Width="24" Height="22" Padding="0" Click="CloseFlowAggregatePortFlyoutButton_ClickS75" />
+                                        <TextBlock x:Name="FlowAggregatePortTitleTextS75" Text="精确端口" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                    <TextBlock x:Name="FlowAggregatePortSummaryTextS75" Grid.Row="1" Margin="0,3,0,6" Foreground="#64748B" FontSize="9" TextWrapping="Wrap" />
+                                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                        <ItemsControl x:Name="FlowAggregatePortItemsS75">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border x:Name="AggregatePortRowS75" Tag="{Binding}" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="6,4" Margin="0,0,0,4" Cursor="Hand" MouseLeftButtonDown="FlowAggregatePortChoice_MouseLeftButtonDownS75" ToolTip="{Binding StatusText}">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                            <StackPanel>
+                                                                <TextBlock FontSize="10" FontWeight="SemiBold" Text="{Binding PortText}" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="{Binding EndpointText}" FontSize="9" Foreground="#64748B" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
+                                                            <Button x:Name="AggregateClearButtonS75" Grid.Column="1" Content="清除" Tag="{Binding}" Height="22" MinWidth="38" Padding="3,0" Margin="6,0,0,0" Foreground="#B91C1C" MouseLeftButtonDown="FlowAggregatePortClearButton_MouseLeftButtonDownS75" />
+                                                        </Grid>
+                                                    </Border>
+                                                    <DataTemplate.Triggers>
+                                                        <DataTrigger Binding="{Binding Direction}" Value="OUT"><Setter TargetName="AggregateClearButtonS75" Property="Visibility" Value="Collapsed" /><Setter TargetName="AggregatePortRowS75" Property="Background" Value="#F0FDFA" /><Setter TargetName="AggregatePortRowS75" Property="BorderBrush" Value="#5EEAD4" /></DataTrigger>
+                                                        <DataTrigger Binding="{Binding StateKey}" Value="Ready"><Setter TargetName="AggregatePortRowS75" Property="BorderBrush" Value="#10B981" /></DataTrigger>
+                                                        <DataTrigger Binding="{Binding StateKey}" Value="Missing"><Setter TargetName="AggregatePortRowS75" Property="BorderBrush" Value="#EF4444" /></DataTrigger>
+                                                        <DataTrigger Binding="{Binding StateKey}" Value="Error"><Setter TargetName="AggregatePortRowS75" Property="BorderBrush" Value="#DC2626" /></DataTrigger>
+                                                    </DataTemplate.Triggers>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                    <TextBlock x:Name="FlowAggregatePortHintTextS75" Grid.Row="3" Margin="0,4,0,0" Foreground="#475569" FontSize="9" TextWrapping="Wrap" />
+                                </Grid>
+                            </Border>
+                            <Path x:Name="FlowPortDragPreviewPath" Panel.ZIndex="38" Visibility="Collapsed" IsHitTestVisible="False" Stroke="#2563EB" StrokeThickness="2" StrokeLineJoin="Miter" />
                             <Border x:Name="FlowPortDragStatusBorder" Panel.ZIndex="39" Visibility="Collapsed" IsHitTestVisible="False" Background="#F2FFFFFF" BorderBrush="#2563EB" BorderThickness="1.5" CornerRadius="5" Padding="9,5">
                                 <StackPanel>
                                     <TextBlock x:Name="FlowPortDragEndpointText" Text="OUT → IN" FontWeight="SemiBold" Foreground="#0F172A" FontSize="10" />
@@ -675,6 +808,29 @@
                             <Border x:Name="FlowGraphEmptyState" Visibility="Collapsed" Canvas.Left="30" Canvas.Top="30" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="5" Padding="18"><TextBlock Text="流程为空：从左侧工具箱双击或拖入第一个模块。" Foreground="#64748B" /></Border>
                         </Canvas>
                     </ScrollViewer>
+                    <Border x:Name="FlowNavigatorRailS73" Panel.ZIndex="45" Width="24" Margin="6,12,0,12" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="#E6F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="8" ToolTip="长流程状态导航：点击标记定位真实步骤；蓝=选中，橙=执行，红=异常/阻断，紫=断点">
+                        <Grid x:Name="FlowNavigatorTrackS73" SizeChanged="FlowNavigatorTrack_SizeChangedS73" PreviewMouseLeftButtonDown="FlowNavigatorTrack_PreviewMouseLeftButtonDownS74" PreviewMouseLeftButtonUp="FlowNavigatorTrack_PreviewMouseLeftButtonUpS74" PreviewMouseMove="FlowNavigatorTrack_PreviewMouseMoveS74">
+                            <Border Width="2" Margin="0,8" HorizontalAlignment="Center" Background="#CBD5E1" CornerRadius="1" />
+                            <Canvas x:Name="FlowNavigatorViewportCanvasS74" Panel.ZIndex="1" Background="Transparent">
+                                <Border x:Name="FlowNavigatorViewportThumbS74" Width="18" Canvas.Left="2" Background="#262563EB" BorderBrush="#602563EB" BorderThickness="1" CornerRadius="5" ToolTip="当前可见流程范围；拖动或点击导航空白可快速纵向定位" />
+                            </Canvas>
+                            <ItemsControl x:Name="FlowNavigatorItemsS73" Panel.ZIndex="2">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><Canvas /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter"><Setter Property="Canvas.Left" Value="4" /><Setter Property="Canvas.Top" Value="{Binding Top}" /></Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Tag="{Binding ToolId}" Width="14" Height="{Binding MarkerHeight}" Padding="0" Background="{Binding Fill}" BorderBrush="{Binding Stroke}" BorderThickness="1" ToolTip="{Binding ToolTip}" Click="FlowNavigatorMarker_ClickS73">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="3" /></ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </Border>
                     <ListBox x:Name="FlowToolList" Visibility="Collapsed" Margin="4" Padding="18,10" Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionMode="Extended" SelectionChanged="FlowToolList_SelectionChanged" MouseDoubleClick="FlowToolList_MouseDoubleClick" PreviewMouseRightButtonDown="FlowToolList_PreviewMouseRightButtonDown" AllowDrop="True" PreviewDragOver="FlowToolList_PreviewDragOver" DragLeave="FlowToolList_DragLeave" Drop="FlowToolList_Drop">
                         <ListBox.ContextMenu>
                             <ContextMenu>
@@ -683,6 +839,8 @@
                                 <MenuItem Header="复制模块" InputGestureText="Ctrl+C" Click="CopyFlowToolButton_Click" />
                                 <MenuItem Header="粘贴到选中模块之后" InputGestureText="Ctrl+V" Click="PasteFlowToolButton_Click" />
                                 <MenuItem Header="创建副本" Click="DuplicateFlowToolButton_Click" />
+                                <MenuItem Header="从模块箱插入到此前" Click="InsertSelectedCatalogToolBeforeButton_Click" />
+                                <MenuItem Header="从模块箱插入到此后" Click="InsertSelectedCatalogToolAfterButton_Click" />
                                 <MenuItem Header="启用选中模块" Click="BatchEnableFlowToolsButton_Click" />
                                 <MenuItem Header="停用选中模块" Click="BatchDisableFlowToolsButton_Click" />
                                 <Separator />
@@ -782,6 +940,32 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+                    <Border x:Name="FlowStepActivityPanel" Visibility="Collapsed" Width="560" MaxHeight="620" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#FCFFFFFF" BorderBrush="#475569" BorderThickness="1.5" CornerRadius="6" Padding="11" Panel.ZIndex="26">
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <Button Content="刷新" Width="48" Height="24" Padding="0" Click="RefreshFlowStepActivityButton_Click" />
+                                    <Button Content="×" Width="26" Height="24" Padding="0" Click="CloseFlowStepActivityButton_Click" ToolTip="关闭步骤记录子页面" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="步骤日志 / 通讯" Foreground="#0F172A" FontWeight="SemiBold" FontSize="14" />
+                                    <TextBlock x:Name="FlowStepActivityTitleText" Text="--" Foreground="#475569" FontSize="10" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </DockPanel>
+                            <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="7" Margin="0,8,0,6">
+                                <TextBlock x:Name="FlowStepActivitySummaryText" Text="--" Foreground="#334155" TextWrapping="Wrap" />
+                            </Border>
+                            <TabControl Grid.Row="2" Height="390">
+                                <TabItem Header="步骤日志">
+                                    <TextBox x:Name="FlowStepLogTextBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#0F172A" Foreground="#E2E8F0" FontFamily="Consolas" FontSize="10" />
+                                </TabItem>
+                                <TabItem Header="通讯交互">
+                                    <TextBox x:Name="FlowStepCommunicationTextBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#0F172A" Foreground="#E2E8F0" FontFamily="Consolas" FontSize="10" />
+                                </TabItem>
+                            </TabControl>
+                        </Grid>
+                    </Border>
                     <Border x:Name="FlowConnectionInspectorBorder" Visibility="Collapsed" Width="390" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="12" Background="#F9FFFFFF" BorderBrush="#1D4ED8" BorderThickness="1.5" CornerRadius="6" Padding="11" Panel.ZIndex="20">
                         <Grid>
                             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
@@ -864,6 +1048,119 @@
                                     <Button Content="定位输出模块" MinWidth="92" Click="LocateSelectedFlowPortOwnerButton_Click" />
                                 </WrapPanel>
                             </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border x:Name="FlowConnectionIssuePanel" Visibility="Collapsed" Width="480" MaxHeight="540" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12" Background="#FCFFFFFF" BorderBrush="#D97706" BorderThickness="1.5" CornerRadius="6" Padding="11" Panel.ZIndex="22">
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <Button Content="刷新" Width="48" Height="24" Padding="0" Click="RefreshConnectionIssuesButton_Click" />
+                                    <Button Content="×" Width="26" Height="24" Padding="0" ToolTip="关闭连接问题任务清单" Click="CloseConnectionIssuePanelButton_Click" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="流程连接问题" FontSize="15" FontWeight="SemiBold" Foreground="#0F172A" />
+                                    <TextBlock x:Name="FlowConnectionIssueSummaryText" Text="--" FontSize="11" Foreground="#B45309" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </DockPanel>
+                            <DockPanel Grid.Row="1" Margin="0,8,0,5">
+                                <TextBlock x:Name="FlowConnectionIssuePositionText" DockPanel.Dock="Right" Text="-- / --" Foreground="#64748B" VerticalAlignment="Center" />
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="‹ 上一项" MinWidth="66" Click="PreviousConnectionIssueButton_Click" />
+                                    <Button Content="下一项 ›" MinWidth="66" Click="NextConnectionIssueButton_Click" />
+                                </StackPanel>
+                            </DockPanel>
+                            <TextBlock x:Name="FlowConnectionIssueEmptyText" Grid.Row="2" Text="没有发现必需输入连接问题。" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#0F766E" FontWeight="SemiBold" Margin="18" />
+                            <ListBox x:Name="FlowConnectionIssueListBox" Grid.Row="2" Height="220" ItemsSource="{Binding}" BorderBrush="#CBD5E1" SelectionChanged="FlowConnectionIssueListBox_SelectionChanged" MouseDoubleClick="FlowConnectionIssueListBox_MouseDoubleClick" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="4,4">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="48" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <Border Background="#FFF7ED" BorderBrush="{Binding SeverityBrush}" BorderThickness="1" CornerRadius="9" Padding="5,1" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                                <TextBlock Text="{Binding SeverityText}" Foreground="{Binding SeverityBrush}" FontSize="10" FontWeight="Bold" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="{Binding TargetText}" FontWeight="SemiBold" Foreground="#1E293B" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock FontSize="10" Foreground="#475569" TextWrapping="Wrap"><Run Text="需要 " /><Run Text="{Binding DataType}" FontWeight="SemiBold" /><Run Text=" · 来源 " /><Run Text="{Binding SourceText}" /></TextBlock>
+                                                <TextBlock Text="{Binding ReasonText}" FontSize="10" Foreground="{Binding SeverityBrush}" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <Border Grid.Row="3" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,7,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="70" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <TextBlock Text="目标" Foreground="#64748B" /><TextBlock x:Name="FlowConnectionIssueTargetText" Grid.Column="1" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="1" Text="需要类型" Foreground="#64748B" /><TextBlock x:Name="FlowConnectionIssueTypeText" Grid.Row="1" Grid.Column="1" />
+                                    <TextBlock Grid.Row="2" Text="当前来源" Foreground="#64748B" /><TextBlock x:Name="FlowConnectionIssueSourceText" Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="3" Text="原因" Foreground="#64748B" /><TextBlock x:Name="FlowConnectionIssueReasonText" Grid.Row="3" Grid.Column="1" Foreground="#B91C1C" TextWrapping="Wrap" />
+                                </Grid>
+                            </Border>
+                            <DockPanel Grid.Row="4" Margin="0,8,0,0">
+                                <TextBlock Text="只读扫描 · 未选择时绝不自动改线" Foreground="#64748B" FontSize="10" VerticalAlignment="Center" />
+                                <WrapPanel DockPanel.Dock="Right">
+                                    <Button Content="定位节点" MinWidth="70" Click="LocateConnectionIssueButton_Click" />
+                                    <Button Content="打开 I/O" MinWidth="70" Click="OpenConnectionIssueIoButton_Click" />
+                                    <Button x:Name="OpenConnectionIssueSourceButton" Content="补充来源" MinWidth="76" Foreground="#7C3AED" FontWeight="SemiBold" Click="OpenConnectionIssueSourceButton_Click" />
+                                </WrapPanel>
+                            </DockPanel>
+                        </Grid>
+                    </Border>
+                    <Border x:Name="FlowSnippetLibraryPanel" Visibility="Collapsed" Width="520" MaxHeight="610" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12" Background="#FCFFFFFF" BorderBrush="#0284C7" BorderThickness="1.5" CornerRadius="6" Padding="11" Panel.ZIndex="23">
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="×" Width="26" Height="24" Padding="0" ToolTip="关闭流程片段任务" Click="CloseFlowSnippetLibraryButton_Click" />
+                                <StackPanel>
+                                    <TextBlock Text="流程片段模板" FontSize="15" FontWeight="SemiBold" Foreground="#0F172A" />
+                                    <TextBlock x:Name="FlowSnippetLibrarySummaryText" Text="本机片段 0 个" FontSize="11" Foreground="#0369A1" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </DockPanel>
+                            <Border Grid.Row="1" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="4" Padding="7" Margin="0,8,0,6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <TextBox x:Name="FlowSnippetNameTextBox" MinWidth="230" ToolTip="输入新片段名称；保存要求当前连续选择至少 2 个模块" />
+                                    <Button x:Name="SaveSelectedFlowSnippetButton" Grid.Column="1" Content="保存所选链" MinWidth="86" Margin="6,0,0,0" Foreground="#0369A1" FontWeight="SemiBold" Click="SaveSelectedFlowSnippetButton_Click" />
+                                </Grid>
+                            </Border>
+                            <TextBlock x:Name="FlowSnippetLibraryEmptyText" Grid.Row="2" Text="还没有流程片段。连续选择至少两个模块后保存。" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#64748B" TextWrapping="Wrap" Margin="20" />
+                            <ListBox x:Name="FlowSnippetLibraryListBox" Grid.Row="2" Height="205" BorderBrush="#CBD5E1" SelectionChanged="FlowSnippetLibraryListBox_SelectionChanged" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="5,4">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#0F172A" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding ToolSummary}" Foreground="#475569" FontSize="10" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding ContractSummary}" Foreground="#0369A1" FontSize="10" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="{Binding UpdatedText}" Foreground="#94A3B8" FontSize="9" Margin="8,0,0,0" VerticalAlignment="Top" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <Border Grid.Row="3" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,7,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="76" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <TextBlock Text="片段" Foreground="#64748B" /><TextBlock x:Name="FlowSnippetSelectedNameText" Grid.Column="1" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="1" Text="模块顺序" Foreground="#64748B" /><TextBlock x:Name="FlowSnippetToolOrderText" Grid.Row="1" Grid.Column="1" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="2" Text="内部连接" Foreground="#64748B" /><TextBlock x:Name="FlowSnippetInternalConnectionsText" Grid.Row="2" Grid.Column="1" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="3" Text="外部输入" Foreground="#64748B" /><TextBlock x:Name="FlowSnippetExternalInputsText" Grid.Row="3" Grid.Column="1" Foreground="#B45309" TextWrapping="Wrap" />
+                                </Grid>
+                            </Border>
+                            <DockPanel Grid.Row="4" Margin="0,8,0,0">
+                                <TextBlock x:Name="FlowSnippetAnchorText" Text="插入锚点：未选择" Foreground="#64748B" VerticalAlignment="Center" />
+                                <WrapPanel DockPanel.Dock="Right">
+                                    <Button x:Name="InsertFlowSnippetBeforeButton" Content="插入此前" MinWidth="70" Click="InsertFlowSnippetBeforeButton_Click" />
+                                    <Button x:Name="InsertFlowSnippetAfterButton" Content="插入此后" MinWidth="70" Foreground="#0369A1" FontWeight="SemiBold" Click="InsertFlowSnippetAfterButton_Click" />
+                                    <Button x:Name="RenameFlowSnippetButton" Content="改名" MinWidth="48" Click="RenameFlowSnippetButton_Click" />
+                                    <Button x:Name="DeleteFlowSnippetButton" Content="删除" MinWidth="48" Foreground="#B91C1C" Click="DeleteFlowSnippetButton_Click" />
+                                </WrapPanel>
+                            </DockPanel>
+                            <TextBlock x:Name="FlowSnippetStatusText" Grid.Row="5" Text="本机确定性片段 · 不复制运行结果/HObject/耗时/错误/指针" Foreground="#64748B" FontSize="10" TextWrapping="Wrap" Margin="0,7,0,0" />
                         </Grid>
                     </Border>
                     <Border x:Name="FlowDropHintBorder" Panel.ZIndex="10" Visibility="Collapsed" IsHitTestVisible="False" VerticalAlignment="Top" HorizontalAlignment="Center" Background="#E60F766E" BorderBrush="#5EEAD4" BorderThickness="1" CornerRadius="4" Padding="12,6" Margin="12">
@@ -1053,7 +1350,7 @@
                                 <ToggleButton x:Name="ImageTaskToggleButton" Content="图像任务 ▾" MinWidth="82" Foreground="#A5B4FC" ToolTip="视口、ROI、队列、图层和检查器按当前任务展开" />
                                 <WrapPanel Visibility="{Binding IsChecked, ElementName=ImageTaskToggleButton, Converter={StaticResource BooleanToVisibilityConverter}}" Background="#263449">
                                 <Button x:Name="ImageWorkspaceExpandButton" Content="放大" MinWidth="50" FontWeight="SemiBold" Foreground="#67E8F9" Click="ImageWorkspaceExpandButton_Click" ToolTip="临时把图像区扩展到主工作区；恢复后保留原流程与配置布局" />
-                                <Button x:Name="ImageLayoutToggleButton" Content="双画面" MinWidth="58" FontWeight="SemiBold" Foreground="#A5B4FC" Click="ImageLayoutToggleButton_Click" ToolTip="按 VM 习惯切换单/双画面；双画面左侧只允许当前模块真实输入，右侧保留输入/输出预览" />
+                                <Button x:Name="ImageLayoutToggleButton" Content="双画面" MinWidth="58" FontWeight="SemiBold" Foreground="#A5B4FC" Click="ImageLayoutToggleButton_Click" ToolTip="切换单/双画面；双画面左侧只允许当前模块真实输入，右侧保留输入/输出预览" />
                                 <Button x:Name="ImageOneToOneButton" Content="1:1" MinWidth="44" Click="ImageOriginalSizeButton_Click" ToolTip="按原始像素显示" />
                                 <ToggleButton x:Name="RoiToolsToggleButton" Content="ROI ▾" MinWidth="62" Foreground="#67E8F9" />
                                 <WrapPanel Visibility="{Binding IsChecked, ElementName=RoiToolsToggleButton, Converter={StaticResource BooleanToVisibilityConverter}}" Background="#263449">
@@ -1650,7 +1947,7 @@
 
             <GridSplitter x:Name="RightWorkspaceSplitter" Grid.Column="4" Grid.Row="1" Height="5" Background="#CBD5E1" HorizontalAlignment="Stretch" />
 
-            <!-- VM-style task inspector: three primary entries, infrequent workspaces under More. -->
+                            <!-- Progressive task inspector: three primary entries, infrequent workspaces under More. -->
             <Grid Grid.Column="4" Grid.Row="2">
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                 <Border Background="#E8EEF6" BorderBrush="#CBD5E1" BorderThickness="0,0,0,1" Padding="6,4">
@@ -2799,6 +3096,176 @@
                                                     <TextBlock Grid.Row="1" Text="异常点策略" VerticalAlignment="Center" />
                                                     <ComboBox x:Name="DockPointSetAbnormalPolicyComboBox" Grid.Row="1" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
                                                     <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="只接受同一 ImagePixel 上下文的类型化 Point2D[]。不解析旧字符串坐标；计算质心、边界、跨度，并生成点、质心与外接框 XLD。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                </Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockTypedPointSetLineFitPanel" Visibility="Collapsed">
+                                            <GroupBox Header="HALCON 类型化点集直线拟合">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="126" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="最小有效点数" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockTypedPointSetLineFitMinimumCountTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="异常点策略" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockTypedPointSetLineFitAbnormalPolicyComboBox" Grid.Row="1" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Text="拟合算法" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockTypedPointSetLineFitAlgorithmComboBox" Grid.Row="2" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="3" Text="最大采样点" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockTypedPointSetLineFitMaxPointsTextBox" Grid.Row="3" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="4" Text="端点裁剪" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockTypedPointSetLineFitClipEndpointsTextBox" Grid.Row="4" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="5" Text="迭代次数" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockTypedPointSetLineFitIterationsTextBox" Grid.Row="5" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="6" Text="裁剪因子" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockTypedPointSetLineFitClippingFactorTextBox" Grid.Row="6" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="7" Grid.ColumnSpan="2" Text="只接受同一 ImagePixel 上下文的 Point2D[]。通过 gen_contour_polygon_xld + fit_line_contour_xld 输出类型化主线、端点、角度、残差和点/路径/拟合线/残差托管 XLD。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                </Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockTypedPointSetCircleFitPanel" Visibility="Collapsed">
+                                            <GroupBox Header="HALCON 类型化点集圆拟合">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="126" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="最小有效点数" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockTypedPointSetCircleFitMinimumCountTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="异常点策略" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockTypedPointSetCircleFitAbnormalPolicyComboBox" Grid.Row="1" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Text="拟合算法" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockTypedPointSetCircleFitAlgorithmComboBox" Grid.Row="2" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="3" Text="最大采样点" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockTypedPointSetCircleFitMaxPointsTextBox" Grid.Row="3" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="4" Text="最大闭合距离" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockTypedPointSetCircleFitMaxClosureTextBox" Grid.Row="4" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="5" Text="端点裁剪" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockTypedPointSetCircleFitClipEndpointsTextBox" Grid.Row="5" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="6" Text="迭代次数" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockTypedPointSetCircleFitIterationsTextBox" Grid.Row="6" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="7" Text="裁剪因子" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockTypedPointSetCircleFitClippingFactorTextBox" Grid.Row="7" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="8" Grid.ColumnSpan="2" Text="只接受同一 ImagePixel 上下文的 Point2D[]。通过 gen_contour_polygon_xld + fit_circle_contour_xld + distance_pp 输出类型化主圆、圆心、半径、径向残差和点/路径/拟合圆/残差托管 XLD。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                </Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockTypedPointSetEllipseFitPanel" Visibility="Collapsed">
+                                            <GroupBox Header="HALCON 类型化点集椭圆拟合">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="126" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="最小有效点数" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockTypedPointSetEllipseFitMinimumCountTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="异常点策略" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockTypedPointSetEllipseFitAbnormalPolicyComboBox" Grid.Row="1" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Text="拟合算法" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockTypedPointSetEllipseFitAlgorithmComboBox" Grid.Row="2" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="3" Text="最大采样点" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockTypedPointSetEllipseFitMaxPointsTextBox" Grid.Row="3" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="4" Text="最大闭合距离" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockTypedPointSetEllipseFitMaxClosureTextBox" Grid.Row="4" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="5" Text="端点裁剪" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockTypedPointSetEllipseFitClipEndpointsTextBox" Grid.Row="5" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="6" Text="Voss 表大小" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockTypedPointSetEllipseFitVossTableTextBox" Grid.Row="6" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="7" Text="迭代次数" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockTypedPointSetEllipseFitIterationsTextBox" Grid.Row="7" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="8" Text="裁剪因子" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockTypedPointSetEllipseFitClippingFactorTextBox" Grid.Row="8" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="9" Grid.ColumnSpan="2" Text="只接受同一 ImagePixel 上下文的 Point2D[]。通过 gen_contour_polygon_xld + fit_ellipse_contour_xld + distance_pc 输出类型化主椭圆、中心、方向、长短半轴、轴比、残差及托管 XLD。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                </Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockPointToLineDistancePanel" Visibility="Collapsed">
+                                            <GroupBox Header="HALCON 点到直线距离">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="116" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="有符号侧值约定" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockPointLineSideConventionComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="十字尺寸 (px)" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockPointLineCrossSizeTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="只接受同一 ImagePixel 上下文的 Point2D + Line2D；输出垂足、无符号距离、有符号侧值及点/垂足/参考线托管 XLD。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                </Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockPointToCircleRadialDeviationPanel" Visibility="Collapsed">
+                                            <GroupBox Header="HALCON 点到圆径向偏差">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="116" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="有符号偏差约定" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockPointCircleSignConventionComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="十字尺寸 (px)" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockPointCircleCrossSizeTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="只接受同一 ImagePixel 上下文的 Point2D + Circle2D；输出最近圆周点、圆心距、绝对/有符号径向偏差及圆/径向辅助托管 XLD。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                </Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockPointToEllipseDistancePanel" Visibility="Collapsed">
+                                            <GroupBox Header="HALCON 点到椭圆距离/位置">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="116" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="边界容差 (px)" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockPointEllipseBoundaryToleranceTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="十字尺寸 (px)" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockPointEllipseCrossSizeTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Text="轮廓分辨率" VerticalAlignment="Center" Tag="AdvancedParameter" />
+                                                    <TextBox x:Name="DockPointEllipseContourResolutionTextBox" Grid.Row="2" Grid.Column="1" Tag="AdvancedParameter" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="3" Grid.ColumnSpan="2" Text="只接受同一 ImagePixel 上下文的 Point2D + Ellipse2D。通过 gen_ellipse_contour_xld + distance_pc 输出最近点、外正内负距离、Inside/Outside/OnBoundary、归一化半径、外法线角及托管 XLD。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                </Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockLineCircleIntersectionPanel" Visibility="Collapsed">
+                                            <GroupBox Header="HALCON 直线圆交点测量">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="116" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="交点排序" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockLineCircleIntersectionOrderComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="十字尺寸 (px)" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockLineCircleCrossSizeTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="调用 HALCON intersection_line_circle 求类型化无限直线与整圆的 0/1/2 个交点；相离为 NG，相切/相交为 OK，并输出 Point2D[]、弦长和托管 XLD。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                </Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockCircleCircleIntersectionPanel" Visibility="Collapsed">
+                                            <GroupBox Header="HALCON 圆圆关系/交点测量">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="116" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="交点排序" VerticalAlignment="Center" />
+                                                    <ComboBox x:Name="DockCircleCircleIntersectionOrderComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="1" Text="十字尺寸 (px)" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockCircleCircleCrossSizeTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="调用 HALCON intersection_circles 求两路类型化整圆的关系与有限交点；内外切/相交为 OK，分离/内含/同心/重合为 NG。重合表示无限多个交点，不伪装成普通 2 点。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                </Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockPointPairLineConstructionPanel" Visibility="Collapsed">
+                                            <GroupBox Header="HALCON 两点构线/中点测量">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="116" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="最小点距 (px)" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockPointPairMinimumDistanceTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" ToolTip="两点距离必须大于此值；用于拒绝重合或近重合点" />
+                                                    <TextBlock Grid.Row="1" Text="十字尺寸 (px)" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockPointPairCrossSizeTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Text="PointA 为起点、PointB 为终点。调用 HALCON distance_pp，输出 A→B 类型化 MainLine、中点、距离、方向角及两点/线段/中点托管 XLD；MainLine 可继续驱动点线或直线圆工具。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                                </Grid>
+                                            </GroupBox>
+                                        </StackPanel>
+                                        <StackPanel x:Name="DockTypedLineLineRelationPanel" Visibility="Collapsed">
+                                            <GroupBox Header="HALCON 类型化双直线关系/交点">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="126" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                                    <TextBlock Text="平行角容差 (°)" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockLineLineParallelToleranceTextBox" Grid.Column="1" TextChanged="DockDraftValue_Changed" ToolTip="锐角不大于此值时按平行处理，不发布远处伪交点" />
+                                                    <TextBlock Grid.Row="1" Text="重合距容差 (px)" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockLineLineCoincidenceToleranceTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="2" Text="交点十字 (px)" VerticalAlignment="Center" />
+                                                    <TextBox x:Name="DockLineLineCrossSizeTextBox" Grid.Row="2" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
+                                                    <TextBlock Grid.Row="3" Grid.ColumnSpan="2" Text="只接受同一 ImagePixel 上下文的两路不同 Line2D。真实调用 intersection_lines、angle_ll、distance_pl；仅相交时发布 IntersectionPoint，平行/重合会清除旧点并保留两线 XLD。" Foreground="#64748B" TextWrapping="Wrap" Margin="0,6,0,0" />
                                                 </Grid>
                                             </GroupBox>
                                         </StackPanel>
