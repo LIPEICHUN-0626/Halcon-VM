@@ -1,4 +1,4 @@
-﻿param([string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot))
+param([string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot))
 
 $ErrorActionPreference = 'Stop'
 if ([Threading.Thread]::CurrentThread.ApartmentState -ne [Threading.ApartmentState]::STA) { throw 'Run with powershell.exe -STA.' }
@@ -185,7 +185,7 @@ try {
     Assert ($copyStats.GetInputBinding('Points').SourceToolId -eq $copyCircle.ToolId) 'Point-set block copy did not remap ToolId.'
     $stats.SetOutputValue('MaxSpan', [double]180); $stats.ResultCode = 'OK'; Method 'InvalidateDownstreamResults' ([object[]]@($circle, 'S65 rerun')) | Out-Null
     Assert ($stats.ResultCode -eq '--') 'Upstream invalidation retained point-set results.'
-    Write-Output 'S65 on-demand capability preview + 60-tool baseline + Point2D/Point2D[] + real circular EdgePoints + HALCON point geometry + connection/monitor/recipe/copy/failures passed; BSB not implemented.'
+    Write-Output 'S65 on-demand capability preview + 60-tool baseline + Point2D/Point2D[] + real circular EdgePoints + HALCON point geometry + connection/monitor/recipe/copy/failures passed'
 }
 finally {
     $main.GetField('recipeCloseConfirmed', $private).SetValue($window, $true)

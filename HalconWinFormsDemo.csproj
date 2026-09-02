@@ -122,6 +122,39 @@
     <Compile Include="MainWindow.S75.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="MainWindow.S76.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S77.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S78.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S79.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S81.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="MainWindow.S81.Ocr.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="MainWindow.S82.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S83.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S84.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S80.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="HelpCenterWindow.xaml.cs">
+      <DependentUpon>HelpCenterWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="TemplateCreateWindow.xaml.cs">
       <DependentUpon>TemplateCreateWindow.xaml</DependentUpon>
     </Compile>
@@ -181,6 +214,10 @@
   </ItemGroup>
   <ItemGroup>
     <Page Include="MainWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="HelpCenterWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

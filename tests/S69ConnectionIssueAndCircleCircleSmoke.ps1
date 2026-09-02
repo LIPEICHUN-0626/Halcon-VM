@@ -158,7 +158,7 @@ try {
     $sourceB.SetOutputValue('MainCircle',(Circle ([double]::NaN) 8 5 $context));$sourceB.ResultCode='OK';$failed=$false;try{Run $intersection|Out-Null}catch{$failed=$true};Assert $failed 'Nonfinite circle was accepted.'
     $sourceB.SetOutputValue('MainCircle',(Circle 0 8 5 $context));$sourceB.ResultCode='--';$failed=$false;try{Run $intersection|Out-Null}catch{$failed=$true};Assert $failed 'Stale Circle2D source was accepted.'
 
-    Write-Output 'S69 connection-issue scan/navigation/read-only/S68 handoff + HALCON circle-circle secant/tangents/separated/contained/concentric/overlap + typed Point2D[]/XLD/NumericJudge/recipe/copy/failures passed; BSB not implemented.'
+    Write-Output 'S69 connection-issue scan/navigation/read-only/S68 handoff + HALCON circle-circle secant/tangents/separated/contained/concentric/overlap + typed Point2D[]/XLD/NumericJudge/recipe/copy/failures passed'
 }
 finally {
     $main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true)

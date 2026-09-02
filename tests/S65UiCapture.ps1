@@ -1,4 +1,4 @@
-﻿param(
+param(
   [string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot),
   [string]$WidePath = (Join-Path $ProjectRoot 'artifacts\s65\s65-full-toolbox-1938x1158.png'),
   [string]$CompactPath = (Join-Path $ProjectRoot 'artifacts\s65\s65-pointset-contract-1366x768.png')
@@ -35,6 +35,6 @@ try {
   Assert ((Field 'ToolCapabilityInputText').Text -match 'Point2D\[\]') 'Typed capability contract is not visible.'
   Assert ((Field 'DockPointSetGeometryPanel').Visibility.ToString() -eq 'Visible') 'Point-set dock configuration is not visible.'
   Shot $CompactPath 1366 768
-  Write-Output "S65_UI_CAPTURE=PASS; Wide=$WidePath; Compact=$CompactPath; Catalog=60; DefaultDetailCollapsed=True; SelectedContract=Point2D[]; BSB=NOT_IMPLEMENTED"
+  Write-Output "S65_UI_CAPTURE=PASS; Wide=$WidePath; Compact=$CompactPath; Catalog=60; DefaultDetailCollapsed=True; SelectedContract=Point2D[]"
 }
 finally { $main.GetField('recipeCloseConfirmed', $private).SetValue($window, $true); $window.Close(); $app.Shutdown(); if (Test-Path $temp) { Remove-Item -LiteralPath $temp -Recurse -Force } }

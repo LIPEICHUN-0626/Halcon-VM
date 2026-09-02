@@ -161,7 +161,7 @@ try {
     $restored = @(); foreach ($entry in (Field 'toolCatalogView')) { $restored += $entry }
     Assert ($restored.Count -eq $catalogBaseline) 'Return to full catalog did not restore every real tool.'
 
-    Write-Output 'S68 IN-port existing-source reuse + rejection diagnostics + source-tool insertion/autobind + undo/redo/recipe + HALCON line-circle 2/1/0 intersections + typed Point2D[]/XLD/NumericJudge/failures passed; BSB not implemented.'
+    Write-Output 'S68 IN-port existing-source reuse + rejection diagnostics + source-tool insertion/autobind + undo/redo/recipe + HALCON line-circle 2/1/0 intersections + typed Point2D[]/XLD/NumericJudge/failures passed'
 }
 finally {
     $main.GetField('recipeCloseConfirmed', $private).SetValue($window, $true)

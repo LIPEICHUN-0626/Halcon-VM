@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot),
     [string]$RoiOutputPath = (Join-Path ([IO.Path]::GetTempPath()) 'halcon-vm-s31-ellipse-annulus-roi.png'),
     [string]$PolarOutputPath = (Join-Path ([IO.Path]::GetTempPath()) 'halcon-vm-s31-polar-unwrap.png'),
@@ -167,4 +167,4 @@ $angleRange=$null; $polar.TryGetOutputValue('AngleRange',[ref]$angleRange)|Out-N
 $main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true)
 $window.Close(); $app.Shutdown()
 if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}
-Write-Output "S31_UI_CAPTURE=PASS; RoiPath=$RoiOutputPath; PolarPath=$PolarOutputPath; RoiImage=$RoiImageOutputPath; PolarImage=$PolarImageOutputPath; RoiWindow=$roiSize; PolarWindow=$polarSize; A=ELLIPSE_ANNULUS_IMAGE_ROI; B=HALCON_POLAR_UNWRAP; AngleRange=$angleRange; BSB=NOT_IMPLEMENTED_BY_USER_DIRECTIVE"
+Write-Output "S31_UI_CAPTURE=PASS; RoiPath=$RoiOutputPath; PolarPath=$PolarOutputPath; RoiImage=$RoiImageOutputPath; PolarImage=$PolarImageOutputPath; RoiWindow=$roiSize; PolarWindow=$polarSize; A=ELLIPSE_ANNULUS_IMAGE_ROI; B=HALCON_POLAR_UNWRAP; AngleRange=$angleRange"

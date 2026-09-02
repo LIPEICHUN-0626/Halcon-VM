@@ -158,4 +158,4 @@ $app.Shutdown()
 if (Test-Path $temp) { Remove-Item -LiteralPath $temp -Recurse -Force }
 $pairText = [int][double]$pairCount
 $distanceText = ([double]$primaryDistance).ToString('0.###',[Globalization.CultureInfo]::InvariantCulture)
-Write-Output "S27_UI_CAPTURE=PASS; Path=$OutputPath; Window=$size; A=MULTI_RESULT_LAYER_LIST/VISIBILITY/ISOLATE/ORDER/LOCATE/CONFIG; B=HALCON_GEN_MEASURE_RECTANGLE2/MEASURE_PAIRS/CLOSE_MEASURE/XLD/NUMBER; PairCount=$pairText; PrimaryDistance=$distanceText; BSB=NOT_IMPLEMENTED_BY_USER_DIRECTIVE"
+Write-Output "S27_UI_CAPTURE=PASS; Path=$OutputPath; Window=$size; A=MULTI_RESULT_LAYER_LIST/VISIBILITY/ISOLATE/ORDER/LOCATE/CONFIG; B=HALCON_GEN_MEASURE_RECTANGLE2/MEASURE_PAIRS/CLOSE_MEASURE/XLD/NUMBER; PairCount=$pairText; PrimaryDistance=$distanceText"

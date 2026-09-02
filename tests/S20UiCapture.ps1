@@ -202,4 +202,4 @@ $listSize = Save-WindowCapture $listPath
 $mainType.GetField('recipeCloseConfirmed', $private).SetValue($window, $true)
 $window.Close()
 $app.Shutdown()
-Write-Output ('S20_UI_CAPTURE=PASS; GraphPath={0}; ListPath={1}; Window={2}/{3}; Selection=3_VISIBLE/RUBBER_RECT/GRAPH_AND_LIST; Actions=COPY/DUPLICATE/ENABLE/DISABLE/DELETE; Dock=XLD_FEATURE_AND_RANGE; Graph=REGION_TO_XLD_TO_FILTERED_XLD_TO_NUMBER; Overlay=FILTERED_XLD; BSB=NOT_IMPLEMENTED_BY_USER_DIRECTIVE' -f $OutputPath, $listPath, $graphSize, $listSize)
+Write-Output ('S20_UI_CAPTURE=PASS; GraphPath={0}; ListPath={1}; Window={2}/{3}; Selection=3_VISIBLE/RUBBER_RECT/GRAPH_AND_LIST; Actions=COPY/DUPLICATE/ENABLE/DISABLE/DELETE; Dock=XLD_FEATURE_AND_RANGE; Graph=REGION_TO_XLD_TO_FILTERED_XLD_TO_NUMBER; Overlay=FILTERED_XLD' -f $OutputPath, $listPath, $graphSize, $listSize)

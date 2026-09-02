@@ -145,7 +145,7 @@ try {
     Assert ([int](Method 'PasteFlowToolClipboard' ([object[]]@($flow.Count))) -eq 3) 'Typed geometry block paste failed.'
     $copies = @($flow | Select-Object -Last 3); $copyFit = $copies | Where-Object { $_.Kind.ToString() -eq 'XldLineFitting' } | Select-Object -First 1; $copyPoint = $copies | Where-Object { $_.Kind.ToString() -eq 'PointSetGeometryStatistics' } | Select-Object -First 1; $copyDistance = $copies | Where-Object { $_.Kind.ToString() -eq 'PointToLineDistanceMeasurement' } | Select-Object -First 1
     Assert ($copyDistance.GetInputBinding('Point').SourceToolId -eq $copyPoint.ToolId -and $copyDistance.GetInputBinding('Line').SourceToolId -eq $copyFit.ToolId) 'Typed geometry block copy did not remap both sources.'
-    Write-Output 'S66 anchored insertion + compatibility preview + Line2D + typed MainLine + HALCON point-to-line + monitor/recipe/copy/failures passed; BSB not implemented.'
+    Write-Output 'S66 anchored insertion + compatibility preview + Line2D + typed MainLine + HALCON point-to-line + monitor/recipe/copy/failures passed'
 }
 finally {
     $main.GetField('recipeCloseConfirmed', $private).SetValue($window, $true)

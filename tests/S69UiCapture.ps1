@@ -45,6 +45,6 @@ try {
   Assert ((Field 'DockCircleCircleIntersectionPanel').Visibility.ToString() -eq 'Visible') 'Circle-circle dock panel is not visible.'
   Shot $CompactPath 1366 768
   $catalogCount = (Field 'toolCatalog').Count
-  Write-Output "S69_UI_CAPTURE=PASS; Wide=$WidePath; Compact=$CompactPath; Catalog=$catalogCount; Issues=4; Dock=Circle2D+Circle2D; PermanentToolbar=7; BSB=NOT_IMPLEMENTED"
+  Write-Output "S69_UI_CAPTURE=PASS; Wide=$WidePath; Compact=$CompactPath; Catalog=$catalogCount; Issues=4; Dock=Circle2D+Circle2D; PermanentToolbar=7"
 }
 finally { $main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();$app.Shutdown();if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force} }

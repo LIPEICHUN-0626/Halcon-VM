@@ -28,4 +28,4 @@ $current=Image 720 520;$main.GetField('currentImage',$private).SetValue($window,
 SelectTool $parser;Pump 900;$wide=Shot $WideOutputPath
 $window.WindowState=[Windows.WindowState]::Normal;$window.MinWidth=0;$window.MinHeight=0;$window.Width=1366;$window.Height=768;$window.Left=2;$window.Top=2;SelectTool $filter;Pump 900;$compact=Shot $CompactOutputPath
 $main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();$app.Shutdown();if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}
-Write-Output "S55_UI_CAPTURE=PASS; Wide=$WideOutputPath; Compact=$CompactOutputPath; WideSize=$wide; CompactSize=$compact; BSB=NOT_IMPLEMENTED_BY_USER_DIRECTIVE"
+Write-Output "S55_UI_CAPTURE=PASS; Wide=$WideOutputPath; Compact=$CompactOutputPath; WideSize=$wide; CompactSize=$compact"

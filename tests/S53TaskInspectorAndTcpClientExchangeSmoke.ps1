@@ -64,7 +64,7 @@ try{
   $recipe=$mainType.GetMethod('CaptureRecipe',$private).Invoke($window,@());$saved=$recipe.ToolFlow|Where-Object{$_.ToolId-eq$tcp.ToolId}|Select-Object -First 1
   Assert($saved.Parameters.TcpClientHost-eq'recipe-host'-and$saved.Parameters.TcpClientPort-eq12345-and$saved.Parameters.TcpClientLineEnding-eq'CR'-and-not$saved.Parameters.TcpClientWaitForResponse) 'TCP recipe persistence failed'
   $mainType.GetMethod('LoadDockConfigurationDraft',$private).Invoke($window,[object[]]@($tcp))|Out-Null;$list=Field 'FlowToolList';$list.SelectedItems.Clear();$list.SelectedItem=$tcp;$before=$flow.Count;$mainType.GetMethod('DuplicateFlowToolButton_Click',$private).Invoke($window,[object[]]@($null,$null))|Out-Null;$copy=$flow|Where-Object{$_.Kind.ToString()-eq'TcpClientExchange'-and$_.ToolId-ne$tcp.ToolId}|Select-Object -Last 1;Assert($flow.Count-eq($before+1)-and$null-ne$copy-and$copy.Parameters.TcpClientHost-eq'recipe-host') 'TCP copy/parameter cloning failed'
-  Write-Output 'S53 task inspector and generic TCP client exchange smoke tests passed; BSB not implemented by user directive.'
+  Write-Output 'S53 task inspector and generic TCP client exchange smoke tests passed'
 }finally{
   $mainType.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}
 }

@@ -27,6 +27,7 @@ namespace HalconWinFormsDemo.Models
             ImageFilterRadius = 1;
             ImageThresholdMinGray = 128;
             ImageThresholdMaxGray = 255;
+            AutomaticThresholdPolarity = VmDynamicThresholdPolarity.Dark;
             RegionMorphologyMode = VmRegionMorphologyMode.OpeningCircle;
             RegionMorphologyRadius = 3.5;
             RegionFeature = VmRegionFeature.Area;
@@ -143,6 +144,21 @@ namespace HalconWinFormsDemo.Models
             PointEllipseBoundaryTolerance = 0.25;
             PointEllipseOverlayCrossSize = 10;
             PointEllipseContourResolution = 0.25;
+            LineEllipseIntersectionTolerance = 0.25;
+            LineEllipseOverlayCrossSize = 10;
+            LineEllipseContourResolution = 0.25;
+            DataCodeType = VmDataCode2DType.QrCode;
+            DataCodeRecognitionProfile = VmDataCodeRecognitionProfile.Standard;
+            DataCodePolarity = VmDataCodePolarity.DarkOnLight;
+            DataCodeMaxResults = 1;
+            DataCodeTimeoutMilliseconds = 1500;
+            BarCodeType = VmBarCodeType.Code128;
+            BarCodeMaxResults = 1;
+            BarCodeNumScanlines = 0;
+            BarCodeMinIdenticalScanlines = 1;
+            BarCodeOrientationDegrees = 0;
+            BarCodeOrientationToleranceDegrees = 90;
+            InitializeOcrDefaults();
             LineCircleIntersectionOrder = VmLineCircleIntersectionOrder.AlongLine;
             LineCircleOverlayCrossSize = 10;
             CircleCircleIntersectionOrder = VmCircleCircleIntersectionOrder.RowColumnAscending;
@@ -610,6 +626,52 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 314, EmitDefaultValue = false)] public double PointEllipseBoundaryTolerance { get; set; }
         [DataMember(Order = 315, EmitDefaultValue = false)] public double PointEllipseOverlayCrossSize { get; set; }
         [DataMember(Order = 316, EmitDefaultValue = false)] public double PointEllipseContourResolution { get; set; }
+        [DataMember(Order = 317, EmitDefaultValue = false)] public double LineEllipseIntersectionTolerance { get; set; }
+        [DataMember(Order = 318, EmitDefaultValue = false)] public double LineEllipseOverlayCrossSize { get; set; }
+        [DataMember(Order = 319, EmitDefaultValue = false)] public double LineEllipseContourResolution { get; set; }
+        [DataMember(Order = 320, EmitDefaultValue = false)] public string DataCodeType { get; set; }
+        [DataMember(Order = 321, EmitDefaultValue = false)] public string DataCodeRecognitionProfile { get; set; }
+        [DataMember(Order = 322, EmitDefaultValue = false)] public string DataCodePolarity { get; set; }
+        [DataMember(Order = 323, EmitDefaultValue = false)] public int DataCodeMaxResults { get; set; }
+        [DataMember(Order = 324, EmitDefaultValue = false)] public int DataCodeTimeoutMilliseconds { get; set; }
+        [DataMember(Order = 325, EmitDefaultValue = false)] public string BarCodeType { get; set; }
+        [DataMember(Order = 326)] public int BarCodeMaxResults { get; set; }
+        [DataMember(Order = 327, EmitDefaultValue = false)] public int BarCodeNumScanlines { get; set; }
+        [DataMember(Order = 328)] public int BarCodeMinIdenticalScanlines { get; set; }
+        [DataMember(Order = 329, EmitDefaultValue = false)] public double BarCodeOrientationDegrees { get; set; }
+        [DataMember(Order = 330)] public double BarCodeOrientationToleranceDegrees { get; set; }
+        [DataMember(Order = 331)] public string OcrModelPath { get; set; }
+        [DataMember(Order = 332)] public int OcrMinimumCharacters { get; set; }
+        [DataMember(Order = 333)] public double OcrMinimumConfidence { get; set; }
+        [DataMember(Order = 334)] public int OcrThreshold { get; set; }
+        [DataMember(Order = 335)] public double OcrMinimumArea { get; set; }
+        [DataMember(Order = 336)] public double OcrMaximumArea { get; set; }
+        [DataMember(Order = 337)] public string OcrSortMode { get; set; }
+        [DataMember(Order = 338)] public bool OcrDarkOnLight { get; set; }
+        [DataMember(Order = 339)] public string AutomaticThresholdPolarity { get; set; }
+
+        private void InitializeOcrDefaults()
+        {
+            OcrModelPath = string.Empty;
+            OcrMinimumCharacters = 1;
+            OcrMinimumConfidence = 0.8;
+            OcrThreshold = 128;
+            OcrMinimumArea = 20;
+            OcrMaximumArea = 1000000;
+            OcrSortMode = "Row";
+            OcrDarkOnLight = true;
+        }
+
+        [OnDeserializing]
+        private void InitializeMissingBarCodeFields(StreamingContext context)
+        {
+            InitializeOcrDefaults();
+            // Missing legacy fields get defaults; explicit zero values must survive
+            // deserialization and cloning (zero tolerance is a valid user choice).
+            BarCodeMaxResults = 1;
+            BarCodeMinIdenticalScanlines = 1;
+            BarCodeOrientationToleranceDegrees = 90;
+        }
 
         private void SetDefaultXldProjectivePoints()
         {
@@ -650,6 +712,7 @@ namespace HalconWinFormsDemo.Models
             RegionSetOperationMode = VmRegionSetOperationMode.Normalize(RegionSetOperationMode);
             ImageEnhancementMode = VmImageEnhancementMode.Normalize(ImageEnhancementMode);
             DynamicThresholdPolarity = VmDynamicThresholdPolarity.Normalize(DynamicThresholdPolarity);
+            AutomaticThresholdPolarity = VmDynamicThresholdPolarity.Normalize(AutomaticThresholdPolarity);
             ImageDifferenceMode = VmImageDifferenceMode.Normalize(ImageDifferenceMode);
             RegionContourMode = VmRegionContourMode.Normalize(RegionContourMode);
             if (string.IsNullOrWhiteSpace(XldContourFeature))
@@ -1056,6 +1119,17 @@ namespace HalconWinFormsDemo.Models
             if (PointEllipseBoundaryTolerance == 0) PointEllipseBoundaryTolerance = 0.25;
             if (PointEllipseOverlayCrossSize == 0) PointEllipseOverlayCrossSize = 10;
             if (PointEllipseContourResolution == 0) PointEllipseContourResolution = 0.25;
+            if (LineEllipseIntersectionTolerance == 0) LineEllipseIntersectionTolerance = 0.25;
+            if (LineEllipseOverlayCrossSize == 0) LineEllipseOverlayCrossSize = 10;
+            if (LineEllipseContourResolution == 0) LineEllipseContourResolution = 0.25;
+            DataCodeType = VmDataCode2DType.Normalize(DataCodeType);
+            DataCodeRecognitionProfile = VmDataCodeRecognitionProfile.Normalize(DataCodeRecognitionProfile);
+            DataCodePolarity = VmDataCodePolarity.Normalize(DataCodePolarity);
+            if (DataCodeMaxResults == 0) DataCodeMaxResults = 1;
+            if (DataCodeTimeoutMilliseconds == 0) DataCodeTimeoutMilliseconds = 1500;
+            BarCodeType = VmBarCodeType.Normalize(BarCodeType);
+            if (OcrModelPath == null) OcrModelPath = string.Empty;
+            if (string.IsNullOrWhiteSpace(OcrSortMode)) OcrSortMode = "Row";
             LineCircleIntersectionOrder = VmLineCircleIntersectionOrder.Normalize(LineCircleIntersectionOrder);
             if (LineCircleOverlayCrossSize == 0) LineCircleOverlayCrossSize = 10;
             CircleCircleIntersectionOrder = VmCircleCircleIntersectionOrder.Normalize(CircleCircleIntersectionOrder);
@@ -1687,6 +1761,46 @@ namespace HalconWinFormsDemo.Models
                     return "点到椭圆测量的轮廓分辨率必须在 0.05 到 5 像素之间。";
             }
 
+            if (kind == VmToolKind.LineEllipseIntersectionMeasurement)
+            {
+                if (!IsFinite(LineEllipseIntersectionTolerance) || LineEllipseIntersectionTolerance < 0.001 || LineEllipseIntersectionTolerance > 100)
+                    return "线段椭圆交点容差必须在 0.001 到 100 像素之间。";
+                if (!IsFinite(LineEllipseOverlayCrossSize) || LineEllipseOverlayCrossSize < 1 || LineEllipseOverlayCrossSize > 200)
+                    return "线段椭圆交点十字尺寸必须在 1 到 200 像素之间。";
+                if (!IsFinite(LineEllipseContourResolution) || LineEllipseContourResolution < 0.05 || LineEllipseContourResolution > 5)
+                    return "线段椭圆轮廓分辨率必须在 0.05 到 5 像素之间。";
+            }
+
+            if (kind == VmToolKind.DataCode2DRecognition)
+            {
+                if (!VmDataCode2DType.IsSupported(DataCodeType)) return "二维代码类型只支持 QR Code 或 Data Matrix ECC 200。";
+                if (!VmDataCodeRecognitionProfile.IsSupported(DataCodeRecognitionProfile)) return "二维代码识别配置档无效。";
+                if (!VmDataCodePolarity.IsSupported(DataCodePolarity)) return "二维代码极性无效。";
+                if (DataCodeMaxResults < 1 || DataCodeMaxResults > 32) return "二维代码最大结果数必须在 1 到 32 之间。";
+                if (DataCodeTimeoutMilliseconds < 1 || DataCodeTimeoutMilliseconds > 60000) return "二维代码超时必须在 1 到 60000 毫秒之间。";
+            }
+
+            if (kind == VmToolKind.OcrRecognition)
+            {
+                if (string.IsNullOrWhiteSpace(OcrModelPath) || !Path.IsPathRooted(OcrModelPath) ||
+                    !string.Equals(Path.GetExtension(OcrModelPath), ".omc", StringComparison.OrdinalIgnoreCase))
+                    return "请选择 HALCON MLP 字库（.omc）并保存为稳定的绝对路径。";
+                if (OcrMinimumCharacters < 1 || OcrMinimumCharacters > 10000) return "最少字符数必须在 1–10000 之间。";
+                if (!IsFinite(OcrMinimumConfidence) || OcrMinimumConfidence < 0 || OcrMinimumConfidence > 1) return "最低置信度必须在 0–1 之间。";
+                if (OcrThreshold < 0 || OcrThreshold > 255) return "字符分割灰度必须在 0–255 之间。";
+                if (!IsFinite(OcrMinimumArea) || !IsFinite(OcrMaximumArea) || OcrMinimumArea < 1 || OcrMaximumArea < OcrMinimumArea || OcrMaximumArea > 100000000) return "字符面积范围必须满足 1≤最小值≤最大值≤100000000。";
+                if (OcrSortMode != "Row" && OcrSortMode != "Column" && OcrSortMode != "Source") return "字符顺序请选择按行、按列或保持来源。";
+            }
+            if (kind == VmToolKind.BarCode1DRecognition)
+            {
+                if (!VmBarCodeType.IsSupported(BarCodeType)) return "一维码类型只支持 Code 128、Code 39、EAN-13 或 auto。";
+                if (BarCodeMaxResults < 1 || BarCodeMaxResults > 32) return "一维码最大结果数必须在 1 到 32 之间。";
+                if (BarCodeNumScanlines < 0 || BarCodeNumScanlines > 200) return "一维码扫描线数必须在 0 到 200 之间，0 表示自动。";
+                if (BarCodeMinIdenticalScanlines < 1 || BarCodeMinIdenticalScanlines > 50) return "一维码一致扫描线数必须在 1 到 50 之间。";
+                if (!IsFinite(BarCodeOrientationDegrees) || BarCodeOrientationDegrees < -180 || BarCodeOrientationDegrees > 180) return "一维码方向必须在 -180° 到 180° 之间。";
+                if (!IsFinite(BarCodeOrientationToleranceDegrees) || BarCodeOrientationToleranceDegrees < 0 || BarCodeOrientationToleranceDegrees > 90) return "一维码方向容差必须在 0° 到 90° 之间。";
+            }
+
             if (kind == VmToolKind.LineCircleIntersectionMeasurement)
             {
                 if (!VmLineCircleIntersectionOrder.IsSupported(LineCircleIntersectionOrder))
@@ -2196,6 +2310,11 @@ namespace HalconWinFormsDemo.Models
                  ImageThresholdMinGray < 0 || ImageThresholdMaxGray > 255 || ImageThresholdMinGray > ImageThresholdMaxGray))
             {
                 return "阈值分割灰度范围必须满足 0 ≤ 下限 ≤ 上限 ≤ 255。";
+            }
+
+            if (kind == VmToolKind.AutomaticThreshold && !VmDynamicThresholdPolarity.IsSupported(AutomaticThresholdPolarity))
+            {
+                return "自动阈值目标明暗必须选择 Light 或 Dark。";
             }
 
             if (kind == VmToolKind.RegionMorphology)
@@ -4236,6 +4355,89 @@ namespace HalconWinFormsDemo.Models
                 new VmPointSetAbnormalPolicyOption { Key = RowColumnAscending, DisplayText = "Row/Column 升序（推荐）" },
                 new VmPointSetAbnormalPolicyOption { Key = RowColumnDescending, DisplayText = "Row/Column 降序" }
             };
+        }
+    }
+
+    public static class VmDataCode2DType
+    {
+        public const string QrCode = "QR Code";
+        public const string DataMatrixEcc200 = "Data Matrix ECC 200";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, QrCode, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, DataMatrixEcc200, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            return string.Equals(value, DataMatrixEcc200, StringComparison.OrdinalIgnoreCase) ? DataMatrixEcc200 : QrCode;
+        }
+    }
+
+    public static class VmDataCodeRecognitionProfile
+    {
+        public const string Standard = "standard_recognition";
+        public const string Enhanced = "enhanced_recognition";
+        public const string Maximum = "maximum_recognition";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, Standard, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Enhanced, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Maximum, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.Equals(value, Maximum, StringComparison.OrdinalIgnoreCase)) return Maximum;
+            if (string.Equals(value, Enhanced, StringComparison.OrdinalIgnoreCase)) return Enhanced;
+            return Standard;
+        }
+    }
+
+    public static class VmDataCodePolarity
+    {
+        public const string DarkOnLight = "dark_on_light";
+        public const string LightOnDark = "light_on_dark";
+        public const string Any = "any";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, DarkOnLight, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, LightOnDark, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Any, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.Equals(value, LightOnDark, StringComparison.OrdinalIgnoreCase)) return LightOnDark;
+            if (string.Equals(value, Any, StringComparison.OrdinalIgnoreCase)) return Any;
+            return DarkOnLight;
+        }
+    }
+
+    public static class VmBarCodeType
+    {
+        public const string Code128 = "Code 128";
+        public const string Code39 = "Code 39";
+        public const string Ean13 = "EAN-13";
+        public const string Auto = "auto";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, Code128, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Code39, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Ean13, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Auto, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.Equals(value, Code39, StringComparison.OrdinalIgnoreCase)) return Code39;
+            if (string.Equals(value, Ean13, StringComparison.OrdinalIgnoreCase)) return Ean13;
+            if (string.Equals(value, Auto, StringComparison.OrdinalIgnoreCase)) return Auto;
+            return Code128;
         }
     }
 

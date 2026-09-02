@@ -1,4 +1,4 @@
-﻿param([string]$ProjectRoot=(Split-Path -Parent $PSScriptRoot))
+param([string]$ProjectRoot=(Split-Path -Parent $PSScriptRoot))
 $ErrorActionPreference='Stop'
 if([Threading.Thread]::CurrentThread.ApartmentState-ne[Threading.ApartmentState]::STA){throw 'Run with powershell.exe -STA.'}
 $halcon='C:\Program Files\MVTec\HALCON-20.11-Progress';$env:PATH=(Join-Path $halcon 'bin\x64-win64')+';'+$env:PATH
@@ -68,5 +68,5 @@ try{
 
   $restoredScript=$null;foreach($candidate in $flow){if($candidate.Kind.ToString()-eq'CSharpDllScript'){$restoredScript=$candidate;break}};$restoredScript.Parameters.ScriptExecutionMode='Dll';$restoredScript.Parameters.ScriptResourceId='missing-resource-id';$restoredScript.Parameters.ScriptAssemblyPath='';$missingResourceError=RunFailure $restoredScript;Assert($missingResourceError-match'不存在') ('Missing ResourceId target was not rejected: '+$missingResourceError)
   $empty=[Activator]::CreateInstance($parametersType);$empty.Normalize();Assert([string]::IsNullOrEmpty($empty.ScriptResourceId)) 'Old parameter model did not default ScriptResourceId safely'
-  Write-Output 'S60 on-demand resource workbench + stable ResourceId/versioned managed DLL/import-refresh-replace/hash-missing/signature/delete-protection/recipe/undo/downstream passed; trusted local .NET DLL only; BSB not implemented by user directive.'
+  Write-Output 'S60 on-demand resource workbench + stable ResourceId/versioned managed DLL/import-refresh-replace/hash-missing/signature/delete-protection/recipe/undo/downstream passed; trusted local .NET DLL only'
 }finally{$mainType.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();if($ownsApp){$app.Shutdown()};if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}}

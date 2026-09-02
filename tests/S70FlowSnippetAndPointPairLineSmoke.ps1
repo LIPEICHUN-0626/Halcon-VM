@@ -35,7 +35,7 @@ function Point([double]$Row,[double]$Column,[string]$Context){$pointType.GetMeth
 function SelectTools([object[]]$Tools){(Field 'FlowToolList').SelectedItems.Clear();foreach($tool in $Tools){(Field 'FlowToolList').SelectedItems.Add($tool)}}
 
 try {
-    Assert ((Field 'toolCatalog').Count -eq [Enum]::GetValues($kindType).Count -and (Field 'toolCatalog').Count -eq 70) 'S70 compatibility catalog is not the full implementation after S75.'
+    Assert ((Field 'toolCatalog').Count -eq [Enum]::GetValues($kindType).Count -and (Field 'toolCatalog').Count -eq 72) 'S70 compatibility catalog is not the full implementation after S77.'
     Assert ((Field 'DeveloperToolbarPanel').Children.Count -eq 7) 'S70 added a permanent top toolbar command.'
     Assert ([object]::ReferenceEquals((Field 'OpenFlowSnippetLibraryButton').Parent,(Field 'OpenConnectionIssuesButton').Parent)) 'Flow snippet entry is not inside the existing flow More context.'
     Assert ((Field 'FlowSnippetLibraryPanel').Visibility.ToString()-eq'Collapsed') 'Flow snippet panel is visible on the default first screen.'
@@ -110,7 +110,7 @@ try {
     $sourceB.SetOutputValue('Centroid',(Point 3 4 'Other.Image'));$sourceB.ResultCode='OK';$failed=$false;try{Run $pair|Out-Null}catch{$failed=$true};Assert $failed 'Cross-context points were accepted.'
     $sourceB.SetOutputValue('Centroid',(Point ([double]::NaN) 4 $context));$sourceB.ResultCode='OK';$failed=$false;try{Run $pair|Out-Null}catch{$failed=$true};Assert $failed 'Nonfinite point was accepted.'
     $sourceB.SetOutputValue('Centroid',(Point 3 4 $context));$sourceB.ResultCode='--';$failed=$false;try{Run $pair|Out-Null}catch{$failed=$true};Assert $failed 'Stale/unrun Point2D source was accepted.'
-    Write-Output 'S70 VM-style on-demand flow snippets/save-preview-rename-delete/remap-external binding/undo/runtime isolation/corrupt diagnostics + HALCON distance_pp Point2D pair to Line2D/MidPoint/XLD/downstreams/recipe/copy/failures passed; BSB not implemented.'
+    Write-Output 'S70 VM-style on-demand flow snippets/save-preview-rename-delete/remap-external binding/undo/runtime isolation/corrupt diagnostics + HALCON distance_pp Point2D pair to Line2D/MidPoint/XLD/downstreams/recipe/copy/failures passed'
 }
 finally{
     $main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();if($ownsApp){$app.Shutdown()};if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}

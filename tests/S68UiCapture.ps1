@@ -46,6 +46,6 @@ try {
   Assert ((Field 'ToolInputSourceCreateHintText').Visibility.ToString() -eq 'Visible' -and $candidate.Kind.ToString() -eq 'XldLineFitting') 'Create-source context did not show the real Line2D producer.'
   Assert ((Field 'DockLineCircleIntersectionPanel').Visibility.ToString() -eq 'Visible') 'Compact line-circle configuration panel is not visible.'
   Shot $CompactPath 1366 768
-  Write-Output "S68_UI_CAPTURE=PASS; Wide=$WidePath; Compact=$CompactPath; Catalog=63; ExistingSource=Visible; CreateSource=XldLineFitting; Dock=Line2D+Circle2D; BSB=NOT_IMPLEMENTED"
+  Write-Output "S68_UI_CAPTURE=PASS; Wide=$WidePath; Compact=$CompactPath; Catalog=63; ExistingSource=Visible; CreateSource=XldLineFitting; Dock=Line2D+Circle2D"
 }
 finally { $main.GetField('recipeCloseConfirmed', $private).SetValue($window, $true); $window.Close(); $app.Shutdown(); if (Test-Path $temp) { Remove-Item -LiteralPath $temp -Recurse -Force } }

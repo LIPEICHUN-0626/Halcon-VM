@@ -207,13 +207,18 @@ namespace HalconWinFormsDemo.Models
         PointToLineDistanceMeasurement,
         PointToCircleRadialDeviationMeasurement,
         PointToEllipseDistanceMeasurement,
+        LineEllipseIntersectionMeasurement,
         LineCircleIntersectionMeasurement,
         CircleCircleIntersectionMeasurement,
         PointPairLineConstructionMeasurement,
         TypedLineLineRelationMeasurement,
         TypedPointSetLineFittingMeasurement,
         TypedPointSetCircleFittingMeasurement,
-        TypedPointSetEllipseFittingMeasurement
+        TypedPointSetEllipseFittingMeasurement,
+        DataCode2DRecognition,
+        BarCode1DRecognition,
+        OcrRecognition,
+        AutomaticThreshold
     }
 
     public sealed class VmToolCatalogItem : INotifyPropertyChanged
@@ -331,6 +336,7 @@ namespace HalconWinFormsDemo.Models
         private bool isGroupCollapsed;
         private bool isBreakpoint;
         private bool isExecutionPointer;
+        private bool isTaskLensCompactS76;
         private readonly List<string> boundRoiIds = new List<string>();
         private readonly List<VmToolInputBindingData> inputBindings = new List<VmToolInputBindingData>();
         private readonly Dictionary<string, object> runtimeOutputs = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
@@ -427,6 +433,7 @@ namespace HalconWinFormsDemo.Models
 
                 isEnabled = value;
                 OnPropertyChanged("IsEnabled");
+                OnPropertyChanged("TaskLensStatusTextS76");
             }
         }
 
@@ -467,6 +474,17 @@ namespace HalconWinFormsDemo.Models
         public string FlowDetailToggleText
         {
             get { return IsFlowDetailExpanded ? "收起" : "端口"; }
+        }
+
+        public bool IsTaskLensCompactS76
+        {
+            get { return isTaskLensCompactS76; }
+            set
+            {
+                if (isTaskLensCompactS76 == value) return;
+                isTaskLensCompactS76 = value;
+                OnPropertyChanged("IsTaskLensCompactS76");
+            }
         }
 
         public string GroupId
@@ -584,6 +602,7 @@ namespace HalconWinFormsDemo.Models
             {
                 runStatus = value;
                 OnPropertyChanged("RunStatus");
+                OnPropertyChanged("TaskLensStatusTextS76");
             }
         }
 
@@ -594,6 +613,19 @@ namespace HalconWinFormsDemo.Models
             {
                 resultCode = value;
                 OnPropertyChanged("ResultCode");
+                OnPropertyChanged("TaskLensStatusTextS76");
+            }
+        }
+
+        public string TaskLensStatusTextS76
+        {
+            get
+            {
+                if (!IsEnabled) return "停用";
+                if (string.Equals(ResultCode, "OK", StringComparison.OrdinalIgnoreCase)) return "OK";
+                if (string.Equals(ResultCode, "NG", StringComparison.OrdinalIgnoreCase)) return "NG";
+                if (!string.IsNullOrWhiteSpace(RunStatus) && !string.Equals(RunStatus, "未运行", StringComparison.OrdinalIgnoreCase)) return RunStatus;
+                return "等待";
             }
         }
 
@@ -1177,6 +1209,14 @@ namespace HalconWinFormsDemo.Models
                     return "点到圆径向偏差";
                 case VmToolKind.PointToEllipseDistanceMeasurement:
                     return "点到椭圆距离/位置";
+                case VmToolKind.LineEllipseIntersectionMeasurement:
+                    return "直线段与椭圆交点/弦长";
+                case VmToolKind.DataCode2DRecognition:
+                    return "二维代码识别";
+                case VmToolKind.BarCode1DRecognition:
+                    return "一维码识别";
+                case VmToolKind.OcrRecognition:
+                    return "OCR 字符识别";
                 case VmToolKind.LineCircleIntersectionMeasurement:
                     return "直线圆交点测量";
                 case VmToolKind.CircleCircleIntersectionMeasurement:
@@ -1201,6 +1241,8 @@ namespace HalconWinFormsDemo.Models
                     return "动态阈值分割";
                 case VmToolKind.ImageThreshold:
                     return "阈值分割";
+                case VmToolKind.AutomaticThreshold:
+                    return "自动阈值分割";
                 case VmToolKind.RegionMorphology:
                     return "Region 形态学";
                 case VmToolKind.RegionFeatureFilter:
@@ -1274,10 +1316,16 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.RoiImageExtraction:
                 case VmToolKind.DynamicThreshold:
                 case VmToolKind.ImageThreshold:
+                case VmToolKind.AutomaticThreshold:
                 case VmToolKind.RegionMorphology:
                 case VmToolKind.RegionFeatureFilter:
                 case VmToolKind.RegionSetOperation:
                     return "检测/分割";
+                case VmToolKind.DataCode2DRecognition:
+                case VmToolKind.BarCode1DRecognition:
+                    return "识别";
+                case VmToolKind.OcrRecognition:
+                    return "识别";
                 case VmToolKind.RegionContourMeasurement:
                 case VmToolKind.XldContourFilter:
                 case VmToolKind.XldAdjacentContourUnion:
@@ -1300,6 +1348,7 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.PointToLineDistanceMeasurement:
                 case VmToolKind.PointToCircleRadialDeviationMeasurement:
                 case VmToolKind.PointToEllipseDistanceMeasurement:
+                case VmToolKind.LineEllipseIntersectionMeasurement:
                 case VmToolKind.LineCircleIntersectionMeasurement:
                 case VmToolKind.CircleCircleIntersectionMeasurement:
                 case VmToolKind.PointPairLineConstructionMeasurement:
@@ -1344,6 +1393,7 @@ namespace HalconWinFormsDemo.Models
                 case "采集/输入": return 10;
                 case "图像处理": return 20;
                 case "检测/分割": return 30;
+                case "识别": return 35;
                 case "定位": return 40;
                 case "轮廓处理": return 50;
                 case "测量": return 60;
@@ -1388,6 +1438,8 @@ namespace HalconWinFormsDemo.Models
                     return "显式订阅原图与参考图，使用 HALCON dyn_threshold 按局部灰度差提取明缺陷或暗缺陷，并输出安全 Region 快照。";
                 case VmToolKind.ImageThreshold:
                     return "将输入图像按明确的灰度上下限执行 HALCON 阈值分割，输出可订阅的安全 Region 快照。";
+                case VmToolKind.AutomaticThreshold:
+                    return "订阅真实 Image，在 ROI 与屏蔽有效域内使用 HALCON max_separability 自动计算阈值，按目标明暗输出安全 Region 与可订阅阈值。";
                 case VmToolKind.RegionMorphology:
                     return "订阅上游 Region，使用 HALCON 圆形开闭、膨胀或腐蚀处理区域并输出可继续订阅的安全 Region 快照。";
                 case VmToolKind.RegionFeatureFilter:
@@ -1452,6 +1504,14 @@ namespace HalconWinFormsDemo.Models
                     return "订阅同一 ImagePixel 上下文的类型化 Point2D 与 Circle2D，计算最近圆周点、圆心距、绝对径向偏差及内外有符号偏差，并使用 HALCON 生成圆与径向辅助 XLD。";
                 case VmToolKind.PointToEllipseDistanceMeasurement:
                     return "订阅同一 ImagePixel 上下文的类型化 Point2D 与 Ellipse2D，使用 HALCON gen_ellipse_contour_xld 与 distance_pc 求点到椭圆距离，并输出最近点、内外有符号距离、归一化半径、法线方向及托管 XLD。";
+                case VmToolKind.LineEllipseIntersectionMeasurement:
+                    return "订阅同一 ImagePixel 上下文的类型化有限 Line2D 线段与 Ellipse2D，使用 HALCON gen_contour_polygon_xld、gen_ellipse_contour_xld 与 intersection_contours_xld 求 0/1/2 个有限交点，输出类型化点集、关系、弦长及托管 XLD。";
+                case VmToolKind.DataCode2DRecognition:
+                    return "订阅真实 Image，可选 ROI/屏蔽区，使用 HALCON create/find/clear_data_code_2d_model 识别 QR Code 或 Data Matrix ECC 200，输出解码文本、数量、首码中心/姿态及托管 XLD。";
+                case VmToolKind.BarCode1DRecognition:
+                    return "订阅真实 Image，可选 ROI/屏蔽区，使用 HALCON create/find/clear_bar_code_model 识别 Code 128、Code 39、EAN-13 或自动类型，输出解码文本、数量、首码中心/姿态及托管 XLD。";
+                case VmToolKind.OcrRecognition:
+                    return "使用 HALCON MLP 字库识别 Image 中的字符；可订阅前序字符 Region，或在 ROI/屏蔽区内按灰度分割。输出文本、字符数、置信度、中心点集及轮廓；不支持任意版面自动识别。";
                 case VmToolKind.LineCircleIntersectionMeasurement:
                     return "订阅同一 ImagePixel 上下文的类型化 Line2D 与 Circle2D，调用 HALCON intersection_line_circle 求无限直线与整圆的 0/1/2 个交点，输出类型化点集、相离/相切/相交关系、弦长及托管 XLD。";
                 case VmToolKind.CircleCircleIntersectionMeasurement:
@@ -1519,11 +1579,26 @@ namespace HalconWinFormsDemo.Models
                 case VmToolKind.ImageProjectiveTransform:
                 case VmToolKind.PolarImageUnwrap:
                 case VmToolKind.ImageThreshold:
+                case VmToolKind.AutomaticThreshold:
                 case VmToolKind.CaliperEdgePairMeasurement:
                 case VmToolKind.LinearCaliperArrayMeasurement:
                 case VmToolKind.CircularCaliperCircleFinder:
                 case VmToolKind.RingWallThicknessMeasurement:
                     return new[] { Port("Image", "输入图像", "Image", false) };
+                case VmToolKind.DataCode2DRecognition:
+                case VmToolKind.BarCode1DRecognition:
+                    return new[]
+                    {
+                        Port("Image", "输入图像", "Image", false),
+                        Port("ROI", "绑定 ROI / 前序 Region", "Region", true)
+                    };
+                case VmToolKind.OcrRecognition:
+                    return new[]
+                    {
+                        Port("Image", "输入图像", "Image", false),
+                        Port("Characters", "已分割字符（可选）", "Region", true),
+                        Port("ROI", "检测范围 / 前序 Region", "Region", true)
+                    };
                 case VmToolKind.SubpixelEdgeExtraction:
                     return new[]
                     {
@@ -1677,6 +1752,12 @@ namespace HalconWinFormsDemo.Models
                         Port("Point", "待测图像点", "Point2D", false),
                         Port("Ellipse", "参考图像椭圆", "Ellipse2D", false)
                     };
+                case VmToolKind.LineEllipseIntersectionMeasurement:
+                    return new[]
+                    {
+                        Port("Line", "有限图像线段", "Line2D", false),
+                        Port("Ellipse", "参考图像椭圆", "Ellipse2D", false)
+                    };
                 case VmToolKind.LineCircleIntersectionMeasurement:
                     return new[]
                     {
@@ -1724,6 +1805,56 @@ namespace HalconWinFormsDemo.Models
                         Port("Path", "图像路径", "String", false),
                         Port("Width", "图像宽度", "Number", false),
                         Port("Height", "图像高度", "Number", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.DataCode2DRecognition:
+                    return new[]
+                    {
+                        Port("XLD", "二维代码轮廓", "XLD", false),
+                        Port("DecodedText", "首个解码文本", "String", false),
+                        Port("DecodedTexts", "全部解码文本", "String", false),
+                        Port("CodeCount", "识别数量", "Number", false),
+                        Port("CenterPoint", "首码中心", "Point2D", false),
+                        Port("Pose", "首码中心与方向", "Pose2D", false),
+                        Port("CenterRow", "首码中心 Row", "Number", false),
+                        Port("CenterColumn", "首码中心 Column", "Number", false),
+                        Port("Angle", "首码方向（°）", "Number", false),
+                        Port("CoordinateContext", "坐标上下文", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("Diagnostics", "识别诊断", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.BarCode1DRecognition:
+                    return new[]
+                    {
+                        Port("XLD", "一维码轮廓", "XLD", false),
+                        Port("DecodedText", "首个解码文本", "String", false),
+                        Port("DecodedTexts", "全部解码文本", "String", false),
+                        Port("CodeCount", "识别数量", "Number", false),
+                        Port("CenterPoint", "首码中心", "Point2D", false),
+                        Port("Pose", "首码中心与方向", "Pose2D", false),
+                        Port("CenterRow", "首码中心 Row", "Number", false),
+                        Port("CenterColumn", "首码中心 Column", "Number", false),
+                        Port("Angle", "首码方向（°）", "Number", false),
+                        Port("CoordinateContext", "坐标上下文", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("Diagnostics", "识别诊断", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.OcrRecognition:
+                    return new[]
+                    {
+                        Port("Text", "整段文本", "String", false),
+                        Port("FirstCharacter", "首个字符", "String", false),
+                        Port("Characters", "逐字符文本", "String", false),
+                        Port("CharacterCount", "字符数", "Number", false),
+                        Port("MeanConfidence", "平均置信度", "Number", false),
+                        Port("MinimumConfidence", "最低置信度", "Number", false),
+                        Port("LowConfidenceCount", "低置信度字符数", "Number", false),
+                        Port("Centers", "字符中心点集", "Point2D[]", false),
+                        Port("XLD", "字符轮廓", "XLD", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("Diagnostics", "识别诊断", "String", false),
                         Port("ResultCode", "结果码", "String", false)
                     };
                 case VmToolKind.TcpClientExchange:
@@ -1874,6 +2005,20 @@ namespace HalconWinFormsDemo.Models
                         Port("Relation", "Inside/Outside/OnBoundary", "String", false),
                         Port("NormalizedRadius", "椭圆归一化半径", "Number", false),
                         Port("NormalAngle", "最近点外法线角（°）", "Number", false),
+                        Port("CoordinateContext", "坐标上下文", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
+                case VmToolKind.LineEllipseIntersectionMeasurement:
+                    return new[]
+                    {
+                        Port("XLD", "线段/椭圆/交点", "XLD", false),
+                        Port("IntersectionPoints", "交点集合", "Point2D[]", false),
+                        Port("Point1", "按线段方向第一交点", "Point2D", false),
+                        Port("Point2", "按线段方向第二交点", "Point2D", false),
+                        Port("IntersectionCount", "有限交点数量", "Number", false),
+                        Port("ChordLength", "两交点弦长", "Number", false),
+                        Port("Relation", "Disjoint/Tangent/Secant/Overlapping", "String", false),
                         Port("CoordinateContext", "坐标上下文", "String", false),
                         Port("Parameters", "参数摘要", "String", false),
                         Port("ResultCode", "结果码", "String", false)
@@ -2696,6 +2841,17 @@ namespace HalconWinFormsDemo.Models
                         Port("Threshold", "阈值摘要", "String", false),
                         Port("ResultCode", "结果码", "String", false)
                     };
+                case VmToolKind.AutomaticThreshold:
+                    return new[]
+                    {
+                        Port("Region", "自动分割区域", "Region", false),
+                        Port("Area", "区域总面积", "Number", false),
+                        Port("RegionCount", "连通区域数", "Number", false),
+                        Port("Threshold", "自动阈值", "Number", false),
+                        Port("Polarity", "目标明暗", "String", false),
+                        Port("Parameters", "参数摘要", "String", false),
+                        Port("ResultCode", "结果码", "String", false)
+                    };
                 case VmToolKind.RegionMorphology:
                     return new[]
                     {
@@ -2818,10 +2974,14 @@ namespace HalconWinFormsDemo.Models
         public static bool SupportsRoi(VmToolKind kind)
         {
             return kind == VmToolKind.ShapeMatch ||
+                   kind == VmToolKind.DataCode2DRecognition ||
+                   kind == VmToolKind.BarCode1DRecognition ||
+                   kind == VmToolKind.OcrRecognition ||
                    kind == VmToolKind.Blob ||
                    kind == VmToolKind.GrayStat ||
                    kind == VmToolKind.EdgeMeasure ||
                    kind == VmToolKind.SubpixelEdgeExtraction ||
+                   kind == VmToolKind.AutomaticThreshold ||
                    kind == VmToolKind.HDevelop ||
                    kind == VmToolKind.RoiImageExtraction;
         }

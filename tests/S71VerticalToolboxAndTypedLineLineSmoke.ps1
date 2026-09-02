@@ -1,4 +1,4 @@
-param([string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot))
+﻿param([string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot))
 
 $ErrorActionPreference='Stop'
 if([Threading.Thread]::CurrentThread.ApartmentState-ne[Threading.ApartmentState]::STA){throw'Run with powershell.exe -STA.'}
@@ -23,17 +23,17 @@ function Has($t,[string]$p){$a=[object[]]@($p,$null);[bool]$t.GetType().GetMetho
 function Line([double]$r1,[double]$c1,[double]$r2,[double]$c2,[string]$ctx){$lineType.GetMethod('CreateImagePixel',$static).Invoke($null,[object[]]@($r1,$c1,$r2,$c2,$ctx))}
 function SelectTools([object[]]$tools){(F 'FlowToolList').SelectedItems.Clear();foreach($tool in $tools){(F 'FlowToolList').SelectedItems.Add($tool)}}
 try{
-  Assert ((F 'toolCatalog').Count-eq70 -and (F 'toolCatalog').Count-eq[Enum]::GetValues($kindType).Count) 'S71 compatibility catalog mismatch after S75.'
+  Assert ((F 'toolCatalog').Count-ge74 -and (F 'toolCatalog').Count-eq[Enum]::GetValues($kindType).Count) 'S71 compatibility catalog mismatch after S83.'
   Assert ((F 'DeveloperToolbarPanel').Children.Count-eq7) 'S71 added a permanent top command.'
-  $visibleFilters=@((F 'ToolCatalogModePanel').Children|Where-Object {$_.Visibility.ToString()-eq'Visible'});Assert ($visibleFilters.Count-eq1 -and $visibleFilters[0].Name-eq'ToolCatalogAllButton') 'Left toolbox exposes more than the single Classification entry.'
+  $visibleFilters=@((F 'ToolCatalogModePanel').Children|Where-Object {$_.Visibility.ToString()-eq'Visible'});Assert ($visibleFilters.Count-eq5 -and (($visibleFilters|Select-Object -ExpandProperty Name) -contains 'ToolCatalogAllButton') -and (($visibleFilters|Select-Object -ExpandProperty Name) -contains 'ToolCatalogSnippetButton')) 'Left toolbox does not expose the direct all/common/favorite/recent/snippet modes.'
   Assert ((F 'ToolCatalogList').Visibility.ToString()-eq'Visible' -and (F 'ToolSnippetCatalogList').Visibility.ToString()-eq'Collapsed') 'Default toolbox is not the full categorized tool catalog.'
 
-  # A: create a real snippet, discover it from the single Classification menu, preview and insert through the reused S70 core.
+  # A: create a real snippet, open it from the direct snippet mode, preview and insert through the reused S70 core.
   $flow=F 'flowTools';M 'DisposeFlowTools'|Out-Null;$flow.Clear();$pa=Tool 'PointSetGeometryStatistics' 'A Source';$pb=Tool 'PointSetGeometryStatistics' 'B Source';$pair=Tool 'PointPairLineConstructionMeasurement' 'Construct Line';$judge=Tool 'NumericJudge' 'Distance Judge';foreach($t in @($pa,$pb,$pair,$judge)){$flow.Add($t)}
   $pair.SetInputBinding('PointA',$pa.ToolId,'Centroid');$pair.SetInputBinding('PointB',$pb.ToolId,'Centroid');$judge.SetInputBinding('Value',$pair.ToolId,'Distance');$judge.InputToolId=$pair.ToolId;$judge.InputPortName='Distance'
   M 'OpenFlowSnippetLibraryButton_Click' ([object[]]@($null,[Windows.RoutedEventArgs]::new()))|Out-Null;SelectTools @($pair,$judge);(F 'FlowSnippetNameTextBox').Text='Line QA Chain';M 'SaveSelectedFlowSnippetButton_Click' ([object[]]@($null,[Windows.RoutedEventArgs]::new()))|Out-Null;Assert ((F 'flowSnippetLibraryS70').Snippets.Count-eq1) 'Fixture snippet save failed.';M 'CloseFlowSnippetLibraryButton_Click' ([object[]]@($null,[Windows.RoutedEventArgs]::new()))|Out-Null
   M 'ToolCatalogShowSnippetsMenuItem_Click' ([object[]]@($null,[Windows.RoutedEventArgs]::new()))|Out-Null
-  Assert ((F 'ToolCatalogList').Visibility.ToString()-eq'Collapsed' -and (F 'ToolSnippetCatalogList').Visibility.ToString()-eq'Visible' -and (F 'toolboxSnippetItemsS71').Count-eq1) 'Classification menu did not switch to on-demand snippets.'
+  Assert ((F 'ToolCatalogList').Visibility.ToString()-eq'Collapsed' -and (F 'ToolSnippetCatalogList').Visibility.ToString()-eq'Visible' -and (F 'toolboxSnippetItemsS71').Count-eq1) 'Direct snippet mode did not switch to on-demand snippets.'
   $previewPurpose=(F 'ToolCapabilityPurposeText').Text;$previewInput=(F 'ToolCapabilityInputText').Text;$previewGraphics=(F 'ToolCapabilityGraphicsText').Text;Write-Output ('S71_SNIPPET_PREVIEW='+$previewPurpose+'|'+$previewInput+'|'+$previewGraphics)
   $previewOk1=[bool]($previewPurpose -match 'Construct Line.*Distance Judge');$previewOk2=[bool]($previewInput -match 'PointA:Point2D');$previewOk3=$previewGraphics.Length -gt 12;Assert ($previewOk1 -and $previewOk2 -and $previewOk3) 'Snippet order/internal/external contract preview is incomplete.'
   M 'DisposeFlowTools'|Out-Null;$flow.Clear();$anchor=Tool 'ImageSource' 'Anchor';$flow.Add($anchor);(F 'FlowToolList').SelectedItem=$anchor;$before=$flow.Count;M 'InsertSelectedToolboxSnippetS71' ([object[]]@($true))|Out-Null
@@ -44,7 +44,7 @@ try{
   M 'UndoFlowEditButton_Click' ([object[]]@($null,$null))|Out-Null;Assert ($flow.Count-eq1) 'One undo did not remove the inserted snippet.';M 'RedoFlowEditButton_Click' ([object[]]@($null,$null))|Out-Null;Assert ($flow.Count-eq3) 'Redo did not restore the inserted snippet.'
   M 'RefreshFlowGraphLayout'|Out-Null;$ordered=@($flow|Sort-Object GraphY);Assert (($ordered|Select-Object -ExpandProperty GraphX|Select-Object -Unique).Count-eq1 -and $ordered[0].GraphY-lt$ordered[1].GraphY -and $ordered[1].GraphY-lt$ordered[2].GraphY -and $ordered[0].GraphHeight-le74.1) 'Automatic graph is not compact top-to-bottom.'
   $activityTool=$flow[1];(F 'FlowToolList').SelectedItem=$activityTool;M 'OpenFlowStepActivityS71' ([object[]]@($activityTool))|Out-Null;Assert ((F 'FlowStepActivityPanel').Visibility.ToString()-eq'Visible' -and (F 'FlowStepActivityTitleText').Text-match'Construct Line' -and (F 'FlowStepCommunicationTextBox').Text.Length-gt10) 'Per-step log/communication task page did not open.';M 'CloseFlowStepActivityButton_Click' ([object[]]@($null,[Windows.RoutedEventArgs]::new()))|Out-Null
-  M 'ToolCatalogShowAllMenuItem_Click' ([object[]]@($null,[Windows.RoutedEventArgs]::new()))|Out-Null;Assert ((F 'ToolCatalogList').Visibility.ToString()-eq'Visible' -and -not [bool](F 'toolboxSnippetModeS71')) 'Classification menu did not return to full tools.'
+  M 'ToolCatalogShowAllMenuItem_Click' ([object[]]@($null,[Windows.RoutedEventArgs]::new()))|Out-Null;Assert ((F 'ToolCatalogList').Visibility.ToString()-eq'Visible' -and -not [bool](F 'toolboxSnippetModeS71')) 'Direct toolbox mode did not return to all tools.'
 
   # B: HALCON Line2D + Line2D relation, finite point downstream, numbers, recipe/copy/lifecycle and failure semantics.
   M 'DisposeFlowTools'|Out-Null;$flow.Clear();$la=Tool 'XldLineFitting' 'Typed Line A';$lb=Tool 'PointPairLineConstructionMeasurement' 'Typed Line B';$rel=Tool 'TypedLineLineRelationMeasurement' 'Typed Line Relation';$pointDistance=Tool 'PointToLineDistanceMeasurement' 'Intersection To Line';$numJudge=Tool 'NumericJudge' 'Angle Judge';foreach($t in @($la,$lb,$rel,$pointDistance,$numJudge)){$flow.Add($t)}
@@ -66,5 +66,5 @@ try{
   $lb.SetOutputValue('MainLine',(Line ([double]::NaN) 0 10 0 $ctx));$lb.ResultCode='OK';$failed=$false;try{Run $rel|Out-Null}catch{$failed=$true};Assert $failed 'Nonfinite Line2D was accepted.'
   $lb.SetOutputValue('MainLine',(Line 0 5 10 5 'Other.Image'));$lb.ResultCode='OK';$failed=$false;try{Run $rel|Out-Null}catch{$failed=$true};Assert $failed 'Cross-context Line2D was accepted.'
   $lb.SetOutputValue('MainLine',(Line 0 5 10 5 $ctx));$lb.ResultCode='--';$failed=$false;try{Run $rel|Out-Null}catch{$failed=$true};Assert $failed 'Stale/unrun Line2D source was accepted.'
-  Write-Output 'S71 single-classification toolbox/snippet discovery-insertion/tasks/S68/undo + compact vertical graph/flexible curves/step activity + HALCON typed Line2D relation/intersection/downstreams/recipe/copy/lifecycle/failures passed; BSB not implemented.'
+  Write-Output 'S71 direct categorized toolbox/snippet discovery-insertion/tasks/S68/undo + compact vertical graph/flexible curves/step activity + HALCON typed Line2D relation/intersection/downstreams/recipe/copy/lifecycle/failures passed'
 }finally{$main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();if($ownsApp){$app.Shutdown()};if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}}

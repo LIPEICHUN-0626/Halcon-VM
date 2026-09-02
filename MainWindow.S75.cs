@@ -25,17 +25,20 @@ namespace HalconWinFormsDemo
             VmToolInstance tool = anchor == null ? null : anchor.Tag as VmToolInstance;
             if (tool == null || isContinuousRunning || isFlowExecutionActive) return;
             string direction = anchor.Uid != null && anchor.Uid.EndsWith("IN", StringComparison.OrdinalIgnoreCase) ? "IN" : "OUT";
-            OpenFlowAggregatePortFlyoutS75(tool, direction);
             List<VmFlowPortChip> ports = (string.Equals(direction, "IN", StringComparison.OrdinalIgnoreCase) ? tool.FlowInputPorts : tool.FlowOutputPorts).ToList();
-            if (ports.Count == 1)
+            if (TryCompleteArmedAggregateFlowConnectionS79(tool, direction))
             {
-                SelectAggregatePortS75(ports[0], anchor, e.GetPosition(FlowGraphCanvas), true);
+                e.Handled = true;
+                return;
+            }
+            if (ports.Count > 0)
+            {
+                BeginAggregateFlowPortDragS79(tool, direction, anchor, e.GetPosition(FlowGraphCanvas));
             }
             else
             {
-                HeaderStatusText.Text = ports.Count == 0
-                    ? tool.InstanceName + " 没有可用的 " + direction + " 端口。"
-                    : tool.InstanceName + " 有 " + ports.Count.ToString(CultureInfo.InvariantCulture) + " 个 " + direction + " 端口；请在连接点旁选择精确端口。";
+                OpenFlowAggregatePortFlyoutS75(tool, direction);
+                HeaderStatusText.Text = tool.InstanceName + " 没有可用的 " + direction + " 端口。";
             }
             e.Handled = true;
         }
@@ -87,6 +90,12 @@ namespace HalconWinFormsDemo
             FrameworkElement row = sender as FrameworkElement;
             VmFlowPortChip chip = row == null ? null : row.Tag as VmFlowPortChip;
             if (chip == null) return;
+            if (TryCompleteArmedFlowConnectionS79(chip))
+            {
+                CloseFlowAggregatePortFlyoutS75();
+                e.Handled = true;
+                return;
+            }
             SelectAggregatePortS75(chip, row, e.GetPosition(FlowGraphCanvas), true);
             e.Handled = true;
         }
@@ -139,6 +148,10 @@ namespace HalconWinFormsDemo
             {
                 error = "连接点已失效。";
                 return null;
+            }
+            if (!string.IsNullOrWhiteSpace(flowPortDragSession.AggregateOriginToolId))
+            {
+                return ResolveAggregateHoverPortS79(owner, direction, out error);
             }
             if (flowPortDragSession.FixedTargetPort == null && !string.Equals(direction, "IN", StringComparison.OrdinalIgnoreCase))
             {

@@ -52,4 +52,4 @@ $expand.Invoke($window,[object[]]@($null,$null))|Out-Null;$rightTabs=$main.GetFi
 $panel=$main.GetField('DockImageMirrorPanel',$all).GetValue($window);if($panel.Visibility.ToString() -ne 'Visible'){throw 'S34 image mirror dock panel is not visible.'};$panel.BringIntoView();Pump-Ui 250
 $mirrorSize=Save-Shot $MirrorOutputPath
 $main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();$app.Shutdown();if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}
-Write-Output "S34_UI_CAPTURE=PASS; CrosshairPath=$CrosshairOutputPath; MirrorPath=$MirrorOutputPath; LeftImage=$LeftImageOutputPath; RightImage=$RightImageOutputPath; CrosshairWindow=$crosshairSize; MirrorWindow=$mirrorSize; A=VM_DOUBLE_CROSSHAIR_GUIDES; B=HALCON_MIRROR_IMAGE; BSB=NOT_IMPLEMENTED_BY_USER_DIRECTIVE"
+Write-Output "S34_UI_CAPTURE=PASS; CrosshairPath=$CrosshairOutputPath; MirrorPath=$MirrorOutputPath; LeftImage=$LeftImageOutputPath; RightImage=$RightImageOutputPath; CrosshairWindow=$crosshairSize; MirrorWindow=$mirrorSize; A=VM_DOUBLE_CROSSHAIR_GUIDES; B=HALCON_MIRROR_IMAGE"

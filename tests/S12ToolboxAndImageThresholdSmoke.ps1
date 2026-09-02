@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot)
 )
 
@@ -71,6 +71,7 @@ $dockThresholdPanel = $mainType.GetField('DockImageThresholdPanel', $allFields).
 $dockThresholdMin = $mainType.GetField('DockImageThresholdMinTextBox', $allFields).GetValue($window)
 $dockThresholdMax = $mainType.GetField('DockImageThresholdMaxTextBox', $allFields).GetValue($window)
 $dockValidation = $mainType.GetField('DockValidationText', $allFields).GetValue($window)
+$centralConfiguration = $mainType.GetField('CentralModuleConfigurationOverlayS77', $allFields).GetValue($window)
 $dockInputRows = $mainType.GetField('dockInputPortRows', $private).GetValue($window)
 
 function New-Tool([string]$Kind, [string]$Name) {
@@ -152,7 +153,7 @@ Invoke-Tool $filter 'S12 filter' | Out-Null
 
 $flowToolList.SelectedItem = $threshold
 $openConfiguration.Invoke($window, @()) | Out-Null
-Assert-True ([object]::ReferenceEquals($rightTabs.SelectedItem, $dockTab)) 'Threshold must open the docked configuration workbench.'
+Assert-True ($centralConfiguration.Visibility.ToString() -eq 'Visible') 'Threshold must open the central module configuration workbench.'
 Assert-True ($dockThresholdPanel.Visibility.ToString() -eq 'Visible') 'Threshold parameter panel is not visible.'
 Assert-True ($dockInputRows.Count -eq 1) 'Threshold must expose one typed Image input row.'
 $dockThresholdMin.Text = '200'

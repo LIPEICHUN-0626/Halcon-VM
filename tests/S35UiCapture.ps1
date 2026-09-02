@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot),
     [string]$RoiOutputPath = (Join-Path ([IO.Path]::GetTempPath()) 'halcon-vm-s35-line-point-roi.png'),
     [string]$RoiHalconOutputPath = (Join-Path ([IO.Path]::GetTempPath()) 'halcon-vm-s35-line-point-roi-view.png'),
@@ -50,4 +50,4 @@ $expand.Invoke($window,[object[]]@($null,$null))|Out-Null;$list.SelectedItem=$ro
 $panel=Field 'DockImageRotatePanel';if($panel.Visibility.ToString() -ne 'Visible'){throw 'S35 image rotate dock panel is not visible.'};$panel.BringIntoView();Pump-Ui 250
 $rotateSize=Save-Shot $RotateOutputPath;$view=(Field 'imageWindow').HalconWindow.DumpWindowImage();try{$view.WriteImage('png',0,$HalconOutputPath)}finally{$view.Dispose()}
 $main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();$app.Shutdown();if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}
-Write-Output "S35_UI_CAPTURE=PASS; RoiPath=$RoiOutputPath; RoiHalconOutput=$RoiHalconOutputPath; RotatePath=$RotateOutputPath; HalconOutput=$HalconOutputPath; RoiWindow=$roiSize; RotateWindow=$rotateSize; A=VM_LINE_POINT_ROI; B=HALCON_ROTATE_IMAGE; BSB=NOT_IMPLEMENTED_BY_USER_DIRECTIVE"
+Write-Output "S35_UI_CAPTURE=PASS; RoiPath=$RoiOutputPath; RoiHalconOutput=$RoiHalconOutputPath; RotatePath=$RotateOutputPath; HalconOutput=$HalconOutputPath; RoiWindow=$roiSize; RotateWindow=$rotateSize; A=VM_LINE_POINT_ROI; B=HALCON_ROTATE_IMAGE"

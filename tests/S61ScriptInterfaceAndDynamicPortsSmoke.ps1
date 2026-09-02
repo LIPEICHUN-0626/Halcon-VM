@@ -73,5 +73,5 @@ try{
   M 'ApplyFlowFromRecipe' ([object[]]@($roundtrip))|Out-Null;$reloaded=$flow|Where-Object{$_.ToolId-eq$script.ToolId}|Select-Object -First 1;Assert($null-ne$reloaded-and$reloaded.Parameters.ScriptInterfaceMembers.Count-eq12-and(FindMember $reloaded.Parameters Adjusted).MemberId-eq$adjusted.MemberId) 'Recipe reload lost the script interface schema'
   $old=[Activator]::CreateInstance($parametersType);$old.Normalize();Assert($old.ScriptInterfaceMembers.Count-eq0) 'Old recipe parameters did not default to the legacy fixed interface'
 
-  Write-Output 'S61 on-demand script interface designer + stable typed scalar input/parameter/output ports + inline/DLL/runtime validation/downstream/legacy/recipe/copy passed; BSB not implemented by user directive.'
+  Write-Output 'S61 on-demand script interface designer + stable typed scalar input/parameter/output ports + inline/DLL/runtime validation/downstream/legacy/recipe/copy passed'
 }finally{$mainType.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();if($ownsApp){$app.Shutdown()};if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}}

@@ -21,7 +21,7 @@ namespace HalconWinFormsDemo
 #else
         private const string BuildConfigName = "Release";
 #endif
-        private const string VmBuildStamp = "VM优化版 " + BuildConfigName + " 2026-06-22";
+        private const string ProductBuildStamp = "工业视觉工作台 " + BuildConfigName + " 2026-08-27";
 
         private readonly HalconImageService imageService = new HalconImageService();
         private readonly HDevInspectionService inspectionService = new HDevInspectionService();
@@ -202,7 +202,7 @@ namespace HalconWinFormsDemo
 
         public MainForm()
         {
-            Text = "HALCON 视觉检测工作站 - " + VmBuildStamp;
+            Text = "HALCON 工业视觉平台 - " + ProductBuildStamp;
             StartPosition = FormStartPosition.CenterScreen;
             MinimumSize = new Size(1360, 860);
             Width = 1500;
@@ -217,7 +217,7 @@ namespace HalconWinFormsDemo
             SelectTool(VisionTool.Select);
             RefreshResultGrid();
             RefreshUiState();
-            logger.Info("应用启动：" + VmBuildStamp);
+            logger.Info("应用启动：" + ProductBuildStamp);
             logger.Info("当前程序路径：" + Application.ExecutablePath);
         }
 

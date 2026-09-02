@@ -38,6 +38,6 @@ try {
   $window.Width = 1366; $window.Height = 768; Pump 800
   Assert ((Field 'DockPointToCircleRadialDeviationPanel').Visibility.ToString() -eq 'Visible') 'Point-circle dock configuration is not visible.'
   Shot $CompactPath 1366 768
-  Write-Output "S67_UI_CAPTURE=PASS; Wide=$WidePath; Compact=$CompactPath; Catalog=62; Recommendation=Circle2D; Dock=Point2D+Circle2D; BSB=NOT_IMPLEMENTED"
+  Write-Output "S67_UI_CAPTURE=PASS; Wide=$WidePath; Compact=$CompactPath; Catalog=62; Recommendation=Circle2D; Dock=Point2D+Circle2D"
 }
 finally { $main.GetField('recipeCloseConfirmed', $private).SetValue($window, $true); $window.Close(); $app.Shutdown(); if (Test-Path $temp) { Remove-Item -LiteralPath $temp -Recurse -Force } }

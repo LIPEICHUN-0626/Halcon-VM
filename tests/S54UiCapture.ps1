@@ -54,4 +54,4 @@ $window.WindowState=[Windows.WindowState]::Normal;$window.MinWidth=0;$window.Min
 SelectTool $filter;Pump 900;$compact=Shot $CompactOutputPath
 $main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();$app.Shutdown()
 if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}
-Write-Output "S54_UI_CAPTURE=PASS; Wide=$WideOutputPath; Compact=$CompactOutputPath; WideSize=$wide; CompactSize=$compact; BSB=NOT_IMPLEMENTED_BY_USER_DIRECTIVE"
+Write-Output "S54_UI_CAPTURE=PASS; Wide=$WideOutputPath; Compact=$CompactOutputPath; WideSize=$wide; CompactSize=$compact"

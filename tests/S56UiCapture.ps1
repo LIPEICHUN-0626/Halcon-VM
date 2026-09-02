@@ -1,4 +1,4 @@
-﻿param(
+param(
   [string]$ProjectRoot=(Split-Path -Parent $PSScriptRoot),
   [string]$WideOutputPath=(Join-Path $ProjectRoot 'artifacts\s56\s56-numeric-calculation-1938x1158.png'),
   [string]$CompactOutputPath=(Join-Path $ProjectRoot 'artifacts\s56\s56-compact-app-bar-1366x768.png')
@@ -26,4 +26,4 @@ $source.SetOutputValue('SN','12.5');$source.SetOutputValue('Width',[double]2.5);
 $current=Image 720 520;$main.GetField('currentImage',$private).SetValue($window,$current);$main.GetField('currentImagePath',$private).SetValue($window,'S56 compact application bar');(F 'viewport').SetImageSize(720,520);SelectTool $calculation;Pump 900;$wide=Shot $WideOutputPath
 $window.WindowState=[Windows.WindowState]::Normal;$window.MinWidth=0;$window.MinHeight=0;$window.Width=1366;$window.Height=768;$window.Left=2;$window.Top=2;SelectTool $calculation;Pump 900;$workspace=F 'MainWorkspaceGrid';$header=[Math]::Round($workspace.TranslatePoint([Windows.Point]::new(0,0),$window).Y,1);Assert($header-lt100)('Top application area remains too tall: '+$header);Assert((F 'ToolCatalogPanel').ActualWidth-gt0-and(F 'FlowWorkspacePanel').ActualWidth-gt0-and(F 'RightTabs').ActualWidth-gt0) 'Core development regions are not simultaneously visible at 1366x768';$compact=Shot $CompactOutputPath
 $main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();$app.Shutdown();if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}
-Write-Output "S56_UI_CAPTURE=PASS; Wide=$WideOutputPath; Compact=$CompactOutputPath; WideSize=$wide; CompactSize=$compact; TopAreaHeight=$header; BSB=NOT_IMPLEMENTED_BY_USER_DIRECTIVE"
+Write-Output "S56_UI_CAPTURE=PASS; Wide=$WideOutputPath; Compact=$CompactOutputPath; WideSize=$wide; CompactSize=$compact; TopAreaHeight=$header"

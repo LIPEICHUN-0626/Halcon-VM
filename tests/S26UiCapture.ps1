@@ -223,4 +223,4 @@ $main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true)
 $window.Close()
 $app.Shutdown()
 if (Test-Path $temp) { Remove-Item -LiteralPath $temp -Recurse -Force }
-Write-Output ('S26_UI_CAPTURE=PASS; Path={0}; Window={1}; A=DOCKED_DEBUG_MONITOR/CURRENT_NEXT/RANGE/PAUSE_REASON/IO_SNAPSHOT/BREAKPOINT_LIST/RUN_TO_SELECTED; B=HALCON_DUAL_XLD_LINE_RELATION/INTERSECTION/ANGLE/PARALLEL_DISTANCE/RESIDUAL/OVERLAY; AcuteAngle={2:0.###}; Intersection={3:0.###},{4:0.###}; BSB=NOT_IMPLEMENTED_BY_USER_DIRECTIVE' -f $OutputPath,$size,[double]$acute,[double]$intersectionRow,[double]$intersectionColumn)
+Write-Output ('S26_UI_CAPTURE=PASS; Path={0}; Window={1}; A=DOCKED_DEBUG_MONITOR/CURRENT_NEXT/RANGE/PAUSE_REASON/IO_SNAPSHOT/BREAKPOINT_LIST/RUN_TO_SELECTED; B=HALCON_DUAL_XLD_LINE_RELATION/INTERSECTION/ANGLE/PARALLEL_DISTANCE/RESIDUAL/OVERLAY; AcuteAngle={2:0.###}; Intersection={3:0.###},{4:0.###}' -f $OutputPath,$size,[double]$acute,[double]$intersectionRow,[double]$intersectionColumn)

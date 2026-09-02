@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$ProjectRoot = (Split-Path -Parent $PSScriptRoot),
     [string]$MaskOutputPath = (Join-Path ([IO.Path]::GetTempPath()) 'halcon-vm-s36-roi-mask.png'),
     [string]$MaskHalconOutputPath = (Join-Path ([IO.Path]::GetTempPath()) 'halcon-vm-s36-roi-mask-view.png'),
@@ -49,4 +49,4 @@ $expand.Invoke($window,[object[]]@($null,$null))|Out-Null;$list.SelectedItem=$af
 $panel=Field 'DockImageAffineTransformPanel';if($panel.Visibility.ToString()-ne'Visible'){throw 'S36 affine dock panel is not visible.'};$panel.BringIntoView();Pump-Ui 250
 $affineSize=Save-Shot $AffineOutputPath;$affineView=(Field 'imageWindow').HalconWindow.DumpWindowImage();try{$affineView.WriteImage('png',0,$AffineHalconOutputPath)}finally{$affineView.Dispose()}
 $main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();$app.Shutdown();if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}
-Write-Output "S36_UI_CAPTURE=PASS; MaskPath=$MaskOutputPath; MaskHalconOutput=$MaskHalconOutputPath; AffinePath=$AffineOutputPath; AffineHalconOutput=$AffineHalconOutputPath; MaskWindow=$maskSize; AffineWindow=$affineSize; A=VM_ROI_MASK; B=HALCON_AFFINE_IMAGE; BSB=NOT_IMPLEMENTED_BY_USER_DIRECTIVE"
+Write-Output "S36_UI_CAPTURE=PASS; MaskPath=$MaskOutputPath; MaskHalconOutput=$MaskHalconOutputPath; AffinePath=$AffineOutputPath; AffineHalconOutput=$AffineHalconOutputPath; MaskWindow=$maskSize; AffineWindow=$affineSize; A=VM_ROI_MASK; B=HALCON_AFFINE_IMAGE"

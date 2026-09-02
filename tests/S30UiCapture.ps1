@@ -239,4 +239,4 @@ $main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true)
 $window.Close()
 $app.Shutdown()
 if (Test-Path $temp) { Remove-Item -LiteralPath $temp -Recurse -Force }
-Write-Output "S30_UI_CAPTURE=PASS; CircularPath=$CircularEditorOutputPath; RingPath=$RingOutputPath; CircularImage=$CircularImageOutputPath; RingImage=$RingImageOutputPath; CircularWindow=$circularSize; RingWindow=$ringSize; A=CIRCULAR_IMAGE_EDIT; B=RING_WALL_THICKNESS_CONCENTRICITY; ValidCount=$([int][double]$valid); MeanThickness=$([double]$thickness); Eccentricity=$([double]$eccentricity); BSB=NOT_IMPLEMENTED_BY_USER_DIRECTIVE"
+Write-Output "S30_UI_CAPTURE=PASS; CircularPath=$CircularEditorOutputPath; RingPath=$RingOutputPath; CircularImage=$CircularImageOutputPath; RingImage=$RingImageOutputPath; CircularWindow=$circularSize; RingWindow=$ringSize; A=CIRCULAR_IMAGE_EDIT; B=RING_WALL_THICKNESS_CONCENTRICITY; ValidCount=$([int][double]$valid); MeanThickness=$([double]$thickness); Eccentricity=$([double]$eccentricity)"

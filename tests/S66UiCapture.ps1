@@ -36,6 +36,6 @@ try {
   $window.Width = 1366; $window.Height = 768; Pump 800
   Assert ((Field 'DockPointToLineDistancePanel').Visibility.ToString() -eq 'Visible') 'Point-line dock configuration is not visible.'
   Shot $CompactPath 1366 768
-  Write-Output "S66_UI_CAPTURE=PASS; Wide=$WidePath; Compact=$CompactPath; Catalog=61; AnchorPreview=UPSTREAM_DOWNSTREAM; Dock=Point2D+Line2D; BSB=NOT_IMPLEMENTED"
+  Write-Output "S66_UI_CAPTURE=PASS; Wide=$WidePath; Compact=$CompactPath; Catalog=61; AnchorPreview=UPSTREAM_DOWNSTREAM; Dock=Point2D+Line2D"
 }
 finally { $main.GetField('recipeCloseConfirmed', $private).SetValue($window, $true); $window.Close(); $app.Shutdown(); if (Test-Path $temp) { Remove-Item -LiteralPath $temp -Recurse -Force } }

@@ -245,7 +245,10 @@ $rightViewport.SetImageSize(200,160); $leftViewport.SetImageSize(100,80)
 $fakeControl = New-Object Windows.Forms.Panel; $fakeControl.Width = 100; $fakeControl.Height = 80
 $rightViewport.ZoomAt((New-Object Drawing.Point(50,40)),$fakeControl,120)
 $leftViewport.SynchronizeNormalizedViewFrom($rightViewport)
-Assert-True ($leftViewport.ZoomText -eq $rightViewport.ZoomText) 'Normalized linked view did not preserve zoom fraction across different image dimensions.'
+$viewType=$rightViewport.GetType();$viewFlags=[Reflection.BindingFlags]'Instance,NonPublic'
+$rightSpan=[double]$viewType.GetField('column2',$viewFlags).GetValue($rightViewport)-[double]$viewType.GetField('column1',$viewFlags).GetValue($rightViewport)+1
+$leftSpan=[double]$viewType.GetField('column2',$viewFlags).GetValue($leftViewport)-[double]$viewType.GetField('column1',$viewFlags).GetValue($leftViewport)+1
+Assert-True ([Math]::Abs($leftSpan/100-$rightSpan/200)-lt0.000001) 'Normalized linked view did not preserve scene fraction across different image dimensions.'
 $fakeControl.Dispose()
 
 # Recipe persistence and disposed-upstream rejection.

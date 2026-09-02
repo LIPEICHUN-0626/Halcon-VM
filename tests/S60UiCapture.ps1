@@ -1,4 +1,4 @@
-﻿param(
+param(
   [string]$ProjectRoot=(Split-Path -Parent $PSScriptRoot),
   [string]$DefaultOutputPath=(Join-Path $ProjectRoot 'artifacts\s60\s60-default-first-screen-1938x1158.png'),
   [string]$WideOutputPath=(Join-Path $ProjectRoot 'artifacts\s60\s60-external-resources-1938x1158.png'),
@@ -24,5 +24,5 @@ try{
   $resources=F 'externalResources';$resources.Add((Resource 'InspectionRules' '2.6.0.0' ('a'*64) 'Healthy' 3));$resources.Add((Resource 'ProductAdapter' '1.4.2.0' ('b'*64) 'UpdateAvailable' 1));$resources.Add((Resource 'StationFormatter' '3.1.0.0' ('c'*64) 'Healthy' 2));$main.GetMethod('OpenExternalResourcesButton_Click',$private).Invoke($window,[object[]]@($null,$null))|Out-Null;(F 'ExternalResourceListBox').SelectedIndex=0;Pump 550
   Assert((F 'ExternalResourceWorkspace').Visibility.ToString()-eq'Visible'-and(F 'MainWorkspaceGrid').Visibility.ToString()-eq'Collapsed') 'On-demand resource workspace is not active';Assert((F 'ExternalResourceListBox').ActualWidth-gt280-and(F 'ExternalResourceTypeNameTextBox').ActualWidth-gt200) 'Wide resource workbench did not lay out correctly';$wide=Shot $WideOutputPath 1938 1158
   $window.Width=1366;$window.Height=768;$window.Left=2;$window.Top=2;Pump 600;Assert((F 'ExternalResourceListBox').ActualHeight-gt250-and(F 'ExternalResourceManagedPathText').ActualWidth-gt200) 'Compact resource workbench is clipped';$compact=Shot $CompactOutputPath 1366 768
-  Write-Output "S60_UI_CAPTURE=PASS; Default=$DefaultOutputPath; Wide=$WideOutputPath; Compact=$CompactOutputPath; DefaultSize=$default; WideSize=$wide; CompactSize=$compact; PermanentToolbarChildren=7; WorkspaceDefaultVisible=0; BSB=NOT_IMPLEMENTED_BY_USER_DIRECTIVE"
+  Write-Output "S60_UI_CAPTURE=PASS; Default=$DefaultOutputPath; Wide=$WideOutputPath; Compact=$CompactOutputPath; DefaultSize=$default; WideSize=$wide; CompactSize=$compact; PermanentToolbarChildren=7; WorkspaceDefaultVisible=0"
 }finally{$main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();$app.Shutdown();if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}}

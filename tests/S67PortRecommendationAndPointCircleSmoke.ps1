@@ -142,7 +142,7 @@ try {
     $restored = @(); foreach ($entry in (Field 'toolCatalogView')) { $restored += $entry }
     Assert ((Field 'ToolRecommendationContextBorder').Visibility.ToString() -eq 'Collapsed' -and $restored.Count -eq [Enum]::GetValues($kindType).Count -and $restored.Count -ge 62) 'Return to full catalog did not restore the full implemented-tool set.'
 
-    Write-Output 'S67 OUT-port recommendations + real insertion/autobind + full-catalog return + Circle2D + HALCON point-circle radial deviation + monitor/recipe/copy/failures passed; BSB not implemented.'
+    Write-Output 'S67 OUT-port recommendations + real insertion/autobind + full-catalog return + Circle2D + HALCON point-circle radial deviation + monitor/recipe/copy/failures passed'
 }
 finally {
     $main.GetField('recipeCloseConfirmed', $private).SetValue($window, $true)

@@ -27,7 +27,7 @@ function Point([double]$r,[double]$c,[string]$ctx){$pointType.GetMethod('CreateI
 function SelectTools([object[]]$tools){(F 'FlowToolList').SelectedItems.Clear();foreach($tool in $tools){(F 'FlowToolList').SelectedItems.Add($tool)}}
 function FindNavButton($root,[string]$toolId){if($root-is[Windows.Controls.Button]-and[string]$root.Tag-eq$toolId){return $root};$count=[Windows.Media.VisualTreeHelper]::GetChildrenCount($root);for($i=0;$i-lt$count;$i++){$found=FindNavButton ([Windows.Media.VisualTreeHelper]::GetChild($root,$i)) $toolId;if($null-ne$found){return $found}};return $null}
 try{
-  Assert ((F 'toolCatalog').Count-eq70 -and (F 'toolCatalog').Count-eq[Enum]::GetValues($kindType).Count) 'S73 compatibility catalog mismatch after S75.'
+  Assert ((F 'toolCatalog').Count-eq73 -and (F 'toolCatalog').Count-eq[Enum]::GetValues($kindType).Count) 'S73 compatibility catalog mismatch after S80.'
   Assert ((F 'DeveloperToolbarPanel').Children.Count-eq7) 'S73 added a permanent top command.'
 
   # A: responsive compact vertical flow, no forced horizontal scroll, preserved manual coordinates, thin state navigator.
@@ -63,5 +63,5 @@ try{
   $source.SetOutputValue('EdgePoints',(Points $rows $cols $ctx));$source.ResultCode='--';$failed=$false;try{Run $fit|Out-Null}catch{$failed=$true};Assert $failed 'Stale/unrun Point2D[] source was accepted.'
   $source.ResultCode='OK';$fit.Parameters.PointSetAbnormalPolicy='Reject';$recipe=M 'CaptureRecipe';$saved=$recipe.ToolFlow|Where-Object ToolId -eq $fit.ToolId|Select-Object -First 1;Assert ($saved.Parameters.XldCircleFitAlgorithm-eq'atukey' -and $saved.Parameters.PointSetMinimumCount-eq6) 'Recipe lost typed point-set circle parameters.'
   SelectTools @($source,$fit);$copied=[int](M 'CopySelectedFlowToolsToClipboard');$pasted=[int](M 'PasteFlowToolClipboard' ([object[]]@($flow.Count)));$copyBlock=@($flow|Select-Object -Last 2);$copyFit=$copyBlock|Where-Object{$_.Kind.ToString()-eq'TypedPointSetCircleFittingMeasurement'}|Select-Object -First 1;Assert (($copied-eq2)-and($pasted-eq2)-and$copyFit.GetInputBinding('Points').SourceToolId-eq$copyBlock[0].ToolId) 'Typed circle-fit block copy did not remap Points source.'
-  Write-Output 'S73 responsive vertical canvas/thin navigator/manual-layout preservation + HALCON typed Point2D[] circle fitting/downstreams/dock/I-O/recipe/copy/lifecycle/failures passed; BSB not implemented.'
+  Write-Output 'S73 responsive vertical canvas/thin navigator/manual-layout preservation + HALCON typed Point2D[] circle fitting/downstreams/dock/I-O/recipe/copy/lifecycle/failures passed'
 }finally{$main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();if($ownsApp){$app.Shutdown()};if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}}

@@ -194,4 +194,4 @@ $app.Shutdown()
 if (Test-Path $temp) { Remove-Item -LiteralPath $temp -Recurse -Force }
 $validText = [int][double]$validCount
 $pairText = [int][double]$pairCount
-Write-Output "S28_UI_CAPTURE=PASS; Path=$OutputPath; Window=$size; A=IMAGE_MEASUREMENT_DOMAIN_EDIT/DRAFT/APPLY_CANCEL; B=HALCON_LINEAR_CALIPER_ARRAY/XLD/STATS; ValidCount=$validText; PairCount=$pairText; BSB=NOT_IMPLEMENTED_BY_USER_DIRECTIVE"
+Write-Output "S28_UI_CAPTURE=PASS; Path=$OutputPath; Window=$size; A=IMAGE_MEASUREMENT_DOMAIN_EDIT/DRAFT/APPLY_CANCEL; B=HALCON_LINEAR_CALIPER_ARRAY/XLD/STATS; ValidCount=$validText; PairCount=$pairText"

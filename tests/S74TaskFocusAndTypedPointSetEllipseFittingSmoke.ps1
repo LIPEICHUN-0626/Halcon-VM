@@ -24,7 +24,7 @@ function Has($t,[string]$p){$a=[object[]]@($p,$null);[bool]$t.GetType().GetMetho
 function Points([double[]]$r,[double[]]$c,[string]$ctx){$arrayType.GetMethod('CreateImagePixel',$static).Invoke($null,[object[]]@($r,$c,$ctx))}
 function SelectTools([object[]]$tools){(F 'FlowToolList').SelectedItems.Clear();foreach($tool in $tools){(F 'FlowToolList').SelectedItems.Add($tool)}}
 try{
-  Assert ((F 'toolCatalog').Count-eq70 -and (F 'toolCatalog').Count-eq[Enum]::GetValues($kindType).Count) 'S74 compatibility catalog mismatch after S75.'
+  Assert ((F 'toolCatalog').Count-eq73 -and (F 'toolCatalog').Count-eq[Enum]::GetValues($kindType).Count) 'S74 compatibility catalog mismatch after S80.'
   Assert ((F 'DeveloperToolbarPanel').Children.Count-eq7) 'S74 added a permanent top command.'
   Assert ($window.Title-notmatch'\bVM\b|VisionMaster') 'Visible window title still exposes VM branding.'
   $xaml=[IO.File]::ReadAllText((Join-Path $ProjectRoot 'MainWindow.xaml'));Assert ($xaml-notmatch'Text="HALCON VM"') 'Visible page text still exposes VM branding.';Assert ($xaml.Contains('x:Name="S75InputAnchor"') -and $xaml.Contains('x:Name="S75OutputAnchor"')) 'Compact cards do not expose top/bottom connection dots.'
@@ -59,5 +59,5 @@ try{
   $source.SetOutputValue('EdgePoints',(Points $rows $cols $ctx));$source.ResultCode='--';$failed=$false;try{Run $fit|Out-Null}catch{$failed=$true};Assert $failed 'Stale/unrun Point2D[] source was accepted.'
   $source.ResultCode='OK';$fit.Parameters.PointSetAbnormalPolicy='Reject';$recipe=M 'CaptureRecipe';$saved=$recipe.ToolFlow|Where-Object ToolId -eq $fit.ToolId|Select-Object -First 1;Assert ($saved.Parameters.XldEllipseFitAlgorithm-eq'FTukey' -and $saved.Parameters.PointSetMinimumCount-eq8) 'Recipe lost typed point-set ellipse parameters.'
   SelectTools @($source,$fit);$copied=[int](M 'CopySelectedFlowToolsToClipboard');$pasted=[int](M 'PasteFlowToolClipboard' ([object[]]@($flow.Count)));$copyBlock=@($flow|Select-Object -Last 2);$copyFit=$copyBlock|Where-Object{$_.Kind.ToString()-eq'TypedPointSetEllipseFittingMeasurement'}|Select-Object -First 1;Assert (($copied-eq2)-and($pasted-eq2)-and$copyFit.GetInputBinding('Points').SourceToolId-eq$copyBlock[0].ToolId) 'Typed ellipse-fit block copy did not remap Points source.'
-  Write-Output 'S74 quiet top/bottom-node vertical flow + focus/all connections + draggable navigator viewport + HALCON typed Point2D[] ellipse fitting/distance_pc/dock/I-O/NumericJudge/JSON/recipe/copy/lifecycle/failures passed; BSB not implemented.'
+  Write-Output 'S74 quiet top/bottom-node vertical flow + focus/all connections + draggable navigator viewport + HALCON typed Point2D[] ellipse fitting/distance_pc/dock/I-O/NumericJudge/JSON/recipe/copy/lifecycle/failures passed'
 }finally{$main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();if($ownsApp){$app.Shutdown()};if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}}

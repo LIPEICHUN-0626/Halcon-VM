@@ -235,4 +235,4 @@ $main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true)
 $window.Close()
 $app.Shutdown()
 if (Test-Path $temp) { Remove-Item -LiteralPath $temp -Recurse -Force }
-Write-Output "S29_UI_CAPTURE=PASS; ArrayPath=$ArrayOutputPath; CirclePath=$CircleOutputPath; ArrayImage=$ArrayImageOutputPath; CircleImage=$CircleImageOutputPath; ArrayWindow=$arraySize; CircleWindow=$circleSize; A=LINEAR_ARRAY_IMAGE_EDIT; B=CIRCULAR_CALIPER_CIRCLE_FINDER; ValidCount=$([int][double]$valid); Radius=$([double]$radius); BSB=NOT_IMPLEMENTED_BY_USER_DIRECTIVE"
+Write-Output "S29_UI_CAPTURE=PASS; ArrayPath=$ArrayOutputPath; CirclePath=$CircleOutputPath; ArrayImage=$ArrayImageOutputPath; CircleImage=$CircleImageOutputPath; ArrayWindow=$arraySize; CircleWindow=$circleSize; A=LINEAR_ARRAY_IMAGE_EDIT; B=CIRCULAR_CALIPER_CIRCLE_FINDER; ValidCount=$([int][double]$valid); Radius=$([double]$radius)"

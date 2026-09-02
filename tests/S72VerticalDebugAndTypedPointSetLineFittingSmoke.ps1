@@ -24,7 +24,7 @@ function Points([double[]]$r,[double[]]$c,[string]$ctx){$arrayType.GetMethod('Cr
 function Line([double]$r1,[double]$c1,[double]$r2,[double]$c2,[string]$ctx){$lineType.GetMethod('CreateImagePixel',$static).Invoke($null,[object[]]@($r1,$c1,$r2,$c2,$ctx))}
 function SelectTools([object[]]$tools){(F 'FlowToolList').SelectedItems.Clear();foreach($tool in $tools){(F 'FlowToolList').SelectedItems.Add($tool)}}
 try{
-  Assert ((F 'toolCatalog').Count-eq70 -and (F 'toolCatalog').Count-eq[Enum]::GetValues($kindType).Count) 'S72 compatibility catalog mismatch after S75.'
+  Assert ((F 'toolCatalog').Count-eq73 -and (F 'toolCatalog').Count-eq[Enum]::GetValues($kindType).Count) 'S72 compatibility catalog mismatch after S80.'
   Assert ((F 'DeveloperToolbarPanel').Children.Count-eq7) 'S72 added a permanent top command.'
 
   # A: compact vertical long flow, external flexible lanes, focus-only labels and top-to-bottom navigation.
@@ -56,5 +56,5 @@ try{
   $source.SetOutputValue('EdgePoints',(Points ([double[]](1,3,5,7)) ([double[]](0,1,2,3)) $ctx));$source.ResultCode='--';$failed=$false;try{Run $fit|Out-Null}catch{$failed=$true};Assert $failed 'Stale/unrun Point2D[] source was accepted.'
   $source.ResultCode='OK';$fit.Parameters.PointSetMinimumCount=3;$fit.Parameters.PointSetAbnormalPolicy='Reject';$fit.Parameters.XldLineFitAlgorithm='tukey';$recipe=M 'CaptureRecipe';$saved=$recipe.ToolFlow|Where-Object ToolId -eq $fit.ToolId|Select-Object -First 1;Assert (($saved.Parameters.PointSetMinimumCount-eq3) -and $saved.Parameters.XldLineFitAlgorithm-eq'tukey') 'Recipe lost typed point-set line parameters.'
   SelectTools @($source,$fit);$copied=[int](M 'CopySelectedFlowToolsToClipboard');$pasted=[int](M 'PasteFlowToolClipboard' ([object[]]@($flow.Count)));$copyBlock=@($flow|Select-Object -Last 2);$copyFit=$copyBlock|Where-Object {$_.Kind.ToString()-eq'TypedPointSetLineFittingMeasurement'}|Select-Object -First 1;Assert (($copied-eq2) -and ($pasted-eq2) -and $copyFit.GetInputBinding('Points').SourceToolId-eq$copyBlock[0].ToolId) 'Typed point-set line block copy did not remap Points source.'
-  Write-Output 'S72 vertical long-flow focus/navigation/follow + HALCON typed Point2D[] line fitting/downstreams/dock/I-O/recipe/copy/lifecycle/failures passed; BSB not implemented.'
+  Write-Output 'S72 vertical long-flow focus/navigation/follow + HALCON typed Point2D[] line fitting/downstreams/dock/I-O/recipe/copy/lifecycle/failures passed'
 }finally{$main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();if($ownsApp){$app.Shutdown()};if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}}

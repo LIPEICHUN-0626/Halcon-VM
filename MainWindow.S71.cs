@@ -43,9 +43,9 @@ namespace HalconWinFormsDemo
         private void ToolCatalogShowAllMenuItem_Click(object sender, RoutedEventArgs e)
         {
             ExitToolboxSnippetModeS71(false);
-            toolCatalogMode = "All";
+            SelectFirstToolboxCategoryS80();
             RefreshToolCatalogView();
-            HeaderStatusText.Text = "模块箱已按 9 个能力分类显示全部真实工具。";
+            HeaderStatusText.Text = "模块箱已返回全部分类；可直接展开分类、搜索或切换常用/收藏/最近。";
         }
 
         private void ToolCatalogShowSnippetsMenuItem_Click(object sender, RoutedEventArgs e)
@@ -85,12 +85,13 @@ namespace HalconWinFormsDemo
 
         private void UpdateToolboxSnippetModeButtonS71()
         {
-            if (ToolCatalogAllButton == null) return;
-            ToolCatalogAllButton.Content = toolboxSnippetModeS71 ? "分类 · 流程片段 ▾" : "分类 · 全部工具 ▾";
-            ToolCatalogAllButton.Background = toolboxSnippetModeS71
+            if (ToolCatalogSnippetButton == null) return;
+            ToolCatalogSnippetButton.Content = toolboxSnippetModeS71 ? "返回" : "片段";
+            ToolCatalogSnippetButton.Background = toolboxSnippetModeS71
                 ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(124, 58, 237))
                 : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 41, 59));
-            ToolCatalogAllButton.Foreground = toolboxSnippetModeS71 ? System.Windows.Media.Brushes.White : System.Windows.Media.Brushes.LightGray;
+            ToolCatalogSnippetButton.Foreground = toolboxSnippetModeS71 ? System.Windows.Media.Brushes.White : System.Windows.Media.Brushes.LightGray;
+            if (!toolboxSnippetModeS71) UpdateToolboxCategoryButtonS80();
         }
 
         private void RefreshToolboxSnippetItemsS71()

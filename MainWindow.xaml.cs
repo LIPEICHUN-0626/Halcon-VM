@@ -29,7 +29,7 @@ namespace HalconWinFormsDemo
 {
     public partial class MainWindow : Window
     {
-        private const string VersionStamp = "HALCON 工业视觉平台 S74 2026-08-27";
+        private const string VersionStamp = "HALCON 工业视觉平台 S84 2026-09-02";
         private const string ToolCatalogDragFormat = "HalconVm.ToolCatalogItem";
         private const double FlowLayoutGridSize = 24;
         private const int FlowEditHistoryLimit = 50;
@@ -81,12 +81,13 @@ namespace HalconWinFormsDemo
         private readonly HashSet<VmToolKind> favoriteToolKinds = new HashSet<VmToolKind>();
         private readonly List<VmToolKind> recentToolKinds = new List<VmToolKind>();
         private ICollectionView toolCatalogView;
-        private string toolCatalogMode = "All";
+        private string toolCatalogMode = "Category";
         private static readonly HashSet<VmToolKind> commonToolKinds = new HashSet<VmToolKind>
         {
             VmToolKind.ImageSource,
             VmToolKind.ImageFilter,
             VmToolKind.ImageThreshold,
+            VmToolKind.AutomaticThreshold,
             VmToolKind.RegionMorphology,
             VmToolKind.Blob,
             VmToolKind.SubpixelEdgeExtraction,
@@ -656,8 +657,11 @@ namespace HalconWinFormsDemo
             public VmFlowPortChip OriginPort { get; set; }
             public VmFlowPortChip SourcePort { get; set; }
             public VmFlowPortChip FixedTargetPort { get; set; }
+            public string AggregateOriginToolId { get; set; }
+            public string AggregateOriginDirection { get; set; }
             public System.Windows.Point StartPoint { get; set; }
             public bool HasMoved { get; set; }
+            public bool IsClickArmed { get; set; }
         }
 
         private sealed class FlowNodeDragSession
@@ -804,9 +808,13 @@ namespace HalconWinFormsDemo
                 CreateCatalogItem(VmToolKind.ImageDifference),
                 CreateCatalogItem(VmToolKind.DynamicThreshold),
                 CreateCatalogItem(VmToolKind.ImageThreshold),
+                CreateCatalogItem(VmToolKind.AutomaticThreshold),
                 CreateCatalogItem(VmToolKind.RegionMorphology),
                 CreateCatalogItem(VmToolKind.RegionFeatureFilter),
                 CreateCatalogItem(VmToolKind.RegionSetOperation),
+                CreateCatalogItem(VmToolKind.DataCode2DRecognition),
+                CreateCatalogItem(VmToolKind.BarCode1DRecognition),
+                CreateCatalogItem(VmToolKind.OcrRecognition),
                 CreateCatalogItem(VmToolKind.RegionContourMeasurement),
                 CreateCatalogItem(VmToolKind.XldContourFilter),
                 CreateCatalogItem(VmToolKind.XldAdjacentContourUnion),
@@ -836,6 +844,7 @@ namespace HalconWinFormsDemo
                 CreateCatalogItem(VmToolKind.PointToLineDistanceMeasurement),
                 CreateCatalogItem(VmToolKind.PointToCircleRadialDeviationMeasurement),
                 CreateCatalogItem(VmToolKind.PointToEllipseDistanceMeasurement),
+                CreateCatalogItem(VmToolKind.LineEllipseIntersectionMeasurement),
                 CreateCatalogItem(VmToolKind.LineCircleIntersectionMeasurement),
                 CreateCatalogItem(VmToolKind.CircleCircleIntersectionMeasurement),
                 CreateCatalogItem(VmToolKind.PointPairLineConstructionMeasurement),
@@ -867,6 +876,7 @@ namespace HalconWinFormsDemo
             toolCatalogView.SortDescriptions.Add(new SortDescription("Name", ListSortDirection.Ascending));
             toolCatalogView.Filter = FilterToolCatalogItem;
             ToolCatalogList.ItemsSource = toolCatalogView;
+            InitializeToolboxSingleCategoryS80();
             ToolInputSourceSuggestionList.ItemsSource = inputSourceSuggestionsS68;
             FlowConnectionIssueListBox.ItemsSource = connectionIssuesS69;
             FlowToolList.ItemsSource = flowTools;
@@ -913,6 +923,7 @@ namespace HalconWinFormsDemo
             DockRoiImageExtractionModeComboBox.ItemsSource = VmRoiImageExtractionMode.CreateAll();
             DockImageDifferenceModeComboBox.ItemsSource = VmImageDifferenceMode.CreateAll();
             DockDynamicThresholdPolarityComboBox.ItemsSource = VmDynamicThresholdPolarity.CreateAll();
+            DockAutomaticThresholdPolarityComboBox.ItemsSource = VmDynamicThresholdPolarity.CreateAll();
             DockRegionMorphologyModeComboBox.ItemsSource = VmRegionMorphologyMode.CreateAll();
             DockRegionFeatureComboBox.ItemsSource = VmRegionFeature.CreateAll();
             DockRegionSetOperationComboBox.ItemsSource = VmRegionSetOperationMode.CreateAll();
@@ -1302,6 +1313,8 @@ namespace HalconWinFormsDemo
             const double topMargin = 34;
             const double nodeGap = 34;
 
+            UpdateFlowTaskLensStatesS76();
+
             Dictionary<string, VmToolInstance> byId = new Dictionary<string, VmToolInstance>(StringComparer.OrdinalIgnoreCase);
             foreach (VmToolInstance tool in flowTools)
             {
@@ -1314,7 +1327,9 @@ namespace HalconWinFormsDemo
                 VmToolInstance tool = flowTools[index];
                 int portRows = Math.Max(ToolMetadata.GetInstanceInputPorts(tool).Count, ToolMetadata.GetInstanceOutputPorts(tool).Count);
                 double portPitch = tool.IsGroupCollapsed ? 22 : 34;
-                tool.GraphHeight = tool.ShowFlowDetails
+                tool.GraphHeight = tool.IsTaskLensCompactS76
+                    ? 32
+                    : tool.ShowFlowDetails
                     ? Math.Min(tool.IsGroupCollapsed ? 205 : 280, Math.Max(tool.IsGroupCollapsed ? 104 : 132, 68 + portRows * portPitch))
                     : 68;
                 double automaticX = leftMargin;
@@ -1327,7 +1342,7 @@ namespace HalconWinFormsDemo
                     tool.GraphY = automaticY;
                     tool.HasManualGraphPosition = isManualFlowLayout;
                 }
-                nextAutomaticY = automaticY + tool.GraphHeight + nodeGap;
+                nextAutomaticY = automaticY + tool.GraphHeight + (tool.IsTaskLensCompactS76 ? 16 : nodeGap);
             }
 
             RefreshFlowGroupVisuals();
@@ -1720,6 +1735,27 @@ namespace HalconWinFormsDemo
                 instance.ConnectionStatus = "待连接 Point2D + Ellipse2D";
                 instance.ConnectionSummary = "Point + Ellipse ← 请选择同图像类型化几何";
             }
+            else if (kind == VmToolKind.LineEllipseIntersectionMeasurement)
+            {
+                instance.ConnectionStatus = "待连接 Line2D + Ellipse2D";
+                instance.ConnectionSummary = "Line + Ellipse ← 请选择同图像类型化几何";
+            }
+            else if (kind == VmToolKind.DataCode2DRecognition)
+            {
+                instance.ConnectionStatus = "待连接 Image";
+                instance.ConnectionSummary = "Image ← 请选择前序图像输出";
+            }
+            else if (kind == VmToolKind.BarCode1DRecognition)
+            {
+                instance.ConnectionStatus = "待连接 Image";
+                instance.ConnectionSummary = "Image ← 请选择前序图像输出";
+            }
+            else if (kind == VmToolKind.OcrRecognition)
+            {
+                instance.Parameters.OcrModelPath = GetDefaultOcrModelPathS81();
+                instance.ConnectionStatus = "待连接 Image";
+                instance.ConnectionSummary = "Image + 可选字符 Region / ROI → Text / Confidence / XLD";
+            }
             else if (kind == VmToolKind.LineCircleIntersectionMeasurement)
             {
                 instance.ConnectionStatus = "待连接 Line2D + Circle2D";
@@ -1797,6 +1833,8 @@ namespace HalconWinFormsDemo
                     return "OriginalImage + ReferenceImage → HALCON dyn_threshold → Region";
                 case VmToolKind.ImageThreshold:
                     return "Image → HALCON 灰度阈值 → Region";
+                case VmToolKind.AutomaticThreshold:
+                    return "Image + 可选 ROI/屏蔽区 → HALCON max_separability → Region + Threshold";
                 case VmToolKind.RegionMorphology:
                     return "Region → HALCON 形态学 → Region";
                 case VmToolKind.RegionFeatureFilter:
@@ -1867,6 +1905,14 @@ namespace HalconWinFormsDemo
                     return "Point2D + Circle2D → HALCON 圆/径向图形 → 最近点/径向偏差/XLD";
                 case VmToolKind.PointToEllipseDistanceMeasurement:
                     return "Point2D + Ellipse2D → HALCON distance_pc → 最近点/距离/位置/XLD";
+                case VmToolKind.LineEllipseIntersectionMeasurement:
+                    return "Line2D 有限线段 + Ellipse2D → HALCON intersection_contours_xld → Point2D[]/弦长/XLD";
+                case VmToolKind.DataCode2DRecognition:
+                    return "Image + 可选 ROI/屏蔽区 → HALCON 二维代码识别 → Text/Count/Pose2D/XLD";
+                case VmToolKind.BarCode1DRecognition:
+                    return "Image + 可选 ROI/屏蔽区 → HALCON 一维码识别 → Text/Count/Pose2D/XLD";
+                case VmToolKind.OcrRecognition:
+                    return "Image + 字符 Region / ROI → HALCON OCR → Text/Count/Confidence/XLD";
                 case VmToolKind.LineCircleIntersectionMeasurement:
                     return "Line2D + Circle2D → HALCON intersection_line_circle → Point2D[]/关系/弦长/XLD";
                 case VmToolKind.CircleCircleIntersectionMeasurement:
@@ -2936,7 +2982,7 @@ namespace HalconWinFormsDemo
                 else if (tool.Kind == VmToolKind.GlobalVariableWrite) tool.ConnectionSummary = "强类型值 → 全局变量";
                 else if (tool.Kind == VmToolKind.ImageDifference) tool.ConnectionSummary = "ImageA + ImageB → 双图像差分";
                 else if (tool.Kind == VmToolKind.DynamicThreshold) tool.ConnectionSummary = "OriginalImage + ReferenceImage → 动态阈值分割";
-                else if (tool.Kind == VmToolKind.ImageChannel || tool.Kind == VmToolKind.ImageFilter || tool.Kind == VmToolKind.ImageEnhancement || tool.Kind == VmToolKind.ImageResize || tool.Kind == VmToolKind.ImageMirror || tool.Kind == VmToolKind.ImageRotate || tool.Kind == VmToolKind.ImageAffineTransform || tool.Kind == VmToolKind.ImageProjectiveTransform || tool.Kind == VmToolKind.PolarImageUnwrap || tool.Kind == VmToolKind.RoiImageExtraction || tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.CaliperEdgePairMeasurement || tool.Kind == VmToolKind.LinearCaliperArrayMeasurement || tool.Kind == VmToolKind.CircularCaliperCircleFinder || tool.Kind == VmToolKind.RingWallThicknessMeasurement) tool.ConnectionSummary = "Image → " + tool.DisplayType;
+                else if (tool.Kind == VmToolKind.ImageChannel || tool.Kind == VmToolKind.ImageFilter || tool.Kind == VmToolKind.ImageEnhancement || tool.Kind == VmToolKind.ImageResize || tool.Kind == VmToolKind.ImageMirror || tool.Kind == VmToolKind.ImageRotate || tool.Kind == VmToolKind.ImageAffineTransform || tool.Kind == VmToolKind.ImageProjectiveTransform || tool.Kind == VmToolKind.PolarImageUnwrap || tool.Kind == VmToolKind.RoiImageExtraction || tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.AutomaticThreshold || tool.Kind == VmToolKind.DataCode2DRecognition || tool.Kind == VmToolKind.BarCode1DRecognition || tool.Kind == VmToolKind.CaliperEdgePairMeasurement || tool.Kind == VmToolKind.LinearCaliperArrayMeasurement || tool.Kind == VmToolKind.CircularCaliperCircleFinder || tool.Kind == VmToolKind.RingWallThicknessMeasurement) tool.ConnectionSummary = "Image → " + tool.DisplayType;
                 else if (tool.Kind == VmToolKind.RegionSetOperation) tool.ConnectionSummary = "RegionA + RegionB → " + tool.DisplayType;
                 else if (tool.Kind == VmToolKind.RegionMorphology || tool.Kind == VmToolKind.RegionFeatureFilter || tool.Kind == VmToolKind.RegionContourMeasurement) tool.ConnectionSummary = "Region → " + tool.DisplayType;
                 else if (tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldAdjacentContourUnion || tool.Kind == VmToolKind.XldContourSmoothing || tool.Kind == VmToolKind.XldAffineTransform || tool.Kind == VmToolKind.XldProjectiveTransform || tool.Kind == VmToolKind.XldContourCrop || tool.Kind == VmToolKind.XldLengthClassification || tool.Kind == VmToolKind.XldLengthSortSelection || tool.Kind == VmToolKind.XldPointClosureFilter || tool.Kind == VmToolKind.XldAreaDirectionFilter || tool.Kind == VmToolKind.XldBoundingCompactnessFilter || tool.Kind == VmToolKind.XldCircularityConvexityFilter || tool.Kind == VmToolKind.XldEnclosingCircleDiameterMeasurement || tool.Kind == VmToolKind.XldMinimumRectangleDirectionMeasurement || tool.Kind == VmToolKind.XldDirectionConsistencyMeasurement || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting) tool.ConnectionSummary = "XLD → " + tool.DisplayType;
@@ -2944,6 +2990,7 @@ namespace HalconWinFormsDemo
                 else if (tool.Kind == VmToolKind.PointToLineDistanceMeasurement) tool.ConnectionSummary = "Point2D + Line2D → FootPoint / Distance / XLD";
                 else if (tool.Kind == VmToolKind.PointToCircleRadialDeviationMeasurement) tool.ConnectionSummary = "Point2D + Circle2D → ClosestPoint / RadialDeviation / XLD";
                 else if (tool.Kind == VmToolKind.PointToEllipseDistanceMeasurement) tool.ConnectionSummary = "Point2D + Ellipse2D → ClosestPoint / Distance / Relation / XLD";
+                else if (tool.Kind == VmToolKind.LineEllipseIntersectionMeasurement) tool.ConnectionSummary = "Line2D + Ellipse2D → Point2D[] / Relation / ChordLength / XLD";
                 else if (tool.Kind == VmToolKind.LineCircleIntersectionMeasurement) tool.ConnectionSummary = "Line2D + Circle2D → Point2D[] / Relation / ChordLength / XLD";
                 else if (tool.Kind == VmToolKind.CircleCircleIntersectionMeasurement) tool.ConnectionSummary = "Circle2D + Circle2D → Point2D[] / Relation / CenterDistance / XLD";
                 else if (tool.Kind == VmToolKind.PointPairLineConstructionMeasurement) tool.ConnectionSummary = "Point2D + Point2D → Line2D / MidPoint / Distance / XLD";
@@ -2980,6 +3027,12 @@ namespace HalconWinFormsDemo
                     ? "Point2D + Circle2D ← 输入连接异常"
                     : tool.Kind == VmToolKind.PointToEllipseDistanceMeasurement
                     ? "Point2D + Ellipse2D ← 输入连接异常"
+                    : tool.Kind == VmToolKind.LineEllipseIntersectionMeasurement
+                    ? "Line2D + Ellipse2D ← 输入连接异常"
+                    : tool.Kind == VmToolKind.DataCode2DRecognition
+                    ? "Image ← 输入连接异常"
+                    : tool.Kind == VmToolKind.BarCode1DRecognition
+                    ? "Image ← 输入连接异常"
                     : tool.Kind == VmToolKind.PointToLineDistanceMeasurement
                     ? "Point2D + Line2D ← 输入连接异常"
                     : tool.Kind == VmToolKind.RegionSetOperation
@@ -3131,6 +3184,18 @@ namespace HalconWinFormsDemo
                     break;
                 case VmToolKind.PointToEllipseDistanceMeasurement:
                     RefreshPointToEllipseConnectionStatusS75(tool);
+                    break;
+                case VmToolKind.LineEllipseIntersectionMeasurement:
+                    RefreshLineEllipseIntersectionConnectionStatusS76(tool);
+                    break;
+                case VmToolKind.DataCode2DRecognition:
+                    RefreshDataCodeConnectionStatusS77(tool);
+                    break;
+                case VmToolKind.BarCode1DRecognition:
+                    RefreshBarCodeConnectionStatusS80(tool);
+                    break;
+                case VmToolKind.OcrRecognition:
+                    RefreshOcrConnectionStatusS81(tool);
                     break;
                 case VmToolKind.LineCircleIntersectionMeasurement:
                     RefreshLineCircleConnectionStatusS68(tool);
@@ -4259,6 +4324,7 @@ namespace HalconWinFormsDemo
 
         private void OpenProductionLayoutDesignerButton_Click(object sender, RoutedEventArgs e)
         {
+            if (centralModuleConfigurationOpenS77 && !CloseCentralModuleConfigurationS77()) return;
             if (isContinuousRunning || isFlowExecutionActive || isImageQueueBatchRunning)
             {
                 HeaderStatusText.Text = "运行中不能修改运行界面；请先停止当前流程或图片批次。";
@@ -4453,6 +4519,7 @@ namespace HalconWinFormsDemo
         private void SetProductionRunMode(bool enabled)
         {
             if (productionRunMode == enabled) return;
+            if (enabled && centralModuleConfigurationOpenS77 && !CloseCentralModuleConfigurationS77()) return;
 
             productionRunMode = enabled;
             if (enabled)
@@ -4502,8 +4569,8 @@ namespace HalconWinFormsDemo
             RefreshProductionRunView();
             ApplyProductionRunLayout(productionLayoutDesignMode ? CaptureProductionLayoutDraft() : productionRunLayout);
             HeaderStatusText.Text = enabled
-                ? "已进入生产运行界面；当前方案、执行器、图像、结果、统计和报警均与开发界面共用。"
-                : "已返回开发界面；生产运行期间的方案和运行状态已保留。";
+                ? "已切换到操作员运行界面；这只是页面切换，不会自动开始检测。当前方案、图像、结果、统计和报警与开发界面共用。"
+                : "已返回开发界面；运行界面中的方案和执行状态已保留。";
             ScheduleRefreshDisplay();
         }
 
@@ -7605,6 +7672,11 @@ namespace HalconWinFormsDemo
                 return false;
             }
 
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                return true;
+            }
+
             if (IsInputSourceContextActiveS68)
             {
                 return !HasValidInputSourceSuggestionsS68 && IsInputSourceProducerToolS68(item);
@@ -7613,6 +7685,11 @@ namespace HalconWinFormsDemo
             if (IsToolRecommendationContextActiveS67)
             {
                 return IsRecommendedToolS67(item);
+            }
+
+            if (string.Equals(toolCatalogMode, "Category", StringComparison.OrdinalIgnoreCase))
+            {
+                return string.Equals(item.Category, toolboxSelectedCategoryS80, StringComparison.Ordinal);
             }
 
             if (string.Equals(toolCatalogMode, "Common", StringComparison.OrdinalIgnoreCase))
@@ -7680,7 +7757,13 @@ namespace HalconWinFormsDemo
                 ? "常用"
                 : string.Equals(toolCatalogMode, "Favorite", StringComparison.OrdinalIgnoreCase)
                 ? "收藏"
-                : (string.Equals(toolCatalogMode, "Recent", StringComparison.OrdinalIgnoreCase) ? "最近使用" : "全部分类");
+                : string.Equals(toolCatalogMode, "Recent", StringComparison.OrdinalIgnoreCase)
+                ? "最近使用"
+                : string.Equals(toolCatalogMode, "All", StringComparison.OrdinalIgnoreCase)
+                ? "全部分类"
+                : (string.IsNullOrWhiteSpace(ToolSearchTextBox == null ? null : ToolSearchTextBox.Text)
+                    ? (toolboxSelectedCategoryS80 ?? "分类")
+                    : "跨分类搜索");
             int visibleCategoryCount = toolCatalogView.Cast<VmToolCatalogItem>().Select(item => item.Category).Distinct(StringComparer.Ordinal).Count();
             ToolCatalogStatusText.Text = IsInputSourceContextActiveS68
                 ? (HasValidInputSourceSuggestionsS68
@@ -7703,6 +7786,7 @@ namespace HalconWinFormsDemo
             UpdateToolCatalogModeButton(ToolCatalogFavoriteButton, "Favorite");
             UpdateToolCatalogModeButton(ToolCatalogRecentButton, "Recent");
             UpdateToolboxSnippetModeButtonS71();
+            UpdateToolboxCategoryButtonS80();
         }
 
         private void UpdateToolCatalogModeButton(Button button, string mode)
@@ -7870,6 +7954,7 @@ namespace HalconWinFormsDemo
 
         private void FlowToolList_DragLeave(object sender, DragEventArgs e)
         {
+            ClearFlowReorderVisualsS77();
             HideFlowDropHint();
         }
 
@@ -7895,6 +7980,7 @@ namespace HalconWinFormsDemo
 
         private void FlowGraphViewport_PreviewDragOver(object sender, DragEventArgs e)
         {
+            if (TryHandleFlowReorderDragOverS77(e)) return;
             if (!e.Data.GetDataPresent(ToolCatalogDragFormat) && !IsFlowSnippetDragS71(e))
             {
                 e.Effects = DragDropEffects.None;
@@ -7911,6 +7997,7 @@ namespace HalconWinFormsDemo
 
         private void FlowGraphViewport_Drop(object sender, DragEventArgs e)
         {
+            if (TryHandleFlowReorderDropS77(e)) return;
             if (TryInsertDraggedFlowSnippetToGraphS71(e))
             {
                 HideFlowDropHint();
@@ -7948,6 +8035,32 @@ namespace HalconWinFormsDemo
             FrameworkElement element = sender as FrameworkElement;
             VmToolInstance tool = element == null ? null : element.Tag as VmToolInstance;
             if (tool == null) return;
+            if (flowPortDragSession != null && flowPortDragSession.IsClickArmed)
+            {
+                // A pending two-click connection always wins over the normal
+                // single-click-to-configure action. The entire target card remains
+                // a forgiving endpoint, so users do not have to hit the small dot.
+                VmFlowPortChip hoverPort = ResolveConnectionBodyHoverS79(tool);
+                if (hoverPort != null) TryCompleteArmedFlowConnectionS79(hoverPort);
+                else HeaderStatusText.Text = "不能连接：" + aggregatePortHoverErrorS75 + " 可换一个模块，或按 Esc 取消。";
+                e.Handled = true;
+                return;
+            }
+            DateTime nodeClickUtcS83 = DateTime.UtcNow;
+            bool isNodeDoubleClickS83 = e.ClickCount >= 2 ||
+                (string.Equals(lastFlowNodeClickToolIdS83, tool.ToolId, StringComparison.OrdinalIgnoreCase) &&
+                 (nodeClickUtcS83 - lastFlowNodeClickUtcS83).TotalMilliseconds <= 550.0);
+            if (isNodeDoubleClickS83)
+            {
+                lastFlowNodeClickToolIdS83 = null;
+                lastFlowNodeClickUtcS83 = DateTime.MinValue;
+            }
+            else
+            {
+                lastFlowNodeClickToolIdS83 = tool.ToolId;
+                lastFlowNodeClickUtcS83 = nodeClickUtcS83;
+            }
+            bool wasTaskLensCompactS76 = tool.IsTaskLensCompactS76;
             bool toggle = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
             List<VmToolInstance> selected = GetSelectedFlowToolsInSequence();
             bool alreadySelected = selected.Contains(tool);
@@ -7971,13 +8084,21 @@ namespace HalconWinFormsDemo
             {
                 ApplyFlowToolSelection(new[] { tool }, tool, true);
             }
-            if (e.ClickCount >= 2)
+            if (toggle)
             {
-                ConfigureToolButton_Click(sender, e);
+                HeaderStatusText.Text = "已选择 " + selected.Count.ToString(CultureInfo.InvariantCulture) + " 个模块；Ctrl 单击只用于多选。";
             }
-            else if (e.ChangedButton == MouseButton.Left && !toggle && !isContinuousRunning && !isFlowExecutionActive)
+            else if (isNodeDoubleClickS83)
+            {
+                if (SupportsDockConfiguration(tool.Kind)) OpenCentralModuleConfigurationS77(tool);
+                else ConfigureToolButton_Click(sender, e);
+            }
+            else if (!isContinuousRunning && !isFlowExecutionActive && e.ChangedButton == MouseButton.Left)
             {
                 BeginFlowNodeDrag(tool, e.GetPosition(FlowGraphCanvas));
+                HeaderStatusText.Text = wasTaskLensCompactS76
+                    ? tool.InstanceName + " 已选中；继续拖动可移动，双击打开参数。"
+                    : "已选中“" + tool.InstanceName + "”；拖动可移动，双击打开参数。";
             }
             e.Handled = true;
         }
@@ -8074,6 +8195,18 @@ namespace HalconWinFormsDemo
 
         private void FlowGraphCanvas_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (HandleConnectionMouseDownS79(e))
+            {
+                e.Handled = true;
+                return;
+            }
+            if (flowPortDragSession != null && flowPortDragSession.IsClickArmed &&
+                !IsFlowGraphInteractiveElement(e.OriginalSource as DependencyObject))
+            {
+                CancelFlowPortDrag("已取消待连接状态；原有输入绑定未改变。", false);
+                e.Handled = true;
+                return;
+            }
             if (e.ChangedButton != MouseButton.Left || IsFlowGraphInteractiveElement(e.OriginalSource as DependencyObject))
             {
                 return;
@@ -8147,15 +8280,16 @@ namespace HalconWinFormsDemo
 
             if (flowPortDragSession != null)
             {
-                if (e.LeftButton != MouseButtonState.Pressed)
+                if (!flowPortDragSession.IsClickArmed && e.LeftButton != MouseButtonState.Pressed)
                 {
                     CancelFlowPortDrag("端口拖拽已取消。", true);
                     return;
                 }
 
                 System.Windows.Point dragPoint = e.GetPosition(FlowGraphCanvas);
-                if (Math.Abs(dragPoint.X - flowPortDragSession.StartPoint.X) >= SystemParameters.MinimumHorizontalDragDistance ||
-                    Math.Abs(dragPoint.Y - flowPortDragSession.StartPoint.Y) >= SystemParameters.MinimumVerticalDragDistance)
+                if (!flowPortDragSession.IsClickArmed &&
+                    (Math.Abs(dragPoint.X - flowPortDragSession.StartPoint.X) >= SystemParameters.MinimumHorizontalDragDistance ||
+                    Math.Abs(dragPoint.Y - flowPortDragSession.StartPoint.Y) >= SystemParameters.MinimumVerticalDragDistance))
                 {
                     flowPortDragSession.HasMoved = true;
                 }
@@ -8235,6 +8369,11 @@ namespace HalconWinFormsDemo
 
             if (flowPortDragSession != null && e.ChangedButton == MouseButton.Left)
             {
+                if (flowPortDragSession.IsClickArmed)
+                {
+                    e.Handled = true;
+                    return;
+                }
                 System.Windows.Point point = e.GetPosition(FlowGraphCanvas);
                 VmFlowPortChip hoverPort = FindFlowPortChipAt(point);
                 VmFlowPortChip sourcePort = null;
@@ -8245,7 +8384,7 @@ namespace HalconWinFormsDemo
                 if (!valid && !string.IsNullOrWhiteSpace(aggregatePortHoverErrorS75)) validationError = aggregatePortHoverErrorS75;
                 if (!flowPortDragSession.HasMoved)
                 {
-                    CancelFlowPortDrag(null, false);
+                    ArmFlowPortClickConnectionS79();
                 }
                 else if (!valid)
                 {
@@ -8544,6 +8683,12 @@ namespace HalconWinFormsDemo
 
         private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            if (e.Key == Key.Escape && centralModuleConfigurationOpenS77)
+            {
+                if (CloseCentralModuleConfigurationS77()) e.Handled = true;
+                return;
+            }
+
             if (e.Key == Key.Escape && flowNodeDragSession != null)
             {
                 CancelFlowNodeDrag();
@@ -8554,6 +8699,13 @@ namespace HalconWinFormsDemo
             if (e.Key == Key.Escape && flowPortDragSession != null)
             {
                 CancelFlowPortDrag("已取消端口拖拽；原订阅保持不变。", true);
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.F5 && centralModuleConfigurationOpenS77)
+            {
+                DockTrialRunButton_Click(sender, e);
                 e.Handled = true;
                 return;
             }
@@ -8604,13 +8756,13 @@ namespace HalconWinFormsDemo
 
             if ((Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt)
             {
-                if (e.Key == Key.Up)
+                if (e.Key == Key.Up || e.SystemKey == Key.Up)
                 {
                     SelectAdjacentFlowToolS72(-1, "快捷键");
                     e.Handled = true;
                     return;
                 }
-                if (e.Key == Key.Down)
+                if (e.Key == Key.Down || e.SystemKey == Key.Down)
                 {
                     SelectAdjacentFlowToolS72(1, "快捷键");
                     e.Handled = true;
@@ -8723,6 +8875,7 @@ namespace HalconWinFormsDemo
             FlowConnectionInspectorValueText.Text = string.IsNullOrWhiteSpace(connection.CurrentValueText) ? "--" : connection.CurrentValueText;
             FlowConnectionInspectorErrorText.Text = string.IsNullOrWhiteSpace(connection.ErrorReason) ? "无" : connection.ErrorReason;
             RepairFlowConnectionButton.IsEnabled = string.Equals(connection.StateKey, "Error", StringComparison.OrdinalIgnoreCase);
+            UpdateConnectionBindingSelectorS79(connection);
         }
 
         private void FlowPortChip_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -8734,6 +8887,12 @@ namespace HalconWinFormsDemo
                 : flowTools.FirstOrDefault(item => string.Equals(item.ToolId, chip.OwnerToolId, StringComparison.OrdinalIgnoreCase));
             if (chip == null || owner == null)
             {
+                return;
+            }
+
+            if (TryCompleteArmedFlowConnectionS79(chip))
+            {
+                e.Handled = true;
                 return;
             }
 
@@ -8830,9 +8989,17 @@ namespace HalconWinFormsDemo
                 {
                     aggregatePortHoverDetectedS75 = true;
                     VmFlowPortChip aggregatePort = ResolveAggregateHoverPortS75(aggregateOwner, element.Uid.EndsWith("IN", StringComparison.OrdinalIgnoreCase) ? "IN" : "OUT", out aggregatePortHoverErrorS75);
-                    if (aggregatePort != null) return aggregatePort;
+                    return aggregatePort;
                 }
+                if (aggregateOwner != null && element.Name == "GraphToolCard") return ResolveConnectionBodyHoverS79(aggregateOwner);
                 current = GetFlowVisualParent(current);
+            }
+            string nearbyDirection;
+            VmToolInstance nearby = FindNearbyConnectionAnchorS79(point, out nearbyDirection);
+            if (nearby != null && flowPortDragSession != null)
+            {
+                aggregatePortHoverDetectedS75 = true;
+                return ResolveAggregateHoverPortS75(nearby, nearbyDirection, out aggregatePortHoverErrorS75);
             }
             return null;
         }
@@ -8868,6 +9035,10 @@ namespace HalconWinFormsDemo
             targetPort = null;
             error = "请拖到兼容端口。";
             if (session == null || hoverPort == null) return false;
+            if (!string.IsNullOrWhiteSpace(session.AggregateOriginToolId))
+            {
+                return TryResolveAggregateFlowConnectionS79(session, hoverPort, out sourcePort, out targetPort, out error);
+            }
             if (session.FixedTargetPort == null)
             {
                 sourcePort = session.SourcePort;
@@ -8931,7 +9102,18 @@ namespace HalconWinFormsDemo
 
         private bool TryApplyFlowPortBinding(VmFlowPortChip sourceChip, VmFlowPortChip targetChip, out string error)
         {
+            error = string.Empty;
+            if (isContinuousRunning || isFlowExecutionActive)
+            {
+                error = "请先停止运行，再修改输入绑定。";
+                return false;
+            }
             if (!EvaluateFlowPortConnection(sourceChip, targetChip, out error)) return false;
+            if (!ConfirmDockDraftChanges("修改输入绑定"))
+            {
+                error = "当前参数草稿已保留。";
+                return false;
+            }
             VmToolInstance source = flowTools.First(item => string.Equals(item.ToolId, sourceChip.OwnerToolId, StringComparison.OrdinalIgnoreCase));
             VmToolInstance target = flowTools.First(item => string.Equals(item.ToolId, targetChip.OwnerToolId, StringComparison.OrdinalIgnoreCase));
             VmPortDefinition targetPort = ToolMetadata.GetInstanceInputPorts(target).First(item => string.Equals(item.PortName, targetChip.PortName, StringComparison.OrdinalIgnoreCase));
@@ -8961,7 +9143,8 @@ namespace HalconWinFormsDemo
             ScheduleRecipeStateCheck();
             CommitFlowEditHistory("拖拽连接：" + target.InstanceName + "." + targetPort.PortName, before);
             RefreshUiState();
-            HeaderStatusText.Text = "已写回真实 InputBindings：" + source.InstanceName + "." + sourceChip.PortName + " → " + target.InstanceName + "." + targetPort.PortName;
+            if (ReferenceEquals(dockEditingTool, target)) LoadDockConfigurationDraft(target);
+            HeaderStatusText.Text = "已自动绑定：" + source.InstanceName + "." + sourceChip.PortName + " → " + target.InstanceName + "." + targetPort.PortName + "；点击“绑定来源”可直接改选。";
             return true;
         }
 
@@ -8974,6 +9157,8 @@ namespace HalconWinFormsDemo
             string error)
         {
             if (flowPortDragSession == null) return;
+            FlowPortDragPreviewPath.Visibility = Visibility.Visible;
+            FlowPortDragStatusBorder.Visibility = Visibility.Visible;
             FlowPortDragPreviewPath.Data = CreateFlowConnectionGeometry(
                 flowPortDragSession.StartPoint.X,
                 flowPortDragSession.StartPoint.Y,
@@ -8981,14 +9166,16 @@ namespace HalconWinFormsDemo
                 current.Y);
             SolidColorBrush brush = valid
                 ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(16, 185, 129))
-                : (hasHoverPort ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 38, 38)) : GetFlowConnectionBrush(flowPortDragSession.OriginPort.DataType));
+                : (hasHoverPort ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(220, 38, 38)) : GetFlowConnectionBrush(GetFlowPortDragOriginDataTypeS79(flowPortDragSession)));
             FlowPortDragPreviewPath.Stroke = brush;
             FlowPortDragStatusBorder.BorderBrush = brush;
             FlowPortDragValidationText.Foreground = brush;
             FlowPortDragEndpointText.Text = sourcePort == null || targetPort == null
-                ? flowPortDragSession.OriginPort.OwnerToolName + "." + flowPortDragSession.OriginPort.PortName + " · " + flowPortDragSession.OriginPort.DataType
+                ? GetFlowPortDragOriginTextS79(flowPortDragSession)
                 : sourcePort.OwnerToolName + "." + sourcePort.PortName + " → " + targetPort.OwnerToolName + "." + targetPort.PortName + " · " + targetPort.DataType;
-            FlowPortDragValidationText.Text = valid ? "可连接 · 放开写回真实 InputBindings" : (string.IsNullOrWhiteSpace(error) ? "拖到兼容端口" : error);
+            FlowPortDragValidationText.Text = valid
+                ? (flowPortDragSession.IsClickArmed ? "点击即可自动绑定" : "松开即可自动绑定")
+                : (string.IsNullOrWhiteSpace(error) ? "移到目标模块即可连接" : error);
             PositionFlowPortDragStatus(current);
         }
 
@@ -9393,15 +9580,12 @@ namespace HalconWinFormsDemo
                 return;
             }
 
+            if (!ConfirmDockDraftChanges("打开模块输入")) return;
             FlowToolList.SelectedItem = target;
             if (SupportsDockConfiguration(target.Kind))
             {
-                RightTabs.SelectedItem = DockConfigurationTab;
-                if (!ReferenceEquals(dockEditingTool, target))
-                {
-                    LoadDockConfigurationDraft(target);
-                }
-                DockConfigurationTabs.SelectedIndex = 2;
+                OpenCentralModuleConfigurationS77(target);
+                CentralInputsButton_ClickS77(sender, e);
                 VmInputPortEditorRow row = dockInputPortRows.FirstOrDefault(item => string.Equals(item.PortName, connection.TargetPortName, StringComparison.OrdinalIgnoreCase));
                 if (row != null)
                 {
@@ -9654,6 +9838,8 @@ namespace HalconWinFormsDemo
             flowNodeDragSession = null;
             Mouse.Capture(null);
             if (session == null || !session.HasMoved) return;
+            lastFlowNodeClickToolIdS83 = null;
+            lastFlowNodeClickUtcS83 = DateTime.MinValue;
             RefreshFlowGraphLayout();
             ScheduleRecipeStateCheck();
             CommitFlowEditHistory("移动画布模块", session.BeforeSnapshot);
@@ -10353,13 +10539,7 @@ namespace HalconWinFormsDemo
 
             if (SupportsDockConfiguration(selected.Kind))
             {
-                RightTabs.SelectedItem = DockConfigurationTab;
-                if (!ReferenceEquals(dockEditingTool, selected))
-                {
-                    LoadDockConfigurationDraft(selected);
-                }
-                DockConfigurationTabs.SelectedIndex = 0;
-                HeaderStatusText.Text = selected.InstanceName + " 已定位到右侧模块配置工作台。";
+                OpenCentralModuleConfigurationS77(selected);
                 return;
             }
 
@@ -10423,6 +10603,7 @@ namespace HalconWinFormsDemo
                    kind == VmToolKind.ImageDifference ||
                    kind == VmToolKind.DynamicThreshold ||
                    kind == VmToolKind.ImageThreshold ||
+                   kind == VmToolKind.AutomaticThreshold ||
                    kind == VmToolKind.RegionMorphology ||
                    kind == VmToolKind.RegionFeatureFilter ||
                    kind == VmToolKind.RegionSetOperation ||
@@ -10455,6 +10636,10 @@ namespace HalconWinFormsDemo
                    kind == VmToolKind.PointToLineDistanceMeasurement ||
                    kind == VmToolKind.PointToCircleRadialDeviationMeasurement ||
                    kind == VmToolKind.PointToEllipseDistanceMeasurement ||
+                   kind == VmToolKind.LineEllipseIntersectionMeasurement ||
+                   kind == VmToolKind.DataCode2DRecognition ||
+                   kind == VmToolKind.BarCode1DRecognition ||
+                   kind == VmToolKind.OcrRecognition ||
                    kind == VmToolKind.LineCircleIntersectionMeasurement ||
                    kind == VmToolKind.CircleCircleIntersectionMeasurement ||
                    kind == VmToolKind.PointPairLineConstructionMeasurement ||
@@ -10489,6 +10674,7 @@ namespace HalconWinFormsDemo
             try
             {
                 dockEditingTool = tool;
+                UpdateCentralModuleConfigurationTitleS77(tool);
                 dockInputPortRows.Clear();
                 dockRoiBindingRows.Clear();
                 bool hasTool = tool != null;
@@ -10597,6 +10783,7 @@ namespace HalconWinFormsDemo
                 DockDynamicThresholdOffsetTextBox.Text = p.DynamicThresholdOffset.ToString("0.###", CultureInfo.InvariantCulture);
                 DockImageThresholdMinTextBox.Text = p.ImageThresholdMinGray.ToString("0.###", CultureInfo.InvariantCulture);
                 DockImageThresholdMaxTextBox.Text = p.ImageThresholdMaxGray.ToString("0.###", CultureInfo.InvariantCulture);
+                DockAutomaticThresholdPolarityComboBox.SelectedValue = VmDynamicThresholdPolarity.Normalize(p.AutomaticThresholdPolarity);
                 DockRegionMorphologyModeComboBox.SelectedValue = VmRegionMorphologyMode.Normalize(p.RegionMorphologyMode);
                 DockRegionMorphologyRadiusTextBox.Text = p.RegionMorphologyRadius.ToString("0.###", CultureInfo.InvariantCulture);
                 DockRegionFeatureComboBox.SelectedValue = VmRegionFeature.Normalize(p.RegionFeature);
@@ -10746,6 +10933,21 @@ namespace HalconWinFormsDemo
                 DockPointEllipseBoundaryToleranceTextBox.Text = p.PointEllipseBoundaryTolerance.ToString("0.###", CultureInfo.InvariantCulture);
                 DockPointEllipseCrossSizeTextBox.Text = p.PointEllipseOverlayCrossSize.ToString("0.###", CultureInfo.InvariantCulture);
                 DockPointEllipseContourResolutionTextBox.Text = p.PointEllipseContourResolution.ToString("0.###", CultureInfo.InvariantCulture);
+                DockLineEllipseToleranceTextBox.Text = p.LineEllipseIntersectionTolerance.ToString("0.###", CultureInfo.InvariantCulture);
+                DockLineEllipseCrossSizeTextBox.Text = p.LineEllipseOverlayCrossSize.ToString("0.###", CultureInfo.InvariantCulture);
+                DockLineEllipseResolutionTextBox.Text = p.LineEllipseContourResolution.ToString("0.###", CultureInfo.InvariantCulture);
+                DockDataCodeTypeComboBox.SelectedValue = VmDataCode2DType.Normalize(p.DataCodeType);
+                DockDataCodeProfileComboBox.SelectedValue = VmDataCodeRecognitionProfile.Normalize(p.DataCodeRecognitionProfile);
+                DockDataCodePolarityComboBox.SelectedValue = VmDataCodePolarity.Normalize(p.DataCodePolarity);
+                DockDataCodeMaxResultsTextBox.Text = p.DataCodeMaxResults.ToString(CultureInfo.InvariantCulture);
+                DockDataCodeTimeoutTextBox.Text = p.DataCodeTimeoutMilliseconds.ToString(CultureInfo.InvariantCulture);
+                DockBarCodeTypeComboBox.SelectedValue = VmBarCodeType.Normalize(p.BarCodeType);
+                DockBarCodeMaxResultsTextBox.Text = p.BarCodeMaxResults.ToString(CultureInfo.InvariantCulture);
+                DockBarCodeNumScanlinesTextBox.Text = p.BarCodeNumScanlines.ToString(CultureInfo.InvariantCulture);
+                DockBarCodeMinIdenticalTextBox.Text = p.BarCodeMinIdenticalScanlines.ToString(CultureInfo.InvariantCulture);
+                DockBarCodeOrientationTextBox.Text = p.BarCodeOrientationDegrees.ToString("0.###", CultureInfo.InvariantCulture);
+                DockBarCodeOrientationToleranceTextBox.Text = p.BarCodeOrientationToleranceDegrees.ToString("0.###", CultureInfo.InvariantCulture);
+                LoadOcrParametersS81(p);
                 DockLineCircleIntersectionOrderComboBox.SelectedValue = VmLineCircleIntersectionOrder.Normalize(p.LineCircleIntersectionOrder);
                 DockLineCircleCrossSizeTextBox.Text = p.LineCircleOverlayCrossSize.ToString("0.###", CultureInfo.InvariantCulture);
                 DockCircleCircleIntersectionOrderComboBox.SelectedValue = VmCircleCircleIntersectionOrder.Normalize(p.CircleCircleIntersectionOrder);
@@ -10914,6 +11116,7 @@ namespace HalconWinFormsDemo
             DockImageDifferencePanel.Visibility = kind == VmToolKind.ImageDifference ? Visibility.Visible : Visibility.Collapsed;
             DockDynamicThresholdPanel.Visibility = kind == VmToolKind.DynamicThreshold ? Visibility.Visible : Visibility.Collapsed;
             DockImageThresholdPanel.Visibility = kind == VmToolKind.ImageThreshold ? Visibility.Visible : Visibility.Collapsed;
+            DockAutomaticThresholdPanel.Visibility = kind == VmToolKind.AutomaticThreshold ? Visibility.Visible : Visibility.Collapsed;
             DockRegionMorphologyPanel.Visibility = kind == VmToolKind.RegionMorphology ? Visibility.Visible : Visibility.Collapsed;
             DockRegionFeaturePanel.Visibility = kind == VmToolKind.RegionFeatureFilter ? Visibility.Visible : Visibility.Collapsed;
             DockRegionSetOperationPanel.Visibility = kind == VmToolKind.RegionSetOperation ? Visibility.Visible : Visibility.Collapsed;
@@ -10946,6 +11149,10 @@ namespace HalconWinFormsDemo
             DockPointToLineDistancePanel.Visibility = kind == VmToolKind.PointToLineDistanceMeasurement ? Visibility.Visible : Visibility.Collapsed;
             DockPointToCircleRadialDeviationPanel.Visibility = kind == VmToolKind.PointToCircleRadialDeviationMeasurement ? Visibility.Visible : Visibility.Collapsed;
             DockPointToEllipseDistancePanel.Visibility = kind == VmToolKind.PointToEllipseDistanceMeasurement ? Visibility.Visible : Visibility.Collapsed;
+            DockLineEllipseIntersectionPanel.Visibility = kind == VmToolKind.LineEllipseIntersectionMeasurement ? Visibility.Visible : Visibility.Collapsed;
+            DockDataCode2DPanel.Visibility = kind == VmToolKind.DataCode2DRecognition ? Visibility.Visible : Visibility.Collapsed;
+            DockBarCode1DPanel.Visibility = kind == VmToolKind.BarCode1DRecognition ? Visibility.Visible : Visibility.Collapsed;
+            DockOcrPanel.Visibility = kind == VmToolKind.OcrRecognition ? Visibility.Visible : Visibility.Collapsed;
             DockLineCircleIntersectionPanel.Visibility = kind == VmToolKind.LineCircleIntersectionMeasurement ? Visibility.Visible : Visibility.Collapsed;
             DockCircleCircleIntersectionPanel.Visibility = kind == VmToolKind.CircleCircleIntersectionMeasurement ? Visibility.Visible : Visibility.Collapsed;
             DockPointPairLineConstructionPanel.Visibility = kind == VmToolKind.PointPairLineConstructionMeasurement ? Visibility.Visible : Visibility.Collapsed;
@@ -11000,10 +11207,13 @@ namespace HalconWinFormsDemo
                     DockParameterPriorityBar.Visibility = Visibility.Collapsed;
                     return;
                 }
+                MoveInlineTechnicalHelpToHoverS77(activePanel);
 
-                const int maximumKeyFieldCount = 6;
+                const int maximumKeyFieldCount = 4;
                 int keyFieldCount = 0;
                 int advancedFieldCount = 0;
+                HashSet<string> preferredCommonParameters;
+                bool hasTaskProfile = TryGetPreferredCommonParameterNamesS83(tool.Kind, out preferredCommonParameters);
                 foreach (Grid grid in FindTopLevelParameterGrids(activePanel))
                 {
                     for (int rowIndex = 0; rowIndex < grid.RowDefinitions.Count; rowIndex++)
@@ -11012,7 +11222,8 @@ namespace HalconWinFormsDemo
                         if (inputs.Count == 0) continue;
                         bool explicitlyAdvanced = inputs.Any(IsExplicitAdvancedParameter);
                         bool fitsKeyBudget = keyFieldCount + inputs.Count <= maximumKeyFieldCount;
-                        if (!explicitlyAdvanced && fitsKeyBudget)
+                        bool taskPreferred = hasTaskProfile && inputs.Any(input => preferredCommonParameters.Contains(input.Name));
+                        if (!explicitlyAdvanced && (hasTaskProfile ? taskPreferred : fitsKeyBudget))
                         {
                             keyFieldCount += inputs.Count;
                             continue;
@@ -11045,13 +11256,14 @@ namespace HalconWinFormsDemo
                 DockParameterPriorityBar.Visibility = Visibility.Visible;
                 DockKeyParameterSummaryText.Text = string.Format(
                     CultureInfo.InvariantCulture,
-                    "关键参数 {0} 项 · 默认最多 {1} 项",
-                    keyFieldCount,
-                    maximumKeyFieldCount);
+                    hasTaskProfile
+                        ? "本工具常用 {0} 项 · 已按任务排序"
+                        : "先完成 {0} 项常用设置，再试运行",
+                    keyFieldCount);
                 DockAdvancedParameterToggleButton.IsEnabled = advancedFieldCount > 0;
                 DockAdvancedParameterToggleButton.Content = advancedFieldCount == 0
-                    ? "无高级参数"
-                    : (expanded ? "收起高级参数 " + advancedFieldCount + " ▴" : "展开高级参数 " + advancedFieldCount + " ▾");
+                    ? "没有更多参数"
+                    : (expanded ? "收起 " + advancedFieldCount + " 项 ▴" : "更多参数 " + advancedFieldCount + " ▾");
             }
             finally
             {
@@ -11189,6 +11401,7 @@ namespace HalconWinFormsDemo
             }
 
             DockModuleTitleText.Text = tool.SequenceText + "  " + tool.InstanceName;
+            UpdateCentralModuleConfigurationTitleS77(tool);
             DockRunStateText.Text = "状态：" + tool.ConfigurationStatus + " · " + tool.RunStatus + " · " + tool.ResultCode + " · " + tool.ElapsedText;
             DockResultText.Text = "最近结果：" + tool.ResultCode + " · " + (string.IsNullOrWhiteSpace(tool.OutputSummary) ? "--" : tool.OutputSummary);
             DockErrorText.Text = "错误：" + (string.IsNullOrWhiteSpace(tool.ErrorMessage) ? "无" : tool.ErrorMessage);
@@ -11916,6 +12129,10 @@ namespace HalconWinFormsDemo
                 if (!TryParseUiDouble(DockImageThresholdMaxTextBox.Text, out number)) return FailDockDraft("阈值分割灰度上限必须是数值。");
                 parameters.ImageThresholdMaxGray = number;
             }
+            else if (tool.Kind == VmToolKind.AutomaticThreshold)
+            {
+                parameters.AutomaticThresholdPolarity = VmDynamicThresholdPolarity.Normalize(DockAutomaticThresholdPolarityComboBox.SelectedValue as string);
+            }
             else if (tool.Kind == VmToolKind.RegionMorphology)
             {
                 parameters.RegionMorphologyMode = VmRegionMorphologyMode.Normalize(DockRegionMorphologyModeComboBox.SelectedValue as string);
@@ -12223,6 +12440,43 @@ namespace HalconWinFormsDemo
                 parameters.PointEllipseOverlayCrossSize = number;
                 if (!TryParseUiDouble(DockPointEllipseContourResolutionTextBox.Text, out number)) return FailDockDraft("点到椭圆轮廓分辨率必须是数值。");
                 parameters.PointEllipseContourResolution = number;
+            }
+            else if (tool.Kind == VmToolKind.LineEllipseIntersectionMeasurement)
+            {
+                if (!TryParseUiDouble(DockLineEllipseToleranceTextBox.Text, out number)) return FailDockDraft("线段椭圆交点容差必须是数值。");
+                parameters.LineEllipseIntersectionTolerance = number;
+                if (!TryParseUiDouble(DockLineEllipseCrossSizeTextBox.Text, out number)) return FailDockDraft("线段椭圆十字尺寸必须是数值。");
+                parameters.LineEllipseOverlayCrossSize = number;
+                if (!TryParseUiDouble(DockLineEllipseResolutionTextBox.Text, out number)) return FailDockDraft("线段椭圆轮廓分辨率必须是数值。");
+                parameters.LineEllipseContourResolution = number;
+            }
+            else if (tool.Kind == VmToolKind.DataCode2DRecognition)
+            {
+                parameters.DataCodeType = VmDataCode2DType.Normalize(DockDataCodeTypeComboBox.SelectedValue as string);
+                parameters.DataCodeRecognitionProfile = VmDataCodeRecognitionProfile.Normalize(DockDataCodeProfileComboBox.SelectedValue as string);
+                parameters.DataCodePolarity = VmDataCodePolarity.Normalize(DockDataCodePolarityComboBox.SelectedValue as string);
+                if (!int.TryParse(DockDataCodeMaxResultsTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("二维代码最大结果数必须是整数。");
+                parameters.DataCodeMaxResults = integer;
+                if (!int.TryParse(DockDataCodeTimeoutTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("二维代码超时必须是整数毫秒。");
+                parameters.DataCodeTimeoutMilliseconds = integer;
+            }
+            else if (tool.Kind == VmToolKind.BarCode1DRecognition)
+            {
+                parameters.BarCodeType = VmBarCodeType.Normalize(DockBarCodeTypeComboBox.SelectedValue as string);
+                if (!int.TryParse(DockBarCodeMaxResultsTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("一维码最大结果数必须是整数。");
+                parameters.BarCodeMaxResults = integer;
+                if (!int.TryParse(DockBarCodeNumScanlinesTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("一维码扫描线数必须是整数。");
+                parameters.BarCodeNumScanlines = integer;
+                if (!int.TryParse(DockBarCodeMinIdenticalTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("一维码一致扫描线数必须是整数。");
+                parameters.BarCodeMinIdenticalScanlines = integer;
+                if (!TryParseUiDouble(DockBarCodeOrientationTextBox.Text, out number)) return FailDockDraft("一维码方向必须是数值。");
+                parameters.BarCodeOrientationDegrees = number;
+                if (!TryParseUiDouble(DockBarCodeOrientationToleranceTextBox.Text, out number)) return FailDockDraft("一维码方向容差必须是数值。");
+                parameters.BarCodeOrientationToleranceDegrees = number;
+            }
+            else if (tool.Kind == VmToolKind.OcrRecognition)
+            {
+                if (!ReadOcrParametersS81(parameters)) return false;
             }
             else if (tool.Kind == VmToolKind.LineCircleIntersectionMeasurement)
             {
@@ -12762,6 +13016,11 @@ namespace HalconWinFormsDemo
                 return false;
             }
 
+            if (tool.Kind == VmToolKind.OcrRecognition)
+                return port.PortName == "Image" || port.PortName == "Characters" || port.PortName == "ROI";
+            if (tool.Kind == VmToolKind.DataCode2DRecognition || tool.Kind == VmToolKind.BarCode1DRecognition || tool.Kind == VmToolKind.SubpixelEdgeExtraction)
+                return port.PortName == "Image" || port.PortName == "ROI";
+
             if (tool.Kind == VmToolKind.NumericJudge && port.PortName == "Value")
             {
                 return true;
@@ -12794,6 +13053,7 @@ namespace HalconWinFormsDemo
                        tool.Kind == VmToolKind.PolarImageUnwrap ||
                        tool.Kind == VmToolKind.RoiImageExtraction ||
                        tool.Kind == VmToolKind.ImageThreshold ||
+                       tool.Kind == VmToolKind.AutomaticThreshold ||
                        tool.Kind == VmToolKind.Blob ||
                        tool.Kind == VmToolKind.GrayStat ||
                        tool.Kind == VmToolKind.EdgeMeasure ||
@@ -14086,6 +14346,7 @@ namespace HalconWinFormsDemo
 
         private void ImageWorkspaceExpandButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!imageWorkspaceExpanded && centralModuleConfigurationOpenS77 && !CloseCentralModuleConfigurationS77()) return;
             imageWorkspaceExpanded = !imageWorkspaceExpanded;
             if (imageWorkspaceExpanded)
             {
@@ -14757,8 +15018,19 @@ namespace HalconWinFormsDemo
 
         private void ShowRightModuleTask(TabItem taskTab, string status, string activeTask)
         {
-            RightTabs.SelectedItem = DockConfigurationTab;
+            VmToolInstance selected = FlowToolList == null ? null : FlowToolList.SelectedItem as VmToolInstance;
+            if (selected != null && SupportsDockConfiguration(selected.Kind))
+            {
+                OpenCentralModuleConfigurationS77(selected);
+            }
+            RightTabs.SelectedItem = centralModuleConfigurationOpenS77 ? ModuleResultTab : DockConfigurationTab;
             DockConfigurationTabs.SelectedItem = taskTab;
+            SelectCentralConfigurationTaskS77(
+                taskTab,
+                ReferenceEquals(taskTab, DockParametersTaskTab) ? "Parameters" :
+                (ReferenceEquals(taskTab, DockIoTaskTab) ? "Io" :
+                (ReferenceEquals(taskTab, DockRoiTaskTab) ? "Roi" :
+                (ReferenceEquals(taskTab, DockResultTaskTab) ? "Result" : "More"))));
             HeaderStatusText.Text = status;
             UpdateRightTaskNavigationState(activeTask);
         }
@@ -14785,6 +15057,7 @@ namespace HalconWinFormsDemo
         private void ApplyRightWorkspaceTaskLayout(string activeTask)
         {
             if (ImageWorkspaceRow == null || RightConfigurationRow == null) return;
+            if (centralModuleConfigurationOpenS77) activeTask = "More";
             string layoutTask = string.Equals(activeTask, "Parameters", StringComparison.Ordinal) ? "Parameters" : "Other";
             if (string.Equals(rightWorkspaceLayoutTask, layoutTask, StringComparison.Ordinal)) return;
             rightWorkspaceLayoutTask = layoutTask;
@@ -18669,6 +18942,37 @@ namespace HalconWinFormsDemo
                         tool.InputSummary = "本地文件：" + Path.GetFileName((tool.Parameters ?? new VmToolParameterData()).LocalImagePath);
                         tool.OutputSummary = record.Message;
                         break;
+                    case VmToolKind.DataCode2DRecognition:
+                        using (HImage inputImage = CreateToolInputImage(tool, "Image", false))
+                        using (HRegion roiRegion = CreateEffectiveRoiRegion(tool, false))
+                        {
+                            record = RunDataCode2DRecognitionToolS77(tool, inputImage, roiRegion);
+                            ApplyRecordImage(record, tool, inputImage);
+                            tool.InputSummary = GetImageInputSummary(tool) + " + " + GetRoiBindingSummary(tool);
+                            tool.OutputSummary = record.Message;
+                        }
+                        break;
+                    case VmToolKind.BarCode1DRecognition:
+                        using (HImage inputImage = CreateToolInputImage(tool, "Image", false))
+                        using (HRegion roiRegion = CreateEffectiveRoiRegion(tool, false))
+                        {
+                            record = RunBarCode1DRecognitionToolS80(tool, inputImage, roiRegion);
+                            ApplyRecordImage(record, tool, inputImage);
+                            tool.InputSummary = GetImageInputSummary(tool) + " + " + GetRoiBindingSummary(tool);
+                            tool.OutputSummary = record.Message;
+                        }
+                        break;
+                    case VmToolKind.OcrRecognition:
+                        using (HImage inputImage = CreateToolInputImage(tool, "Image", false))
+                        using (HRegion roiRegion = CreateEffectiveRoiRegion(tool, false))
+                        using (HRegion characters = tool.GetInputBinding("Characters") == null ? null : CreateToolInputRegion(tool, "Characters"))
+                        {
+                            record = RunOcrToolS81(tool, inputImage, characters, roiRegion);
+                            ApplyRecordImage(record, tool, inputImage);
+                            tool.InputSummary = GetImageInputSummary(tool) + " + " + GetRoiBindingSummary(tool);
+                            tool.OutputSummary = record.Message;
+                        }
+                        break;
                     case VmToolKind.ImageChannel:
                         using (HImage inputImage = CreateToolInputImage(tool))
                         {
@@ -18831,6 +19135,15 @@ namespace HalconWinFormsDemo
                             record = RunImageThresholdTool(tool, inputImage);
                             ApplyRecordImage(record, tool, inputImage);
                             tool.InputSummary = GetImageInputSummary(tool);
+                            tool.OutputSummary = record.Message;
+                        }
+                        break;
+                    case VmToolKind.AutomaticThreshold:
+                        using (HImage inputImage = CreateToolInputImage(tool))
+                        {
+                            record = RunAutomaticThresholdToolS84(tool, inputImage);
+                            ApplyRecordImage(record, tool, inputImage);
+                            tool.InputSummary = GetImageInputSummary(tool) + " + " + GetRoiInputSummary(tool);
                             tool.OutputSummary = record.Message;
                         }
                         break;
@@ -19223,6 +19536,11 @@ namespace HalconWinFormsDemo
                         tool.InputSummary = BuildPointToEllipseInputSummaryS75(tool);
                         tool.OutputSummary = record.Message;
                         break;
+                    case VmToolKind.LineEllipseIntersectionMeasurement:
+                        record = RunLineEllipseIntersectionToolS76(tool);
+                        tool.InputSummary = BuildLineEllipseIntersectionInputSummaryS76(tool);
+                        tool.OutputSummary = record.Message;
+                        break;
                     case VmToolKind.LineCircleIntersectionMeasurement:
                         record = RunLineCircleIntersectionToolS68(tool);
                         tool.InputSummary = BuildLineCircleInputSummaryS68(tool);
@@ -19285,12 +19603,12 @@ namespace HalconWinFormsDemo
                 PublishToolOutputs(tool, record);
                 tool.ResultCode = record.ResultCode;
                 tool.RunStatus = string.Equals(record.ResultCode, "OK", StringComparison.OrdinalIgnoreCase) ? "完成" : "异常";
-                if (tool.Kind == VmToolKind.TypedLineLineRelationMeasurement || tool.Kind == VmToolKind.TypedPointSetLineFittingMeasurement || tool.Kind == VmToolKind.TypedPointSetCircleFittingMeasurement || tool.Kind == VmToolKind.TypedPointSetEllipseFittingMeasurement)
+                if (tool.Kind == VmToolKind.OcrRecognition || tool.Kind == VmToolKind.LineEllipseIntersectionMeasurement || tool.Kind == VmToolKind.TypedLineLineRelationMeasurement || tool.Kind == VmToolKind.TypedPointSetLineFittingMeasurement || tool.Kind == VmToolKind.TypedPointSetCircleFittingMeasurement || tool.Kind == VmToolKind.TypedPointSetEllipseFittingMeasurement)
                 {
                     UpdateImageContextViewport(true);
                     ScheduleRefreshDisplay();
                 }
-                if (tool.Kind == VmToolKind.ShapeMatch || tool.Kind == VmToolKind.ImageSource || tool.Kind == VmToolKind.ImageChannel || tool.Kind == VmToolKind.ImageFilter || tool.Kind == VmToolKind.ImageEnhancement || tool.Kind == VmToolKind.ImageResize || tool.Kind == VmToolKind.ImageMirror || tool.Kind == VmToolKind.ImageRotate || tool.Kind == VmToolKind.ImageAffineTransform || tool.Kind == VmToolKind.ImageProjectiveTransform || tool.Kind == VmToolKind.SubpixelEdgeExtraction || tool.Kind == VmToolKind.PolarImageUnwrap || tool.Kind == VmToolKind.RoiImageExtraction || tool.Kind == VmToolKind.ImageDifference || tool.Kind == VmToolKind.DynamicThreshold || tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.RegionMorphology || tool.Kind == VmToolKind.RegionFeatureFilter || tool.Kind == VmToolKind.RegionSetOperation || tool.Kind == VmToolKind.RegionContourMeasurement || tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldAdjacentContourUnion || tool.Kind == VmToolKind.XldContourSmoothing || tool.Kind == VmToolKind.XldAffineTransform || tool.Kind == VmToolKind.XldProjectiveTransform || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting || tool.Kind == VmToolKind.XldLineRelationMeasurement || tool.Kind == VmToolKind.TypedPointSetLineFittingMeasurement || tool.Kind == VmToolKind.TypedPointSetCircleFittingMeasurement || tool.Kind == VmToolKind.TypedPointSetEllipseFittingMeasurement || tool.Kind == VmToolKind.PointToLineDistanceMeasurement || tool.Kind == VmToolKind.PointToCircleRadialDeviationMeasurement || tool.Kind == VmToolKind.PointToEllipseDistanceMeasurement || tool.Kind == VmToolKind.LineCircleIntersectionMeasurement || tool.Kind == VmToolKind.CircleCircleIntersectionMeasurement || tool.Kind == VmToolKind.PointPairLineConstructionMeasurement || tool.Kind == VmToolKind.CaliperEdgePairMeasurement || tool.Kind == VmToolKind.LinearCaliperArrayMeasurement || tool.Kind == VmToolKind.CircularCaliperCircleFinder || tool.Kind == VmToolKind.RingWallThicknessMeasurement)
+                if (tool.Kind == VmToolKind.ShapeMatch || tool.Kind == VmToolKind.ImageSource || tool.Kind == VmToolKind.DataCode2DRecognition || tool.Kind == VmToolKind.BarCode1DRecognition || tool.Kind == VmToolKind.ImageChannel || tool.Kind == VmToolKind.ImageFilter || tool.Kind == VmToolKind.ImageEnhancement || tool.Kind == VmToolKind.ImageResize || tool.Kind == VmToolKind.ImageMirror || tool.Kind == VmToolKind.ImageRotate || tool.Kind == VmToolKind.ImageAffineTransform || tool.Kind == VmToolKind.ImageProjectiveTransform || tool.Kind == VmToolKind.SubpixelEdgeExtraction || tool.Kind == VmToolKind.PolarImageUnwrap || tool.Kind == VmToolKind.RoiImageExtraction || tool.Kind == VmToolKind.ImageDifference || tool.Kind == VmToolKind.DynamicThreshold || tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.AutomaticThreshold || tool.Kind == VmToolKind.RegionMorphology || tool.Kind == VmToolKind.RegionFeatureFilter || tool.Kind == VmToolKind.RegionSetOperation || tool.Kind == VmToolKind.RegionContourMeasurement || tool.Kind == VmToolKind.XldContourFilter || tool.Kind == VmToolKind.XldAdjacentContourUnion || tool.Kind == VmToolKind.XldContourSmoothing || tool.Kind == VmToolKind.XldAffineTransform || tool.Kind == VmToolKind.XldProjectiveTransform || tool.Kind == VmToolKind.XldContourSegmentation || tool.Kind == VmToolKind.XldLineFitting || tool.Kind == VmToolKind.XldCircleFitting || tool.Kind == VmToolKind.XldEllipseFitting || tool.Kind == VmToolKind.XldRectangleFitting || tool.Kind == VmToolKind.XldLineRelationMeasurement || tool.Kind == VmToolKind.TypedPointSetLineFittingMeasurement || tool.Kind == VmToolKind.TypedPointSetCircleFittingMeasurement || tool.Kind == VmToolKind.TypedPointSetEllipseFittingMeasurement || tool.Kind == VmToolKind.PointToLineDistanceMeasurement || tool.Kind == VmToolKind.PointToCircleRadialDeviationMeasurement || tool.Kind == VmToolKind.PointToEllipseDistanceMeasurement || tool.Kind == VmToolKind.LineCircleIntersectionMeasurement || tool.Kind == VmToolKind.CircleCircleIntersectionMeasurement || tool.Kind == VmToolKind.PointPairLineConstructionMeasurement || tool.Kind == VmToolKind.CaliperEdgePairMeasurement || tool.Kind == VmToolKind.LinearCaliperArrayMeasurement || tool.Kind == VmToolKind.CircularCaliperCircleFinder || tool.Kind == VmToolKind.RingWallThicknessMeasurement)
                 {
                     UpdateImageContextViewport(true);
                     ScheduleRefreshDisplay();
@@ -26181,6 +26499,7 @@ namespace HalconWinFormsDemo
                 case VmToolKind.ImageDifference:
                     break;
                 case VmToolKind.ImageThreshold:
+                case VmToolKind.AutomaticThreshold:
                 case VmToolKind.DynamicThreshold:
                 case VmToolKind.RegionMorphology:
                 case VmToolKind.RegionFeatureFilter:
@@ -27382,6 +27701,7 @@ namespace HalconWinFormsDemo
                         }
                     }
                 }
+                RefreshImageZoomStatusS81();
                 return;
             }
             ResolvedImageContext context = ResolveImageContext();
@@ -27445,6 +27765,7 @@ namespace HalconWinFormsDemo
                 displayImage.Dispose();
             }
             RefreshComparisonDisplay();
+            RefreshImageZoomStatusS81();
         }
 
         private void RefreshComparisonDisplay()
@@ -28970,9 +29291,12 @@ namespace HalconWinFormsDemo
         {
             HObject current = null;
             HObject next = null;
+            double baseArea = 0.0;
+            double detectionArea = 0.0;
             try
             {
                 HOperatorSet.CopyObj(baseRegion, out current, 1, -1);
+                baseArea = GetRegionArea(current);
                 if (intersectDetectionLayers && detectionLayers != null && detectionLayers.Count > 0)
                 {
                     using (HRegion detectionRegion = CreatePositionCorrectedUnionRoiRegion(tool, detectionLayers))
@@ -28982,7 +29306,9 @@ namespace HalconWinFormsDemo
                     current.Dispose();
                     current = next;
                     next = null;
+                    detectionArea = GetRegionArea(current);
                 }
+                else detectionArea = baseArea;
 
                 if (maskLayers != null && maskLayers.Count > 0)
                 {
@@ -28998,7 +29324,10 @@ namespace HalconWinFormsDemo
                 double area = GetRegionArea(current);
                 if (area <= 0.0)
                 {
-                    throw new InvalidOperationException((tool == null ? "当前工具" : tool.InstanceName) + " 的有效运行域为空；请调整检测区、屏蔽区或 Region 订阅。");
+                    throw new InvalidOperationException(string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0} 的有效运行域为空（基础 {1:0} px，检测交集 {2:0} px，屏蔽后 {3:0} px）；请调整检测区、屏蔽区或 Region 订阅。",
+                        tool == null ? "当前工具" : tool.InstanceName, baseArea, detectionArea, area));
                 }
 
                 HRegion result = new HRegion(current);
@@ -29384,7 +29713,8 @@ namespace HalconWinFormsDemo
                 BottomPanelHeight = productionRunMode
                     ? developerBottomPanelHeight.Value
                     : (BottomPanelRow.ActualHeight > 0 ? BottomPanelRow.ActualHeight : BottomPanelRow.Height.Value),
-                RightPanelWidth = RightPanelColumn.ActualWidth > 0 ? RightPanelColumn.ActualWidth : RightPanelColumn.Width.Value,
+                RightPanelWidth = centralConfigurationColumnsS81 != null ? centralConfigurationRightWidthS81 :
+                    (RightPanelColumn.ActualWidth > 0 ? RightPanelColumn.ActualWidth : RightPanelColumn.Width.Value),
                 LastRecipePath = currentRecipePath,
                 LastImageDirectory = string.IsNullOrWhiteSpace(currentImagePath) ? string.Empty : Path.GetDirectoryName(currentImagePath),
                 RecentRecipePaths = recentRecipes.Select(item => item.Path).ToList(),

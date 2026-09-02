@@ -194,4 +194,4 @@ $main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true)
 $window.Close()
 $app.Shutdown()
 if (Test-Path $temp) { Remove-Item -LiteralPath $temp -Recurse -Force }
-Write-Output ('S25_UI_CAPTURE=PASS; Path={0}; Window={1}; A=BREAKPOINT/F9+STEP/F10+CONTINUE/F5/NEXT_POINTER/GROUP_AND_LIST_BADGES; B=XLD_RECTANGLE_FIT_DOCK/TUKEY/CENTER_PHI_LENGTHS_CORNERS_RESIDUAL; Graph=IMAGE_TO_REGION_TO_XLD_TO_RECTANGLE_TO_LENGTH1_JUDGE; Lengths={2:0.###}/{3:0.###}; PhiDeg={4:0.###}; BSB=NOT_IMPLEMENTED_BY_USER_DIRECTIVE' -f $OutputPath,$size,[double]$length1,[double]$length2,([double]$phi*180/[Math]::PI))
+Write-Output ('S25_UI_CAPTURE=PASS; Path={0}; Window={1}; A=BREAKPOINT/F9+STEP/F10+CONTINUE/F5/NEXT_POINTER/GROUP_AND_LIST_BADGES; B=XLD_RECTANGLE_FIT_DOCK/TUKEY/CENTER_PHI_LENGTHS_CORNERS_RESIDUAL; Graph=IMAGE_TO_REGION_TO_XLD_TO_RECTANGLE_TO_LENGTH1_JUDGE; Lengths={2:0.###}/{3:0.###}; PhiDeg={4:0.###}' -f $OutputPath,$size,[double]$length1,[double]$length2,([double]$phi*180/[Math]::PI))

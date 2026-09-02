@@ -28,17 +28,13 @@
 8. 在底部 `结果记录` 页回看、导出 CSV/XLSX 或保存截图。
 9. 使用顶部“保存”持久化工具顺序、ROI 图层、绑定关系和参数；在“工程”页运行自检、查看配方和日志目录。
 
-BSB 电池产线是长期验收场景，但按 2026-07-13 用户指令暂缓实施；当前版本不包含 BSB 专用工具。
-
 ## 构建
 
 ```powershell
 & 'D:\vsanzhuangbao\MSBuild\Current\Bin\MSBuild.exe' 'D:\codex\codex1\HalconWinFormsDemo.sln' /p:Configuration=Debug /p:Platform=x64 /m
 & 'D:\vsanzhuangbao\MSBuild\Current\Bin\MSBuild.exe' 'D:\codex\codex1\HalconWinFormsDemo.sln' /p:Configuration=Release /p:Platform=x64 /m
 ```
-
 输出路径：
-
 - `bin\x64\Debug\HalconWinFormsDemo.exe`
 - `bin\x64\Release\HalconWinFormsDemo.exe`
 

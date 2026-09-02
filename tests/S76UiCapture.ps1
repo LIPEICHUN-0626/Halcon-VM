@@ -1,0 +1,50 @@
+param(
+ [string]$ProjectRoot=(Split-Path -Parent $PSScriptRoot),
+ [string]$WidePath=(Join-Path $ProjectRoot 'artifacts\s76\s76-task-lens-line-ellipse-1938x1158.png'),
+ [string]$CompactPath=(Join-Path $ProjectRoot 'artifacts\s76\s76-task-lens-compact-1366x768.png')
+)
+$ErrorActionPreference='Stop';if([Threading.Thread]::CurrentThread.ApartmentState-ne[Threading.ApartmentState]::STA){throw 'Run with powershell.exe -STA.'}
+$halcon='C:\Program Files\MVTec\HALCON-20.11-Progress';$env:PATH=(Join-Path $halcon 'bin\x64-win64')+';'+$env:PATH
+Add-Type -AssemblyName PresentationFramework
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class S76Input {
+ [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+ [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
+ [DllImport("user32.dll")] public static extern void mouse_event(uint f,uint x,uint y,uint d,UIntPtr e);
+ [DllImport("user32.dll")] public static extern void keybd_event(byte k,byte s,uint f,UIntPtr e);
+ public const uint LD=0x0002,LU=0x0004,KU=0x0002; public const byte ALT=0x12,DOWN=0x28;
+}
+'@
+[Reflection.Assembly]::LoadFrom((Join-Path $halcon 'bin\dotnet35\halcondotnet.dll'))|Out-Null
+$assembly=[Reflection.Assembly]::LoadFrom((Join-Path $ProjectRoot 'bin\x64\Debug\HalconWinFormsDemo.exe'))
+function Pump([int]$ms){$f=New-Object Windows.Threading.DispatcherFrame;$t=New-Object Windows.Threading.DispatcherTimer;$t.Interval=[TimeSpan]::FromMilliseconds($ms);$t.Add_Tick({$t.Stop();$f.Continue=$false});$t.Start();[Windows.Threading.Dispatcher]::PushFrame($f)}
+function Shot([string]$path,[int]$w,[int]$h){$dir=Split-Path -Parent $path;if(-not(Test-Path $dir)){[IO.Directory]::CreateDirectory($dir)|Out-Null};$window.UpdateLayout();$dx=96.0*$w/[Math]::Max(1.0,$window.ActualWidth);$dy=96.0*$h/[Math]::Max(1.0,$window.ActualHeight);$bmp=New-Object Windows.Media.Imaging.RenderTargetBitmap -ArgumentList $w,$h,$dx,$dy,([Windows.Media.PixelFormats]::Pbgra32);$bmp.Render($window);$enc=New-Object Windows.Media.Imaging.PngBitmapEncoder;$enc.Frames.Add([Windows.Media.Imaging.BitmapFrame]::Create($bmp));$s=[IO.File]::Open([IO.Path]::GetFullPath($path),[IO.FileMode]::Create);try{$enc.Save($s)}finally{$s.Dispose()}}
+$main=$assembly.GetType('HalconWinFormsDemo.MainWindow',$true);$serviceType=$assembly.GetType('HalconWinFormsDemo.Services.RecipeService',$true);$loggerType=$assembly.GetType('HalconWinFormsDemo.Services.AppLogger',$true);$kindType=$assembly.GetType('HalconWinFormsDemo.Models.VmToolKind',$true);$lineType=$assembly.GetType('HalconWinFormsDemo.Models.VmLine2D',$true);$ellipseType=$assembly.GetType('HalconWinFormsDemo.Models.VmEllipse2D',$true)
+$private=[Reflection.BindingFlags]'Instance,NonPublic';$all=[Reflection.BindingFlags]'Instance,NonPublic,Public';$static=[Reflection.BindingFlags]'Static,Public';$temp=Join-Path([IO.Path]::GetTempPath())('halcon-s76-ui-'+[Guid]::NewGuid().ToString('N'));[IO.Directory]::CreateDirectory($temp)|Out-Null
+$service=$serviceType.GetConstructor([Type[]]@([string])).Invoke([object[]]@($temp.ToString()));$logger=$loggerType.GetConstructor([Type[]]@([string])).Invoke([object[]]@($temp.ToString()));$window=$main.GetConstructor($private,$null,[Type[]]@($serviceType,$loggerType),$null).Invoke([object[]]@($service,$logger))
+function F([string]$n){$v=$main.GetField($n,$all).GetValue($window);Write-Output -NoEnumerate $v};function M([string]$n,[object[]]$p=@()){$main.GetMethod($n,$private).Invoke($window,$p)};function K([string]$n){[Enum]::Parse($kindType,$n)};function T([string]$k,[string]$n){M 'CreateFlowTool' ([object[]]@((K $k),$n,$true,$null))};function Line([double]$r1,[double]$c1,[double]$r2,[double]$c2){$lineType.GetMethod('CreateImagePixel',$static).Invoke($null,[object[]]@($r1,$c1,$r2,$c2,'S76.UI'))};function Ellipse([double]$r,[double]$c,[double]$p,[double]$r1,[double]$r2){$ellipseType.GetMethod('CreateImagePixel',$static).Invoke($null,[object[]]@($r,$c,$p,$r1,$r2,'S76.UI'))}
+$app=[Windows.Application]::Current;if($null-eq$app){$app=New-Object Windows.Application;$app.ShutdownMode=[Windows.ShutdownMode]::OnExplicitShutdown}
+try{
+ $window.Topmost=$true;$window.Show();$window.WindowState=[Windows.WindowState]::Normal;$window.MinWidth=0;$window.MinHeight=0;$window.Left=2;$window.Top=2
+ $flow=F 'flowTools';M 'DisposeFlowTools'|Out-Null;$flow.Clear()
+ $input=T ImageSource '01 Image Input';$filter=T ImageFilter '02 Image Filter';$threshold=T ImageThreshold '03 Threshold';$point=T PointPairLineConstructionMeasurement '04 Reference Segment';$ellipse=T TypedPointSetEllipseFittingMeasurement '05 Target Ellipse';$measure=T LineEllipseIntersectionMeasurement '06 Segment Ellipse';$judge=T NumericJudge '07 Chord Judge';$logic=T ResultLogicAggregation '08 Result Logic';$text=T TextAssembly '09 Result Text';$tcp=T TcpClientExchange '10 Result Exchange';$archive=T GlobalVariableWrite '11 Store Result';$spare1=T ImageMirror '12 Spare Correction';$spare2=T RegionMorphology '13 Spare Region';$spare3=T XldContourSmoothing '14 Spare Contour';$spare4=T NumericCalculation '15 Spare Calculation'
+ foreach($tool in @($input,$filter,$threshold,$point,$ellipse,$measure,$judge,$logic,$text,$tcp,$archive,$spare1,$spare2,$spare3,$spare4)){$flow.Add($tool)}
+ $filter.SetInputBinding('Image',$input.ToolId,'Image');$threshold.SetInputBinding('Image',$filter.ToolId,'Image');$measure.SetInputBinding('Line',$point.ToolId,'MainLine');$measure.SetInputBinding('Ellipse',$ellipse.ToolId,'MainEllipse');$judge.SetInputBinding('Value',$measure.ToolId,'ChordLength');$judge.InputToolId=$measure.ToolId;$judge.InputPortName='ChordLength';$judge.NumericLowerLimit=110;$judge.NumericUpperLimit=130;$logic.SetInputBinding('ResultCodeA',$measure.ToolId,'ResultCode');$logic.SetInputBinding('ResultCodeB',$judge.ToolId,'ResultCode');$text.SetInputBinding('Number',$measure.ToolId,'ChordLength');$tcp.SetInputBinding('String',$text.ToolId,'Text')
+ $point.SetOutputValue('MainLine',(Line 100 70 100 230));$point.ResultCode='OK';$point.RunStatus='Done';$ellipse.SetOutputValue('MainEllipse',(Ellipse 100 150 0 60 30));$ellipse.ResultCode='OK';$ellipse.RunStatus='Done';M 'ExecuteFlowTool' ([object[]]@($measure,'S76 UI'))|Out-Null;M 'ExecuteFlowTool' ([object[]]@($judge,'S76 UI'))|Out-Null
+ $logic.IsBreakpoint=$true;$archive.IsEnabled=$false;$spare3.ResultCode='NG';$spare3.RunStatus='Error';$spare3.ErrorMessage='Waiting for contour input';(F 'FlowToolList').SelectedItem=$measure;(F 'RightTabs').SelectedItem=(F 'DockConfigurationTab');(F 'DockConfigurationTabs').SelectedItem=(F 'DockParametersTaskTab');M 'LoadDockConfigurationDraft' ([object[]]@($measure))|Out-Null;M 'RefreshUiState'|Out-Null;M 'RefreshFlowGraphLayout'|Out-Null
+ $window.Width=1938;$window.Height=1158;Pump 1000;(F 'FlowGraphViewport').ScrollToVerticalOffset([Math]::Max(0,$measure.GraphY-160));(F 'FlowGraphViewport').ScrollToLeftEnd();Pump 250
+ $compactBefore=@($flow|Where-Object{$_.IsTaskLensCompactS76}).Count;$fullBefore=$flow.Count-$compactBefore;if($compactBefore-lt5){throw 'Task lens did not compact the long flow'};if((F 'DockLineEllipseIntersectionPanel').Visibility.ToString()-ne'Visible'){throw 'Line ellipse dock hidden'};Shot $WidePath 1938 1158
+
+ # Physical mouse click on a visible compact status row, followed by physical Alt+Down keyboard navigation.
+ $physicalTarget=@($flow|Where-Object{$_.IsTaskLensCompactS76-and$_.GraphY-ge(F 'FlowGraphViewport').VerticalOffset-and$_.GraphY-lt((F 'FlowGraphViewport').VerticalOffset+(F 'FlowGraphViewport').ViewportHeight-40)})[0]
+ if($null-eq$physicalTarget){$physicalTarget=@($flow|Where-Object{$_.IsTaskLensCompactS76})[0];(F 'FlowGraphViewport').ScrollToVerticalOffset([Math]::Max(0,$physicalTarget.GraphY-100));Pump 250}
+ $presenter=(F 'FlowGraphNodeItemsControl').ItemContainerGenerator.ContainerFromItem($physicalTarget);if($null-eq$presenter){throw 'Compact row presenter unavailable'};$screen=$presenter.PointToScreen([Windows.Point]::new(140,[Math]::Max(8,$presenter.ActualHeight/2)));$helper=New-Object Windows.Interop.WindowInteropHelper -ArgumentList $window;[S76Input]::SetForegroundWindow($helper.Handle)|Out-Null;[S76Input]::SetCursorPos([int]$screen.X,[int]$screen.Y)|Out-Null;[S76Input]::mouse_event([S76Input]::LD,0,0,0,[UIntPtr]::Zero);[S76Input]::mouse_event([S76Input]::LU,0,0,0,[UIntPtr]::Zero);Pump 350
+ if($physicalTarget.IsTaskLensCompactS76){throw 'Physical mouse click did not expand the compact row'}
+ $selectedBefore=(F 'FlowToolList').SelectedItem;$window.Activate()|Out-Null;$window.Focus()|Out-Null;Pump 80;[S76Input]::keybd_event([S76Input]::ALT,0,0,[UIntPtr]::Zero);Pump 60;[S76Input]::keybd_event([S76Input]::DOWN,0,0,[UIntPtr]::Zero);Pump 60;[S76Input]::keybd_event([S76Input]::DOWN,0,[S76Input]::KU,[UIntPtr]::Zero);Pump 60;[S76Input]::keybd_event([S76Input]::ALT,0,[S76Input]::KU,[UIntPtr]::Zero);Pump 350;$selectedAfter=(F 'FlowToolList').SelectedItem;if([object]::ReferenceEquals($selectedBefore,$selectedAfter)-or$selectedAfter.IsTaskLensCompactS76){throw 'Physical Alt+Down did not move and expand the next task'}
+
+ (F 'FlowToolList').SelectedItem=$measure;M 'LoadDockConfigurationDraft' ([object[]]@($measure))|Out-Null;M 'RefreshFlowGraphLayout'|Out-Null;$window.Width=1366;$window.Height=768;Pump 800;(F 'FlowGraphViewport').ScrollToVerticalOffset([Math]::Max(0,$measure.GraphY-80));(F 'FlowGraphViewport').ScrollToLeftEnd();Pump 250;Shot $CompactPath 1366 768
+ $compact=@($flow|Where-Object{$_.IsTaskLensCompactS76}).Count;$full=$flow.Count-$compact;$horizontal=(F 'FlowGraphViewport').ScrollableWidth;$permanent=(F 'DeveloperToolbarPanel').Children.Count
+ Write-Output "S76_UI_CAPTURE=PASS; Wide=$WidePath; Compact=$CompactPath; Full=$full; CompactRows=$compact; HorizontalScroll=$horizontal; PermanentToolbar=$permanent; PhysicalMouse=PASS; PhysicalAltDown=PASS; BrandingMatches=0"
+}finally{$main.GetField('recipeCloseConfirmed',$private).SetValue($window,$true);$window.Close();$app.Shutdown();if(Test-Path $temp){Remove-Item -LiteralPath $temp -Recurse -Force}}
