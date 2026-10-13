@@ -198,7 +198,7 @@ namespace HalconWinFormsDemo.Services
         {
             if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("导出路径不能为空。", "path");
             StringBuilder csv = new StringBuilder();
-            csv.AppendLine("BatchId,RecipeName,RecipeFingerprint,StartedAtUtc,CompletedAtUtc,Scope,Outcome,TotalCount,OK,NG,Error,Stopped,NotRun,TotalElapsedMs,ItemSequence,FileName,FilePath,ItemState,ResultCode,ItemElapsedMs,Message");
+            csv.AppendLine("BatchId,RecipeName,RecipeFingerprint,StartedAtUtc,CompletedAtUtc,Scope,Outcome,TotalCount,OK,NG,Error,Stopped,NotRun,TotalElapsedMs,ItemSequence,FileName,FilePath,ItemState,ResultCode,ItemElapsedMs,Message,FlowId,FlowName");
             foreach (VmImageBatchTraceRecord record in records ?? Enumerable.Empty<VmImageBatchTraceRecord>())
             {
                 record.Normalize();
@@ -214,7 +214,7 @@ namespace HalconWinFormsDemo.Services
                         record.NgCount.ToString(CultureInfo.InvariantCulture), record.ErrorCount.ToString(CultureInfo.InvariantCulture), record.StoppedCount.ToString(CultureInfo.InvariantCulture),
                         record.NotRunCount.ToString(CultureInfo.InvariantCulture), record.TotalElapsedMilliseconds.ToString("0.###", CultureInfo.InvariantCulture),
                         (item.Sequence + 1).ToString(CultureInfo.InvariantCulture), item.FileName, item.FilePath, item.State, item.ResultCode,
-                        item.ElapsedMilliseconds.ToString("0.###", CultureInfo.InvariantCulture), item.Message
+                        item.ElapsedMilliseconds.ToString("0.###", CultureInfo.InvariantCulture), item.Message, record.FlowId, record.FlowName
                     };
                     csv.AppendLine(string.Join(",", values.Select(EscapeCsv)));
                 }

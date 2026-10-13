@@ -113,7 +113,7 @@ namespace HalconWinFormsDemo.Models
                     break;
             }
 
-            List<VmToolInstance> enabled = range.Where(item => item != null && item.IsEnabled).ToList();
+            List<VmToolInstance> enabled = range.Where(item => item != null && item.IsEnabled && item.Kind != VmToolKind.SubflowInput).ToList();
             if (enabled.Count == 0)
             {
                 throw new InvalidOperationException("所选运行范围内没有启用的工具。");

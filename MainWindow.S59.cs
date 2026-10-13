@@ -28,7 +28,9 @@ namespace HalconWinFormsDemo
                 new VmToolValueOption { Key = VmGlobalVariableType.Number, DisplayText = "数值" },
                 new VmToolValueOption { Key = VmGlobalVariableType.String, DisplayText = "字符串" },
                 new VmToolValueOption { Key = VmGlobalVariableType.Boolean, DisplayText = "布尔值" },
-                new VmToolValueOption { Key = VmGlobalVariableType.ResultCode, DisplayText = "结果码（OK/NG）" }
+                new VmToolValueOption { Key = VmGlobalVariableType.ResultCode, DisplayText = "结果码（OK/NG）" },
+                new VmToolValueOption { Key = VmGlobalVariableType.NumberArray, DisplayText = "数值数组" },
+                new VmToolValueOption { Key = VmGlobalVariableType.StringArray, DisplayText = "文本数组" }
             };
             GlobalVariableValueTypeComboBox.ItemsSource = types;
             GlobalVariableValueTypeComboBox.SelectedValue = VmGlobalVariableType.Number;
@@ -44,16 +46,16 @@ namespace HalconWinFormsDemo
         private void LoadGlobalVariablesFromRecipe(VisionRecipe recipe)
         {
             string selectedId = (GlobalVariableListBox == null ? null : GlobalVariableListBox.SelectedItem as VmGlobalVariableData)?.VariableId;
+            var incoming = ((recipe == null ? null : recipe.GlobalVariables) ?? new List<VmGlobalVariableData>())
+                .Where(item => item != null).Select(item => item.CloneNormalized()).ToList();
             globalVariableUiUpdating = true;
             try
             {
                 globalVariables.Clear();
                 HashSet<string> ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 HashSet<string> names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (VmGlobalVariableData source in (recipe == null ? null : recipe.GlobalVariables) ?? new List<VmGlobalVariableData>())
+                foreach (VmGlobalVariableData item in incoming)
                 {
-                    if (source == null) continue;
-                    VmGlobalVariableData item = source.CloneNormalized();
                     if (string.IsNullOrWhiteSpace(item.VariableId) || !ids.Add(item.VariableId))
                     {
                         item.VariableId = Guid.NewGuid().ToString("N");
@@ -83,15 +85,16 @@ namespace HalconWinFormsDemo
 
         private void RefreshGlobalVariableSubscriptions()
         {
+            var references = CaptureScopedToolReferencesS102();
             foreach (VmGlobalVariableData variable in globalVariables)
             {
-                int readers = flowTools.Count(tool => tool.Kind == VmToolKind.GlobalVariableRead && tool.Parameters != null && string.Equals(tool.Parameters.GlobalVariableId, variable.VariableId, StringComparison.OrdinalIgnoreCase));
-                int writers = flowTools.Count(tool => tool.Kind == VmToolKind.GlobalVariableWrite && tool.Parameters != null && string.Equals(tool.Parameters.GlobalVariableId, variable.VariableId, StringComparison.OrdinalIgnoreCase));
+                int readers = references.Count(item => item.Tool.ToolType == VmToolKind.GlobalVariableRead.ToString() && item.Tool.Parameters != null && string.Equals(item.Tool.Parameters.GlobalVariableId, variable.VariableId, StringComparison.OrdinalIgnoreCase));
+                int writers = references.Count(item => item.Tool.ToolType == VmToolKind.GlobalVariableWrite.ToString() && item.Tool.Parameters != null && string.Equals(item.Tool.Parameters.GlobalVariableId, variable.VariableId, StringComparison.OrdinalIgnoreCase));
                 variable.SetSubscriptionCounts(readers, writers);
             }
             if (globalVariableView != null) globalVariableView.Refresh();
             if (GlobalVariableWorkspaceStatusText != null)
-                GlobalVariableWorkspaceStatusText.Text = globalVariables.Count.ToString(CultureInfo.InvariantCulture) + " 个变量 · " + flowTools.Count(tool => tool.Kind == VmToolKind.GlobalVariableRead || tool.Kind == VmToolKind.GlobalVariableWrite).ToString(CultureInfo.InvariantCulture) + " 个读写模块";
+                GlobalVariableWorkspaceStatusText.Text = globalVariables.Count.ToString(CultureInfo.InvariantCulture) + " 个方案共享变量 · " + references.Count(item => item.Tool.ToolType == VmToolKind.GlobalVariableRead.ToString() || item.Tool.ToolType == VmToolKind.GlobalVariableWrite.ToString()).ToString(CultureInfo.InvariantCulture) + " 个读写模块（全部流程）";
             VmGlobalVariableData selected = GlobalVariableListBox == null ? null : GlobalVariableListBox.SelectedItem as VmGlobalVariableData;
             if (selected != null && GlobalVariableSubscriptionText != null) GlobalVariableSubscriptionText.Text = BuildGlobalVariableSubscriptionText(selected);
             RefreshDockGlobalVariableSummary();
@@ -162,6 +165,7 @@ namespace HalconWinFormsDemo
                 GlobalVariableIdText.Text = enabled ? "ID  " + variable.VariableId : string.Empty;
                 GlobalVariableSubscriptionText.Text = enabled ? BuildGlobalVariableSubscriptionText(variable) : "读取 0 · 写入 0";
                 GlobalVariableValidationText.Text = string.Empty;
+                ConfigureVariableArrayEditorS109(variable);
             }
             finally
             {
@@ -171,15 +175,17 @@ namespace HalconWinFormsDemo
 
         private string BuildGlobalVariableSubscriptionText(VmGlobalVariableData variable)
         {
-            List<string> readers = flowTools.Where(tool => tool.Kind == VmToolKind.GlobalVariableRead && tool.Parameters != null && string.Equals(tool.Parameters.GlobalVariableId, variable.VariableId, StringComparison.OrdinalIgnoreCase)).Select(tool => tool.InstanceName).ToList();
-            List<string> writers = flowTools.Where(tool => tool.Kind == VmToolKind.GlobalVariableWrite && tool.Parameters != null && string.Equals(tool.Parameters.GlobalVariableId, variable.VariableId, StringComparison.OrdinalIgnoreCase)).Select(tool => tool.InstanceName).ToList();
+            var references = CaptureScopedToolReferencesS102();
+            List<string> readers = references.Where(item => item.Tool.ToolType == VmToolKind.GlobalVariableRead.ToString() && item.Tool.Parameters != null && string.Equals(item.Tool.Parameters.GlobalVariableId, variable.VariableId, StringComparison.OrdinalIgnoreCase)).Select(item => item.DisplayPath).ToList();
+            List<string> writers = references.Where(item => item.Tool.ToolType == VmToolKind.GlobalVariableWrite.ToString() && item.Tool.Parameters != null && string.Equals(item.Tool.Parameters.GlobalVariableId, variable.VariableId, StringComparison.OrdinalIgnoreCase)).Select(item => item.DisplayPath).ToList();
             return "读取 " + readers.Count.ToString(CultureInfo.InvariantCulture) + (readers.Count == 0 ? string.Empty : "（" + string.Join("、", readers) + "）") +
                    " · 写入 " + writers.Count.ToString(CultureInfo.InvariantCulture) + (writers.Count == 0 ? string.Empty : "（" + string.Join("、", writers) + "）");
         }
 
         private void NewGlobalVariableButton_Click(object sender, RoutedEventArgs e)
         {
-            if (isFlowExecutionActive || isImageQueueBatchRunning) return;
+            if (!RequireEngineeringEditS137("新建全局变量")) return;
+            if (IsVariableEditingBusyS109()) return;
             GlobalVariableSearchTextBox.Text = string.Empty;
             GlobalVariableTypeFilterComboBox.SelectedIndex = 0;
             FlowEditSnapshot before = CaptureFlowEditSnapshot();
@@ -203,6 +209,8 @@ namespace HalconWinFormsDemo
 
         private void ApplyGlobalVariableButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!RequireEngineeringEditS137("手动修改变量")) return;
+            if (IsVariableEditingBusyS109()) return;
             VmGlobalVariableData variable = GlobalVariableListBox.SelectedItem as VmGlobalVariableData;
             if (variable == null) { GlobalVariableValidationText.Text = "请先选择或新建变量。"; return; }
             string name = (GlobalVariableNameTextBox.Text ?? string.Empty).Trim();
@@ -214,14 +222,25 @@ namespace HalconWinFormsDemo
             object defaultValue;
             object currentValue;
             string error;
-            if (!TryParseGlobalVariableValue(type, GlobalVariableDefaultValueTextBox.Text, out defaultValue, out error)) { GlobalVariableValidationText.Text = "默认值无效：" + error; return; }
-            if (!TryParseGlobalVariableValue(type, GlobalVariableCurrentValueTextBox.Text, out currentValue, out error)) { GlobalVariableValidationText.Text = "当前值无效：" + error; return; }
+            if (!TryParseGlobalVariableValue(type, VariableEditorTextS109(GlobalVariableDefaultValueTextBox, type), out defaultValue, out error)) { GlobalVariableValidationText.Text = "默认值无效：" + error; return; }
+            if (!TryParseGlobalVariableValue(type, VariableEditorTextS109(GlobalVariableCurrentValueTextBox, type), out currentValue, out error)) { GlobalVariableValidationText.Text = "当前值无效：" + error; return; }
 
             FlowEditSnapshot before = CaptureFlowEditSnapshot();
-            variable.Name = name;
-            variable.ValueType = type;
-            SetGlobalVariableDefaultValue(variable, defaultValue);
-            variable.SetCurrentValue(currentValue);
+            var updated = variable.CloneNormalized();
+            updated.Name = name; updated.ValueType = type;
+            SetGlobalVariableDefaultValue(updated, defaultValue); updated.SetCurrentValue(currentValue);
+            string dockId = DockGlobalVariableComboBox.SelectedValue as string;
+            bool updating = dockDraftUpdating;
+            try
+            {
+                dockDraftUpdating = true;
+                globalVariables[globalVariables.IndexOf(variable)] = updated;
+                DockGlobalVariableComboBox.SelectedValue = dockId;
+                GlobalVariableListBox.SelectedItem = updated;
+            }
+            finally { dockDraftUpdating = updating; }
+            variable = updated;
+            InvalidateVariableReadersS109(variable.VariableId, "变量已手动修改");
             RefreshGlobalVariableSubscriptions();
             SetGlobalVariableEditor(variable);
             CommitFlowEditHistory("应用全局变量：" + variable.Name, before);
@@ -236,6 +255,9 @@ namespace HalconWinFormsDemo
             string source = text ?? string.Empty;
             switch (VmGlobalVariableType.Normalize(type))
             {
+                case VmGlobalVariableType.NumberArray:
+                case VmGlobalVariableType.StringArray:
+                    return VmScriptArrayContractS107.TryParseArray(type, source, 2097152, out value, out error);
                 case VmGlobalVariableType.String:
                     if (source.Length > 4096) { error = "字符串不能超过 4096 个字符。"; return false; }
                     value = source;
@@ -263,6 +285,8 @@ namespace HalconWinFormsDemo
         {
             switch (VmGlobalVariableType.Normalize(variable.ValueType))
             {
+                case VmGlobalVariableType.NumberArray:
+                case VmGlobalVariableType.StringArray: variable.SetDefaultArray(value); break;
                 case VmGlobalVariableType.String: variable.DefaultTextValue = Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty; break;
                 case VmGlobalVariableType.Boolean: variable.DefaultBooleanValue = Convert.ToBoolean(value, CultureInfo.InvariantCulture); break;
                 case VmGlobalVariableType.ResultCode: variable.DefaultResultCodeValue = VmGlobalVariableData.NormalizeResultCode(Convert.ToString(value, CultureInfo.InvariantCulture)); break;
@@ -272,10 +296,13 @@ namespace HalconWinFormsDemo
 
         private void ResetGlobalVariableButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!RequireEngineeringEditS137("手动重置变量")) return;
+            if (IsVariableEditingBusyS109()) return;
             VmGlobalVariableData variable = GlobalVariableListBox.SelectedItem as VmGlobalVariableData;
             if (variable == null) return;
             FlowEditSnapshot before = CaptureFlowEditSnapshot();
             variable.ResetCurrentToDefault();
+            InvalidateVariableReadersS109(variable.VariableId, "变量已恢复默认值");
             SetGlobalVariableEditor(variable);
             CommitFlowEditHistory("恢复变量默认值：" + variable.Name, before);
             HeaderStatusText.Text = "已将 " + variable.Name + " 的当前值恢复为默认值。";
@@ -283,6 +310,8 @@ namespace HalconWinFormsDemo
 
         private void DeleteGlobalVariableButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!RequireEngineeringEditS137("删除全局变量")) return;
+            if (IsVariableEditingBusyS109()) return;
             VmGlobalVariableData variable = GlobalVariableListBox.SelectedItem as VmGlobalVariableData;
             if (variable == null) return;
             RefreshGlobalVariableSubscriptions();
@@ -302,6 +331,7 @@ namespace HalconWinFormsDemo
         private void DockGlobalVariableComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             RefreshDockGlobalVariableSummary();
+            if (!dockDraftUpdating) RebuildVariableInputDraftS109();
             if (!dockDraftUpdating) DockDraftValue_Changed(sender, e);
         }
 
@@ -318,8 +348,8 @@ namespace HalconWinFormsDemo
             DockGlobalVariableSummaryText.Text = variable.TypeDisplayText + " · 当前=" + variable.CurrentValueText + " · " + variable.SubscriptionSummary;
             if (DockGlobalVariableHintText != null && dockEditingTool != null)
                 DockGlobalVariableHintText.Text = dockEditingTool.Kind == VmToolKind.GlobalVariableWrite
-                    ? "写入时必须连接 " + VmGlobalVariableType.GetWritePortName(variable.ValueType) + "；其他类型端口不会参与执行。"
-                    : "运行时发布 " + VmGlobalVariableType.GetWritePortName(variable.ValueType) + "，可直接订阅到脚本、文本、数值或结果判定工具。";
+                    ? "在输入页选择写入值；只显示当前变量类型的端口。切换类型后应用会清理不适用连接。"
+                    : "运行时读取当前值；数组可继续连接统计、整理、脚本、分支和子流程。";
         }
 
         private string ValidateGlobalVariableDockDraft(VmToolKind kind, VmToolParameterData parameters)
@@ -330,8 +360,8 @@ namespace HalconWinFormsDemo
             if (kind == VmToolKind.GlobalVariableRead) return string.Empty;
             string activePort = VmGlobalVariableType.GetWritePortName(variable.ValueType);
             VmInputPortEditorRow active = dockInputPortRows.FirstOrDefault(row => string.Equals(row.PortName, activePort, StringComparison.OrdinalIgnoreCase));
-            if (active == null || string.IsNullOrWhiteSpace(active.SelectedSourceKey)) return "写入“" + variable.Name + "”必须为 " + activePort + " 选择一个上游来源。";
-            VmInputPortEditorRow incompatible = dockInputPortRows.FirstOrDefault(row => !string.Equals(row.PortName, activePort, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(row.SelectedSourceKey));
+            if (active == null || !active.SourceOptions.Any(option => option.Key == active.SelectedSourceKey && !option.IsDefault && option.IsValid)) return "写入“" + variable.Name + "”必须为 " + activePort + " 选择一个上游来源。";
+            VmInputPortEditorRow incompatible = dockInputPortRows.FirstOrDefault(row => row.PortName != "$RunCondition" && !string.Equals(row.PortName, activePort, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(row.SelectedSourceKey));
             if (incompatible != null) return "变量“" + variable.Name + "”为 " + variable.TypeDisplayText + "，请清除不匹配的 " + incompatible.PortName + " 订阅。";
             return string.Empty;
         }
@@ -355,7 +385,7 @@ namespace HalconWinFormsDemo
         private string GetGlobalVariableOutputConfigurationError(VmToolInstance source, string portName)
         {
             if (source == null || (source.Kind != VmToolKind.GlobalVariableRead && source.Kind != VmToolKind.GlobalVariableWrite)) return string.Empty;
-            string[] typedPorts = { "NumberValue", "TextValue", "BooleanValue", "ResultCodeValue" };
+            string[] typedPorts = { "NumberValue", "TextValue", "BooleanValue", "ResultCodeValue", "NumberArrayValue", "StringArrayValue" };
             if (!typedPorts.Contains(portName, StringComparer.OrdinalIgnoreCase)) return string.Empty;
             VmGlobalVariableData variable = source.Parameters == null ? null : globalVariables.FirstOrDefault(item => string.Equals(item.VariableId, source.Parameters.GlobalVariableId, StringComparison.OrdinalIgnoreCase));
             if (variable == null) return "上游全局变量不存在或尚未选择。";
@@ -380,10 +410,11 @@ namespace HalconWinFormsDemo
         {
             VmGlobalVariableData variable = GetGlobalVariableForTool(tool);
             string activePort = VmGlobalVariableType.GetWritePortName(variable.ValueType);
-            List<VmToolInputBindingData> incompatible = tool.InputBindings.Where(binding => !string.Equals(binding.TargetPortName, activePort, StringComparison.OrdinalIgnoreCase)).ToList();
+            List<VmToolInputBindingData> incompatible = tool.InputBindings.Where(binding => binding.TargetPortName != "$RunCondition" && !string.Equals(binding.TargetPortName, activePort, StringComparison.OrdinalIgnoreCase)).ToList();
             if (incompatible.Count > 0) throw new InvalidOperationException("变量“" + variable.Name + "”为 " + variable.TypeDisplayText + "，只允许连接 " + activePort + "；请清除其他类型端口订阅。");
             object raw;
-            if (!TryResolveOptionalToolInputValue(tool, activePort, out raw)) throw new InvalidOperationException("写入全局变量必须连接 " + activePort + "，且来源必须位于当前模块之前并已运行。 ");
+            VmToolInstance producer;
+            raw = ReadBranchInputS101(tool, activePort, out producer);
             object oldValue = variable.GetCurrentValue();
             variable.SetCurrentValue(raw);
             object newValue = variable.GetCurrentValue();
@@ -401,6 +432,16 @@ namespace HalconWinFormsDemo
 
         private static bool GlobalVariableValuesEqual(object left, object right)
         {
+            if (left is VmNumberArrayS105 && right is VmNumberArrayS105)
+            {
+                var a = (VmNumberArrayS105)left; var b = (VmNumberArrayS105)right;
+                return a.Count == b.Count && Enumerable.Range(0, a.Count).All(index => a[index].Equals(b[index]));
+            }
+            if (left is VmStringArrayS105 && right is VmStringArrayS105)
+            {
+                var a = (VmStringArrayS105)left; var b = (VmStringArrayS105)right;
+                return a.Count == b.Count && Enumerable.Range(0, a.Count).All(index => string.Equals(a[index], b[index], StringComparison.Ordinal));
+            }
             if (left is double && right is double) return Math.Abs((double)left - (double)right) <= 1e-12;
             return Equals(left, right);
         }
@@ -409,6 +450,8 @@ namespace HalconWinFormsDemo
         {
             switch (VmGlobalVariableType.Normalize(variable.ValueType))
             {
+                case VmGlobalVariableType.NumberArray:
+                case VmGlobalVariableType.StringArray: return VmArrayReorderS108.Count(variable.GetCurrentValue());
                 case VmGlobalVariableType.Number: return variable.NumberValue;
                 case VmGlobalVariableType.Boolean: return variable.BooleanValue ? 1 : 0;
                 case VmGlobalVariableType.String: return (variable.TextValue ?? string.Empty).Length;

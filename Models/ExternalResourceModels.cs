@@ -59,6 +59,8 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 8)] public string DefaultTypeName { get { return defaultTypeName; } set { defaultTypeName = value; OnPropertyChanged(); } }
         [DataMember(Order = 9)] public string DefaultMethodName { get { return defaultMethodName; } set { defaultMethodName = value; OnPropertyChanged(); } }
         [DataMember(Order = 10, EmitDefaultValue = false)] public string ImportedAtUtc { get; set; }
+        // A portable resource still has the same ResourceId / byte SHA / signature. Loaded paths are resolved by RecipeService.
+        [DataMember(Order = 11, EmitDefaultValue = false)] public string PortablePathS139 { get; set; }
 
         [IgnoreDataMember] public string HealthState { get { return healthState; } set { healthState = value; OnPropertyChanged(); OnPropertyChanged("HealthDisplayText"); OnPropertyChanged("IsRunnable"); } }
         [IgnoreDataMember] public string HealthDetail { get { return healthDetail; } set { healthDetail = value; OnPropertyChanged(); } }
@@ -100,7 +102,8 @@ namespace HalconWinFormsDemo.Models
                 AssemblyVersion = string.IsNullOrWhiteSpace(AssemblyVersion) ? "0.0.0.0" : AssemblyVersion.Trim(),
                 DefaultTypeName = string.IsNullOrWhiteSpace(DefaultTypeName) ? "UserScripts.ScriptEntry" : DefaultTypeName.Trim(),
                 DefaultMethodName = string.IsNullOrWhiteSpace(DefaultMethodName) ? "Execute" : DefaultMethodName.Trim(),
-                ImportedAtUtc = ImportedAtUtc
+                ImportedAtUtc = ImportedAtUtc,
+                PortablePathS139 = PortablePathS139
             };
         }
 

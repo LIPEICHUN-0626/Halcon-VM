@@ -70,7 +70,7 @@ namespace HalconWinFormsDemo
         {
             VmToolInputBindingData binding = tool == null ? null : tool.GetInputBinding(inputPortName);
             if (binding != null && !string.IsNullOrWhiteSpace(binding.SourceToolId) && !string.IsNullOrWhiteSpace(binding.SourcePortName))
-                return binding.SourceToolId + "." + binding.SourcePortName;
+                return ResolveOutputCoordinateContextS102(GetInputSourceTool(binding), binding.SourcePortName);
             return "Global.Image:" + (string.IsNullOrWhiteSpace(currentImagePath) ? "Memory" : Path.GetFileName(currentImagePath));
         }
 

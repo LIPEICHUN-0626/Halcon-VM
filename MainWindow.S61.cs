@@ -29,7 +29,15 @@ namespace HalconWinFormsDemo
                 if (!string.Equals(member.Direction, VmScriptMemberDirection.Input, StringComparison.OrdinalIgnoreCase)) continue;
 
                 object raw;
-                if (TryResolveOptionalToolInputValue(tool, member.PortName, out raw))
+                bool hasValue;
+                if (VmArrayContractS105.IsType(member.ValueType) && tool.GetInputBinding(member.PortName) != null)
+                {
+                    VmToolInstance producer;
+                    raw = ReadBranchInputS101(tool, member.PortName, out producer);
+                    hasValue = true;
+                }
+                else hasValue = TryResolveOptionalToolInputValue(tool, member.PortName, out raw);
+                if (hasValue)
                 {
                     context.SetNamedInput(member.Name, ConvertScriptScalar(member, raw, "输入"));
                 }
@@ -61,17 +69,20 @@ namespace HalconWinFormsDemo
                     throw new InvalidOperationException("脚本输出 “" + pair.Key + "” 类型不匹配；接口声明为 " + member.ValueType + "，实际为 " + (value == null ? "null" : value.ValueType) + "。");
             }
 
+            var prepared = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
             foreach (VmScriptInterfaceMemberData member in schema.Values)
             {
                 ScriptScalarValue value;
                 if (!actual.TryGetValue(member.Name, out value))
                 {
                     if (member.IsRequired) throw new InvalidOperationException("脚本未写入必需输出：“" + member.Name + "”。");
-                    tool.SetOutputValue(member.PortName, null);
+                    prepared.Add(member.PortName, null);
                     continue;
                 }
-                tool.SetOutputValue(member.PortName, value.ToObject());
+                value.Validate();
+                prepared.Add(member.PortName, value.ToObject());
             }
+            foreach (var output in prepared) tool.SetOutputValue(output.Key, output.Value);
         }
 
         private static ScriptScalarValue ConvertScriptScalar(VmScriptInterfaceMemberData member, object raw, string sourceLabel)
@@ -79,6 +90,17 @@ namespace HalconWinFormsDemo
             string type = VmScriptScalarType.Normalize(member.ValueType);
             try
             {
+                if (type == VmScriptScalarType.NumberArray)
+                {
+                    VmArrayContractS105.RequireType(type, raw);
+                    return ScriptScalarValue.FromNumberArray(((VmNumberArrayS105)raw).ToArray());
+                }
+                if (type == VmScriptScalarType.StringArray)
+                {
+                    VmArrayContractS105.RequireType(type, raw);
+                    var array = (VmStringArrayS105)raw;
+                    return ScriptScalarValue.FromStringArray(Enumerable.Range(0, array.Count).Select(index => array[index]).ToArray());
+                }
                 if (type == VmScriptScalarType.Number)
                 {
                     double number = Convert.ToDouble(raw, CultureInfo.InvariantCulture);
@@ -140,7 +162,9 @@ namespace HalconWinFormsDemo
                 new VmToolValueOption { Key = VmScriptScalarType.Number, DisplayText = "Number" },
                 new VmToolValueOption { Key = VmScriptScalarType.String, DisplayText = "String" },
                 new VmToolValueOption { Key = VmScriptScalarType.Boolean, DisplayText = "Boolean" },
-                new VmToolValueOption { Key = VmScriptScalarType.ResultCode, DisplayText = "ResultCode" }
+                new VmToolValueOption { Key = VmScriptScalarType.ResultCode, DisplayText = "结果码 ResultCode" },
+                new VmToolValueOption { Key = VmScriptScalarType.NumberArray, DisplayText = "数值数组 Number[]" },
+                new VmToolValueOption { Key = VmScriptScalarType.StringArray, DisplayText = "文本数组 String[]" }
             };
             SetScriptInterfaceEditor(null);
         }
@@ -208,6 +232,7 @@ namespace HalconWinFormsDemo
 
         private void AddScriptInterfaceMember(string direction)
         {
+            if (!RequireEngineeringEditS137("新增脚本接口")) return;
             int count = scriptInterfaceDraftMembers.Count(item => string.Equals(item.Direction, direction, StringComparison.OrdinalIgnoreCase)) + 1;
             string prefix = direction == VmScriptMemberDirection.Parameter ? "Parameter" : (direction == VmScriptMemberDirection.Output ? "Output" : "Input");
             VmScriptInterfaceMemberData member = VmScriptInterfaceMemberData.Create(direction, VmScriptScalarType.Number, prefix + count.ToString(CultureInfo.InvariantCulture));
@@ -220,6 +245,7 @@ namespace HalconWinFormsDemo
 
         private void ApplyScriptMemberButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!RequireEngineeringEditS137("修改脚本接口字段")) return;
             VmScriptInterfaceMemberData member = ScriptInterfaceMemberListBox.SelectedItem as VmScriptInterfaceMemberData;
             if (member == null) return;
             member.Direction = Convert.ToString(ScriptInterfaceDirectionComboBox.SelectedValue, CultureInfo.InvariantCulture);
@@ -243,6 +269,7 @@ namespace HalconWinFormsDemo
 
         private void DuplicateScriptMemberButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!RequireEngineeringEditS137("复制脚本接口字段")) return;
             VmScriptInterfaceMemberData selected = ScriptInterfaceMemberListBox.SelectedItem as VmScriptInterfaceMemberData;
             if (selected == null) return;
             VmScriptInterfaceMemberData copy = selected.Clone();
@@ -255,6 +282,7 @@ namespace HalconWinFormsDemo
 
         private void DeleteScriptMemberButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!RequireEngineeringEditS137("删除脚本接口字段")) return;
             VmScriptInterfaceMemberData selected = ScriptInterfaceMemberListBox.SelectedItem as VmScriptInterfaceMemberData;
             if (selected == null) return;
             string usage = GetScriptMemberUsageError(scriptInterfaceTool, selected);
@@ -272,6 +300,7 @@ namespace HalconWinFormsDemo
 
         private void ApplyScriptInterfaceButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!RequireEngineeringEditS137("应用脚本接口")) return;
             if (scriptInterfaceTool == null || !flowTools.Contains(scriptInterfaceTool))
             {
                 SetScriptInterfaceStatus("当前脚本工具已不存在，请关闭后重新选择。", true);
@@ -344,16 +373,19 @@ namespace HalconWinFormsDemo
                 ScriptInterfacePortText.Text = has && member.Direction != VmScriptMemberDirection.Parameter ? member.PortName : "参数不占用流程端口";
             }
             finally { scriptInterfaceUiUpdating = false; }
+            RefreshScriptArrayHintS107();
         }
 
         private static string BuildScriptAccessSnippet(VmScriptInterfaceMemberData member)
         {
             string name = member.Name ?? string.Empty;
             string type = VmScriptScalarType.Normalize(member.ValueType);
-            string suffix = type == VmScriptScalarType.Number ? "Number" : (type == VmScriptScalarType.Boolean ? "Boolean" : (type == VmScriptScalarType.ResultCode ? "ResultCode" : "String"));
+            string suffix = type == VmScriptScalarType.NumberArray ? "NumberArray" : type == VmScriptScalarType.StringArray ? "StringArray" :
+                type == VmScriptScalarType.Number ? "Number" : (type == VmScriptScalarType.Boolean ? "Boolean" : (type == VmScriptScalarType.ResultCode ? "ResultCode" : "String"));
             if (member.Direction == VmScriptMemberDirection.Output)
             {
-                string sample = type == VmScriptScalarType.Number ? "value" : (type == VmScriptScalarType.Boolean ? "passed" : (type == VmScriptScalarType.ResultCode ? "\"OK\"" : "text"));
+                string sample = type == VmScriptScalarType.NumberArray ? "new double[] { 1, 2, 3 }" : type == VmScriptScalarType.StringArray ? "new string[] { \"工位1\", \"工位2\" }" :
+                    type == VmScriptScalarType.Number ? "value" : (type == VmScriptScalarType.Boolean ? "passed" : (type == VmScriptScalarType.ResultCode ? "\"OK\"" : "text"));
                 return "result.Set" + suffix + "(\"" + name + "\", " + sample + ");";
             }
             if (member.Direction == VmScriptMemberDirection.Parameter)

@@ -158,9 +158,6 @@ function Set-CircleParameters(
     $p.CircularCaliperTransition = 'Negative'
     $p.CircularCaliperSelect = 'All'
 }
-function Get-WindowCoordinate([double]$ImageValue, [double]$ImageSize, [int]$ControlSize) {
-    [int][Math]::Round($ImageValue / $ImageSize * $ControlSize)
-}
 function Invoke-ImageDrag(
     [double]$FromRow,
     [double]$FromColumn,
@@ -169,10 +166,18 @@ function Invoke-ImageDrag(
     [string]$ExpectedHandle
 ) {
     $imageControl = $mainType.GetField('imageWindow', $private).GetValue($window)
-    $fromX = Get-WindowCoordinate $FromColumn 360 $imageControl.Width
-    $fromY = Get-WindowCoordinate $FromRow 300 $imageControl.Height
-    $toX = Get-WindowCoordinate $ToColumn 360 $imageControl.Width
-    $toY = Get-WindowCoordinate $ToRow 300 $imageControl.Height
+    # Use the current aspect-preserving displayed image part, including padding.
+    $view = $mainType.GetField('viewport', $private).GetValue($window)
+    $part = [object[]]@($imageControl.ClientSize.Width, $imageControl.ClientSize.Height, 0.0, 0.0, 0.0, 0.0)
+    $view.GetType().GetMethod('GetDisplayPart', $private).Invoke($view, $part) | Out-Null
+    $columns = $part[5] - $part[3] + 1; $rows = $part[4] - $part[2] + 1
+    $fromX = [int][Math]::Round(($FromColumn - $part[3]) / $columns * $imageControl.ClientSize.Width)
+    $fromY = [int][Math]::Round(($FromRow - $part[2]) / $rows * $imageControl.ClientSize.Height)
+    $toX = [int][Math]::Round(($ToColumn - $part[3]) / $columns * $imageControl.ClientSize.Width)
+    $toY = [int][Math]::Round(($ToRow - $part[2]) / $rows * $imageControl.ClientSize.Height)
+    $roundtrip = $view.WindowToImage([Drawing.Point]::new($fromX, $fromY), $imageControl)
+    $pixelTolerance = [Math]::Max($columns / $imageControl.ClientSize.Width, $rows / $imageControl.ClientSize.Height)
+    Assert-True ([Math]::Abs($roundtrip.X - $FromColumn) -le $pixelTolerance -and [Math]::Abs($roundtrip.Y - $FromRow) -le $pixelTolerance) 'Image/window coordinate roundtrip exceeded one screen pixel.'
     $downArgs = [Windows.Forms.MouseEventArgs]::new([Windows.Forms.MouseButtons]::Left, 1, $fromX, $fromY, 0)
     $moveArgs = [Windows.Forms.MouseEventArgs]::new([Windows.Forms.MouseButtons]::Left, 1, $toX, $toY, 0)
     $upArgs = [Windows.Forms.MouseEventArgs]::new([Windows.Forms.MouseButtons]::Left, 1, $toX, $toY, 0)
@@ -447,5 +452,8 @@ Assert-True ($null -eq $mainType.GetField('linearCaliperArrayPreview', $private)
 $mainType.GetField('recipeCloseConfirmed', $private).SetValue($window, $true)
 $window.Close()
 $app.Shutdown()
-if (Test-Path $tempRoot) { Remove-Item -LiteralPath $tempRoot -Recurse -Force }
+$resolvedTemp = [IO.Path]::GetFullPath($tempRoot)
+$expectedParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
+if (-not $resolvedTemp.StartsWith($expectedParent, [StringComparison]::OrdinalIgnoreCase) -or -not [IO.Path]::GetFileName($resolvedTemp).StartsWith('halcon-vm-s29-')) { throw 'Unsafe test cleanup path.' }
+if (Test-Path -LiteralPath $resolvedTemp) { Remove-Item -LiteralPath $resolvedTemp -Recurse -Force }
 Write-Output 'S29 image-space linear array editor and HALCON circular caliper circle finder smoke tests passed.'

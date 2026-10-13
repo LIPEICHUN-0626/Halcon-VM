@@ -527,7 +527,26 @@ namespace HalconWinFormsDemo.Models
 
         public string StatusText { get; set; }
 
+        public string StateKey { get; set; }
+
+        public string SourceText { get; set; }
+
+        public string CoordinateContextText { get; set; }
+
+        public string ConsumerText { get; set; }
+
+        public string DiagnosticText { get; set; }
+
+        public bool IsReady { get; set; }
+
+        public bool IsConfigured { get; set; }
+
         public string OptionalText
+        {
+            get { return IsOptional ? "可选" : "必需"; }
+        }
+
+        public string RequirementText
         {
             get { return IsOptional ? "可选" : "必需"; }
         }
@@ -554,6 +573,65 @@ namespace HalconWinFormsDemo.Models
             {
                 handler(this, new PropertyChangedEventArgs(propertyName));
             }
+        }
+    }
+
+    public sealed class VmTaskResultSummaryRow
+    {
+        public string PortName { get; set; }
+
+        public string DisplayName { get; set; }
+
+        public string DataType { get; set; }
+
+        public string ValueText { get; set; }
+
+        public string StateKey { get; set; }
+
+        public string DetailText { get; set; }
+    }
+
+    public sealed class VmTrialStabilityMetricOption
+    {
+        public string PortName { get; set; }
+
+        public string DisplayText { get; set; }
+    }
+
+    public sealed class VmTrialStabilitySample
+    {
+        public int Cycle { get; set; }
+
+        public DateTime Timestamp { get; set; }
+
+        public string ResultCode { get; set; }
+
+        public double ElapsedMilliseconds { get; set; }
+
+        public string MetricPortName { get; set; }
+
+        public double? MetricValue { get; set; }
+
+        public string ErrorMessage { get; set; }
+
+        public string CycleText
+        {
+            get { return "#" + Cycle.ToString(System.Globalization.CultureInfo.InvariantCulture); }
+        }
+
+        public string ElapsedText
+        {
+            get { return ElapsedMilliseconds.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " ms"; }
+        }
+
+        public string MetricText
+        {
+            get { return MetricValue.HasValue ? MetricValue.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) : "--"; }
+        }
+
+        public string TimeText
+        {
+            get { return Timestamp.ToString("HH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture); }
         }
     }
 
@@ -649,6 +727,47 @@ namespace HalconWinFormsDemo.Models
             }
         }
 
+        internal HRegion CreateObjectAnalysisCopyS144()
+        {
+            if (region == null) throw new ObjectDisposedException("VmRegionSnapshot", "上游Region已释放。");
+            Services.ConnectedObjectServiceS144.ValidateBudget(region);
+            return CreateRegionCopy();
+        }
+
+        internal HObject CreateObjectAnalysisItemS144(int index)
+        {
+            if (region == null) throw new ObjectDisposedException("VmRegionSnapshot", "对象分析Region已释放。");
+            Services.ConnectedObjectServiceS144.ValidateBudget(region, Services.ConnectedObjectServiceS144.MaxConnectedObjects);
+            if (index < 0 || index >= ObjectCount) throw new InvalidOperationException("查看编号已失效。");
+            HObject selected; HOperatorSet.SelectObj(region, out selected, index + 1); return selected;
+        }
+
+        internal static VmRegionSnapshot CreateObjectAnalysisSnapshotS144(HObject source, string toolId, string toolName, string portName)
+        {
+            Services.ConnectedObjectServiceS144.ValidateBudget(source, Services.ConnectedObjectServiceS144.MaxConnectedObjects);
+            HObject copy = null;
+            HTuple count = null, areas = null, rows = null, columns = null;
+            try
+            {
+                HOperatorSet.CountObj(source, out count);
+                double total = 0;
+                if (count.I > 0)
+                {
+                    HOperatorSet.AreaCenter(source, out areas, out rows, out columns);
+                    for (int i = 0; i < areas.Length; i++) total += areas[i].D;
+                }
+                HOperatorSet.CopyObj(source, out copy, 1, -1);
+                var result = new VmRegionSnapshot { region = copy, ProducerToolId = toolId, ProducerToolName = toolName,
+                    ProducerPortName = portName, ObjectCount = count.I, TotalArea = total };
+                copy = null; return result;
+            }
+            finally
+            {
+                if (copy != null) copy.Dispose();
+                foreach (var tuple in new[] { count, areas, rows, columns }) if (tuple != null) tuple.Dispose();
+            }
+        }
+
         public void Dispose()
         {
             if (region != null)
@@ -680,6 +799,8 @@ namespace HalconWinFormsDemo.Models
         public int Width { get; private set; }
 
         public int Height { get; private set; }
+
+        public int ChannelCount { get; private set; }
 
         public bool IsDisposed
         {
@@ -720,20 +841,30 @@ namespace HalconWinFormsDemo.Models
                 throw new ArgumentNullException("source");
             }
 
-            HTuple width;
-            HTuple height;
-            HOperatorSet.GetImageSize(source, out width, out height);
-            return new VmImageSnapshot
+            HTuple width = null, height = null, channels = null;
+            try
             {
-                image = source.CopyImage(),
-                ProducerToolId = producerToolId,
-                ProducerToolName = producerToolName,
-                ProducerPortName = producerPortName,
-                SourcePath = sourcePath,
-                SerialNumber = serialNumber,
-                Width = width.I,
-                Height = height.I
-            };
+                HOperatorSet.GetImageSize(source, out width, out height);
+                HOperatorSet.CountChannels(source, out channels);
+                return new VmImageSnapshot
+                {
+                    image = source.CopyImage(),
+                    ProducerToolId = producerToolId,
+                    ProducerToolName = producerToolName,
+                    ProducerPortName = producerPortName,
+                    SourcePath = sourcePath,
+                    SerialNumber = serialNumber,
+                    Width = width.I,
+                    Height = height.I,
+                    ChannelCount = channels.I
+                };
+            }
+            finally
+            {
+                if (width != null) width.Dispose();
+                if (height != null) height.Dispose();
+                if (channels != null) channels.Dispose();
+            }
         }
 
         public HImage CreateImageCopy()
@@ -744,6 +875,47 @@ namespace HalconWinFormsDemo.Models
             }
 
             return image.CopyImage();
+        }
+
+        // Production evidence owns a separate raw frame. Inspect the original before allocating
+        // that copy; unsupported pixels/domains are missing evidence, never display-scaled PNG.
+        internal HImage CreateEvidenceCopyS142(long remainingBytes, out int width, out int height, out int channels)
+        {
+            if (image == null) throw new ObjectDisposedException("VmImageSnapshot", "本次源图已释放。");
+            HTuple count = null, w = null, h = null, channelCount = null, type = null;
+            HTuple area = null, centerRow = null, centerColumn = null;
+            HTuple row1 = null, column1 = null, row2 = null, column2 = null;
+            HObject domain = null;
+            try
+            {
+                HOperatorSet.CountObj(image, out count);
+                if (count.Length != 1 || count.I != 1) throw new InvalidOperationException("留图只支持单幅源图，不猜测图像数组。");
+                HOperatorSet.GetImageSize(image, out w, out h);
+                width = w.I; height = h.I;
+                long pixels = (long)width * height;
+                if (width < 1 || height < 1 || width > 16384 || height > 16384 || pixels > 16000000)
+                    throw new InvalidOperationException("源图超过单幅 1600 万像素 / 边长 16384 的留图预算。");
+                HOperatorSet.CountChannels(image, out channelCount);
+                channels = channelCount.I;
+                if (channels != 1 && channels != 3) throw new InvalidOperationException("留图首版仅支持 byte 单通道或三通道原图。");
+                HOperatorSet.GetImageType(image, out type);
+                if (type.Length != 1 || type.S != "byte") throw new InvalidOperationException("源图不是 byte；不转成显示灰度冒充原值证据。");
+                if (pixels * channels > remainingBytes)
+                    throw new InvalidOperationException("本周期源图副本超过 64 MiB 内存预算。");
+                HOperatorSet.GetDomain(image, out domain);
+                HOperatorSet.AreaCenter(domain, out area, out centerRow, out centerColumn);
+                HOperatorSet.SmallestRectangle1(domain, out row1, out column1, out row2, out column2);
+                if (area.Length != 1 || area.D != pixels || row1.D != 0 || column1.D != 0 ||
+                    row2.D != height - 1 || column2.D != width - 1)
+                    throw new InvalidOperationException("源图不是完整矩形有效域；不丢失 domain 语义保存成普通 PNG。");
+                return image.CopyImage();
+            }
+            finally
+            {
+                if (domain != null) domain.Dispose();
+                foreach (HTuple tuple in new[] { count, w, h, channelCount, type, area, centerRow, centerColumn, row1, column1, row2, column2 })
+                    if (tuple != null) tuple.Dispose();
+            }
         }
 
         public string GetPixelDisplay(int row, int column)
@@ -898,6 +1070,7 @@ namespace HalconWinFormsDemo.Models
         public const string GlobalInput = "GlobalInput";
         public const string ModuleInput = "ModuleInput";
         public const string ModuleOutput = "ModuleOutput";
+        public const string SourcePrefix = "Source:";
 
         public string Key { get; set; }
 

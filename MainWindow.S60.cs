@@ -59,10 +59,11 @@ namespace HalconWinFormsDemo
 
         private void RefreshExternalResourceReferences()
         {
+            var references = CaptureScopedToolReferencesS102();
             foreach (VmExternalResourceData resource in externalResources)
             {
-                resource.ReferenceCount = flowTools.Count(tool => tool.Kind == VmToolKind.CSharpDllScript && tool.Parameters != null &&
-                    string.Equals(tool.Parameters.ScriptResourceId, resource.ResourceId, StringComparison.OrdinalIgnoreCase));
+                resource.ReferenceCount = references.Count(item => item.Tool.ToolType == VmToolKind.CSharpDllScript.ToString() && item.Tool.Parameters != null &&
+                    string.Equals(item.Tool.Parameters.ScriptResourceId, resource.ResourceId, StringComparison.OrdinalIgnoreCase));
             }
             if (externalResourceView != null) externalResourceView.Refresh();
             if (ExternalResourceWorkspaceStatusText != null)
@@ -159,25 +160,31 @@ namespace HalconWinFormsDemo
 
         private string BuildExternalResourceReferenceText(VmExternalResourceData resource)
         {
-            List<string> names = flowTools.Where(tool => tool.Kind == VmToolKind.CSharpDllScript && tool.Parameters != null &&
-                string.Equals(tool.Parameters.ScriptResourceId, resource.ResourceId, StringComparison.OrdinalIgnoreCase)).Select(tool => tool.InstanceName).ToList();
+            List<string> names = CaptureScopedToolReferencesS102().Where(item => item.Tool.ToolType == VmToolKind.CSharpDllScript.ToString() && item.Tool.Parameters != null &&
+                string.Equals(item.Tool.Parameters.ScriptResourceId, resource.ResourceId, StringComparison.OrdinalIgnoreCase)).Select(item => item.DisplayPath).ToList();
             return "引用 " + names.Count.ToString(CultureInfo.InvariantCulture) + (names.Count == 0 ? string.Empty : "（" + string.Join("、", names) + "）");
         }
 
         private void ImportExternalResourceButton_Click(object sender, RoutedEventArgs e)
         {
+            long editLeaseS137 = CaptureEngineeringEditLeaseS137("导入DLL资源");
+            if (editLeaseS137 < 0) return;
             OpenFileDialog dialog = CreateExternalResourceFileDialog("导入受信任托管 DLL");
             if (dialog.ShowDialog(this) != true) return;
+            if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
             ImportExternalResourceFromPath(dialog.FileName, null);
         }
 
         private void ReplaceExternalResourceButton_Click(object sender, RoutedEventArgs e)
         {
+            long editLeaseS137 = CaptureEngineeringEditLeaseS137("替换DLL资源");
+            if (editLeaseS137 < 0) return;
             VmExternalResourceData selected = ExternalResourceListBox.SelectedItem as VmExternalResourceData;
             if (selected == null) { ExternalResourceValidationText.Text = "请先选择要替换的资源。"; return; }
             OpenFileDialog dialog = CreateExternalResourceFileDialog("替换受管 DLL 来源");
             if (File.Exists(selected.SourcePath)) dialog.InitialDirectory = Path.GetDirectoryName(selected.SourcePath);
             if (dialog.ShowDialog(this) != true) return;
+            if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
             ImportExternalResourceFromPath(dialog.FileName, selected);
         }
 
@@ -188,6 +195,10 @@ namespace HalconWinFormsDemo
 
         private VmExternalResourceData ImportExternalResourceFromPath(string path, VmExternalResourceData existing)
         {
+            long editLeaseS137 = CaptureEngineeringEditLeaseS137("写入DLL资源版本");
+            if (editLeaseS137 < 0) return null;
+            if (!CanNavigateInputRepairS96() || !ConfirmDockDraftChanges("修改外部资源")) return null;
+            if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return null;
             try
             {
                 string typeName = (ExternalResourceTypeNameTextBox.Text ?? string.Empty).Trim();
@@ -198,6 +209,7 @@ namespace HalconWinFormsDemo
                 if (externalResources.Any(item => !ReferenceEquals(item, existing) && string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase))) throw new InvalidOperationException("资源名称不能重复（不区分大小写）。");
                 FlowEditSnapshot before = CaptureFlowEditSnapshot();
                 VmExternalResourceData imported = externalResourceService.Import(path, name, typeName, methodName, existing == null ? null : existing.ResourceId);
+                if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return null;
                 if (existing == null) externalResources.Add(imported);
                 else
                 {
@@ -234,6 +246,10 @@ namespace HalconWinFormsDemo
 
         private void ApplyExternalResourceButton_Click(object sender, RoutedEventArgs e)
         {
+            long editLeaseS137 = CaptureEngineeringEditLeaseS137("修改DLL入口");
+            if (editLeaseS137 < 0) return;
+            if (!CanNavigateInputRepairS96() || !ConfirmDockDraftChanges("修改资源入口")) return;
+            if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
             VmExternalResourceData selected = ExternalResourceListBox.SelectedItem as VmExternalResourceData;
             if (selected == null) { ExternalResourceValidationText.Text = "请先选择资源。"; return; }
             try
@@ -243,11 +259,12 @@ namespace HalconWinFormsDemo
                 string methodName = (ExternalResourceMethodNameTextBox.Text ?? string.Empty).Trim();
                 if (name.Length == 0 || name.Length > 80 || name.Any(char.IsControl)) throw new InvalidOperationException("资源名称必须为 1–80 个非控制字符。");
                 if (externalResources.Any(item => !ReferenceEquals(item, selected) && string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase))) throw new InvalidOperationException("资源名称不能重复（不区分大小写）。");
-                string path = externalResourceService.ResolveManagedPath(selected.ManagedRelativePath);
+                string path = externalResourceService.ResolveResourcePathS139(selected);
                 if (!File.Exists(path)) throw new FileNotFoundException("受管副本不存在。", path);
                 if (!string.Equals(ExternalResourceService.ComputeSha256(path), selected.Sha256, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("受管副本 SHA-256 与配方记录不一致，不能修改入口。");
                 scriptToolService.Validate(new ScriptToolExecutionRequest { Mode = VmScriptExecutionMode.Dll, AssemblyPath = path, TypeName = typeName, MethodName = methodName, TimeoutMilliseconds = 1000 });
                 FlowEditSnapshot before = CaptureFlowEditSnapshot();
+                if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
                 selected.Name = name;
                 selected.DefaultTypeName = typeName;
                 selected.DefaultMethodName = methodName;
@@ -262,6 +279,10 @@ namespace HalconWinFormsDemo
 
         private void DeleteExternalResourceButton_Click(object sender, RoutedEventArgs e)
         {
+            long editLeaseS137 = CaptureEngineeringEditLeaseS137("删除DLL资源");
+            if (editLeaseS137 < 0) return;
+            if (!CanNavigateInputRepairS96() || !ConfirmDockDraftChanges("删除外部资源")) return;
+            if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
             VmExternalResourceData selected = ExternalResourceListBox.SelectedItem as VmExternalResourceData;
             if (selected == null) return;
             RefreshExternalResourceReferences();
@@ -277,11 +298,8 @@ namespace HalconWinFormsDemo
 
         private void InvalidateScriptsReferencingResource(string resourceId, string reason)
         {
-            foreach (VmToolInstance tool in flowTools.Where(item => item.Kind == VmToolKind.CSharpDllScript && item.Parameters != null && string.Equals(item.Parameters.ScriptResourceId, resourceId, StringComparison.OrdinalIgnoreCase)))
-            {
-                InvalidateToolRunResult(tool, reason);
-                InvalidateDownstreamResults(tool, reason);
-            }
+            InvalidateScopedDependenciesS102(tool => tool.ToolType == VmToolKind.CSharpDllScript.ToString() && tool.Parameters != null &&
+                string.Equals(tool.Parameters.ScriptResourceId, resourceId, StringComparison.OrdinalIgnoreCase), reason);
         }
 
         private VmExternalResourceData GetExternalResourceById(string resourceId)

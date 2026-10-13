@@ -84,7 +84,7 @@ namespace HalconWinFormsDemo
             if (!TryParseUiDouble(DockShapeGreedinessTextBox.Text, out number)) { error = "Shape 贪婪度必须是数值。"; return false; }
             parameters.ShapeGreediness = number;
             parameters.ShapeNumLevels = (DockShapeNumLevelsTextBox.Text ?? string.Empty).Trim();
-            if (string.IsNullOrWhiteSpace(parameters.ShapeTrainingRoiId)) { error = "请选择一个已启用的面 ROI 作为训练 ROI。"; return false; }
+            // A saved model can run without a training ROI. Training validates its own region.
             return true;
         }
 
@@ -103,15 +103,19 @@ namespace HalconWinFormsDemo
 
         private void DockShapeTrainButton_Click(object sender, RoutedEventArgs e)
         {
+            long editLeaseS137 = CaptureEngineeringEditLeaseS137("制作Shape模板");
+            if (editLeaseS137 < 0) return;
             RunUiAction("训练 Shape 模型", delegate
             {
                 VmToolInstance tool = dockEditingTool;
                 if (tool == null || tool.Kind != VmToolKind.ShapeMatch) throw new InvalidOperationException("请先选中 Shape Model 模块。");
+                if (isFlowExecutionActive || isContinuousRunning || IsCurrentToolContinuousTrialRunningS87) throw new InvalidOperationException("请先停止运行再制作模板。");
                 if (!ApplyDockConfigurationDraft(false)) throw new InvalidOperationException("请先修正 Shape 配置草稿。");
                 VmToolParameterData p = tool.Parameters;
                 VmRoiLayer layer = roiLayers.FirstOrDefault(item => string.Equals(item.RoiId, p.ShapeTrainingRoiId, StringComparison.OrdinalIgnoreCase));
                 if (layer == null || layer.Geometry == null || !layer.IsEnabled || layer.IsMask || !IsAreaRoiShape(layer.Geometry.ShapeType))
                     throw new InvalidOperationException("训练 ROI 已失效；请选择已启用的面检测区。");
+                FlowEditSnapshot before = CaptureFlowEditSnapshot();
                 using (HImage inputImage = CreateToolInputImage(tool))
                 using (TemplateDefinition definition = new TemplateDefinition
                 {
@@ -127,8 +131,11 @@ namespace HalconWinFormsDemo
                     try
                     {
                         item.Service.Train(inputImage, definition);
-                        p.ShapeModelPath = GetManagedShapeModelPath(tool);
-                        item.Service.Save(p.ShapeModelPath);
+                        if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
+                        string path = CreateShapeModelVersionPathS89(tool);
+                        item.Service.Save(path);
+                        if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
+                        p.ShapeModelPath = path;
                         SetShapeToolResource(tool, item);
                         item = null;
                     }
@@ -138,6 +145,7 @@ namespace HalconWinFormsDemo
                 currentMatches.Clear();
                 InvalidateToolRunResult(tool, "Shape 模型已重新训练");
                 InvalidateDownstreamResults(tool, "上游 Shape 模型已重新训练");
+                CommitFlowEditHistory("制作模板：" + tool.InstanceName, before);
                 ScheduleRecipeStateCheck();
                 UpdateShapeModelStateText(tool);
                 RefreshShapeCandidateGrid(tool);
@@ -149,13 +157,17 @@ namespace HalconWinFormsDemo
 
         private void DockShapeLoadButton_Click(object sender, RoutedEventArgs e)
         {
+            long editLeaseS137 = CaptureEngineeringEditLeaseS137("导入Shape模板");
+            if (editLeaseS137 < 0) return;
             VmToolInstance tool = dockEditingTool;
             if (tool == null || tool.Kind != VmToolKind.ShapeMatch) return;
             OpenFileDialog dialog = new OpenFileDialog { Filter = "HALCON shape model|*.shm|All files|*.*" };
             if (dialog.ShowDialog(this) != true) return;
+            if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
             RunUiAction("加载 Shape 模型", delegate
             {
                 TemplateItem item = LoadShapeTemplateItem(dialog.FileName);
+                if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) { item.Dispose(); return; }
                 VmToolParameterData p = tool.Parameters ?? new VmToolParameterData();
                 p.ShapeModelPath = dialog.FileName;
                 p.ShapeModelName = string.IsNullOrWhiteSpace(item.Name) ? Path.GetFileNameWithoutExtension(dialog.FileName) : item.Name;
@@ -173,6 +185,8 @@ namespace HalconWinFormsDemo
 
         private void DockShapeSaveButton_Click(object sender, RoutedEventArgs e)
         {
+            long editLeaseS137 = CaptureEngineeringEditLeaseS137("另存Shape模板");
+            if (editLeaseS137 < 0) return;
             VmToolInstance tool = dockEditingTool;
             if (tool == null || tool.Kind != VmToolKind.ShapeMatch) return;
             RunUiAction("另存 Shape 模型", delegate
@@ -180,7 +194,9 @@ namespace HalconWinFormsDemo
                 TemplateItem item = GetShapeTemplateItem(tool, true);
                 SaveFileDialog dialog = new SaveFileDialog { Filter = "HALCON shape model|*.shm", FileName = SafeFileName((tool.Parameters ?? new VmToolParameterData()).ShapeModelName, "ShapeModel_001") + ".shm" };
                 if (dialog.ShowDialog(this) != true) return;
+                if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
                 item.Service.Save(dialog.FileName);
+                if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
                 tool.Parameters.ShapeModelPath = dialog.FileName;
                 ScheduleRecipeStateCheck();
                 UpdateShapeModelStateText(tool);
@@ -190,17 +206,31 @@ namespace HalconWinFormsDemo
 
         private InspectionRecord RunShapeMatchToolS63(VmToolInstance tool, string source, HImage inputImage)
         {
+            shapeToolMatches.Remove(tool.ToolId);
+            try
+            {
             VmToolParameterData p = tool.Parameters ?? new VmToolParameterData();
             p.Normalize();
             string parameterError = p.Validate(VmToolKind.ShapeMatch);
             if (!string.IsNullOrWhiteSpace(parameterError)) throw new InvalidOperationException(parameterError);
             TemplateItem item = GetShapeTemplateItem(tool, true);
+            string targetInput;
+            string targetContext = PrepareTemplateTargetContextS145(tool, out targetInput);
+            TemplateItem boundItem;
+            bool boundModel = shapeToolResources.TryGetValue(tool.ToolId, out boundItem) && ReferenceEquals(boundItem, item) &&
+                string.Equals(item.TemplatePath, p.ShapeModelPath, StringComparison.OrdinalIgnoreCase);
+            if (!boundModel && p.TemplateTargetsS145 != null)
+                throw new InvalidOperationException("多目标选取须在当前Shape模块制作/加载并应用模型；不能使用未归属本模块的全局兼容模型。");
             List<ShapeMatchResult> matches;
-            using (HRegion searchRegion = CreateBoundRoiRegion(tool, true))
+            using (HRegion searchRegion = CreateEffectiveRoiRegion(tool, false) ?? inputImage.GetDomain())
             {
-                HTuple area, row, column;
-                HOperatorSet.AreaCenter(searchRegion, out area, out row, out column);
-                if (area == null || area.Length == 0 || area.ToDArr().Sum() <= 0) throw new InvalidOperationException("Shape 搜索 ROI 扣除屏蔽区后为空。请检查搜索区、屏蔽区和位置修正。");
+                HTuple area = null, row = null, column = null;
+                try
+                {
+                    HOperatorSet.AreaCenter(searchRegion, out area, out row, out column);
+                    if (area == null || area.Length == 0 || area.ToDArr().Sum() <= 0) throw new InvalidOperationException("Shape 搜索 ROI 扣除屏蔽区后为空。请检查搜索区、屏蔽区和位置修正。");
+                }
+                finally { if (area != null) area.Dispose(); if (row != null) row.Dispose(); if (column != null) column.Dispose(); }
                 matches = item.Service.Match(inputImage, searchRegion, CreateShapeOptions(p));
             }
             shapeToolMatches[tool.ToolId] = matches;
@@ -208,15 +238,18 @@ namespace HalconWinFormsDemo
             currentMatches.AddRange(matches);
             selectedShapeCandidateIndex = matches.Count == 0 ? -1 : 0;
             ShapeMatchResult best = matches.FirstOrDefault();
+            PublishTemplateTargetsS145(tool, targetContext != null && boundModel ? ConvertShapeTargetsS145(matches, inputImage) : new List<VmTemplateTargetS145>(),
+                targetContext, targetInput, boundModel ? item.Service.RuntimeModelVersionS145 : null);
             string summary = BuildShapeCandidateSummary(matches);
             string resultCode = best == null ? "NG" : "OK";
-            string message = best == null ? "未匹配到满足分数、角度、尺度和重叠约束的目标" : string.Format(CultureInfo.InvariantCulture, "候选 {0} · Best={1:0.000} · R={2:0.00}, C={3:0.00}, A={4:0.00}°, S={5:0.000}", matches.Count, best.Score, best.Row, best.Column, best.AngleDeg, best.Scale);
+            string message = best == null ? "未匹配到满足分数、角度、尺度和重叠约束的目标" : string.Format(CultureInfo.InvariantCulture, "候选 {0} · Best={1:0.000} · R={2:0.00}, C={3:0.00}, A={4:0.00}°, S={5:0.000} · 图上最多100个，正式结果保持完整请求范围", matches.Count, best.Score, best.Row, best.Column, best.AngleDeg, best.Scale);
             InspectionRecord record = CreateRecord("ShapeModel", resultCode, best == null ? 0 : best.Score, message, tool);
             if (best != null)
             {
                 record.MatchRow = best.Row; record.MatchColumn = best.Column; record.MatchAngle = best.AngleDeg;
                 using (HObject contours = item.Service.CreateMatchContours(matches))
                     tool.SetOutputValue("XLD", VmXldSnapshot.Create(contours, tool.ToolId, tool.InstanceName, "XLD"));
+                if (targetContext != null) tool.SetOutputCoordinateContext("XLD", targetContext);
             }
             record.TemplatePath = p.ShapeModelPath;
             resultStore.Add(record);
@@ -225,6 +258,8 @@ namespace HalconWinFormsDemo
             LastMessageText.Text = "最新外发结果：" + lastResultPayload;
             LogInfo(tool.InstanceName + " Shape 定位完成：" + message + " · Candidates=" + summary);
             return record;
+            }
+            catch { tool.ClearRuntimeOutputs(); shapeToolMatches.Remove(tool.ToolId); currentMatches.Clear(); throw; }
         }
 
         private void PublishShapeMatchOutputs(VmToolInstance tool, InspectionRecord record)
@@ -287,13 +322,13 @@ namespace HalconWinFormsDemo
 
         private bool TrySelectShapeCandidateAt(PointF point, double tolerance)
         {
-            VmToolInstance tool = FlowToolList == null ? null : FlowToolList.SelectedItem as VmToolInstance;
+            VmToolInstance tool = GetImageTaskToolS89();
             if (tool == null || tool.Kind != VmToolKind.ShapeMatch || roiEditor.Tool != VisionTool.Select) return false;
             List<ShapeMatchResult> matches;
             if (!shapeToolMatches.TryGetValue(tool.ToolId, out matches) || matches.Count == 0) return false;
             int index = -1;
             double bestDistance = Math.Max(10, tolerance * 1.5);
-            for (int i = 0; i < matches.Count; i++)
+            for (int i = 0; i < Math.Min(matches.Count, 100); i++)
             {
                 double dr = matches[i].Row - point.Y, dc = matches[i].Column - point.X;
                 double distance = Math.Sqrt(dr * dr + dc * dc);
@@ -318,7 +353,7 @@ namespace HalconWinFormsDemo
                 foreach (VmRoiLayer search in GetBoundDetectionRoiLayers(tool).Where(item => item.IsVisible)) overlayRenderer.DrawRoiLayer(window, search.Geometry, "cyan", 2, true, false);
                 List<ShapeMatchResult> matches;
                 if (!shapeToolMatches.TryGetValue(tool.ToolId, out matches)) return;
-                for (int i = 0; i < matches.Count; i++)
+                for (int i = 0; i < Math.Min(matches.Count, 100); i++)
                 {
                     ShapeMatchResult match = matches[i];
                     string color = i == selectedShapeCandidateIndex ? "magenta" : "green";
@@ -327,7 +362,9 @@ namespace HalconWinFormsDemo
                     {
                         double length = 22 * Math.Max(0.5, match.Scale);
                         HOperatorSet.GenCrossContourXld(out cross, match.Row, match.Column, i == selectedShapeCandidateIndex ? 18 : 12, Math.PI / 4);
-                        HOperatorSet.GenContourPolygonXld(out direction, new HTuple(new[] { match.Row, match.Row - Math.Sin(match.AngleDeg * Math.PI / 180.0) * length }), new HTuple(new[] { match.Column, match.Column + Math.Cos(match.AngleDeg * Math.PI / 180.0) * length }));
+                        using (var rows = new HTuple(new[] { match.Row, match.Row - Math.Sin(match.AngleDeg * Math.PI / 180.0) * length }))
+                        using (var columns = new HTuple(new[] { match.Column, match.Column + Math.Cos(match.AngleDeg * Math.PI / 180.0) * length }))
+                            HOperatorSet.GenContourPolygonXld(out direction, rows, columns);
                         window.SetColor(color); window.SetLineWidth(i == selectedShapeCandidateIndex ? 4 : 2); window.DispObj(cross); window.DispObj(direction);
                         window.DispText("#" + match.Index.ToString(CultureInfo.InvariantCulture), "image", match.Row + 8, match.Column + 8, color, "box", "false");
                     }

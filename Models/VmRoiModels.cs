@@ -38,6 +38,7 @@ namespace HalconWinFormsDemo.Models
         public event PropertyChangedEventHandler PropertyChanged;
 
         public string RoiId { get; set; }
+        public string ImageContextId { get; set; }
 
         public int Sequence
         {
@@ -349,6 +350,8 @@ namespace HalconWinFormsDemo.Models
         public event PropertyChangedEventHandler PropertyChanged;
 
         public VmRoiLayer Layer { get; set; }
+        public bool IsCompatible { get; set; } = true;
+        public string CompatibilityText { get { return IsCompatible ? string.Empty : "不同图像来源；不能跨源绑定"; } }
 
         public string RoiId
         {

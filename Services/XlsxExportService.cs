@@ -33,7 +33,7 @@ namespace HalconWinFormsDemo.Services
             string[] headers = new[]
             {
                 "ID", "Time", "Type", "Result", "Score", "ImageSource", "RoiType", "Template",
-                "MatchRow", "MatchColumn", "MatchAngle", "Message"
+                "MatchRow", "MatchColumn", "MatchAngle", "Message", "RecipeName", "FlowId", "FlowName", "ExecutionScope"
             };
 
             StringBuilder rows = new StringBuilder();
@@ -54,7 +54,7 @@ namespace HalconWinFormsDemo.Services
                     FormatNullable(record.MatchRow),
                     FormatNullable(record.MatchColumn),
                     FormatNullable(record.MatchAngle),
-                    record.Message
+                    record.Message, record.RecipeName, record.FlowId, record.FlowName, record.ExecutionScope
                 }));
             }
 

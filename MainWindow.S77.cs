@@ -30,6 +30,7 @@ namespace HalconWinFormsDemo
 
         private void FlowReorderGrip_PreviewMouseLeftButtonDownS77(object sender, MouseButtonEventArgs e)
         {
+            if (!RequireEngineeringEditS137("拖动流程顺序")) return;
             FrameworkElement element = sender as FrameworkElement;
             VmToolInstance tool = element == null ? null : element.Tag as VmToolInstance;
             if (tool == null || isContinuousRunning || isFlowExecutionActive) return;
@@ -95,6 +96,8 @@ namespace HalconWinFormsDemo
         private bool TryHandleFlowReorderDropS77(DragEventArgs e)
         {
             if (!IsFlowReorderDragS77(e)) return false;
+            long editLeaseS137 = CaptureEngineeringEditLeaseS137("重排流程步骤");
+            if (editLeaseS137 < 0) { ClearFlowReorderVisualsS77(); e.Effects = DragDropEffects.None; e.Handled = true; return true; }
             string toolId = e.Data.GetData(FlowReorderDragFormatS77) as string;
             VmToolInstance movingTool = flowTools.FirstOrDefault(item => string.Equals(item.ToolId, toolId, StringComparison.OrdinalIgnoreCase));
             int insertionIndex = GetFlowReorderInsertionIndexS77(e.GetPosition(FlowGraphCanvas).Y);
@@ -117,6 +120,7 @@ namespace HalconWinFormsDemo
                 return true;
             }
 
+            if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) { ClearFlowReorderVisualsS77(); e.Effects = DragDropEffects.None; e.Handled = true; return true; }
             FlowEditSnapshot before = CaptureFlowEditSnapshot();
             ApplyFlowReorderS77(proposed);
             foreach (VmToolInstance tool in flowTools) InvalidateToolRunResult(tool, "流程顺序已调整");
@@ -157,10 +161,12 @@ namespace HalconWinFormsDemo
             proposed = flowTools.ToList();
             reason = string.Empty;
             if (movingTool == null || !flowTools.Contains(movingTool)) { reason = "找不到被拖动的模块。"; return false; }
+            if (movingTool.Kind == VmToolKind.SubflowInput) { reason = "调用输入是固定边界，不参与执行顺序调整。"; return false; }
             if (isContinuousRunning || isFlowExecutionActive) { reason = "流程运行期间不能调整顺序。"; return false; }
             List<VmToolInstance> moving = GetFlowReorderBlockS77(movingTool);
             if (moving.Count == 0) { reason = "没有可移动的步骤。"; return false; }
             insertionIndex = Math.Max(0, Math.Min(flowTools.Count, insertionIndex));
+            if (subflowEditorsS102.Count > 0) insertionIndex = Math.Max(1, insertionIndex);
             int removedBefore = moving.Count(item => flowTools.IndexOf(item) < insertionIndex);
             int adjustedIndex = insertionIndex - removedBefore;
             proposed = flowTools.Where(item => !moving.Contains(item)).ToList();
@@ -218,6 +224,7 @@ namespace HalconWinFormsDemo
 
         private void ApplyFlowReorderS77(IList<VmToolInstance> proposed)
         {
+            if (!RequireEngineeringEditS137("应用流程顺序")) return;
             for (int index = 0; index < proposed.Count; index++)
             {
                 VmToolInstance expected = proposed[index];
@@ -283,10 +290,21 @@ namespace HalconWinFormsDemo
             if (FlowReorderStatusBorderS77 != null) FlowReorderStatusBorderS77.Visibility = Visibility.Collapsed;
         }
 
-        private void OpenCentralModuleConfigurationS77(VmToolInstance tool)
+        private void OpenCentralModuleConfigurationS77(VmToolInstance tool, bool preserveInputNavigation = false)
         {
+            if (tool != null && tool.Kind == VmToolKind.SubflowInput)
+            {
+                HeaderStatusText.Text = "这是调用输入边界，不是执行模块；其来源在上一级调用节点的输入页修改。";
+                return;
+            }
             if (tool == null || CentralModuleConfigurationOverlayS77 == null || CentralModuleConfigurationHostS77 == null) return;
+            if (centralModuleConfigurationOpenS77 && ReferenceEquals(dockEditingTool, tool))
+            {
+                ActivateModuleParameterWindowS89();
+                return;
+            }
             if (!ReferenceEquals(dockEditingTool, tool) && !ConfirmDockDraftChanges("切换模块配置")) return;
+            if (!preserveInputNavigation) ClearInputRepairNavigationS96();
             if (imageWorkspaceExpanded) ImageWorkspaceExpandButton_Click(null, null);
             if (!ReferenceEquals(dockEditingTool, tool)) LoadDockConfigurationDraft(tool);
             if (!centralModuleConfigurationOpenS77)
@@ -296,7 +314,7 @@ namespace HalconWinFormsDemo
                 CentralModuleConfigurationHostS77.Content = dockConfigurationHomeContentS77;
                 CentralModuleConfigurationOverlayS77.Visibility = Visibility.Visible;
                 centralModuleConfigurationOpenS77 = true;
-                EnterCentralConfigurationLayoutS81();
+                ShowModuleParameterWindowS89();
                 SetCentralConfigurationChromeS82(true);
             }
 
@@ -307,22 +325,38 @@ namespace HalconWinFormsDemo
             RefreshFlowPortVisualization();
             SelectCentralConfigurationTaskS77(DockParametersTaskTab, "Parameters");
             UpdateCentralModuleConfigurationTitleS77(tool);
-            HeaderStatusText.Text = "已在中央打开“" + tool.InstanceName + "”配置；常用参数优先，输入、ROI 和结果可快速切换。";
+            SynchronizeMeasurementDomainContext(tool);
+            SynchronizeProjectiveGeometryContext(tool);
+            RefreshDualImageInputOptions(tool);
+            UpdateImageContextViewport(true);
+            RefreshShapeTrainingPreviewS89(false);
+            ActivateModuleParameterWindowS89();
+            HeaderStatusText.Text = "已打开“" + tool.InstanceName + "”参数窗；流程位置和缩放保持不变。";
+            RefreshRunShortcutHintS89();
         }
 
         private bool CloseCentralModuleConfigurationS77()
         {
             if (!centralModuleConfigurationOpenS77) return true;
+            if (IsCurrentToolContinuousTrialRunningS87)
+                StopCurrentToolContinuousTrialS87("关闭模块配置", false);
             if (!ConfirmDockDraftChanges("关闭模块配置")) return false;
+            ClearCurrentToolTrialStabilityS88("关闭模块配置", false);
             CentralModuleConfigurationHostS77.Content = null;
             DockConfigurationTab.Content = dockConfigurationHomeContentS77;
             dockConfigurationHomeContentS77 = null;
             CentralModuleConfigurationOverlayS77.Visibility = Visibility.Collapsed;
             centralModuleConfigurationOpenS77 = false;
+            ClearInputRepairNavigationS96();
             SetCentralConfigurationChromeS82(false);
-            RestoreCentralConfigurationLayoutS81();
+            HideModuleParameterWindowS89();
+            SynchronizeMeasurementDomainContext(GetImageTaskToolS89());
+            SynchronizeProjectiveGeometryContext(GetImageTaskToolS89());
+            RefreshDualImageInputOptions(GetImageTaskToolS89());
+            UpdateImageContextViewport(true);
             RightTabs.SelectedItem = ModuleResultTab;
-            HeaderStatusText.Text = "中央模块配置已关闭；右下区域恢复显示运行结果。";
+            HeaderStatusText.Text = "参数窗已关闭；流程布局保持不变。";
+            RefreshRunShortcutHintS89();
             return true;
         }
 
@@ -373,6 +407,7 @@ namespace HalconWinFormsDemo
 
         private void UpdateCentralModuleConfigurationTitleS77(VmToolInstance tool)
         {
+            RefreshInputRepairNavigationS96();
             if (CentralModuleConfigurationTitleS77 == null) return;
             CentralModuleConfigurationTitleS77.Text = tool == null
                 ? "选择模块"
@@ -380,7 +415,7 @@ namespace HalconWinFormsDemo
             if (CentralModuleConfigurationContextS82 != null)
             {
                 CentralModuleConfigurationContextS82.Text = tool == null
-                    ? "单击左侧模块即可切换"
+                    ? "双击流程模块打开参数"
                     : tool.DisplayType + "  ·  " + tool.ConfigurationStatus + "  ·  " + tool.ResultCode + "  ·  " + tool.ElapsedText;
             }
         }

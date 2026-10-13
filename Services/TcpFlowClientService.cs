@@ -52,9 +52,11 @@ namespace HalconWinFormsDemo.Services
                 try
                 {
                     connect = client.BeginConnect(request.Host.Trim(), request.Port, null, null);
-                    if (!connect.AsyncWaitHandle.WaitOne(request.ConnectTimeoutMilliseconds))
+                    while (!connect.AsyncWaitHandle.WaitOne(50))
                     {
-                        throw new TimeoutException("TCP 连接超时。");
+                        ThrowIfStopped(stopRequested);
+                        if (stopwatch.ElapsedMilliseconds >= request.ConnectTimeoutMilliseconds)
+                            throw new TimeoutException("TCP 连接超时。");
                     }
                     client.EndConnect(connect);
                 }

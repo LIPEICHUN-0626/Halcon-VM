@@ -11,84 +11,8 @@ namespace HalconWinFormsDemo
 {
     public partial class MainWindow
     {
-        private string toolboxSelectedCategoryS80;
-        private readonly List<string> toolboxCategoriesS80 = new List<string>();
         private int barCodeModelsCreatedS80;
         private int barCodeModelsClearedS80;
-
-        private void InitializeToolboxSingleCategoryS80()
-        {
-            toolboxCategoriesS80.Clear();
-            toolboxCategoriesS80.AddRange(toolCatalog.OrderBy(item => item.CategoryOrder).Select(item => item.Category).Distinct(StringComparer.Ordinal));
-            SelectFirstToolboxCategoryS80();
-            RebuildToolboxCategoryMenuS80();
-            UpdateToolboxCategoryButtonS80();
-        }
-
-        private void SelectFirstToolboxCategoryS80()
-        {
-            if (string.IsNullOrWhiteSpace(toolboxSelectedCategoryS80) || !toolboxCategoriesS80.Contains(toolboxSelectedCategoryS80))
-                toolboxSelectedCategoryS80 = toolboxCategoriesS80.FirstOrDefault();
-            toolCatalogMode = "All";
-        }
-
-        private void RebuildToolboxCategoryMenuS80()
-        {
-            if (ToolCatalogAllButton == null || ToolCatalogAllButton.ContextMenu == null) return;
-            ContextMenu menu = ToolCatalogAllButton.ContextMenu;
-            menu.Items.Clear();
-            foreach (string category in toolboxCategoriesS80)
-            {
-                int count = toolCatalog.Count(catalogItem => string.Equals(catalogItem.Category, category, StringComparison.Ordinal));
-                MenuItem item = new MenuItem { Header = category + " · " + count.ToString(CultureInfo.InvariantCulture), Tag = category };
-                item.Click += ToolCatalogCategoryItem_ClickS80;
-                menu.Items.Add(item);
-            }
-            menu.Items.Add(new Separator());
-            menu.Items.Add(CreateToolboxModeMenuItemS80("常用工具", "Common"));
-            menu.Items.Add(CreateToolboxModeMenuItemS80("收藏", "Favorite"));
-            menu.Items.Add(CreateToolboxModeMenuItemS80("最近使用", "Recent"));
-            menu.Items.Add(new Separator());
-            MenuItem snippets = new MenuItem { Header = "本机流程片段" };
-            snippets.Click += ToolCatalogShowSnippetsMenuItem_Click;
-            menu.Items.Add(snippets);
-        }
-
-        private MenuItem CreateToolboxModeMenuItemS80(string header, string mode)
-        {
-            MenuItem item = new MenuItem { Header = header, Tag = mode };
-            item.Click += ToolCatalogModeMenuItem_ClickS80;
-            return item;
-        }
-
-        private void ToolCatalogCategoryItem_ClickS80(object sender, RoutedEventArgs e)
-        {
-            MenuItem item = sender as MenuItem;
-            string category = item == null ? null : item.Tag as string;
-            if (string.IsNullOrWhiteSpace(category)) return;
-            ExitToolboxSnippetModeS71(false);
-            toolboxSelectedCategoryS80 = category;
-            toolCatalogMode = "Category";
-            if (ToolSearchTextBox != null) ToolSearchTextBox.Text = string.Empty;
-            RefreshToolCatalogView();
-            HeaderStatusText.Text = "模块箱已聚焦“" + category + "”；双击、Enter 或拖入可添加，清空搜索仍返回此分类。";
-        }
-
-        private void ToolCatalogModeMenuItem_ClickS80(object sender, RoutedEventArgs e)
-        {
-            MenuItem item = sender as MenuItem;
-            ExitToolboxSnippetModeS71(false);
-            toolCatalogMode = item == null || item.Tag == null ? "Category" : item.Tag.ToString();
-            if (ToolSearchTextBox != null) ToolSearchTextBox.Text = string.Empty;
-            RefreshToolCatalogView();
-        }
-
-        private void UpdateToolboxCategoryButtonS80()
-        {
-            if (ToolCatalogAllButton == null || IsToolboxSnippetModeActiveS71) return;
-            ToolCatalogAllButton.Content = "全部";
-            ToolCatalogAllButton.ToolTip = "全部分类直接显示在下方；点击分类标题即可就地展开或收起。";
-        }
 
         private void RefreshBarCodeConnectionStatusS80(VmToolInstance tool)
         {

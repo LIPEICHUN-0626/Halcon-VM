@@ -12,6 +12,47 @@ namespace HalconWinFormsDemo
     {
         private bool updatingConnectionBindingS79;
 
+        private bool IsFlowNodeCommandHitS79(DependencyObject hit)
+        {
+            while (hit != null)
+            {
+                if (hit is System.Windows.Controls.Primitives.ButtonBase) return true;
+                FrameworkContentElement content = hit as FrameworkContentElement;
+                DependencyObject parent = content?.Parent;
+                if (parent == null && hit is System.Windows.Media.Visual) parent = System.Windows.Media.VisualTreeHelper.GetParent(hit);
+                hit = parent ?? LogicalTreeHelper.GetParent(hit);
+            }
+            return false;
+        }
+
+        private void FlowBindingSummary_ClickS79(object sender, RoutedEventArgs e)
+        {
+            FrameworkElement button = sender as FrameworkElement;
+            OpenFlowBindingSummaryS79(button?.Tag as VmToolInstance);
+            e.Handled = true;
+        }
+
+        private void OpenFlowBindingSummaryS79(VmToolInstance tool)
+        {
+            if (tool == null || !flowTools.Contains(tool)) return;
+            if (flowPortDragSession != null && flowPortDragSession.IsClickArmed)
+            {
+                VmFlowPortChip hoverPort = ResolveConnectionBodyHoverS79(tool);
+                if (hoverPort != null) TryCompleteArmedFlowConnectionS79(hoverPort);
+                else HeaderStatusText.Text = "不能连接：" + aggregatePortHoverErrorS75 + "；可换一个模块或按 Esc 取消。";
+                return;
+            }
+            List<VmFlowConnectionVisual> inputs = flowConnections.Where(item =>
+                string.Equals(item.TargetToolId, tool.ToolId, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (inputs.Count == 1) SelectFlowConnection(inputs[0], false);
+            else if (tool.FlowInputPorts.Count > 0)
+            {
+                OpenFlowAggregatePortFlyoutS75(tool, "IN");
+                HeaderStatusText.Text = "请选择“" + tool.InstanceName + "”的精确输入端口，再重选来源。";
+            }
+            else HeaderStatusText.Text = "“" + tool.InstanceName + "”没有输入订阅；双击可编辑自身参数。";
+        }
+
         // The capture target is measured in screen DIPs, so zooming out does not
         // turn the small visual anchor into an unusably small mouse target.
         private VmToolInstance FindNearbyConnectionAnchorS79(Point point, out string direction)
@@ -55,13 +96,15 @@ namespace HalconWinFormsDemo
             }
             FrameworkElement hit = e.OriginalSource as FrameworkElement;
             if (hit != null && hit.Tag is VmFlowConnectionVisual) return false;
+            // Forgiving invisible anchor regions must not steal a deliberate command click.
+            if (IsFlowNodeCommandHitS79(e.OriginalSource as DependencyObject)) return false;
             string direction;
             VmToolInstance tool = FindNearbyConnectionAnchorS79(point, out direction);
             if (tool == null) return false;
             BeginAggregateFlowPortDragS79(tool, direction, FlowGraphCanvas,
                 new Point(tool.GraphX + 140, tool.GraphY + (direction == "OUT" ? tool.GraphHeight : 0)));
             // Keep the real pointer origin for distinguishing a click from a drag.
-            flowPortDragSession.StartPoint = point;
+            if (flowPortDragSession != null) flowPortDragSession.StartPoint = point;
             return true;
         }
 
@@ -124,9 +167,12 @@ namespace HalconWinFormsDemo
         private void BeginAggregateFlowPortDragS79(VmToolInstance tool, string direction, FrameworkElement origin, Point startPoint)
         {
             if (tool == null || origin == null || FlowGraphCanvas == null) return;
+            long editLeaseS137 = CaptureEngineeringEditLeaseS137("开始模块自动连接");
+            if (editLeaseS137 < 0) return;
             CloseFlowAggregatePortFlyoutS75();
             flowPortDragSession = new FlowPortDragSession
             {
+                EngineeringLeaseS137 = editLeaseS137,
                 AggregateOriginToolId = tool.ToolId,
                 AggregateOriginDirection = direction,
                 StartPoint = startPoint
@@ -149,6 +195,11 @@ namespace HalconWinFormsDemo
         private void ArmFlowPortClickConnectionS79()
         {
             if (flowPortDragSession == null) return;
+            if (!IsEngineeringEditLeaseCurrentS137(flowPortDragSession.EngineeringLeaseS137))
+            {
+                CancelFlowPortDrag("工程授权已改变，请重新开始连接；原绑定未修改。", true);
+                return;
+            }
             flowPortDragSession.IsClickArmed = true;
             if (FlowGraphCanvas != null && FlowGraphCanvas.IsMouseCaptured) Mouse.Capture(null);
             if (FlowPortDragPreviewPath != null) FlowPortDragPreviewPath.Visibility = Visibility.Collapsed;
@@ -182,6 +233,12 @@ namespace HalconWinFormsDemo
 
         private bool CompleteArmedFlowConnectionS79(VmFlowPortChip hoverPort)
         {
+            if (flowPortDragSession == null) return false;
+            if (!IsEngineeringEditLeaseCurrentS137(flowPortDragSession.EngineeringLeaseS137))
+            {
+                CancelFlowPortDrag("工程授权已改变，请重新开始连接；原绑定未修改。", true);
+                return true;
+            }
             VmFlowPortChip source;
             VmFlowPortChip target;
             string error;

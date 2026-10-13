@@ -82,7 +82,7 @@ namespace HalconWinFormsDemo.Services
             resource.ManagedPath = string.Empty;
             try
             {
-                string managedPath = ResolveManagedPath(resource.ManagedRelativePath);
+                string managedPath = ResolveResourcePathS139(resource);
                 resource.ManagedPath = managedPath;
                 if (!File.Exists(managedPath)) { SetHealth(resource, VmExternalResourceHealth.Missing, "受管副本不存在：" + managedPath); return; }
                 string actualHash = ComputeSha256(managedPath);
@@ -120,6 +120,15 @@ namespace HalconWinFormsDemo.Services
             string prefix = resourceDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
             if (!fullPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("外部资源路径越出受管目录，已拒绝访问。");
             return fullPath;
+        }
+
+        public string ResolveResourcePathS139(VmExternalResourceData resource)
+        {
+            if (string.IsNullOrWhiteSpace(resource.PortablePathS139)) return ResolveManagedPath(resource.ManagedRelativePath);
+            if (!Path.IsPathRooted(resource.PortablePathS139)) throw new InvalidDataException("便携DLL路径尚未按方案目录解析，拒绝猜本机来源。 ");
+            string path = Path.GetFullPath(resource.PortablePathS139);
+            EngineeringPackageServiceS139.AssertNoReparse(path);
+            return path; // Inspect still verifies the original SHA and formal entry signature before use.
         }
 
         public static string ComputeSha256(string path)

@@ -1,0 +1,50 @@
+<Window x:Class="HalconWinFormsDemo.StationEditingProtectionWindowS137"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="工位工程编辑保护" Width="535" Height="365" MinWidth="480" MinHeight="315"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Background="#F8FAFC">
+    <Window.Resources>
+        <Style TargetType="Button"><Setter Property="Padding" Value="10,5" /><Setter Property="Margin" Value="3" /><Setter Property="Background" Value="White" /><Setter Property="BorderBrush" Value="#CBD5E1" /><Setter Property="Foreground" Value="#334155" /></Style>
+        <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#334155" /><Setter Property="TextWrapping" Value="Wrap" /></Style>
+        <Style TargetType="PasswordBox"><Setter Property="MinHeight" Value="29" /><Setter Property="Margin" Value="0,3" /><Setter Property="Padding" Value="5,3" /></Style>
+    </Window.Resources>
+    <Grid Margin="16">
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <StackPanel><TextBlock Text="工位工程编辑保护" FontSize="17" FontWeight="SemiBold" Foreground="#0F172A" /><TextBlock x:Name="ProtectionStateS137" Text="正在读取工位状态…" FontWeight="SemiBold" Foreground="#0F766E" Margin="0,8,0,0" /><TextBlock x:Name="ProtectionDetailS137" FontSize="11" Foreground="#64748B" Margin="0,4,0,8" /></StackPanel>
+        <StackPanel x:Name="DefaultActionsS137" Grid.Row="1">
+            <Grid x:Name="UnlockPanelS137" Visibility="Collapsed">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <StackPanel><TextBlock Text="工程口令" FontSize="11" Foreground="#64748B" /><PasswordBox x:Name="UnlockPasswordS137" MaxLength="128" PasswordChanged="Password_Changed" ToolTip="无默认口令。仅提交给主窗口复核；提交后立即清空，不写日志。" /></StackPanel>
+                <Button x:Name="UnlockButtonS137" Grid.Column="1" Content="解锁工程编辑" VerticalAlignment="Bottom" Click="Unlock_Click" />
+            </Grid>
+            <Button x:Name="LockButtonS137" Visibility="Collapsed" Content="锁定工程编辑" HorizontalAlignment="Left" Click="Lock_Click" ToolTip="只请求主窗口处理草稿并锁定；不抢停单个算子，也不解除故障保护。" />
+            <Button x:Name="StartEnableButtonS137" Visibility="Collapsed" Content="设置口令并启用保护…" HorizontalAlignment="Left" Click="StartEnable_Click" ToolTip="显式设置自己的口令，不提供默认密码或 PIN。未启用时沿用现有开发行为，不等于已认证。" />
+        </StackPanel>
+        <TextBlock Grid.Row="2" Text="切换生产/开发页面不等于授权。主界面的停止始终可用；解锁不解除真实故障门禁。" FontSize="11" Foreground="#64748B" Margin="0,8,0,8" />
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Expander x:Name="MoreS137" Header="更多 · 保护设置 / 受控方案 / 恢复说明" IsExpanded="False" Foreground="#475569">
+                <StackPanel Margin="3,7,3,3">
+                    <StackPanel x:Name="ConfigurationPanelS137">
+                        <TextBlock Text="工程会话有效期" FontSize="11" Foreground="#64748B" />
+                        <ComboBox x:Name="UnlockMinutesS137" MinHeight="27" Margin="0,4,0,8" DisplayMemberPath="Label" SelectedValuePath="Minutes" ToolTip="本机有界会话 5–120 分钟。到期冻结编辑，不自动应用草稿或停止单个算子。" />
+                        <TextBlock x:Name="NewPasswordLabelS137" Text="新口令（改口令时填写；8–128 字符）" FontSize="11" Foreground="#64748B" Margin="0,5,0,0" />
+                        <PasswordBox x:Name="NewPasswordS137" MaxLength="128" PasswordChanged="Password_Changed" />
+                        <TextBlock Text="再次输入新口令" FontSize="11" Foreground="#64748B" /><PasswordBox x:Name="ConfirmPasswordS137" MaxLength="128" PasswordChanged="Password_Changed" />
+                        <WrapPanel><Button x:Name="EnableButtonS137" Content="确认设置并启用" Click="Enable_Click" /><Button x:Name="ConfigureButtonS137" Content="保存保护设置" Click="Configure_Click" /><Button x:Name="DisableButtonS137" Content="关闭保护…" Click="Disable_Click" /></WrapPanel>
+                        <TextBlock Text="有效工程会话内可保存设置，留空新口令则保留原口令。会话不是企业实名认证；保护策略独立于配方，导入方案不会授予工程权限。" FontSize="11" Foreground="#64748B" Margin="0,4,0,9" />
+                        <TextBlock Text="受控换型方案（最多 32 项）" FontWeight="SemiBold" Foreground="#475569" />
+                        <ListBox x:Name="ApprovedRecipesS137" MaxHeight="135" MinHeight="45" Margin="0,5,0,3" SelectionChanged="Approved_Changed" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="4"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" /><TextBlock Text="{Binding Path}" FontSize="11" Foreground="#64748B" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip="{Binding Path}" /></StackPanel></DataTemplate></ListBox.ItemTemplate>
+                        </ListBox>
+                        <WrapPanel><Button x:Name="AddApprovedButtonS137" Content="选择并加入实际方案…" Click="AddApproved_Click" ToolTip="由主窗口选择实际 JSON 并核实文件 SHA，不输入名称伪造批准身份。" /><Button x:Name="RemoveApprovedButtonS137" Content="移除所选批准项" Click="RemoveApproved_Click" /></WrapPanel>
+                        <TextBlock x:Name="ApprovedSummaryS137" FontSize="11" Foreground="#64748B" Margin="0,2,0,8" />
+                    </StackPanel>
+                    <TextBlock x:Name="GenerationTextS137" FontSize="11" Foreground="#64748B" Margin="0,4,0,6" />
+                    <TextBlock Text="忘记口令或策略损坏：请由现场工程人员核对站点备份与受管策略，执行人工站点恢复。本窗口不提供万能解锁码，不自动降级为无保护。" FontSize="11" Foreground="#9A3412" Margin="0,3,0,8" />
+                    <TextBlock Text="仅是本应用内误操作保护，不是 Windows 账户权限或 DLL/任意程序沙箱；具备本机文件写权限或受信任扩展的用户仍可能绕开策略。" FontSize="11" Foreground="#64748B" />
+                </StackPanel>
+            </Expander>
+        </ScrollViewer>
+        <DockPanel Grid.Row="4" Margin="0,9,0,0"><Button DockPanel.Dock="Right" Content="关闭" Click="Close_Click" /><TextBlock x:Name="StatusTextS137" FontSize="11" Foreground="#64748B" VerticalAlignment="Center" Margin="0,0,8,0" /></DockPanel>
+    </Grid>
+</Window>

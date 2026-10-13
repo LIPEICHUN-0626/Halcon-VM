@@ -11,7 +11,7 @@ namespace HalconWinFormsDemo.Services
         {
             using (StreamWriter writer = new StreamWriter(filePath, false, new UTF8Encoding(true)))
             {
-                writer.WriteLine("ID,Time,Type,Result,Score,ImageSource,RoiType,Template,MatchRow,MatchColumn,MatchAngle,Message");
+                writer.WriteLine("ID,Time,Type,Result,Score,ImageSource,RoiType,Template,MatchRow,MatchColumn,MatchAngle,Message,RecipeName,FlowId,FlowName,ExecutionScope");
                 foreach (InspectionRecord record in records)
                 {
                     writer.WriteLine(string.Join(",", new[]
@@ -27,7 +27,7 @@ namespace HalconWinFormsDemo.Services
                         Escape(FormatNullable(record.MatchRow)),
                         Escape(FormatNullable(record.MatchColumn)),
                         Escape(FormatNullable(record.MatchAngle)),
-                        Escape(record.Message)
+                        Escape(record.Message), Escape(record.RecipeName), Escape(record.FlowId), Escape(record.FlowName), Escape(record.ExecutionScope)
                     }));
                 }
             }

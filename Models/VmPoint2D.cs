@@ -134,10 +134,10 @@ namespace HalconWinFormsDemo.Models
 
         public string ToDisplayString()
         {
-            if (Count == 0) return "Point2D[0] · " + CoordinateContextId;
-            VmPoint2D first = Points[0];
-            if (first == null) return "Point2D[" + Count.ToString(CultureInfo.InvariantCulture) + "] · 首点无效 · " + CoordinateContextId;
-            return string.Format(CultureInfo.InvariantCulture, "Point2D[{0}] · 首点 R={1:0.###}, C={2:0.###} · {3}", Count, first.Row, first.Column, CoordinateContextId);
+            int valid = (Points ?? new List<VmPoint2D>()).Count(point => point != null && string.IsNullOrWhiteSpace(point.GetValidationError()) &&
+                point.CoordinateContext == CoordinateContext && point.CoordinateContextId == CoordinateContextId);
+            return string.Format(CultureInfo.InvariantCulture, "点集 {0} · 有效 {1} / 异常 {2} · {3}{4}", Count, valid, Count - valid,
+                CoordinateContextId, !IsValid || Points == null ? " · 容器无效" : string.Empty);
         }
 
         public override string ToString()

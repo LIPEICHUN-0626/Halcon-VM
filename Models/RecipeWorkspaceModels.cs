@@ -6,7 +6,7 @@ namespace HalconWinFormsDemo.Models
 {
     public static class RecipeSchema
     {
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
     }
 
     [DataContract]

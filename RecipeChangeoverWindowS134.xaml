@@ -1,0 +1,121 @@
+<Window x:Class="HalconWinFormsDemo.RecipeChangeoverWindowS134"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="方案换型与运行准备" Width="860" Height="630" MinWidth="650" MinHeight="500"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Background="#F8FAFC">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Margin" Value="3" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#334155" />
+        </Style>
+        <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap" /></Style>
+    </Window.Resources>
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+            <RowDefinition Height="*" /><RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Content="查看当前准备" Click="PreviewCurrent_Click" ToolTip="只读检查当前已应用配置；不应用草稿、不连接设备、不运行算法。" />
+            <StackPanel Margin="0,0,10,8">
+                <TextBlock Text="方案换型与运行准备" FontSize="17" FontWeight="SemiBold" Foreground="#0F172A" />
+                <TextBlock x:Name="CurrentTextS134" x:FieldModifier="public" Text="当前方案：--" Foreground="#64748B" Margin="0,4,0,0"
+                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+            </StackPanel>
+        </DockPanel>
+        <Border Grid.Row="1" Background="White" BorderBrush="#D7DEE8" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,3,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="62" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <TextBlock Text="目标方案" VerticalAlignment="Center" Foreground="#475569" />
+                <TextBlock x:Name="TargetPathTextS134" x:FieldModifier="public" Grid.Column="1" Text="尚未选择；预览不会改变当前方案" VerticalAlignment="Center" Margin="4" Foreground="#334155"
+                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                <Button Grid.Column="2" Content="选择方案…" Click="Browse_Click" ToolTip="选择正式 JSON 方案，读取定义和资源清单；未点击换型前保持当前方案。" />
+                <TextBlock Grid.Row="1" Text="当前流程" VerticalAlignment="Center" Foreground="#475569" Margin="0,6,0,0" />
+                <ComboBox x:Name="TargetFlowPickerS134" x:FieldModifier="public" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
+                          Margin="4,6,4,0" MinHeight="27" DisplayMemberPath="Name" SelectedValuePath="FlowId"
+                          SelectionChanged="TargetFlow_Changed" ToolTip="换型后选中的根流程。准备清单仅检查该流程和它调用的子流程；不会自动运行其他流程。" />
+            </Grid>
+        </Border>
+        <TextBlock x:Name="SummaryTextS134" x:FieldModifier="public" Grid.Row="2" Text="选择目标方案或查看当前准备。" FontWeight="SemiBold" Foreground="#0F766E" Margin="1,0,1,5" />
+        <TextBlock Grid.Row="3" Text="这是静态配置与资源检查，不代表设备已连通、算法已加载或产品合格。换型后请显式确认设备并运行。" FontSize="11" Foreground="#64748B" Margin="1,0,1,9" />
+        <TabControl x:Name="ReviewTabsS140" Grid.Row="4" SelectedIndex="0" Background="White" BorderBrush="#D7DEE8">
+            <TabItem Header="准备问题">
+                <ListBox x:Name="IssuesListS134" x:FieldModifier="public" HorizontalContentAlignment="Stretch"
+                         Background="White" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Padding="7" BorderBrush="#F1F5F9" BorderThickness="0,0,0,1">
+                                <StackPanel>
+                                    <DockPanel><TextBlock Text="{Binding SeverityText}" DockPanel.Dock="Left" FontWeight="SemiBold" Foreground="#9A3412" Margin="0,0,8,0" /><TextBlock Text="{Binding DisplayText}" Foreground="#334155" /></DockPanel>
+                                    <TextBlock Text="{Binding Reason}" Foreground="#64748B" FontSize="11" Margin="0,3,0,0" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </TabItem>
+            <TabItem Header="配置审阅">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                    <DockPanel LastChildFill="True">
+                        <Button x:Name="RefreshDiffButtonS140" DockPanel.Dock="Right" Content="生成 / 刷新审阅" Click="DiffRefresh_Click"
+                                ToolTip="只读比较当前已应用定义与目标预览；不会应用未保存草稿、换型、加载算法或连接设备。" />
+                        <StackPanel Margin="0,2,8,3">
+                            <TextBlock x:Name="DiffSummaryTextS140" Text="尚未生成配置审阅。" FontWeight="SemiBold" Foreground="#334155" />
+                            <TextBlock x:Name="DiffContextTextS140" Text="当前已应用 → 所选目标；准备与确认换型仍沿原流程。" FontSize="11" Foreground="#64748B" Margin="0,3,0,0"
+                                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                        </StackPanel>
+                    </DockPanel>
+                    <TextBlock x:Name="DiffWarningTextS140" Grid.Row="1" FontSize="11" Foreground="#9A3412" Margin="0,2,0,6" Visibility="Collapsed" />
+                    <DockPanel Grid.Row="2" Margin="0,0,0,6">
+                        <TextBlock Text="变化分类" Foreground="#64748B" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox x:Name="DiffFilterS140" Width="145" MinHeight="26" HorizontalAlignment="Left" SelectedIndex="0" SelectionChanged="DiffFilter_Changed"
+                                  ToolTip="算法/执行变化默认优先；图位置和外观单独列出，身份/资源/预算未知不会作为无差异。">
+                            <ComboBoxItem Content="算法 / 执行" /><ComboBoxItem Content="显示" /><ComboBoxItem Content="未知" /><ComboBoxItem Content="全部" />
+                        </ComboBox>
+                    </DockPanel>
+                    <DataGrid x:Name="DiffItemsS140" Grid.Row="3" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False"
+                              CanUserReorderColumns="False" SelectionMode="Single" SelectionUnit="FullRow" HeadersVisibility="Column"
+                              RowHeight="29" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#E2E8F0" Background="White" BorderBrush="#E2E8F0"
+                              SelectionChanged="DiffItem_Changed" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <DataGrid.Resources>
+                            <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="NoWrap" /><Setter Property="TextTrimming" Value="CharacterEllipsis" /><Setter Property="Margin" Value="5,0" /><Setter Property="VerticalAlignment" Value="Center" /></Style>
+                        </DataGrid.Resources>
+                        <DataGrid.RowStyle><Style TargetType="DataGridRow"><Setter Property="ToolTip" Value="{Binding HoverText}" /></Style></DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="变化" Binding="{Binding ChangeText}" Width="65" />
+                            <DataGridTextColumn Header="区域" Binding="{Binding AreaText}" Width="110" />
+                            <DataGridTextColumn Header="稳定对象" Binding="{Binding ObjectText}" Width="1.2*" />
+                            <DataGridTextColumn Header="字段" Binding="{Binding FieldText}" Width="1*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Expander x:Name="DiffDetailExpanderS140" Grid.Row="4" Header="更多 · 所选字段的当前 / 目标值" IsExpanded="False" Margin="0,7,0,0" Foreground="#475569">
+                        <Grid Margin="0,6,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="10" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <TextBlock Text="当前已应用" FontSize="11" Foreground="#64748B" ToolTip="{Binding Text, ElementName=DiffCurrentIdentityS140}" />
+                            <TextBlock Grid.Column="2" Text="目标预览" FontSize="11" Foreground="#64748B" ToolTip="{Binding Text, ElementName=DiffTargetIdentityS140}" />
+                            <TextBox x:Name="DiffCurrentValueS140" Grid.Row="1" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="100" MinHeight="45" Padding="5" Margin="0,3,0,0" />
+                            <TextBox x:Name="DiffTargetValueS140" Grid.Row="1" Grid.Column="2" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="100" MinHeight="45" Padding="5" Margin="0,3,0,0" />
+                            <TextBlock x:Name="DiffSelectedDetailS140" Grid.Row="2" Grid.ColumnSpan="3" FontSize="11" Foreground="#64748B" Margin="0,4,0,0" TextWrapping="Wrap" MaxHeight="45" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                            <TextBlock x:Name="DiffCurrentIdentityS140" Visibility="Collapsed" /><TextBlock x:Name="DiffTargetIdentityS140" Visibility="Collapsed" />
+                        </Grid>
+                    </Expander>
+                </Grid>
+            </TabItem>
+        </TabControl>
+        <DockPanel Grid.Row="5" Margin="0,10,0,0" LastChildFill="False">
+            <Button Content="定位所选问题" DockPanel.Dock="Left" Click="Locate_Click" ToolTip="仅当前方案问题可定位到原统一参数窗；目标方案问题须先在开发界面打开并修复，不会为了查看问题偷偷换型。" />
+            <Button Content="关闭" DockPanel.Dock="Right" Click="Close_Click" />
+            <Button x:Name="ApplyButtonS134" x:FieldModifier="public" Content="确认换型" DockPanel.Dock="Right"
+                    IsEnabled="False" FontWeight="SemiBold" Foreground="#0F766E" Click="Apply_Click"
+                    ToolTip="显式切换到预览的目标定义。需所有执行/学习已停止；处理当前草稿和未保存内容，停用触发并断开旧 TCP 会话。成功后清空旧图像和结果，不自动运行。" />
+        </DockPanel>
+    </Grid>
+</Window>

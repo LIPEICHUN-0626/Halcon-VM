@@ -1,0 +1,72 @@
+<Window x:Class="HalconWinFormsDemo.ProductionAlarmWindowS136"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="报警确认与处置" Width="870" Height="570" MinWidth="760" MinHeight="460"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" Background="#F8FAFC">
+    <Window.Resources>
+        <Style TargetType="Button"><Setter Property="Padding" Value="10,5" /><Setter Property="Margin" Value="3" /><Setter Property="Background" Value="White" /><Setter Property="BorderBrush" Value="#CBD5E1" /><Setter Property="Foreground" Value="#334155" /></Style>
+        <Style TargetType="TextBlock"><Setter Property="Foreground" Value="#334155" /><Setter Property="TextWrapping" Value="Wrap" /></Style>
+        <Style TargetType="ComboBox"><Setter Property="MinHeight" Value="27" /><Setter Property="Margin" Value="4,3" /><Setter Property="VerticalContentAlignment" Value="Center" /></Style>
+        <Style x:Key="FilterLabelS136" TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center" /><Setter Property="Margin" Value="3" /><Setter Property="Foreground" Value="#64748B" /></Style>
+        <Style x:Key="CellTextS136" TargetType="TextBlock"><Setter Property="TextWrapping" Value="NoWrap" /><Setter Property="TextTrimming" Value="CharacterEllipsis" /><Setter Property="Margin" Value="4,3" /></Style>
+        <Style TargetType="ToolTip"><Setter Property="Background" Value="#EFF6FF" /><Setter Property="Foreground" Value="#475569" /><Setter Property="BorderBrush" Value="#CBD5E1" /><Setter Property="Padding" Value="8" /><Setter Property="MaxWidth" Value="420" /></Style>
+    </Window.Resources>
+    <Grid Margin="14">
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <DockPanel Margin="0,0,0,8">
+            <Button x:Name="RefreshButtonS136" DockPanel.Dock="Right" Content="刷新事件" Click="Refresh_Click" ToolTip="只读刷新本地事件，不自动连接、运行、启用触发或重写设备。" />
+            <StackPanel><TextBlock Text="报警确认与处置" FontSize="17" FontWeight="SemiBold" Foreground="#0F172A" /><TextBlock Text="确认只是已读；处置只是人工说明，不代表故障自动恢复。" FontSize="11" Foreground="#64748B" Margin="0,3,0,0" /></StackPanel>
+        </DockPanel>
+        <Border Grid.Row="1" Background="White" BorderBrush="#D7DEE8" BorderThickness="1" CornerRadius="4" Padding="7" Margin="0,0,0,7">
+            <Grid x:Name="FiltersGridS136">
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <DockPanel><TextBlock Text="状态" Width="48" Style="{StaticResource FilterLabelS136}" /><ComboBox x:Name="StatePickerS136" HorizontalAlignment="Left" MinWidth="230" DisplayMemberPath="Label" SelectedValuePath="Key" SelectionChanged="Filter_Changed" /></DockPanel>
+                <DockPanel x:Name="AdvancedFilterSummaryPanelS150" Grid.Row="1" Visibility="Collapsed" Margin="3,3,0,2">
+                    <Button x:Name="ClearAdvancedFiltersButtonS150" DockPanel.Dock="Right" Content="清除高级筛选" Click="ClearAdvancedFilters_ClickS150" Padding="6,2" ToolTip="只清除级别/方案/流程筛选，保留状态选择；不修改事件。" />
+                    <TextBlock x:Name="AdvancedFilterSummaryTextS150" FontSize="11" Foreground="#64748B" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                </DockPanel>
+                <Expander Grid.Row="2" Header="高级筛选 · 级别 / 方案 / 流程" IsExpanded="False" Margin="3,4,3,0">
+                    <Grid Margin="0,4,0,1">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="48" /><ColumnDefinition Width="*" /><ColumnDefinition Width="48" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <TextBlock Text="级别" Style="{StaticResource FilterLabelS136}" /><ComboBox x:Name="SeverityPickerS136" Grid.Column="1" DisplayMemberPath="Label" SelectedValuePath="Key" SelectionChanged="Filter_Changed" />
+                        <TextBlock Grid.Row="1" Text="方案" Style="{StaticResource FilterLabelS136}" /><ComboBox x:Name="RecipePickerS136" Grid.Row="1" Grid.Column="1" DisplayMemberPath="Label" SelectedValuePath="Key" SelectionChanged="Recipe_Changed" ToolTip="按发生时的定义 SHA 区分版本；缺失时回退路径/会话，不按显示名称混同。" />
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="流程" Style="{StaticResource FilterLabelS136}" /><ComboBox x:Name="FlowPickerS136" Grid.Row="1" Grid.Column="3" DisplayMemberPath="Label" SelectedValuePath="Key" SelectionChanged="Filter_Changed" ToolTip="方案身份与稳定 FlowId 联合筛选，不按流程名称猜归属。" />
+                    </Grid>
+                </Expander>
+            </Grid>
+        </Border>
+        <TextBlock x:Name="CountsTextS136" Grid.Row="2" Text="当前筛选 0 / 已载入 0 · 未确认 0 · 已确认待处置 0 · 已处置 0" FontWeight="SemiBold" Foreground="#0F766E" Margin="1,0,1,7" />
+        <DataGrid x:Name="EventsGridS136" Grid.Row="3" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" SelectionMode="Single" SelectionUnit="FullRow" HeadersVisibility="Column" RowHeaderWidth="0" RowHeight="28" Background="White" BorderBrush="#D7DEE8" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#EDF2F7" SelectionChanged="Event_Changed" EnableRowVirtualization="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="发生时间（本地）" Binding="{Binding LocalTimeText}" SortMemberPath="UtcTime" Width="133" ElementStyle="{StaticResource CellTextS136}" />
+                <DataGridTextColumn Header="级别" Binding="{Binding SeverityText}" Width="54" ElementStyle="{StaticResource CellTextS136}" />
+                <DataGridTextColumn Header="状态" Binding="{Binding StateText}" Width="118" ElementStyle="{StaticResource CellTextS136}" />
+                <DataGridTextColumn Header="来源" Binding="{Binding SourceText}" Width="145" ElementStyle="{StaticResource CellTextS136}" />
+                <DataGridTextColumn Header="发生简述" Binding="{Binding Title}" Width="*" MinWidth="180" ElementStyle="{StaticResource CellTextS136}" />
+            </DataGrid.Columns>
+        </DataGrid>
+        <Border x:Name="SelectionPanelS136" Grid.Row="4" Visibility="Collapsed" Background="White" BorderBrush="#D7DEE8" BorderThickness="1" CornerRadius="4" Padding="9" Margin="0,8,0,0">
+            <StackPanel>
+                <TextBlock x:Name="SelectedTitleS136" FontWeight="SemiBold" Foreground="#0F172A" />
+                <TextBlock x:Name="SelectedContextS136" FontSize="11" Foreground="#64748B" Margin="0,3,0,3" />
+                <ScrollViewer MaxHeight="64" VerticalScrollBarVisibility="Auto"><TextBlock x:Name="SelectedDetailS136" FontSize="12" /></ScrollViewer>
+                <TextBlock x:Name="ActionHintS136" Foreground="#9A3412" FontSize="11" Margin="0,4,0,3" />
+                <DockPanel LastChildFill="False">
+                    <Button x:Name="OpenTaskButtonS150" DockPanel.Dock="Right" Content="打开参数…" Click="OpenTask_ClickS150" ToolTip="显式进入工程编辑并打开原模块参数。须原授权和未应用草稿确认；取消或身份变化不会报告打开成功，不加载历史方案、不自动修复或运行。" />
+                    <Button x:Name="LocateButtonS136" DockPanel.Dock="Right" Content="定位当前模块" Click="Locate_Click" ToolTip="只选中当前工程里的发生模块，保持页面与参数窗；不能推定历史或已改变定义，不打开旧方案或自动运行。" />
+                    <Button x:Name="AcknowledgeButtonS136" DockPanel.Dock="Left" Content="确认已读" Click="Acknowledge_Click" ToolTip="仅记录已阅读，不表示恢复，不清运行禁用，不重连或重放。" />
+                </DockPanel>
+                <Grid x:Name="HandlingPanelS136" Visibility="Collapsed" Margin="0,3,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBox x:Name="HandlingNoteS136" MaxLength="2048" MinHeight="29" MaxHeight="52" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" TextChanged="Note_Changed" ToolTip="已确认后填写本次人工核对/处理说明，最多 2048 字符。非空说明不是现场恢复认证。" />
+                    <Button x:Name="HandleButtonS136" Grid.Column="1" Content="记录人工处置" Click="Handle_Click" ToolTip="须已确认并填写非空说明；只记录处置事实，不自动恢复设备或解除门禁。" />
+                </Grid>
+            </StackPanel>
+        </Border>
+        <Expander Grid.Row="5" Header="更多 · 事件身份 / 读取警告" IsExpanded="False" Margin="0,7,0,0" Foreground="#475569">
+            <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto"><StackPanel Margin="4,4,4,2"><TextBlock x:Name="TechnicalIdentityS136" FontSize="11" /><TextBlock x:Name="WarningsTextS136" FontSize="11" Foreground="#9A3412" Margin="0,4,0,0" /></StackPanel></ScrollViewer>
+        </Expander>
+        <DockPanel Grid.Row="6" Margin="0,7,0,0"><Button DockPanel.Dock="Right" Content="关闭" Click="Close_Click" /><TextBlock x:Name="StatusTextS136" Text="尚未载入事件。" FontSize="11" VerticalAlignment="Center" Foreground="#64748B" Margin="1,0,8,0" /></DockPanel>
+    </Grid>
+</Window>

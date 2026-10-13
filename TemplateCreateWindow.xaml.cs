@@ -37,6 +37,8 @@ namespace HalconWinFormsDemo
 
         public TemplateDefinition ResultDefinition { get; private set; }
 
+        public Func<bool> EngineeringEditAllowedS137 { get; set; }
+
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             imageWindow = new HWindowControl
@@ -163,6 +165,11 @@ namespace HalconWinFormsDemo
 
         private void SaveTrainButton_Click(object sender, RoutedEventArgs e)
         {
+            if (EngineeringEditAllowedS137 != null && !EngineeringEditAllowedS137())
+            {
+                ShowHint("工程授权或输入来源已改变；请解锁后重新打开模板任务。");
+                return;
+            }
             try
             {
                 if (confirmedRoi == null)

@@ -369,8 +369,10 @@ namespace HalconWinFormsDemo.Models
             if (ShapeType == RoiShapeType.Polygon)
             {
                 HObject region;
-                HOperatorSet.GenRegionPolygon(out region, new HTuple(PolygonRows), new HTuple(PolygonColumns));
-                return new HRegion(region);
+                using (HTuple rows = new HTuple(PolygonRows))
+                using (HTuple columns = new HTuple(PolygonColumns))
+                    HOperatorSet.GenRegionPolygonFilled(out region, rows, columns);
+                using (region) return new HRegion(region);
             }
 
             if (ShapeType == RoiShapeType.Circle)

@@ -149,6 +149,157 @@
     <Compile Include="MainWindow.S84.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="MainWindow.S85.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S86.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S87.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainWindow.S88.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Services\GrayLineProfileService.cs" />
+    <Compile Include="Models\VmGrayHistogramResult.cs" />
+    <Compile Include="MainWindow.S91.cs" />
+    <Compile Include="MainWindow.S92.cs" />
+    <Compile Include="MainWindow.S96.cs" />
+    <Compile Include="MainWindow.S97.cs" />
+    <Compile Include="MainWindow.S98.cs" />
+    <Compile Include="MainWindow.S99.cs" />
+    <Compile Include="MainWindow.S100.cs" />
+    <Compile Include="MainWindow.S101.cs" />
+    <Compile Include="MainWindow.S102.cs" />
+    <Compile Include="MainWindow.S102.Editor.cs" />
+    <Compile Include="MainWindow.S102.Trace.cs" />
+    <Compile Include="MainWindow.S102.Coordinates.cs" />
+    <Compile Include="Models\VmSubflowModels.cs" />
+    <Compile Include="Models\VmFlowValueContractS103.cs" />
+    <Compile Include="MainWindow.S103.cs" />
+    <Compile Include="Models\VmProjectFlowData.cs" />
+    <Compile Include="MainWindow.S104.cs" />
+    <Compile Include="Models\VmArrayValuesS105.cs" />
+    <Compile Include="MainWindow.S105.cs" />
+    <Compile Include="Models\VmNumericExpressionS106.cs" />
+    <Compile Include="MainWindow.S106.cs" />
+    <Compile Include="Models\VmScriptArrayContractS107.cs" />
+    <Compile Include="MainWindow.S107.cs" />
+    <Compile Include="Models\VmArrayReorderS108.cs" />
+    <Compile Include="MainWindow.S108.cs" />
+    <Compile Include="MainWindow.S109.cs" />
+    <Compile Include="MainWindow.S110.cs" />
+    <Compile Include="MainWindow.S111.cs" />
+    <Compile Include="MainWindow.S112.cs" />
+    <Compile Include="MainWindow.S113.cs" />
+    <Compile Include="MainWindow.S114.cs" />
+    <Compile Include="MainWindow.S115.cs" />
+    <Compile Include="MainWindow.S116.cs" />
+    <Compile Include="MainWindow.S117.cs" />
+    <Compile Include="Models\VmTcpResponseMappingS117.cs" />
+    <Compile Include="MainWindow.S118.cs" />
+    <Compile Include="Models\VmModbusFunctionS118.cs" />
+    <Compile Include="Models\VmModbusRegisterDecodeS122.cs" />
+    <Compile Include="MainWindow.S119.cs" />
+    <Compile Include="MainWindow.S120.cs" />
+    <Compile Include="MainWindow.S121.cs" />
+    <Compile Include="MainWindow.S149.UI.cs" />
+    <Compile Include="MainWindow.S150.cs" />
+    <Compile Include="Models\VmCommunicationSamplesS149.cs" />
+    <Compile Include="MainWindow.S122.cs" />
+    <Compile Include="MainWindow.S123.cs" />
+    <Compile Include="MainWindow.S124.cs" />
+    <Compile Include="MainWindow.S125.cs" />
+    <Compile Include="MainWindow.S126.cs" />
+    <Compile Include="MainWindow.S127.cs" />
+    <Compile Include="MainWindow.S128.cs" />
+    <Compile Include="MainWindow.S129.cs" />
+    <Compile Include="Models\VmColorInspectionS129.cs" />
+    <Compile Include="MainWindow.S130.cs" />
+    <Compile Include="Models\VmVariationInspectionS130.cs" />
+    <Compile Include="MainWindow.S131.cs" />
+    <Compile Include="MainWindow.S131.Learning.cs" />
+    <Compile Include="Models\VmNccMatchingS131.cs" />
+    <Compile Include="MainWindow.S132.cs" />
+    <Compile Include="MainWindow.S132.Clone.cs" />
+    <Compile Include="MainWindow.S132.Learning.cs" />
+    <Compile Include="Models\VmPoseImageAlignmentS132.cs" />
+    <Compile Include="MainWindow.S133.cs" />
+    <Compile Include="MainWindow.S133.Learning.cs" />
+    <Compile Include="Models\VmOcrValidationS133.cs" />
+    <Compile Include="MainWindow.S134.Changeover.cs" />
+    <Compile Include="MainWindow.S135.cs" />
+    <Compile Include="MainWindow.S138.cs" />
+    <Compile Include="MainWindow.S139.cs" />
+    <Compile Include="MainWindow.S140.cs" />
+    <Compile Include="MainWindow.S141.cs" />
+    <Compile Include="MainWindow.S141.UI.cs" />
+    <Compile Include="MainWindow.S142.cs" />
+    <Compile Include="MainWindow.S142.UI.cs" />
+    <Compile Include="MainWindow.S143.cs" />
+    <Compile Include="MainWindow.S143.UI.cs" />
+    <Compile Include="Models\VmImageEdgeLineS143.cs" />
+    <Compile Include="Services\ImageEdgeLineServiceS143.cs" />
+    <Compile Include="MainWindow.S144.cs" />
+    <Compile Include="MainWindow.S144.UI.cs" />
+    <Compile Include="Models\VmConnectedObjectsS144.cs" />
+    <Compile Include="Services\ConnectedObjectServiceS144.cs" />
+    <Compile Include="MainWindow.S145.cs" />
+    <Compile Include="MainWindow.S145.UI.cs" />
+    <Compile Include="Models\VmTemplateTargetSelectionS145.cs" />
+    <Compile Include="MainWindow.S146.cs" />
+    <Compile Include="MainWindow.S146.Projects.cs" />
+    <Compile Include="MainWindow.S147.cs" />
+    <Compile Include="MainWindow.S147.UI.cs" />
+    <Compile Include="ProductionRunHistoryWindowS142.cs" />
+    <Compile Include="Models\VmProductionImageEvidenceS142.cs" />
+    <Compile Include="Services\ProductionImageEvidenceStoreS142.cs" />
+    <Compile Include="Models\VmProductionResultItemsS141.cs" />
+    <Compile Include="Services\ProductionResultValueServiceS141.cs" />
+    <Compile Include="Models\VmRecipeDiffS140.cs" />
+    <Compile Include="Services\RecipeDiffServiceS140.cs" />
+    <Compile Include="Models\VmEngineeringPackageS139.cs" />
+    <Compile Include="Models\VmEngineeringPackageManifestS139.cs" />
+    <Compile Include="Services\EngineeringDeploymentReportS139.cs" />
+    <Compile Include="Services\EngineeringPackageServiceS139.cs" />
+    <Compile Include="EngineeringPackageWindowS139.cs" />
+    <Compile Include="Models\VmProductionNumberValueS138.cs" />
+    <Compile Include="Services\ProductionDefinitionIdentityS138.cs" />
+    <Compile Include="Services\ProductionTrendServiceS138.cs" />
+    <Compile Include="ProductionRunHistoryWindowS138.cs" />
+    <Compile Include="MainWindow.S136.cs" />
+    <Compile Include="MainWindow.S137.cs" />
+    <Compile Include="Models\VmStationEditingProtectionS137.cs" />
+    <Compile Include="Services\StationEditingProtectionServiceS137.cs" />
+    <Compile Include="StationEditingProtectionWindowS137.xaml.cs">
+      <DependentUpon>StationEditingProtectionWindowS137.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Models\VmProductionAlarmS136.cs" />
+    <Compile Include="Services\ProductionAlarmStoreS136.cs" />
+    <Compile Include="ProductionAlarmWindowS136.xaml.cs">
+      <DependentUpon>ProductionAlarmWindowS136.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Models\VmProductionRunRecordS135.cs" />
+    <Compile Include="Services\ProductionRunStoreS135.cs" />
+    <Compile Include="ProductionRunHistoryWindowS135.xaml.cs">
+      <DependentUpon>ProductionRunHistoryWindowS135.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Models\VmRecipeReadinessS134.cs" />
+    <Compile Include="Services\RecipeReadinessServiceS134.cs" />
+    <Compile Include="RecipeChangeoverWindowS134.xaml.cs">
+      <DependentUpon>RecipeChangeoverWindowS134.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Models\VmCameraGeometryS128.cs" />
+    <Compile Include="Models\VmPlanarCalibrationS124.cs" />
+    <Compile Include="Models\VmCameraIntrinsicsS126.cs" />
+    <Compile Include="Models\VmCameraBoardSolverS127.cs" />
+    <Compile Include="Models\VmSubflowLoopS111.cs" />
+    <Compile Include="Models\VmStructuredDataS110.cs" />
+    <Compile Include="MainWindow.S104.Trigger.cs" />
+    <Compile Include="MainWindow.S89.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="MainWindow.S80.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
@@ -209,11 +360,30 @@
     <Compile Include="Services\StartupDiagnosticsService.cs" />
     <Compile Include="Services\TcpCommunicationService.cs" />
     <Compile Include="Services\TcpFlowClientService.cs" />
+    <Compile Include="Services\ModbusTcpServiceS118.cs" />
+    <Compile Include="Services\ModbusRtuServiceS119.cs" />
+    <Compile Include="Services\CommunicationRecoveryS120.cs" />
     <Compile Include="Services\XlsxExportService.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="MainWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="RecipeChangeoverWindowS134.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="ProductionRunHistoryWindowS135.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="ProductionAlarmWindowS136.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="StationEditingProtectionWindowS137.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

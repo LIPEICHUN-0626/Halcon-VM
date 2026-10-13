@@ -145,11 +145,12 @@ namespace HalconWinFormsDemo
             if (FlowSnippetAnchorText == null) return;
             VmToolInstance anchor = FlowToolList == null ? null : FlowToolList.SelectedItem as VmToolInstance;
             int index = anchor == null ? -1 : flowTools.IndexOf(anchor);
-            FlowSnippetAnchorText.Text = index < 0 ? "插入锚点：未选择流程模块" : "插入锚点：#" + anchor.SequenceText + " " + anchor.InstanceName;
+            FlowSnippetAnchorText.Text = flowTools.Count == 0 ? "空白方案：片段将成为第一段流程" : index < 0 ? "插入锚点：未选择流程模块" : "插入锚点：#" + anchor.SequenceText + " " + anchor.InstanceName;
         }
 
         private void SaveSelectedFlowSnippetButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!RequireEngineeringEditS137("保存流程片段")) return;
             List<VmToolInstance> selected = GetSelectedFlowToolsInSequence();
             string name = (FlowSnippetNameTextBox.Text ?? string.Empty).Trim();
             if (selected.Count < 2)
@@ -265,6 +266,7 @@ namespace HalconWinFormsDemo
 
         private void RenameFlowSnippetButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!RequireEngineeringEditS137("重命名流程片段")) return;
             VmFlowSnippetData snippet = GetSelectedFlowSnippetS70();
             if (snippet == null) return;
             string name = (FlowSnippetNameTextBox.Text ?? string.Empty).Trim();
@@ -277,6 +279,7 @@ namespace HalconWinFormsDemo
 
         private void DeleteFlowSnippetButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!RequireEngineeringEditS137("删除流程片段")) return;
             VmFlowSnippetData snippet = GetSelectedFlowSnippetS70();
             if (snippet == null) return;
             if (!string.Equals(pendingDeleteSnippetIdS70, snippet.SnippetId, StringComparison.OrdinalIgnoreCase))
@@ -323,14 +326,21 @@ namespace HalconWinFormsDemo
             VmToolInstance anchor = FlowToolList == null ? null : FlowToolList.SelectedItem as VmToolInstance;
             int anchorIndex = anchor == null ? -1 : flowTools.IndexOf(anchor);
             if (snippet == null) { SetFlowSnippetStatusS70("请先选择一个流程片段。", true); return; }
-            if (anchorIndex < 0) { SetFlowSnippetStatusS70("请先在流程中选择插入锚点。", true); return; }
-            InsertFlowSnippetAtIndexS70(snippet, anchorIndex + (after ? 1 : 0), anchor, after ? "在锚点后" : "在锚点前");
+            if (anchorIndex < 0 && flowTools.Count > 0) { SetFlowSnippetStatusS70("请先在流程中选择插入锚点。", true); return; }
+            InsertFlowSnippetAtIndexS70(snippet, flowTools.Count == 0 ? 0 : anchorIndex + (after ? 1 : 0), anchor, flowTools.Count == 0 ? "在空白方案中" : after ? "在锚点后" : "在锚点前");
         }
 
         private void InsertFlowSnippetAtIndexS70(VmFlowSnippetData snippet, int insertionIndex, VmToolInstance anchor, string placementText)
         {
+            long editLeaseS137 = CaptureEngineeringEditLeaseS137("插入流程片段");
+            if (editLeaseS137 < 0) return;
             if (snippet == null) { SetFlowSnippetStatusS70("请先选择一个流程片段。", true); return; }
-            if (anchor == null || !flowTools.Contains(anchor)) { SetFlowSnippetStatusS70("请先在流程中选择插入锚点。", true); return; }
+            if (flowTools.Count > 0 && (anchor == null || !flowTools.Contains(anchor))) { SetFlowSnippetStatusS70("请先在流程中选择插入锚点。", true); return; }
+            if (!CanNavigateInputRepairS96()) return;
+            if (!ConfirmDockDraftChanges("插入流程片段")) return;
+            var externalChoices = ChooseSnippetInputsS98(snippet, insertionIndex);
+            if (externalChoices == null) return;
+            if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
             List<VmToolClipboardItem> oldClipboard = flowToolClipboard.ToList();
             int? oldInsertionIndex = flowPasteInsertionIndex;
             try
@@ -342,13 +352,13 @@ namespace HalconWinFormsDemo
                 flowPasteHistoryDescriptionS70 = "插入流程片段“" + snippet.Name + "”";
                 flowPastePostProcessS70 = (pasted, idMap) =>
                 {
-                    BindSnippetExternalInputsS70(snippet, pasted, idMap, anchor);
+                    BindSnippetExternalInputsS70(snippet, pasted, idMap, anchor, externalChoices);
                     if (lastSnippetUnresolvedCountS70 > 0) OpenInsertedSnippetUnresolvedTasksS71(pasted);
                 };
                 int count = PasteFlowToolClipboard(Math.Max(0, Math.Min(insertionIndex, flowTools.Count)));
                 if (count > 0)
                 {
-                    string message = "已" + placementText + "插入片段“" + snippet.Name + "”：" + count.ToString(CultureInfo.InvariantCulture) + " 个新模块，内部连接已重映射，" + lastSnippetAutoBoundCountS70.ToString(CultureInfo.InvariantCulture) + " 个外部输入已安全绑定，" + lastSnippetUnresolvedCountS70.ToString(CultureInfo.InvariantCulture) + " 个待补源；一次撤销可整体回退。";
+                    string message = "已" + placementText + "插入片段“" + snippet.Name + "”：" + count.ToString(CultureInfo.InvariantCulture) + " 个新模块，内部连接已重映射，" + lastSnippetAutoBoundCountS70.ToString(CultureInfo.InvariantCulture) + " 个外部输入已绑定，" + lastSnippetUnresolvedCountS70.ToString(CultureInfo.InvariantCulture) + " 个待配置；一次撤销可整体回退。";
                     SetFlowSnippetStatusS70(message, lastSnippetUnresolvedCountS70 > 0);
                     LogInfo(message);
                 }
@@ -398,7 +408,7 @@ namespace HalconWinFormsDemo
             };
         }
 
-        private void BindSnippetExternalInputsS70(VmFlowSnippetData snippet, IList<VmToolInstance> pasted, IDictionary<string, string> idMap, VmToolInstance anchor)
+        private void BindSnippetExternalInputsS70(VmFlowSnippetData snippet, IList<VmToolInstance> pasted, IDictionary<string, string> idMap, VmToolInstance anchor, IDictionary<string, SnippetInputChoiceS98> choices)
         {
             foreach (VmFlowSnippetExternalInputData external in snippet.ExternalInputs)
             {
@@ -407,6 +417,13 @@ namespace HalconWinFormsDemo
                 VmToolInstance target = pasted.FirstOrDefault(item => string.Equals(item.ToolId, targetId, StringComparison.OrdinalIgnoreCase));
                 VmPortDefinition port = target == null ? null : ToolMetadata.GetInstanceInputPorts(target).FirstOrDefault(item => string.Equals(item.PortName, external.TargetPortName, StringComparison.OrdinalIgnoreCase));
                 if (target == null || port == null) { if (external.IsRequired) lastSnippetUnresolvedCountS70++; continue; }
+                SnippetInputChoiceS98 choice;
+                if (choices != null && choices.TryGetValue(SnippetInputKeyS98(external), out choice) && choice != null && choice.Mode != "Auto")
+                {
+                    if (ApplySnippetExplicitInputS98(target, port, choice)) lastSnippetAutoBoundCountS70++;
+                    else if (external.IsRequired) lastSnippetUnresolvedCountS70++;
+                    continue;
+                }
                 VmToolInputBindingData existing = target.GetInputBinding(port.PortName);
                 if (existing != null && string.IsNullOrWhiteSpace(GetInputBindingConfigurationError(target, existing))) { lastSnippetAutoBoundCountS70++; continue; }
                 bool bound = false;

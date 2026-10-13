@@ -2,10 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
 using HalconDotNet;
 using HalconWinFormsDemo.Models;
 
@@ -19,6 +22,16 @@ namespace HalconWinFormsDemo
         private Point toolboxSnippetDragStartS71;
         private VmFlowSnippetListItemS70 toolboxSnippetDragItemS71;
         private string flowStepActivityToolIdS71;
+        private string flowStepActivityFlowIdS71;
+        private string flowStepActivitySessionS71;
+        private WeakReference flowStepActivityInstanceS71;
+        private Window flowStepActivityWindowS71;
+        private Panel flowStepActivityHomeS71;
+        private bool closingFlowStepActivityS71;
+        private readonly DispatcherTimer flowStepActivityTimerS71 = new DispatcherTimer();
+        private bool flowStepActivityTimerInitializedS71;
+        private string flowStepLogSnapshotS71 = string.Empty;
+        private string flowStepCommunicationSnapshotS71 = string.Empty;
 
         private bool IsToolboxSnippetModeActiveS71 { get { return toolboxSnippetModeS71; } }
 
@@ -30,27 +43,6 @@ namespace HalconWinFormsDemo
                 return;
             }
             EnterToolboxSnippetModeS71();
-        }
-
-        private void ToolCatalogCategoryMenuButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (ToolCatalogAllButton == null || ToolCatalogAllButton.ContextMenu == null) return;
-            ToolCatalogAllButton.ContextMenu.PlacementTarget = ToolCatalogAllButton;
-            ToolCatalogAllButton.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
-            ToolCatalogAllButton.ContextMenu.IsOpen = true;
-        }
-
-        private void ToolCatalogShowAllMenuItem_Click(object sender, RoutedEventArgs e)
-        {
-            ExitToolboxSnippetModeS71(false);
-            SelectFirstToolboxCategoryS80();
-            RefreshToolCatalogView();
-            HeaderStatusText.Text = "模块箱已返回全部分类；可直接展开分类、搜索或切换常用/收藏/最近。";
-        }
-
-        private void ToolCatalogShowSnippetsMenuItem_Click(object sender, RoutedEventArgs e)
-        {
-            if (!toolboxSnippetModeS71) EnterToolboxSnippetModeS71();
         }
 
         private void EnterToolboxSnippetModeS71()
@@ -80,7 +72,7 @@ namespace HalconWinFormsDemo
             if (ToolSearchTextBox != null && !string.IsNullOrWhiteSpace(ToolSearchTextBox.Text)) ToolSearchTextBox.Text = string.Empty;
             UpdateToolboxSnippetModeButtonS71();
             RefreshToolCatalogView();
-            if (feedback) HeaderStatusText.Text = "已返回完整工具目录；65+ 个真实工具与 9 个分类保持默认可见。";
+            if (feedback) HeaderStatusText.Text = "已返回完整工具目录；76 个真实工具按 10 类就地展开，无需先选大类。";
         }
 
         private void UpdateToolboxSnippetModeButtonS71()
@@ -91,7 +83,6 @@ namespace HalconWinFormsDemo
                 ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(124, 58, 237))
                 : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 41, 59));
             ToolCatalogSnippetButton.Foreground = toolboxSnippetModeS71 ? System.Windows.Media.Brushes.White : System.Windows.Media.Brushes.LightGray;
-            if (!toolboxSnippetModeS71) UpdateToolboxCategoryButtonS80();
         }
 
         private void RefreshToolboxSnippetItemsS71()
@@ -192,9 +183,9 @@ namespace HalconWinFormsDemo
             VmFlowSnippetData snippet = GetSelectedToolboxSnippetS71();
             VmToolInstance anchor = FlowToolList == null ? null : FlowToolList.SelectedItem as VmToolInstance;
             if (snippet == null) { HeaderStatusText.Text = "请先在左侧选择流程片段。"; return; }
-            if (anchor == null || !flowTools.Contains(anchor)) { HeaderStatusText.Text = "请先在流程中选择插入锚点。"; return; }
-            int index = flowTools.IndexOf(anchor) + (after ? 1 : 0);
-            InsertFlowSnippetAtIndexS70(snippet, index, anchor, after ? "在锚点后" : "在锚点前");
+            if (flowTools.Count > 0 && (anchor == null || !flowTools.Contains(anchor))) { HeaderStatusText.Text = "请先在流程中选择插入锚点。"; return; }
+            int index = flowTools.Count == 0 ? 0 : flowTools.IndexOf(anchor) + (after ? 1 : 0);
+            InsertFlowSnippetAtIndexS70(snippet, index, anchor, flowTools.Count == 0 ? "在空白方案中" : after ? "在锚点后" : "在锚点前");
             RefreshToolboxSnippetPreviewS71();
         }
 
@@ -284,7 +275,7 @@ namespace HalconWinFormsDemo
             VmConnectionIssueS69 issue = connectionIssuesS69.FirstOrDefault(item => ids.Contains(item.TargetToolId) && item.IsBlocking);
             if (issue != null && FlowConnectionIssueListBox != null) FlowConnectionIssueListBox.SelectedItem = issue;
             if (FlowConnectionIssuePanel != null) FlowConnectionIssuePanel.Visibility = Visibility.Visible;
-            if (FlowConnectionIssueSummaryText != null) FlowConnectionIssueSummaryText.Text += " · 片段待补源可交给 S68";
+            if (FlowConnectionIssueSummaryText != null) FlowConnectionIssueSummaryText.Text += " · 新片段待连接：点击修改输入或补充来源";
         }
 
         private void OpenFlowStepActivityButton_Click(object sender, RoutedEventArgs e)
@@ -308,11 +299,42 @@ namespace HalconWinFormsDemo
                 return;
             }
             flowStepActivityToolIdS71 = tool.ToolId;
-            if (FlowConnectionInspectorBorder != null) FlowConnectionInspectorBorder.Visibility = Visibility.Collapsed;
-            if (FlowPortInspectorBorder != null) FlowPortInspectorBorder.Visibility = Visibility.Collapsed;
-            if (FlowConnectionIssuePanel != null) FlowConnectionIssuePanel.Visibility = Visibility.Collapsed;
+            flowStepActivityFlowIdS71 = activeProjectFlowIdS104;
+            flowStepActivitySessionS71 = projectSessionIdS104;
+            flowStepActivityInstanceS71 = new WeakReference(tool);
+            if (flowStepActivityWindowS71 == null)
+            {
+                flowStepActivityHomeS71 = FlowStepActivityPanel.Parent as Panel;
+                flowStepActivityHomeS71?.Children.Remove(FlowStepActivityPanel);
+                FlowStepActivityPanel.Width = double.NaN;
+                FlowStepActivityPanel.MaxHeight = double.PositiveInfinity;
+                FlowStepActivityPanel.HorizontalAlignment = HorizontalAlignment.Stretch;
+                FlowStepActivityPanel.VerticalAlignment = VerticalAlignment.Stretch;
+                flowStepActivityWindowS71 = new Window { Owner = this, Title = "步骤记录", Width = 660, Height = 480,
+                    MinWidth = 520, MinHeight = 360, ShowInTaskbar = false, ShowActivated = ShowActivated,
+                    WindowStartupLocation = WindowStartupLocation.Manual, Content = FlowStepActivityPanel };
+                flowStepActivityWindowS71.Resources.MergedDictionaries.Add(Resources);
+                flowStepActivityWindowS71.Left = ShowActivated ? Math.Max(SystemParameters.WorkArea.Left, Math.Min(SystemParameters.WorkArea.Right - 660, Left + 40)) : Left;
+                flowStepActivityWindowS71.Top = ShowActivated ? Math.Max(SystemParameters.WorkArea.Top, Math.Min(SystemParameters.WorkArea.Bottom - 480, Top + 50)) : Top;
+                flowStepActivityWindowS71.Closing += delegate(object source, System.ComponentModel.CancelEventArgs args)
+                {
+                    if (closingFlowStepActivityS71) return;
+                    args.Cancel = true;
+                    Dispatcher.BeginInvoke(new Action(delegate { CloseFlowStepActivityButton_Click(null, null); }));
+                };
+                FlowStepActivityPanel.Visibility = Visibility.Visible;
+                flowStepActivityWindowS71.Show();
+            }
+            FlowStepFollowS71.IsChecked = true;
             RefreshFlowStepActivityS71();
-            FlowStepActivityPanel.Visibility = Visibility.Visible;
+            if (!flowStepActivityTimerInitializedS71)
+            {
+                flowStepActivityTimerInitializedS71 = true;
+                flowStepActivityTimerS71.Interval = TimeSpan.FromMilliseconds(500);
+                flowStepActivityTimerS71.Tick += delegate { if (FlowStepFollowS71.IsChecked == true) RefreshFlowStepActivityS71(); };
+            }
+            flowStepActivityTimerS71.Start();
+            if (flowStepActivityWindowS71.ShowActivated) flowStepActivityWindowS71.Activate();
             HeaderStatusText.Text = "已打开 " + tool.SequenceText + " " + tool.InstanceName + " 的步骤日志 / 通讯子页面。";
         }
 
@@ -320,6 +342,18 @@ namespace HalconWinFormsDemo
 
         private void CloseFlowStepActivityButton_Click(object sender, RoutedEventArgs e)
         {
+            flowStepActivityTimerS71.Stop();
+            if (flowStepActivityWindowS71 != null)
+            {
+                closingFlowStepActivityS71 = true;
+                try { flowStepActivityWindowS71.Content = null; flowStepActivityWindowS71.Close(); flowStepActivityWindowS71 = null; }
+                finally { closingFlowStepActivityS71 = false; }
+                FlowStepActivityPanel.Width = 560;
+                FlowStepActivityPanel.MaxHeight = 620;
+                FlowStepActivityPanel.HorizontalAlignment = HorizontalAlignment.Center;
+                FlowStepActivityPanel.VerticalAlignment = VerticalAlignment.Center;
+                if (flowStepActivityHomeS71 != null && !flowStepActivityHomeS71.Children.Contains(FlowStepActivityPanel)) flowStepActivityHomeS71.Children.Add(FlowStepActivityPanel);
+            }
             FlowStepActivityPanel.Visibility = Visibility.Collapsed;
             flowStepActivityToolIdS71 = null;
             HeaderStatusText.Text = "已关闭步骤记录子页面；流程画布保持纵向调试视图。";
@@ -327,13 +361,15 @@ namespace HalconWinFormsDemo
 
         private void RefreshFlowStepActivityS71()
         {
-            VmToolInstance tool = flowTools.FirstOrDefault(item => string.Equals(item.ToolId, flowStepActivityToolIdS71, StringComparison.OrdinalIgnoreCase));
+            VmToolInstance tool = flowStepActivityInstanceS71?.Target as VmToolInstance;
+            if (flowStepActivitySessionS71 != projectSessionIdS104 || flowStepActivityFlowIdS71 != activeProjectFlowIdS104 || tool == null || !flowTools.Contains(tool)) tool = null;
             if (tool == null)
             {
                 FlowStepActivityTitleText.Text = "步骤已删除或失效";
                 FlowStepActivitySummaryText.Text = "请关闭本页并重新选择流程步骤。";
                 FlowStepLogTextBox.Text = "--";
                 FlowStepCommunicationTextBox.Text = "--";
+                flowStepLogSnapshotS71 = flowStepCommunicationSnapshotS71 = string.Empty;
                 return;
             }
             FlowStepActivityTitleText.Text = tool.SequenceText + "  " + tool.InstanceName + " · " + tool.DisplayType;
@@ -342,11 +378,12 @@ namespace HalconWinFormsDemo
             List<string> logs = new List<string>();
             if (!string.IsNullOrWhiteSpace(tool.OutputSummary)) logs.Add("[本步骤结果] " + tool.OutputSummary);
             if (!string.IsNullOrWhiteSpace(tool.InputSummary)) logs.Add("[输入] " + tool.InputSummary);
-            string allLog = BottomLogTextBox == null ? string.Empty : BottomLogTextBox.Text ?? string.Empty;
-            logs.AddRange(allLog.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
-                .Where(line => line.IndexOf(tool.InstanceName, StringComparison.CurrentCultureIgnoreCase) >= 0 || line.IndexOf(tool.ToolId, StringComparison.OrdinalIgnoreCase) >= 0)
-                .Reverse().Take(200).Reverse());
-            FlowStepLogTextBox.Text = logs.Count == 0 ? "该步骤尚无运行记录。运行当前工具或流程后再刷新。" : string.Join(Environment.NewLine, logs.Distinct());
+            if (!string.IsNullOrWhiteSpace(tool.ErrorMessage)) logs.Add("[当前异常] " + tool.ErrorMessage);
+            logs.Add("[范围] 当前会话 / 流程 " + GetProjectFlowNameS104() + "；最多200条精确归属记录。旧纯文本日志保留在全局日志，不按名字归并。");
+            logs.AddRange(resultStore.Records.Where(record => record.WorkspaceSessionId == flowStepActivitySessionS71 && record.FlowId == flowStepActivityFlowIdS71 &&
+                record.ToolId == tool.ToolId && record.IsRootTool == true).Reverse().Take(200).Reverse().Select(record =>
+                    string.Format(CultureInfo.InvariantCulture, "[{0:HH:mm:ss}] {1} · {2} · {3} · {4}", record.Timestamp, record.FlowName, record.ToolName, record.ResultCode, record.Message)));
+            FlowStepLogTextBox.Text = string.Join(Environment.NewLine, logs);
 
             if (tool.Kind == VmToolKind.TcpClientExchange)
             {
@@ -358,10 +395,89 @@ namespace HalconWinFormsDemo
                     "字节：" + tool.GetFormattedOutput("BytesSent") + " / " + tool.GetFormattedOutput("BytesReceived") + Environment.NewLine +
                     "往返：" + tool.GetFormattedOutput("RoundTripMs") + " ms";
             }
+            else if (tool.Kind == VmToolKind.ModbusTcpExchange)
+            {
+                VmToolParameterData p = tool.Parameters ?? new VmToolParameterData();
+                FlowStepCommunicationTextBox.Text = "Modbus TCP 目标：" + p.ModbusHostS118 + ":" + p.ModbusPortS118.ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
+                    "操作：" + VmModbusFunctionS118.Display(p.ModbusFunctionCodeS118) + " · Unit " + p.ModbusUnitIdS118.ToString(CultureInfo.InvariantCulture) + " · 地址 " + p.ModbusAddressS118.ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
+                    "成功：" + tool.GetFormattedOutput("Connected") + " · 首值：" + tool.GetFormattedOutput("Value") + Environment.NewLine +
+                    "数量：" + tool.GetFormattedOutput("Count") + " · 异常码：" + tool.GetFormattedOutput("ExceptionCode") + Environment.NewLine +
+                    "往返：" + tool.GetFormattedOutput("RoundTripMs") + " ms" + Environment.NewLine +
+                    "诊断：" + tool.GetFormattedOutput("Diagnostics") + Environment.NewLine +
+                    "尝试：" + tool.GetFormattedOutput("AttemptTrace");
+            }
+            else if (tool.Kind == VmToolKind.ModbusRtuExchange)
+            {
+                VmToolParameterData p = tool.Parameters ?? new VmToolParameterData();
+                FlowStepCommunicationTextBox.Text = "Modbus RTU 串口：" + p.RtuPortNameS119 + " · " + p.RtuBaudRateS119.ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
+                    "操作：" + VmModbusFunctionS118.Display(p.RtuFunctionCodeS119) + " · 站号 " + p.RtuStationS119.ToString(CultureInfo.InvariantCulture) + " · 地址 " + p.RtuAddressS119.ToString(CultureInfo.InvariantCulture) + Environment.NewLine +
+                    "成功：" + tool.GetFormattedOutput("Connected") + " · 首值：" + tool.GetFormattedOutput("Value") + Environment.NewLine +
+                    "数量：" + tool.GetFormattedOutput("Count") + " · 异常码：" + tool.GetFormattedOutput("ExceptionCode") + Environment.NewLine +
+                    "往返：" + tool.GetFormattedOutput("RoundTripMs") + " ms" + Environment.NewLine +
+                    "诊断：" + tool.GetFormattedOutput("Diagnostics") + Environment.NewLine +
+                    "尝试：" + tool.GetFormattedOutput("AttemptTrace");
+            }
             else
             {
                 FlowStepCommunicationTextBox.Text = "该步骤不是通讯工具，没有独立收发交互。\r\n需要查看全局设备收发时，可从右侧“更多 → 通讯工作区”进入。";
             }
+            if (tool.Kind == VmToolKind.TcpClientExchange || tool.Kind == VmToolKind.ModbusTcpExchange || tool.Kind == VmToolKind.ModbusRtuExchange)
+            {
+                object simulated;
+                bool isSimulation = tool.TryGetOutputValue("IsSimulation", out simulated) && simulated is bool && (bool)simulated;
+                FlowStepCommunicationTextBox.Text = (isSimulation ? "[本次离线模拟：未访问设备/外发]\r\n" : "[当前配置与最近输出：不证明持续设备连接]\r\n") +
+                    FlowStepCommunicationTextBox.Text + "\r\n请求帧：" + tool.GetFormattedOutput("RequestHex") + "\r\n响应帧：" + tool.GetFormattedOutput("ResponseHex");
+            }
+            flowStepLogSnapshotS71 = BoundStepViewTextS71(FlowStepLogTextBox.Text);
+            flowStepCommunicationSnapshotS71 = BoundStepViewTextS71(FlowStepCommunicationTextBox.Text);
+            ApplyFlowStepViewFilterS71();
+        }
+
+        private static string BoundStepViewTextS71(string value)
+        {
+            const int maximum = 262144;
+            string text = value ?? string.Empty;
+            return text.Length <= maximum ? text : text.Substring(0, maximum) + "\r\n[查看已达到256Ki字符上限；原日志未删除，导出只含本查看快照]";
+        }
+
+        private void FlowStepViewFilterChangedS71(object sender, RoutedEventArgs e)
+        {
+            if (FlowStepLogTextBox == null || FlowStepCommunicationTextBox == null || FlowStepSearchS71 == null) return;
+            ApplyFlowStepViewFilterS71();
+        }
+
+        private void ApplyFlowStepViewFilterS71()
+        {
+            string query = FlowStepSearchS71.Text?.Trim() ?? string.Empty;
+            Func<string, string> filter = text => query.Length == 0 ? text : string.Join(Environment.NewLine,
+                text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None).Where(line => line.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0));
+            FlowStepLogTextBox.Text = filter(flowStepLogSnapshotS71);
+            FlowStepCommunicationTextBox.Text = filter(flowStepCommunicationSnapshotS71);
+            if (FlowStepFollowS71.IsChecked == true) { FlowStepLogTextBox.ScrollToEnd(); FlowStepCommunicationTextBox.ScrollToEnd(); }
+        }
+
+        private string GetFlowStepViewCopyTextS71()
+        {
+            TextBox box = FlowStepActivityTabsS71.SelectedIndex == 1 ? FlowStepCommunicationTextBox : FlowStepLogTextBox;
+            return box.SelectionLength > 0 ? box.SelectedText : box.Text;
+        }
+
+        private void CopyFlowStepViewS71_Click(object sender, RoutedEventArgs e)
+        {
+            RunUiAction("复制查看文本", delegate { Clipboard.SetText(GetFlowStepViewCopyTextS71()); });
+        }
+
+        private void SaveFlowStepViewSnapshotS71(string path)
+        {
+            string text = "步骤查看快照（不是完整历史）\r\nFlowId=" + flowStepActivityFlowIdS71 + "\r\nToolId=" + flowStepActivityToolIdS71 +
+                "\r\nSession=" + flowStepActivitySessionS71 + "\r\n" + GetFlowStepViewCopyTextS71();
+            File.WriteAllText(path, text, new UTF8Encoding(true));
+        }
+
+        private void ExportFlowStepViewS71_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.SaveFileDialog { Filter = "文本文件|*.txt", FileName = "步骤查看快照.txt" };
+            if (dialog.ShowDialog(flowStepActivityWindowS71) == true) RunUiAction("导出查看文本", delegate { SaveFlowStepViewSnapshotS71(dialog.FileName); });
         }
 
         private void RefreshTypedLineLineConnectionStatusS71(VmToolInstance tool)

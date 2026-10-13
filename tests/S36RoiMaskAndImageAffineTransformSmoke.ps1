@@ -139,7 +139,7 @@ $gray = New-Tool GrayStat 'S36 Region Subscriber'
 $source.Parameters.LocalImagePath = $grayPath; $source.Parameters.LocalImageSerialNumber = 'S36-GRAY'
 $affine.SetInputBinding('Image',$source.ToolId,'Image')
 $threshold.Parameters.ImageThresholdMinGray = 0; $threshold.Parameters.ImageThresholdMaxGray = 255; $threshold.SetInputBinding('Image',$affine.ToolId,'Image')
-$gray.SetInputBinding('Image',$source.ToolId,'Image'); $gray.SetInputBinding('ROI',$threshold.ToolId,'Region')
+$gray.SetInputBinding('Image',$affine.ToolId,'Image'); $gray.SetInputBinding('ROI',$threshold.ToolId,'Region')
 foreach ($tool in @($source,$affine,$threshold,$blob,$gray)) { $flow.Add($tool) }
 $sourceId=$source.ToolId; $affineId=$affine.ToolId; $thresholdId=$threshold.ToolId; $blobId=$blob.ToolId; $grayId=$gray.ToolId
 

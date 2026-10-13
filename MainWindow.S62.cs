@@ -190,6 +190,8 @@ namespace HalconWinFormsDemo
             VmToolInstance source = GetInputSourceTool(poseBinding);
             if (source == null || !string.Equals(source.ResultCode, "OK", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Pose2D 来源尚无本周期 OK 结果，请先运行上游工具。");
+            if ((source.Kind == VmToolKind.ShapeMatch || source.Kind == VmToolKind.NccTemplateMatch) && poseBinding.SourcePortName == "SelectedPose")
+                RequireRigidAppliedTemplateTargetS145(source);
             object raw;
             VmPose2D pose = source.TryGetOutputValue(poseBinding.SourcePortName, out raw) ? raw as VmPose2D : null;
             if (pose == null) throw new InvalidOperationException("Pose2D 来源没有可用的本周期类型化位姿，旧值不会被复用。");

@@ -7,11 +7,74 @@ using System.Runtime.Serialization;
 
 namespace HalconWinFormsDemo.Models
 {
+    public static class VmImageSourceModeS114
+    {
+        public const string File = "File";
+        public const string Replay = "Replay";
+        public const string Camera = "Camera";
+
+        public static string Normalize(string value)
+        {
+            return value == Replay || value == Camera ? value : File;
+        }
+
+        public static VmToolValueOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmToolValueOption { Key = File, DisplayText = "本地图片" },
+                new VmToolValueOption { Key = Replay, DisplayText = "目录逐帧回放" },
+                new VmToolValueOption { Key = Camera, DisplayText = "HALCON 相机" }
+            };
+        }
+    }
+
+    public static class VmCameraTriggerModeS115
+    {
+        public const string FreeRun = "FreeRun";
+        public const string Software = "Software";
+
+        public static string Normalize(string value)
+        {
+            return value == Software ? Software : FreeRun;
+        }
+
+        public static VmToolValueOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmToolValueOption { Key = FreeRun, DisplayText = "自由采集" },
+                new VmToolValueOption { Key = Software, DisplayText = "软件触发" }
+            };
+        }
+    }
+
     [DataContract]
     public sealed class VmToolParameterData
     {
         public VmToolParameterData()
         {
+            CameraTimeoutMsS114 = 5000;
+            ModbusHostS118 = "127.0.0.1";
+            ModbusPortS118 = 502;
+            ModbusTimeoutMsS118 = 1500;
+            ModbusUnitIdS118 = 1;
+            ModbusFunctionCodeS118 = 3;
+            ModbusQuantityS118 = 1;
+            RtuPortNameS119 = "COM1";
+            RtuBaudRateS119 = 9600;
+            RtuParityS119 = "Even";
+            RtuStopBitsS119 = 1;
+            RtuTimeoutMsS119 = 1500;
+            RtuStationS119 = 1;
+            RtuFunctionCodeS119 = 3;
+            RtuQuantityS119 = 1;
+            CommunicationRetryCountS120 = 0;
+            CommunicationRetryDelayMsS120 = 250;
+            CommunicationTotalBudgetMsS120 = 10000;
+            PlanarCalibrationUnitS124 = "mm";
+            PlanarCalibrationSamplesS124 = new List<VmPlanarSampleS124>();
+            CameraRectifyModeS126 = "fixed";
             BlobMinGray = 80;
             BlobMaxGray = 255;
             BlobMinArea = 50;
@@ -19,6 +82,7 @@ namespace HalconWinFormsDemo.Models
             GrayMax = 255;
             EdgeThreshold = 30;
             RoiExecutionMode = VmRoiExecutionMode.Union;
+            RoiSourceMode = VmRoiSourceMode.Local;
             ImageChannelMode = VmImageChannelMode.Keep;
             ImageChannelIndex = 1;
             ImageFilterMode = VmImageFilterMode.Mean;
@@ -28,6 +92,12 @@ namespace HalconWinFormsDemo.Models
             ImageThresholdMinGray = 128;
             ImageThresholdMaxGray = 255;
             AutomaticThresholdPolarity = VmDynamicThresholdPolarity.Dark;
+            InitializeLocalAdaptiveThresholdDefaults();
+            ColorInspectionS129 = new VmColorInspectionParametersS129();
+            VariationInspectionS130 = new VmVariationParametersS130();
+            NccMatchingS131 = new VmNccParametersS131();
+            PoseImageAlignmentS132 = new VmPoseImageAlignmentParametersS132();
+            OcrValidationS133 = new VmOcrValidationParametersS133();
             RegionMorphologyMode = VmRegionMorphologyMode.OpeningCircle;
             RegionMorphologyRadius = 3.5;
             RegionFeature = VmRegionFeature.Area;
@@ -649,6 +719,97 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 337)] public string OcrSortMode { get; set; }
         [DataMember(Order = 338)] public bool OcrDarkOnLight { get; set; }
         [DataMember(Order = 339)] public string AutomaticThresholdPolarity { get; set; }
+        [DataMember(Order = 340)] public int LocalAdaptiveMaskWidth { get; set; }
+        [DataMember(Order = 341)] public int LocalAdaptiveMaskHeight { get; set; }
+        [DataMember(Order = 342)] public double LocalAdaptiveStdDevScale { get; set; }
+        [DataMember(Order = 343)] public double LocalAdaptiveOffset { get; set; }
+        [DataMember(Order = 344)] public string LocalAdaptivePolarity { get; set; }
+        [DataMember(Order = 345, EmitDefaultValue = false)] public string RoiSourceMode { get; set; }
+        [DataMember(Order = 346)] public double HistogramPercentile { get; set; }
+        [DataMember(Order = 347)] public double ProfileStartRow { get; set; }
+        [DataMember(Order = 348)] public double ProfileStartColumn { get; set; }
+        [DataMember(Order = 349)] public double ProfileEndRow { get; set; }
+        [DataMember(Order = 350)] public double ProfileEndColumn { get; set; }
+        [DataMember(Order = 351)] public int ProfileSampleCount { get; set; }
+        [DataMember(Order = 352, EmitDefaultValue = false)] public bool ExecutionConditionWhenFalse { get; set; }
+        [DataMember(Order = 353, EmitDefaultValue = false)] public string BranchValueType { get; set; }
+        [DataMember(Order = 354, EmitDefaultValue = false)] public VmSubflowData Subflow { get; set; }
+        [DataMember(Order = 355)] public string ArrayText { get; set; } = "10.1,10.2,9.9";
+        [DataMember(Order = 356)] public string ArrayDelimiter { get; set; } = ",";
+        [DataMember(Order = 357)] public int ArrayIndex { get; set; }
+        [DataMember(Order = 358)] public string NumericExpressionText { get; set; } = "(A+B)/2";
+        [DataMember(Order = 359)] public string ArrayReorderMode { get; set; } = VmArrayReorderS108.Ascending;
+        [DataMember(Order = 360)] public int ArraySliceStart { get; set; }
+        [DataMember(Order = 361)] public int ArraySliceLength { get; set; } = 1;
+        [DataMember(Order = 362, EmitDefaultValue = false)] public List<VmJsonFieldS110> JsonFields { get; set; }
+        [DataMember(Order = 363, EmitDefaultValue = false)] public string JsonText { get; set; }
+        [DataMember(Order = 364, EmitDefaultValue = false)] public string ImageSourceModeS114 { get; set; }
+        [DataMember(Order = 365, EmitDefaultValue = false)] public string ImageReplayFolderS114 { get; set; }
+        [DataMember(Order = 366, EmitDefaultValue = false)] public string CameraInterfaceS114 { get; set; }
+        [DataMember(Order = 367, EmitDefaultValue = false)] public string CameraDeviceS114 { get; set; }
+        [DataMember(Order = 368, EmitDefaultValue = false)] public int CameraTimeoutMsS114 { get; set; }
+        [DataMember(Order = 369, EmitDefaultValue = false)] public string CameraTriggerModeS115 { get; set; }
+        [DataMember(Order = 370, EmitDefaultValue = false)] public int ReplayMissingEveryS115 { get; set; }
+        [DataMember(Order = 371, EmitDefaultValue = false)] public int ReplayMinimumIntervalMsS115 { get; set; }
+        [DataMember(Order = 372, EmitDefaultValue = false)] public string TcpResponseModeS117 { get; set; }
+        [DataMember(Order = 373, EmitDefaultValue = false)] public string TcpResponseDelimiterS117 { get; set; }
+        [DataMember(Order = 374, EmitDefaultValue = false)] public string TcpResponseStringSelectorS117 { get; set; }
+        [DataMember(Order = 375, EmitDefaultValue = false)] public string TcpResponseNumberSelectorS117 { get; set; }
+        [DataMember(Order = 376, EmitDefaultValue = false)] public string TcpResponseBooleanSelectorS117 { get; set; }
+        [DataMember(Order = 377, EmitDefaultValue = false)] public string ModbusHostS118 { get; set; }
+        [DataMember(Order = 378, EmitDefaultValue = false)] public int ModbusPortS118 { get; set; }
+        [DataMember(Order = 379, EmitDefaultValue = false)] public int ModbusTimeoutMsS118 { get; set; }
+        [DataMember(Order = 380, EmitDefaultValue = false)] public int ModbusUnitIdS118 { get; set; }
+        [DataMember(Order = 381, EmitDefaultValue = false)] public int ModbusFunctionCodeS118 { get; set; }
+        [DataMember(Order = 382, EmitDefaultValue = false)] public int ModbusAddressS118 { get; set; }
+        [DataMember(Order = 383, EmitDefaultValue = false)] public int ModbusQuantityS118 { get; set; }
+        [DataMember(Order = 384, EmitDefaultValue = false)] public int ModbusWriteValueS118 { get; set; }
+        [DataMember(Order = 385, EmitDefaultValue = false)] public string RtuPortNameS119 { get; set; }
+        [DataMember(Order = 386, EmitDefaultValue = false)] public int RtuBaudRateS119 { get; set; }
+        [DataMember(Order = 387, EmitDefaultValue = false)] public string RtuParityS119 { get; set; }
+        [DataMember(Order = 388, EmitDefaultValue = false)] public int RtuStopBitsS119 { get; set; }
+        [DataMember(Order = 389, EmitDefaultValue = false)] public int RtuTimeoutMsS119 { get; set; }
+        [DataMember(Order = 390, EmitDefaultValue = false)] public int RtuStationS119 { get; set; }
+        [DataMember(Order = 391, EmitDefaultValue = false)] public int RtuFunctionCodeS119 { get; set; }
+        [DataMember(Order = 392, EmitDefaultValue = false)] public int RtuAddressS119 { get; set; }
+        [DataMember(Order = 393, EmitDefaultValue = false)] public int RtuQuantityS119 { get; set; }
+        [DataMember(Order = 394, EmitDefaultValue = false)] public int RtuWriteValueS119 { get; set; }
+        [DataMember(Order = 395, EmitDefaultValue = false)] public int CommunicationRetryCountS120 { get; set; }
+        [DataMember(Order = 396, EmitDefaultValue = false)] public int CommunicationRetryDelayMsS120 { get; set; }
+        [DataMember(Order = 397, EmitDefaultValue = false)] public int CommunicationTotalBudgetMsS120 { get; set; }
+        [DataMember(Order = 398, EmitDefaultValue = false)] public bool CommunicationSimulationS121 { get; set; }
+        [DataMember(Order = 399, EmitDefaultValue = false)] public string TcpSimulationResponseS121 { get; set; }
+        [DataMember(Order = 400, EmitDefaultValue = false)] public string ModbusSimulationFrameS121 { get; set; }
+        [DataMember(Order = 401, EmitDefaultValue = false)] public string RtuSimulationFrameS121 { get; set; }
+        [DataMember(Order = 402, EmitDefaultValue = false)] public string ModbusRegisterTypeS122 { get; set; }
+        [DataMember(Order = 403, EmitDefaultValue = false)] public string ModbusWordOrderS122 { get; set; }
+        [DataMember(Order = 404, EmitDefaultValue = false)] public string PlanarCalibrationUnitS124 { get; set; }
+        [DataMember(Order = 405, EmitDefaultValue = false)] public List<VmPlanarSampleS124> PlanarCalibrationSamplesS124 { get; set; }
+        [DataMember(Order = 406, EmitDefaultValue = false)] public VmCameraIntrinsicsS126 CameraIntrinsicsS126 { get; set; }
+        [DataMember(Order = 407, EmitDefaultValue = false)] public string CameraRectifyModeS126 { get; set; }
+        [DataMember(Order = 408, EmitDefaultValue = false)] public string CameraBoardPathS127 { get; set; }
+        [DataMember(Order = 409, EmitDefaultValue = false)] public List<string> CameraSamplePathsS127 { get; set; }
+        [DataMember(Order = 410, EmitDefaultValue = false)] public VmColorInspectionParametersS129 ColorInspectionS129 { get; set; }
+        [DataMember(Order = 411, EmitDefaultValue = false)] public VmVariationParametersS130 VariationInspectionS130 { get; set; }
+        [DataMember(Order = 412, EmitDefaultValue = false)] public VmNccParametersS131 NccMatchingS131 { get; set; }
+        [DataMember(Order = 413, EmitDefaultValue = false)] public VmPoseImageAlignmentParametersS132 PoseImageAlignmentS132 { get; set; }
+        [DataMember(Order = 414, EmitDefaultValue = false)] public VmOcrValidationParametersS133 OcrValidationS133 { get; set; }
+        [DataMember(Order = 415, EmitDefaultValue = false)] public VmImageEdgeLineParametersS143 ImageEdgeLineS143 { get; set; }
+        [DataMember(Order = 416, EmitDefaultValue = false)] public VmConnectedObjectParametersS144 ConnectedObjectsS144 { get; set; }
+        [DataMember(Order = 417, EmitDefaultValue = false)] public VmTemplateTargetParametersS145 TemplateTargetsS145 { get; set; }
+        [DataMember(Order = 418, EmitDefaultValue = false)] public VmCommunicationSampleQueueS149 CommunicationSampleQueueS149 { get; set; }
+
+        private void InitializeLocalAdaptiveThresholdDefaults()
+        {
+            HistogramPercentile = 95;
+            ProfileEndColumn = 100;
+            ProfileSampleCount = 128;
+            LocalAdaptiveMaskWidth = 31;
+            LocalAdaptiveMaskHeight = 31;
+            LocalAdaptiveStdDevScale = 0.8;
+            LocalAdaptiveOffset = 10;
+            LocalAdaptivePolarity = VmDynamicThresholdPolarity.Dark;
+        }
 
         private void InitializeOcrDefaults()
         {
@@ -665,7 +826,17 @@ namespace HalconWinFormsDemo.Models
         [OnDeserializing]
         private void InitializeMissingBarCodeFields(StreamingContext context)
         {
+            // Old recipes predate the explicit local / inherited / merge choice.
+            // Keep their historical Region + local-ROI intersection behavior until
+            // the user opens and applies the new ROI task page.
+            RoiSourceMode = VmRoiSourceMode.Legacy;
             InitializeOcrDefaults();
+            InitializeLocalAdaptiveThresholdDefaults();
+            ColorInspectionS129 = new VmColorInspectionParametersS129();
+            VariationInspectionS130 = new VmVariationParametersS130();
+            NccMatchingS131 = new VmNccParametersS131();
+            PoseImageAlignmentS132 = new VmPoseImageAlignmentParametersS132();
+            OcrValidationS133 = new VmOcrValidationParametersS133();
             // Missing legacy fields get defaults; explicit zero values must survive
             // deserialization and cloning (zero tolerance is a valid user choice).
             BarCodeMaxResults = 1;
@@ -696,16 +867,49 @@ namespace HalconWinFormsDemo.Models
         public VmToolParameterData Clone()
         {
             VmToolParameterData clone = (VmToolParameterData)MemberwiseClone();
+            clone.Subflow = Subflow == null ? null : Subflow.Clone();
+            clone.JsonFields = JsonFields == null ? null : JsonFields.Select(item => item == null ? null : item.Clone()).ToList();
             clone.ScriptInterfaceMembers = ScriptInterfaceMembers == null
                 ? new List<VmScriptInterfaceMemberData>()
                 : ScriptInterfaceMembers.Where(item => item != null).Select(item => item.Clone()).ToList();
+            clone.PlanarCalibrationSamplesS124 = PlanarCalibrationSamplesS124 == null
+                ? new List<VmPlanarSampleS124>() : PlanarCalibrationSamplesS124.Where(item => item != null).Select(item => item.Clone()).ToList();
+            clone.CameraIntrinsicsS126 = CameraIntrinsicsS126 == null ? null : CameraIntrinsicsS126.Clone();
+            clone.CameraSamplePathsS127 = CameraSamplePathsS127 == null ? new List<string>() : CameraSamplePathsS127.ToList();
+            clone.ColorInspectionS129 = ColorInspectionS129 == null ? new VmColorInspectionParametersS129() : ColorInspectionS129.Clone();
+            clone.VariationInspectionS130 = VariationInspectionS130 == null ? new VmVariationParametersS130() : VariationInspectionS130.Clone();
+            clone.NccMatchingS131 = NccMatchingS131 == null ? new VmNccParametersS131() : NccMatchingS131.Clone();
+            clone.PoseImageAlignmentS132 = PoseImageAlignmentS132 == null ? new VmPoseImageAlignmentParametersS132() : PoseImageAlignmentS132.Clone();
+            clone.OcrValidationS133 = OcrValidationS133 == null ? new VmOcrValidationParametersS133() : OcrValidationS133.Clone();
+            clone.ImageEdgeLineS143 = ImageEdgeLineS143 == null ? null : ImageEdgeLineS143.Clone();
+            clone.ConnectedObjectsS144 = ConnectedObjectsS144 == null ? null : ConnectedObjectsS144.Clone();
+            clone.TemplateTargetsS145 = TemplateTargetsS145 == null ? null : TemplateTargetsS145.Clone();
+            clone.CommunicationSampleQueueS149 = CommunicationSampleQueueS149 == null ? null : CommunicationSampleQueueS149.Clone();
             clone.Normalize();
             return clone;
         }
 
         public void Normalize()
         {
+            ImageSourceModeS114 = VmImageSourceModeS114.Normalize(ImageSourceModeS114);
+            CameraTriggerModeS115 = VmCameraTriggerModeS115.Normalize(CameraTriggerModeS115);
+            TcpResponseModeS117 = VmTcpResponseModeS117.Normalize(TcpResponseModeS117);
+            ModbusRegisterTypeS122 = VmModbusRegisterDecodeS122.NormalizeType(ModbusRegisterTypeS122);
+            ModbusWordOrderS122 = VmModbusRegisterDecodeS122.NormalizeOrder(ModbusWordOrderS122);
+            PlanarCalibrationUnitS124 = string.IsNullOrWhiteSpace(PlanarCalibrationUnitS124) ? "mm" : PlanarCalibrationUnitS124.Trim();
+            PlanarCalibrationSamplesS124 = PlanarCalibrationSamplesS124 ?? new List<VmPlanarSampleS124>();
+            CameraRectifyModeS126 = CameraRectifyModeS126 == "fullsize" ? "fullsize" : "fixed";
+            CameraSamplePathsS127 = CameraSamplePathsS127 ?? new List<string>();
+            ColorInspectionS129 = ColorInspectionS129 ?? new VmColorInspectionParametersS129();
+            VariationInspectionS130 = VariationInspectionS130 ?? new VmVariationParametersS130();
+            NccMatchingS131 = NccMatchingS131 ?? new VmNccParametersS131();
+            PoseImageAlignmentS132 = PoseImageAlignmentS132 ?? new VmPoseImageAlignmentParametersS132();
+            OcrValidationS133 = OcrValidationS133 ?? new VmOcrValidationParametersS133();
+            if (TcpResponseDelimiterS117 == null) TcpResponseDelimiterS117 = ",";
+            if (CameraTimeoutMsS114 == 0) CameraTimeoutMsS114 = 5000;
+            if (CommunicationTotalBudgetMsS120 == 0) CommunicationTotalBudgetMsS120 = 10000;
             RoiExecutionMode = VmRoiExecutionMode.Normalize(RoiExecutionMode);
+            RoiSourceMode = VmRoiSourceMode.Normalize(RoiSourceMode);
             ImageChannelMode = VmImageChannelMode.Normalize(ImageChannelMode);
             ImageFilterMode = VmImageFilterMode.Normalize(ImageFilterMode);
             RegionMorphologyMode = VmRegionMorphologyMode.Normalize(RegionMorphologyMode);
@@ -713,6 +917,7 @@ namespace HalconWinFormsDemo.Models
             ImageEnhancementMode = VmImageEnhancementMode.Normalize(ImageEnhancementMode);
             DynamicThresholdPolarity = VmDynamicThresholdPolarity.Normalize(DynamicThresholdPolarity);
             AutomaticThresholdPolarity = VmDynamicThresholdPolarity.Normalize(AutomaticThresholdPolarity);
+            LocalAdaptivePolarity = VmDynamicThresholdPolarity.Normalize(LocalAdaptivePolarity);
             ImageDifferenceMode = VmImageDifferenceMode.Normalize(ImageDifferenceMode);
             RegionContourMode = VmRegionContourMode.Normalize(RegionContourMode);
             if (string.IsNullOrWhiteSpace(XldContourFeature))
@@ -1181,14 +1386,95 @@ namespace HalconWinFormsDemo.Models
 
         public string Validate(VmToolKind kind)
         {
+            if ((kind == VmToolKind.ShapeMatch || kind == VmToolKind.NccTemplateMatch) && TemplateTargetsS145 != null)
+            {
+                string targetError = TemplateTargetsS145.Validate(); if (targetError.Length > 0) return targetError;
+            }
+            if (kind == VmToolKind.ConnectedObjectAnalysisS144) return (ConnectedObjectsS144 ?? new VmConnectedObjectParametersS144()).Validate();
+            if (kind == VmToolKind.ImageEdgeLineFindingS143) return (ImageEdgeLineS143 ?? new VmImageEdgeLineParametersS143()).Validate();
+            if (kind == VmToolKind.CameraDistortionCorrection)
+            {
+                if (CameraIntrinsicsS126 == null) return "请导入 HALCON 相机参数 .dat 或输入已知内参。";
+                string cameraError = CameraIntrinsicsS126.Validate();
+                if (!string.IsNullOrWhiteSpace(cameraError)) return cameraError;
+                if (CameraRectifyModeS126 != "fixed" && CameraRectifyModeS126 != "fullsize") return "畸变校正视野模式无效。";
+            }
+            if (kind == VmToolKind.ColorInspectionHsv)
+            {
+                string colorError = (ColorInspectionS129 ?? new VmColorInspectionParametersS129()).Validate();
+                if (!string.IsNullOrWhiteSpace(colorError)) return colorError;
+            }
+            if (kind == VmToolKind.VariationSurfaceInspection)
+            {
+                string variationError = (VariationInspectionS130 ?? new VmVariationParametersS130()).Validate();
+                if (!string.IsNullOrWhiteSpace(variationError)) return variationError;
+            }
+            if (kind == VmToolKind.NccTemplateMatch)
+            {
+                string nccError = (NccMatchingS131 ?? new VmNccParametersS131()).Validate();
+                if (!string.IsNullOrWhiteSpace(nccError)) return nccError;
+            }
+            if (kind == VmToolKind.PoseImageAlignment)
+            {
+                string alignmentError = (PoseImageAlignmentS132 ?? new VmPoseImageAlignmentParametersS132()).Validate();
+                if (!string.IsNullOrWhiteSpace(alignmentError)) return alignmentError;
+            }
+            if (kind == VmToolKind.PlanarCalibration2D)
+            {
+                if (PlanarCalibrationUnitS124 == null || PlanarCalibrationUnitS124.Length < 1 || PlanarCalibrationUnitS124.Length > 16)
+                    return "标定单位必须为 1–16 个字符。";
+                try { VmPlanarCalibrationS124.Fit(PlanarCalibrationSamplesS124,
+                    PlanarCalibrationSamplesS124 == null || PlanarCalibrationSamplesS124.Count == 0 || PlanarCalibrationSamplesS124[0] == null
+                        ? null : PlanarCalibrationSamplesS124[0].ImageContextId); }
+                catch (Exception ex) { return ex.Message; }
+            }
+            if (VmArrayContractS105.IsTool(kind)) return VmArrayContractS105.Validate(kind, this);
+            if (VmStructuredDataS110.IsTool(kind)) return VmStructuredDataS110.Validate(kind, this);
+            if (VmArrayReorderS108.IsTool(kind)) return VmArrayReorderS108.Validate(this);
+            if (kind == VmToolKind.NumericExpression)
+            {
+                try { VmNumericExpressionS106.Compile(NumericExpressionText); return null; }
+                catch (InvalidOperationException ex) { return ex.Message; }
+            }
+            if (kind == VmToolKind.SubflowInput) return null;
+            if (kind == VmToolKind.SubflowCall) return Subflow == null ? "请从所选模块创建子流程，或配置子流程内容。" : Subflow.Validate();
+            if (kind == VmToolKind.BranchValueSelection && !string.IsNullOrWhiteSpace(BranchValueType) &&
+                VmFlowValueContractS103.Normalize(BranchValueType, false) == null)
+                return "分支结果类型无效，请从数值文本、图像图形或几何点集中选择正式类型。";
+            if (!VmRoiSourceMode.IsSupported(RoiSourceMode))
+            {
+                return "ROI 来源策略无效。";
+            }
+
             if (kind == VmToolKind.ImageSource)
             {
-                if (string.IsNullOrWhiteSpace(LocalImagePath))
+                string sourceMode = VmImageSourceModeS114.Normalize(ImageSourceModeS114);
+                if (sourceMode == VmImageSourceModeS114.Replay)
+                {
+                    if (string.IsNullOrWhiteSpace(ImageReplayFolderS114) || !Directory.Exists(ImageReplayFolderS114))
+                        return "请选择存在的回放图片目录。";
+                    if (ReplayMissingEveryS115 != 0 && (ReplayMissingEveryS115 < 2 || ReplayMissingEveryS115 > 1000))
+                        return "模拟缺图周期须为 0（关闭）或 2–1000 次请求。";
+                    if (ReplayMinimumIntervalMsS115 < 0 || ReplayMinimumIntervalMsS115 > 60000)
+                        return "回放最小请求间隔须为 0–60000 毫秒。";
+                }
+                else if (sourceMode == VmImageSourceModeS114.Camera)
+                {
+                    if (string.IsNullOrWhiteSpace(CameraInterfaceS114) ||
+                        !System.Text.RegularExpressions.Regex.IsMatch(CameraInterfaceS114.Trim(), "^[A-Za-z0-9_]+$") ||
+                        string.Equals(CameraInterfaceS114.Trim(), "File", StringComparison.OrdinalIgnoreCase))
+                        return "请输入已安装的 HALCON 相机接口名；文件采集请使用离线回放。";
+                    int cameraTimeout = CameraTimeoutMsS114 == 0 ? 5000 : CameraTimeoutMsS114;
+                    if (cameraTimeout < 100 || cameraTimeout > 60000)
+                        return "相机取图超时须在 100 到 60000 毫秒之间。";
+                    if (!string.IsNullOrWhiteSpace(CameraDeviceS114) && CameraDeviceS114.Any(char.IsControl))
+                        return "设备标识不能包含控制字符。";
+                }
+                else if (string.IsNullOrWhiteSpace(LocalImagePath))
                 {
                     return "请选择本地图像文件。";
                 }
-
-                if (!File.Exists(LocalImagePath))
+                else if (!File.Exists(LocalImagePath))
                 {
                     return "本地图像文件不存在：" + LocalImagePath;
                 }
@@ -1612,6 +1898,15 @@ namespace HalconWinFormsDemo.Models
 
             if (kind == VmToolKind.TcpClientExchange)
             {
+                if (CommunicationSampleQueueS149 != null)
+                {
+                    string queueError = CommunicationSampleQueueS149.Validate(kind);
+                    if (queueError.Length > 0) return queueError;
+                }
+                if (CommunicationSimulationS121 && CommunicationSampleQueueS149 == null && string.IsNullOrWhiteSpace(TcpSimulationResponseS121))
+                    return "离线模拟需要填写 TCP 样本响应。";
+                if (CommunicationSampleQueueS149 == null && (TcpSimulationResponseS121 ?? string.Empty).Length > 65536)
+                    return "TCP 模拟响应不能超过 65536 个字符。";
                 if (string.IsNullOrWhiteSpace(TcpClientHost) || TcpClientHost.Length > 255)
                     return "TCP 主机必须填写，且长度不能超过 255 个字符。";
                 if (TcpClientPort < 1 || TcpClientPort > 65535)
@@ -1628,6 +1923,66 @@ namespace HalconWinFormsDemo.Models
                     return "TCP 行尾仅支持无、CR、LF 或 CRLF。";
                 if ((TcpClientSendTemplate ?? string.Empty).Length > 65536)
                     return "TCP 发送模板不能超过 65536 个字符。";
+                string responseMappingError = VmTcpResponseMappingS117.Validate(this);
+                if (!string.IsNullOrWhiteSpace(responseMappingError)) return responseMappingError;
+            }
+
+            if (kind == VmToolKind.ModbusTcpExchange)
+            {
+                try
+                {
+                    new HalconWinFormsDemo.Services.ModbusTcpRequestS118
+                    {
+                        Host = ModbusHostS118, Port = ModbusPortS118, TimeoutMs = ModbusTimeoutMsS118,
+                        UnitId = ModbusUnitIdS118, FunctionCode = ModbusFunctionCodeS118,
+                        Address = ModbusAddressS118, Quantity = ModbusQuantityS118, WriteValue = ModbusWriteValueS118
+                    }.Validate();
+                }
+                catch (InvalidOperationException ex) { return ex.Message; }
+            }
+
+            if (kind == VmToolKind.ModbusRtuExchange)
+            {
+                try
+                {
+                    new HalconWinFormsDemo.Services.ModbusRtuRequestS119
+                    {
+                        PortName = RtuPortNameS119, BaudRate = RtuBaudRateS119, ParityName = RtuParityS119,
+                        StopBitCount = RtuStopBitsS119, TimeoutMs = RtuTimeoutMsS119, Station = RtuStationS119,
+                        FunctionCode = RtuFunctionCodeS119, Address = RtuAddressS119,
+                        Quantity = RtuQuantityS119, WriteValue = RtuWriteValueS119
+                    }.Validate();
+                }
+                catch (InvalidOperationException ex) { return ex.Message; }
+            }
+
+            if (kind == VmToolKind.ModbusTcpExchange || kind == VmToolKind.ModbusRtuExchange)
+            {
+                int functionS122 = kind == VmToolKind.ModbusTcpExchange ? ModbusFunctionCodeS118 : RtuFunctionCodeS119;
+                int quantityS122 = kind == VmToolKind.ModbusTcpExchange ? ModbusQuantityS118 : RtuQuantityS119;
+                string decodeErrorS122 = VmModbusRegisterDecodeS122.Validate(functionS122, quantityS122, ModbusRegisterTypeS122, ModbusWordOrderS122);
+                if (decodeErrorS122 != null) return decodeErrorS122;
+                string frameS121 = kind == VmToolKind.ModbusTcpExchange ? ModbusSimulationFrameS121 : RtuSimulationFrameS121;
+                if (CommunicationSampleQueueS149 != null)
+                {
+                    string queueError = CommunicationSampleQueueS149.Validate(kind);
+                    if (queueError.Length > 0) return queueError;
+                }
+                if (CommunicationSimulationS121 && CommunicationSampleQueueS149 == null && string.IsNullOrWhiteSpace(frameS121))
+                    return "离线模拟需要填写响应帧；可先生成示例帧再修改。";
+                if (CommunicationSampleQueueS149 == null && (frameS121 ?? string.Empty).Length > 2048)
+                    return "模拟响应帧不能超过 2048 个字符。";
+                if (CommunicationTotalBudgetMsS120 == 0) CommunicationTotalBudgetMsS120 = 10000;
+                try
+                {
+                    new HalconWinFormsDemo.Services.CommunicationRecoveryPolicyS120
+                    {
+                        AdditionalReadAttempts = CommunicationRetryCountS120,
+                        BackoffMs = CommunicationRetryDelayMsS120,
+                        TotalBudgetMs = CommunicationTotalBudgetMsS120
+                    }.Validate();
+                }
+                catch (InvalidOperationException ex) { return ex.Message; }
             }
 
             if (kind == VmToolKind.TextAssembly)
@@ -1790,6 +2145,23 @@ namespace HalconWinFormsDemo.Models
                 if (OcrThreshold < 0 || OcrThreshold > 255) return "字符分割灰度必须在 0–255 之间。";
                 if (!IsFinite(OcrMinimumArea) || !IsFinite(OcrMaximumArea) || OcrMinimumArea < 1 || OcrMaximumArea < OcrMinimumArea || OcrMaximumArea > 100000000) return "字符面积范围必须满足 1≤最小值≤最大值≤100000000。";
                 if (OcrSortMode != "Row" && OcrSortMode != "Column" && OcrSortMode != "Source") return "字符顺序请选择按行、按列或保持来源。";
+                VmOcrValidationParametersS133 validation = OcrValidationS133 ?? new VmOcrValidationParametersS133();
+                string validationError = validation.Validate();
+                if (!string.IsNullOrEmpty(validationError)) return validationError;
+                if (!string.IsNullOrWhiteSpace(validation.ModelPath))
+                {
+                    if (!Path.IsPathRooted(validation.ModelPath) ||
+                        !string.Equals(Path.GetExtension(validation.ModelPath), ".omc", StringComparison.OrdinalIgnoreCase))
+                        return "OCR 受管字库须为稳定的绝对 .omc 路径。";
+                    try
+                    {
+                        if (!string.Equals(Path.GetFullPath(OcrModelPath), Path.GetFullPath(validation.ModelPath), StringComparison.OrdinalIgnoreCase))
+                            return "OCR 字库路径与保存的 SHA 版本不是同一文件，请从原字库入口显式重新导入。";
+                    }
+                    catch (ArgumentException) { return "OCR 字库路径无效。"; }
+                    catch (NotSupportedException) { return "OCR 字库路径格式不受支持。"; }
+                    catch (PathTooLongException) { return "OCR 字库路径过长。"; }
+                }
             }
             if (kind == VmToolKind.BarCode1DRecognition)
             {
@@ -2315,6 +2687,40 @@ namespace HalconWinFormsDemo.Models
             if (kind == VmToolKind.AutomaticThreshold && !VmDynamicThresholdPolarity.IsSupported(AutomaticThresholdPolarity))
             {
                 return "自动阈值目标明暗必须选择 Light 或 Dark。";
+            }
+
+            if (kind == VmToolKind.LocalAdaptiveThreshold)
+            {
+                if (LocalAdaptiveMaskWidth < 3 || LocalAdaptiveMaskWidth > 511 || LocalAdaptiveMaskWidth % 2 == 0 ||
+                    LocalAdaptiveMaskHeight < 3 || LocalAdaptiveMaskHeight > 511 || LocalAdaptiveMaskHeight % 2 == 0)
+                {
+                    return "局部自适应阈值窗口宽高必须是 3 到 511 的奇数。";
+                }
+                if (double.IsNaN(LocalAdaptiveStdDevScale) || double.IsInfinity(LocalAdaptiveStdDevScale) ||
+                    LocalAdaptiveStdDevScale <= 0 || LocalAdaptiveStdDevScale > 100)
+                {
+                    return "局部自适应阈值标准差系数必须大于 0 且不超过 100。";
+                }
+                if (double.IsNaN(LocalAdaptiveOffset) || double.IsInfinity(LocalAdaptiveOffset) ||
+                    LocalAdaptiveOffset < 0 || LocalAdaptiveOffset > 255)
+                {
+                    return "局部自适应阈值最小灰差必须在 0 到 255 之间。";
+                }
+                if (!VmDynamicThresholdPolarity.IsSupported(LocalAdaptivePolarity))
+                {
+                    return "局部自适应阈值目标明暗必须选择 Light 或 Dark。";
+                }
+            }
+
+            if (kind == VmToolKind.GrayHistogram && (!IsFinite(HistogramPercentile) || HistogramPercentile < 0 || HistogramPercentile > 100))
+                return "自选分位必须在 0 到 100% 之间。";
+            if (kind == VmToolKind.GrayLineProfile)
+            {
+                if (!IsFinite(ProfileStartRow) || !IsFinite(ProfileStartColumn) || !IsFinite(ProfileEndRow) || !IsFinite(ProfileEndColumn) ||
+                    ProfileStartRow < 0 || ProfileStartColumn < 0 || ProfileEndRow < 0 || ProfileEndColumn < 0)
+                    return "剖面端点必须是非负有限坐标。";
+                if (ProfileStartRow == ProfileEndRow && ProfileStartColumn == ProfileEndColumn) return "剖面起终点不能重合。";
+                if (ProfileSampleCount < 2 || ProfileSampleCount > 8192) return "剖面采样数必须为 2–8192。";
             }
 
             if (kind == VmToolKind.RegionMorphology)
@@ -4119,6 +4525,49 @@ namespace HalconWinFormsDemo.Models
         public string Key { get; set; }
 
         public string DisplayText { get; set; }
+    }
+
+    public static class VmRoiSourceMode
+    {
+        public const string Local = "Local";
+        public const string Inherited = "Inherited";
+        public const string Merge = "Merge";
+        internal const string Legacy = "Legacy";
+
+        public static bool IsSupported(string value)
+        {
+            return string.Equals(value, Local, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Inherited, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Merge, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, Legacy, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static string Normalize(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.Equals(value, Local, StringComparison.OrdinalIgnoreCase)) return Local;
+            if (string.Equals(value, Inherited, StringComparison.OrdinalIgnoreCase)) return Inherited;
+            if (string.Equals(value, Merge, StringComparison.OrdinalIgnoreCase)) return Merge;
+            return string.Equals(value, Legacy, StringComparison.OrdinalIgnoreCase) ? Legacy : value.Trim();
+        }
+
+        public static string GetDisplayText(string value)
+        {
+            string normalized = Normalize(value);
+            if (normalized == Inherited) return "继承前序";
+            if (normalized == Merge) return "合并本地与前序";
+            if (normalized == Legacy) return "旧配方兼容";
+            return normalized == Local ? "本地绘制" : "未知来源";
+        }
+
+        public static VmToolValueOption[] CreateAll()
+        {
+            return new[]
+            {
+                new VmToolValueOption { Key = Local, DisplayText = "本地绘制" },
+                new VmToolValueOption { Key = Inherited, DisplayText = "继承前序" },
+                new VmToolValueOption { Key = Merge, DisplayText = "合并本地与前序" }
+            };
+        }
     }
 
     public static class VmCaliperTransition

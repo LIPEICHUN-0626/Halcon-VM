@@ -9,6 +9,17 @@ namespace HalconWinFormsDemo.Models
 
         public DateTime Timestamp { get; set; }
 
+        public string RecipeName { get; set; }
+        public string FlowId { get; set; }
+        public string FlowName { get; set; }
+        public string WorkspaceSessionId { get; set; }
+        public string ExecutionScope { get; set; }
+        public string ToolId { get; set; }
+        public string ToolName { get; set; }
+        public bool? IsRootTool { get; set; }
+        public string FlowDisplay { get { return string.IsNullOrWhiteSpace(FlowId) ? "旧记录 · 流程未知" : FlowName; } }
+        public string OriginDisplay { get { return (string.IsNullOrWhiteSpace(RecipeName) ? "未命名方案" : RecipeName) + " / " + FlowDisplay; } }
+
         public string ImageSource { get; set; }
 
         public string InspectionType { get; set; }

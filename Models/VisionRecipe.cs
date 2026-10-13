@@ -37,6 +37,19 @@ namespace HalconWinFormsDemo.Models
             ExternalResources = new List<VmExternalResourceData>();
         }
 
+        // New workspaces are empty; the constructor retains legacy defaults for
+        // explicit old-recipe migration and must not serve as a new-project template.
+        public static VisionRecipe CreateBlank()
+        {
+            return new VisionRecipe
+            {
+                Name = "未命名方案",
+                EnableShapeMatch = false,
+                ToolFlow = new List<ToolFlowRecipeItem>(),
+                RoiLayers = new List<RoiLayerRecipeData>()
+            };
+        }
+
         [DataMember(Order = 1)]
         public string Name { get; set; }
 
@@ -139,6 +152,18 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 34, EmitDefaultValue = false)]
         public List<VmExternalResourceData> ExternalResources { get; set; }
 
+        [DataMember(Order = 35, EmitDefaultValue = false)]
+        public List<VmProjectFlowData> Flows { get; set; }
+
+        [DataMember(Order = 36, EmitDefaultValue = false)]
+        public string ActiveFlowId { get; set; }
+
+        [DataMember(Order = 37, EmitDefaultValue = false)]
+        public VmTcpFlowTriggerData TcpFlowTrigger { get; set; }
+
+        [DataMember(Order = 38, EmitDefaultValue = false)]
+        public VmEngineeringPackageManifestS139 EngineeringPackageS139 { get; set; }
+
     }
 
     [DataContract]
@@ -155,6 +180,12 @@ namespace HalconWinFormsDemo.Models
 
         [DataMember(Order = 1, EmitDefaultValue = false)]
         public List<VmProductionWidgetLayoutData> Widgets { get; set; }
+
+        [DataMember(Order = 2, EmitDefaultValue = false)]
+        public List<VmProductionResultItemS141> ResultItemsS141 { get; set; }
+
+        [DataMember(Order = 3, EmitDefaultValue = false)]
+        public List<VmProductionImagePolicyS142> ImagePoliciesS142 { get; set; }
 
         public static VmProductionRunLayoutData CreateDefault()
         {
@@ -198,7 +229,28 @@ namespace HalconWinFormsDemo.Models
             }
             normalized = normalized.OrderBy(item => item.Order).ThenBy(item => DefaultOrder(item.WidgetId)).ToList();
             for (int index = 0; index < normalized.Count; index++) normalized[index].Order = index;
-            return new VmProductionRunLayoutData { Widgets = normalized };
+            var resultItems = ResultItemsS141 ?? new List<VmProductionResultItemS141>();
+            if (resultItems.Count > 8)
+                throw new InvalidOperationException("生产结果项最多 8 项；不会静默丢弃超限配置。");
+            var resultIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var copies = new List<VmProductionResultItemS141>();
+            foreach (var item in resultItems)
+            {
+                if (item == null || string.IsNullOrWhiteSpace(item.ItemId) || !resultIds.Add(item.ItemId))
+                    throw new InvalidOperationException("生产结果项的身份缺失或重复；不会按名称猜测映射。");
+                copies.Add(item.Clone());
+            }
+            var imagePolicies = ImagePoliciesS142 ?? new List<VmProductionImagePolicyS142>();
+            if (imagePolicies.Count > 32) throw new InvalidOperationException("周期留图策略最多 32 个流程，不能静默丢弃超限配置。");
+            var policyIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var policyCopies = new List<VmProductionImagePolicyS142>();
+            foreach (var policy in imagePolicies)
+            {
+                if (policy == null || !policyIds.Add(policy.FlowId ?? string.Empty)) throw new InvalidOperationException("周期留图策略为空或流程身份重复。");
+                string error = policy.Validate(); if (error.Length > 0) throw new InvalidOperationException(error);
+                policyCopies.Add(policy.Clone());
+            }
+            return new VmProductionRunLayoutData { Widgets = normalized, ResultItemsS141 = copies, ImagePoliciesS142 = policyCopies };
         }
 
         public VmProductionRunLayoutData Clone()
@@ -459,11 +511,13 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 10, EmitDefaultValue = false)] public int DisplayOpacity { get; set; }
         [DataMember(Order = 11, EmitDefaultValue = false)] public string ViewportScope { get; set; }
         [DataMember(Order = 12, EmitDefaultValue = false)] public int LayerOrder { get; set; }
+        [DataMember(Order = 13, EmitDefaultValue = false)] public string ImageContextId { get; set; }
     }
 
     [DataContract]
     public sealed class ResultLayerStyleRecipeData
     {
+        public ResultLayerStyleRecipeData Clone() { return (ResultLayerStyleRecipeData)MemberwiseClone(); }
         [DataMember(Order = 1)] public string LayerKey { get; set; }
         [DataMember(Order = 2, EmitDefaultValue = false)] public string ToolId { get; set; }
         [DataMember(Order = 3, EmitDefaultValue = false)] public string PortName { get; set; }

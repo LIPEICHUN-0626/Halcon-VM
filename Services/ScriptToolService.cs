@@ -158,7 +158,7 @@ namespace HalconWinFormsDemo.Services
                 "    }\r\n" +
                 "  }\r\n" +
                 "}\r\n";
-            string sourceHash = ComputeSha256(Encoding.UTF8.GetBytes(source));
+            string sourceHash = ComputeSha256(Encoding.UTF8.GetBytes(source + "\nContract=" + typeof(ScriptToolContext).Assembly.ManifestModule.ModuleVersionId.ToString("N")));
             string directory = Path.Combine(Path.GetTempPath(), "HalconVmScriptCache");
             Directory.CreateDirectory(directory);
             string output = Path.Combine(directory, "script-" + sourceHash + ".dll");
@@ -193,7 +193,7 @@ namespace HalconWinFormsDemo.Services
             return output;
         }
 
-        private static void ValidateResult(ScriptToolResult result)
+        internal static void ValidateResult(ScriptToolResult result)
         {
             if (result == null) throw new InvalidOperationException("脚本返回 null；必须返回 ScriptToolResult。");
             result.Text = result.Text ?? string.Empty;
@@ -204,6 +204,12 @@ namespace HalconWinFormsDemo.Services
                 throw new InvalidOperationException("脚本 IsOk 必须与 ResultCode 保持一致。");
             if (result.HasNumber && (double.IsNaN(result.Number) || double.IsInfinity(result.Number)))
                 throw new InvalidOperationException("脚本 Number 输出必须是有限数值，不能为 NaN 或 Infinity。");
+            if (result.NamedOutputs.Count > 64) throw new InvalidOperationException("脚本最多返回 64 个命名输出。");
+            foreach (var pair in result.NamedOutputs)
+            {
+                if (string.IsNullOrWhiteSpace(pair.Key) || pair.Key.Length > 64 || pair.Value == null) throw new InvalidOperationException("脚本命名输出名称或值无效。");
+                pair.Value.Validate();
+            }
         }
 
         private static string ReadAssemblyVersion(string path)
@@ -256,7 +262,9 @@ namespace HalconWinFormsDemo.Services
             MethodInfo method = ResolveEntry(assemblyPath, typeName, methodName);
             try
             {
-                return (ScriptToolResult)method.Invoke(null, new object[] { context });
+                var result = (ScriptToolResult)method.Invoke(null, new object[] { context });
+                ScriptToolService.ValidateResult(result);
+                return result;
             }
             catch (TargetInvocationException ex)
             {

@@ -4,6 +4,9 @@ namespace HalconWinFormsDemo.Models
     {
         public int Index { get; set; }
 
+        // Zero-based position in this HALCON search's original tuple order, not a tracking ID.
+        public int SourceIndex { get; set; } = -1;
+
         public double Row { get; set; }
 
         public double Column { get; set; }

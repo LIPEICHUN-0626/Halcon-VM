@@ -28,6 +28,9 @@ namespace HalconWinFormsDemo
             public bool CanSupplement { get; set; }
             public int ToolIndex { get; set; }
             public int PortIndex { get; set; }
+            public string IssueCategory { get; set; }
+            public bool OpensParameters { get; set; }
+            public ModulePrerequisiteFactS147 PrerequisiteS147 { get; set; }
         }
 
         private readonly ObservableCollection<VmConnectionIssueS69> connectionIssuesS69 = new ObservableCollection<VmConnectionIssueS69>();
@@ -45,8 +48,8 @@ namespace HalconWinFormsDemo
             RebuildConnectionIssuesS69(true);
             FlowConnectionIssuePanel.Visibility = Visibility.Visible;
             HeaderStatusText.Text = connectionIssuesS69.Count == 0
-                ? "连接问题扫描完成：全部启用模块的必需输入结构均有效。"
-                : "连接问题扫描完成：请按流程顺序逐项定位；清单本身不会自动改线。";
+                ? "未发现当前启用模块的此类定义、连接或已配置文件问题；实际输入、算法及设备仍待运行。"
+                : "已列出定义前提、连接、参数、文件及上游等待项；清单不会自动修复或执行。";
         }
 
         private void CloseConnectionIssuePanelButton_Click(object sender, RoutedEventArgs e)
@@ -58,19 +61,21 @@ namespace HalconWinFormsDemo
         private void RefreshConnectionIssuesButton_Click(object sender, RoutedEventArgs e)
         {
             RebuildConnectionIssuesS69(true);
-            HeaderStatusText.Text = "已重新扫描当前确定性流程的全部必需输入。";
+            HeaderStatusText.Text = "已刷新当前已应用定义前提、参数、文件引用和必需输入；等待或未知不表示准备通过。";
         }
 
-        private void RebuildConnectionIssuesS69(bool preserveSelection)
+        private void RebuildConnectionIssuesS69(bool preserveSelection, ISet<string> scopeS147 = null)
         {
             string selectedKey = preserveSelection && FlowConnectionIssueListBox != null && FlowConnectionIssueListBox.SelectedItem is VmConnectionIssueS69
                 ? ((VmConnectionIssueS69)FlowConnectionIssueListBox.SelectedItem).Key
                 : null;
             List<VmConnectionIssueS69> rebuilt = new List<VmConnectionIssueS69>();
+            ResetModulePrerequisiteScanS147(scopeS147);
             for (int toolIndex = 0; toolIndex < flowTools.Count; toolIndex++)
             {
                 VmToolInstance tool = flowTools[toolIndex];
-                if (!tool.IsEnabled) continue;
+                if (!tool.IsEnabled || (scopeS147 != null && !scopeS147.Contains(tool.ToolId))) continue;
+                AddConfigurationReadinessIssuesS97(rebuilt, tool, toolIndex);
                 IList<VmPortDefinition> ports = ToolMetadata.GetInstanceInputPorts(tool);
 
                 if (tool.Kind == VmToolKind.PositionCorrection2D)
@@ -94,13 +99,16 @@ namespace HalconWinFormsDemo
                 connectionIssuesS69.Add(issue);
 
             int blocking = connectionIssuesS69.Count(item => item.IsBlocking);
-            int waiting = connectionIssuesS69.Count - blocking;
+            int unknown = connectionIssuesS69.Count(item => item.IssueCategory == "模块前提预算" ||
+                (item.PrerequisiteS147 != null && item.PrerequisiteS147.Kind == "Unknown"));
+            int waiting = connectionIssuesS69.Count(item => !item.IsBlocking && (item.PrerequisiteS147 == null || item.PrerequisiteS147.Kind != "Unknown"));
             if (OpenConnectionIssuesButton != null)
                 OpenConnectionIssuesButton.Content = blocking > 0 ? "连接问题 " + blocking.ToString(CultureInfo.InvariantCulture) : "连接问题";
             if (FlowConnectionIssueSummaryText != null)
                 FlowConnectionIssueSummaryText.Text = connectionIssuesS69.Count == 0
-                    ? "0 项 · 必需输入结构有效"
-                    : blocking.ToString(CultureInfo.InvariantCulture) + " 项阻断 · " + waiting.ToString(CultureInfo.InvariantCulture) + " 项等待本周期值";
+                    ? "未发现此类定义、连接或已配置文件问题；实际输入/算法仍待运行"
+                    : blocking.ToString(CultureInfo.InvariantCulture) + " 项需处理 · " + waiting.ToString(CultureInfo.InvariantCulture) + " 项待运行（不阻断全流程）" +
+                        (unknown > 0 ? " · " + unknown.ToString(CultureInfo.InvariantCulture) + " 项未知/未完整，不能当准备通过" : "");
             if (FlowConnectionIssueEmptyText != null) FlowConnectionIssueEmptyText.Visibility = connectionIssuesS69.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             if (FlowConnectionIssueListBox != null)
             {
@@ -132,6 +140,12 @@ namespace HalconWinFormsDemo
 
         private bool IsRequiredConnectionPortS69(VmToolInstance tool, VmPortDefinition port)
         {
+            if (port.PortName == "$RunCondition") return tool.GetInputBinding(port.PortName) != null;
+            if (tool.Kind == VmToolKind.GlobalVariableWrite)
+            {
+                var variable = globalVariables.FirstOrDefault(item => tool.Parameters != null && item.VariableId == tool.Parameters.GlobalVariableId);
+                return variable != null && port.PortName == VmGlobalVariableType.GetWritePortName(variable.ValueType);
+            }
             if (!port.IsOptional) return true;
             VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
             if (tool.Kind == VmToolKind.NumericCalculation && port.PortName == "NumberB")
@@ -171,7 +185,7 @@ namespace HalconWinFormsDemo
                 AddConnectionIssueS69(issues, tool, toolIndex, port, portIndex, null, "必需输入尚未连接。", true);
                 return;
             }
-            string error = tool.Kind == VmToolKind.NumericJudge
+            string error = tool.Kind == VmToolKind.NumericJudge && port.PortName == "Value"
                 ? GetNumericJudgeConfigurationError(tool)
                 : GetInputBindingConfigurationError(tool, binding);
             if (string.IsNullOrWhiteSpace(error) && IsDuplicateMultiInputEndpoint(tool, port.PortName, binding.SourceToolId, binding.SourcePortName))
@@ -208,20 +222,25 @@ namespace HalconWinFormsDemo
         private void AddConnectionIssueS69(List<VmConnectionIssueS69> issues, VmToolInstance tool, int toolIndex, VmPortDefinition port, int portIndex, VmToolInputBindingData binding, string reason, bool blocking)
         {
             if (tool == null || port == null) return;
+            string key = tool.ToolId + "|" + port.PortName;
+            // S147 has already recorded this exact missing/invalid subscription.
+            // Keep its stable repair identity instead of duplicating the same row.
+            if (issues.Any(item => item.Key == key && item.PrerequisiteS147 != null)) return;
             VmToolInstance source = GetInputSourceTool(binding);
             string sourceText = binding == null
                 ? "未连接"
                 : (source == null ? (binding.SourceToolId ?? "?") : source.SequenceText + " " + source.InstanceName) + "." + (binding.SourcePortName ?? "?");
             issues.Add(new VmConnectionIssueS69
             {
-                Key = tool.ToolId + "|" + port.PortName,
+                Key = key,
                 TargetToolId = tool.ToolId,
                 TargetPortName = port.PortName,
                 TargetText = tool.SequenceText + "  " + tool.InstanceName + "." + port.PortName,
                 DataType = port.DataType,
                 SourceText = sourceText,
                 ReasonText = reason,
-                SeverityText = blocking ? "阻断" : "等待",
+                SeverityText = blocking ? "连接" : "待运行",
+                IssueCategory = blocking ? "连接配置" : "上游待运行",
                 SeverityBrush = CreateIssueBrushS69(blocking ? "#DC2626" : "#D97706"),
                 IsBlocking = blocking,
                 CanSupplement = blocking,
@@ -245,7 +264,19 @@ namespace HalconWinFormsDemo
             if (FlowConnectionIssueTypeText != null) FlowConnectionIssueTypeText.Text = issue == null ? "--" : issue.DataType;
             if (FlowConnectionIssueSourceText != null) FlowConnectionIssueSourceText.Text = issue == null ? "--" : issue.SourceText;
             if (FlowConnectionIssueReasonText != null) FlowConnectionIssueReasonText.Text = issue == null ? "--" : issue.ReasonText;
-            if (OpenConnectionIssueSourceButton != null) OpenConnectionIssueSourceButton.IsEnabled = issue != null && issue.CanSupplement;
+            if (OpenConnectionIssueSourceButton != null) OpenConnectionIssueSourceButton.IsEnabled = issue != null && issue.CanSupplement && issue.PrerequisiteS147 == null;
+            if (OpenConnectionIssueIoButtonS97 != null)
+            {
+                var prerequisite = issue == null ? null : issue.PrerequisiteS147;
+                bool incomplete = issue != null && issue.IssueCategory == "模块前提预算";
+                OpenConnectionIssueIoButtonS97.Content = incomplete ? "提示不完整" : prerequisite != null
+                    ? (HasModulePrerequisiteRouteS147(prerequisite) ? prerequisite.ActionText : "暂无修复动作")
+                    : issue != null && issue.OpensParameters ? "修改参数" : "修改输入";
+                OpenConnectionIssueIoButtonS97.IsEnabled = issue != null && !incomplete && (prerequisite == null || HasModulePrerequisiteRouteS147(prerequisite));
+                OpenConnectionIssueIoButtonS97.ToolTip = incomplete ? issue.ReasonText + "\n这是范围未完整检查，不是某个输入错误；不猜测修复位置。" : prerequisite == null
+                    ? "打开原配置任务；不会自动运行或修复。"
+                    : prerequisite.Reason + "\n只打开原任务，不自动读图、训练、采参考、采点、试运行或应用；锁定时仍可查看本说明。";
+            }
         }
 
         private void PreviousConnectionIssueButton_Click(object sender, RoutedEventArgs e)
@@ -276,6 +307,12 @@ namespace HalconWinFormsDemo
         private void LocateConnectionIssueButton_Click(object sender, RoutedEventArgs e)
         {
             VmConnectionIssueS69 issue = GetSelectedConnectionIssueS69();
+            if (issue != null && issue.PrerequisiteS147 != null)
+            {
+                VmToolInstance currentTool; ModulePrerequisiteFactS147 currentFact;
+                if (!IsModulePrerequisiteFactCurrentS147(issue.PrerequisiteS147, out currentTool, out currentFact))
+                { RejectModulePrerequisiteNavigationS147("本项身份或定义前提已改变，请刷新后定位。"); return; }
+            }
             FocusFlowGraphTool(issue == null ? null : issue.TargetToolId, issue == null ? "请选择一个连接问题。" : "已定位连接问题目标：" + issue.TargetText);
         }
 
@@ -287,16 +324,32 @@ namespace HalconWinFormsDemo
         private void OpenConnectionIssueIoButton_Click(object sender, RoutedEventArgs e)
         {
             VmConnectionIssueS69 issue = GetSelectedConnectionIssueS69();
+            if (issue != null && issue.IssueCategory == "模块前提预算")
+            {
+                HeaderStatusText.Text = "模块前提提示未完整，请缩小实际运行范围或先处理已列问题；没有可推定的输入修复位置。";
+                return;
+            }
+            if (issue != null && issue.PrerequisiteS147 != null)
+            {
+                OpenModulePrerequisiteTaskS147(issue.PrerequisiteS147);
+                return;
+            }
             VmToolInstance tool = issue == null ? null : flowTools.FirstOrDefault(item => string.Equals(item.ToolId, issue.TargetToolId, StringComparison.OrdinalIgnoreCase));
             if (tool == null)
             {
                 HeaderStatusText.Text = "连接问题目标已失效，请刷新任务清单。";
                 return;
             }
-            FlowToolList.SelectedItems.Clear();
-            FlowToolList.SelectedItem = tool;
-            RightTabs.SelectedItem = IoTab;
-            HeaderStatusText.Text = "已打开 " + issue.TargetText + " 所属模块的真实 I/O。";
+            if (!CanNavigateInputRepairS96()) return;
+            OpenCentralModuleConfigurationS77(tool);
+            if (!centralModuleConfigurationOpenS77 || !ReferenceEquals(dockEditingTool, tool)) return;
+            if (!issue.OpensParameters)
+            {
+                SelectCentralConfigurationTaskS77(DockIoTaskTab, "Io");
+                var row = DockInputPortItemsControl.Items.OfType<VmInputPortEditorRow>().FirstOrDefault(item => item.PortName == issue.TargetPortName);
+                if (row != null) { DockInputPortItemsControl.SelectedItem = row; DockInputPortItemsControl.ScrollIntoView(row); }
+            }
+            HeaderStatusText.Text = "已打开“" + tool.InstanceName + "”的" + (issue.OpensParameters ? "参数" : "输入") + "；修改后请重新运行。";
         }
 
         private void OpenConnectionIssueSourceButton_Click(object sender, RoutedEventArgs e)

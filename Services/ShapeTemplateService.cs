@@ -9,6 +9,10 @@ namespace HalconWinFormsDemo.Services
 {
     public sealed class ShapeTemplateService : IDisposable
     {
+        public const int MaximumCandidateCountS145 = 1000;
+        public const int MaximumPreviewCandidatesS145 = 100;
+        private const int MaximumModelContoursS145 = 256;
+        private const long MaximumOutputContourPointsS145 = 1000000;
         private HTuple modelId;
         private TemplateDefinition definition;
 
@@ -18,6 +22,9 @@ namespace HalconWinFormsDemo.Services
         }
 
         public string TemplatePath { get; private set; }
+
+        // The actual in-memory SDK model generation, not a file hash or authenticity claim.
+        public string RuntimeModelVersionS145 { get; private set; }
 
         public TemplateDefinition Definition
         {
@@ -59,6 +66,7 @@ namespace HalconWinFormsDemo.Services
                     out modelId);
                 definition = templateDefinition.Clone();
                 TemplatePath = string.Empty;
+                RuntimeModelVersionS145 = Guid.NewGuid().ToString("N");
             }
             finally
             {
@@ -101,6 +109,7 @@ namespace HalconWinFormsDemo.Services
             {
                 definition.TemplatePath = filePath;
             }
+            RuntimeModelVersionS145 = Guid.NewGuid().ToString("N");
         }
 
         public List<ShapeMatchResult> Match(HImage image, RoiData searchRoi, TemplateMatchOptions options)
@@ -117,8 +126,19 @@ namespace HalconWinFormsDemo.Services
             }
 
             TemplateMatchOptions resolvedOptions = options ?? new TemplateMatchOptions();
+            int requestedMatches = resolvedOptions.MaxMatches;
+            double minimumScore = resolvedOptions.MinScore;
+            if (requestedMatches < 1 || requestedMatches > MaximumCandidateCountS145)
+            {
+                throw new InvalidOperationException("Shape 最大匹配数量须为 1–1000；0/全部模式不受支持，不自动截断或改为一个目标。");
+            }
+            if (!IsFiniteS145(minimumScore) || minimumScore < 0 || minimumScore > 1)
+            {
+                throw new InvalidOperationException("Shape 最低匹配分数须为 0–1 的有限数。");
+            }
             HObject matchImage = image;
             HObject reduced = null;
+            HTuple row = null, column = null, angle = null, scale = null, score = null;
 
             try
             {
@@ -128,12 +148,6 @@ namespace HalconWinFormsDemo.Services
                     matchImage = reduced;
                 }
 
-                HTuple row;
-                HTuple column;
-                HTuple angle;
-                HTuple scale;
-                HTuple score;
-
                 HOperatorSet.FindScaledShapeModel(
                     matchImage,
                     modelId,
@@ -141,8 +155,8 @@ namespace HalconWinFormsDemo.Services
                     DegToRad(resolvedOptions.AngleExtentDeg),
                     resolvedOptions.ScaleMin,
                     resolvedOptions.ScaleMax,
-                    resolvedOptions.MinScore,
-                    Math.Max(1, resolvedOptions.MaxMatches),
+                    minimumScore,
+                    requestedMatches,
                     Clamp(resolvedOptions.MaxOverlap, 0.0, 1.0),
                     ResolveSubPixel(resolvedOptions.SubPixel),
                     0,
@@ -153,10 +167,14 @@ namespace HalconWinFormsDemo.Services
                     out scale,
                     out score);
 
-                return BuildResults(row, column, angle, scale, score);
+                return BuildResults(row, column, angle, scale, score, requestedMatches, minimumScore);
             }
             finally
             {
+                foreach (HTuple tuple in new[] { row, column, angle, scale, score })
+                {
+                    if (tuple != null) tuple.Dispose();
+                }
                 if (reduced != null)
                 {
                     reduced.Dispose();
@@ -167,22 +185,33 @@ namespace HalconWinFormsDemo.Services
         public void DisplayMatchContours(HWindow window, IEnumerable<ShapeMatchResult> matches)
         {
             EnsureModel();
-
+            List<ShapeMatchResult> frozen = FreezeContourMatchesS145(matches);
+            int previewCount = Math.Min(frozen.Count, MaximumPreviewCandidatesS145);
+            if (previewCount == 0) return;
             HObject contours = null;
             HObject transformed = null;
             try
             {
                 HOperatorSet.GetShapeModelContours(out contours, modelId, 1);
-                foreach (ShapeMatchResult match in matches)
+                ValidateContourBudgetS145(contours, previewCount);
+                // Display only. CreateMatchContours keeps every formal candidate.
+                for (int index = 0; index < previewCount; index++)
                 {
-                    HTuple homMat2D;
-                    HTuple scaledHomMat2D;
-                    HOperatorSet.VectorAngleToRigid(0, 0, 0, match.Row, match.Column, DegToRad(match.AngleDeg), out homMat2D);
-                    HOperatorSet.HomMat2dScale(homMat2D, match.Scale, match.Scale, match.Row, match.Column, out scaledHomMat2D);
-                    HOperatorSet.AffineTransContourXld(contours, out transformed, scaledHomMat2D);
-                    window.DispObj(transformed);
-                    transformed.Dispose();
-                    transformed = null;
+                    ShapeMatchResult match = frozen[index];
+                    HTuple homMat2D = null, scaledHomMat2D = null;
+                    try
+                    {
+                        HOperatorSet.VectorAngleToRigid(0, 0, 0, match.Row, match.Column, DegToRad(match.AngleDeg), out homMat2D);
+                        HOperatorSet.HomMat2dScale(homMat2D, match.Scale, match.Scale, match.Row, match.Column, out scaledHomMat2D);
+                        HOperatorSet.AffineTransContourXld(contours, out transformed, scaledHomMat2D);
+                        window.DispObj(transformed);
+                    }
+                    finally
+                    {
+                        if (transformed != null) { transformed.Dispose(); transformed = null; }
+                        if (homMat2D != null) homMat2D.Dispose();
+                        if (scaledHomMat2D != null) scaledHomMat2D.Dispose();
+                    }
                 }
             }
             finally
@@ -201,6 +230,7 @@ namespace HalconWinFormsDemo.Services
 
         public void Clear()
         {
+            RuntimeModelVersionS145 = null;
             if (HasModel)
             {
                 HOperatorSet.ClearShapeModel(modelId);
@@ -224,15 +254,23 @@ namespace HalconWinFormsDemo.Services
         public HObject CreateMatchContours(IEnumerable<ShapeMatchResult> matches)
         {
             EnsureModel();
+            List<ShapeMatchResult> frozen = FreezeContourMatchesS145(matches);
             HObject modelContours = null;
             HObject accumulated = null;
             try
             {
-                HOperatorSet.GetShapeModelContours(out modelContours, modelId, 1);
-                foreach (ShapeMatchResult match in matches ?? new ShapeMatchResult[0])
+                if (frozen.Count == 0)
                 {
-                    HTuple rigid;
-                    HTuple scaled;
+                    HOperatorSet.GenEmptyObj(out accumulated);
+                    HObject empty = accumulated;
+                    accumulated = null;
+                    return empty;
+                }
+                HOperatorSet.GetShapeModelContours(out modelContours, modelId, 1);
+                ValidateContourBudgetS145(modelContours, frozen.Count);
+                foreach (ShapeMatchResult match in frozen)
+                {
+                    HTuple rigid = null, scaled = null;
                     HObject transformed = null;
                     HObject combined = null;
                     try
@@ -256,6 +294,8 @@ namespace HalconWinFormsDemo.Services
                     {
                         if (combined != null) combined.Dispose();
                         if (transformed != null) transformed.Dispose();
+                        if (rigid != null) rigid.Dispose();
+                        if (scaled != null) scaled.Dispose();
                     }
                 }
                 if (accumulated == null) HOperatorSet.GenEmptyObj(out accumulated);
@@ -270,25 +310,101 @@ namespace HalconWinFormsDemo.Services
             }
         }
 
-        private List<ShapeMatchResult> BuildResults(HTuple row, HTuple column, HTuple angle, HTuple scale, HTuple score)
+        private static List<ShapeMatchResult> FreezeContourMatchesS145(IEnumerable<ShapeMatchResult> matches)
         {
-            double[] rows = row.ToDArr();
-            double[] columns = column.ToDArr();
-            double[] angles = angle.ToDArr();
-            double[] scales = scale.ToDArr();
-            double[] scores = score.ToDArr();
-            List<ShapeMatchResult> results = new List<ShapeMatchResult>();
+            if (matches == null) return new List<ShapeMatchResult>();
+            var collection = matches as ICollection<ShapeMatchResult>;
+            var readOnly = matches as IReadOnlyCollection<ShapeMatchResult>;
+            if (collection == null && readOnly == null)
+                throw new InvalidOperationException("Shape 轮廓须使用本次具明确数量的候选列表；不枚举无界候选来源。");
+            int count = collection == null ? readOnly.Count : collection.Count;
+            if (count < 0 || count > MaximumCandidateCountS145)
+                throw new InvalidOperationException("Shape 轮廓候选超过 1000 上限；不复制或截断后冒充完整结果。");
+            var frozen = new List<ShapeMatchResult>(count);
+            foreach (ShapeMatchResult match in matches)
+            {
+                if (frozen.Count >= count)
+                    throw new InvalidOperationException("Shape 候选列表在冻结期间数量变化，禁止混用结果。");
+                if (match == null || !IsFiniteS145(match.Row) || !IsFiniteS145(match.Column) ||
+                    !IsFiniteS145(match.AngleDeg) || !IsFiniteS145(DegToRad(match.AngleDeg)) ||
+                    !IsFiniteS145(match.Scale) || match.Scale <= 0 || !IsFiniteS145(match.Score))
+                    throw new InvalidOperationException("Shape 轮廓候选含无效位置、角度、尺度或分数。");
+                frozen.Add(new ShapeMatchResult
+                {
+                    Index = match.Index, SourceIndex = match.SourceIndex, Row = match.Row, Column = match.Column,
+                    AngleDeg = match.AngleDeg, Scale = match.Scale, Score = match.Score,
+                    RoiShapeType = match.RoiShapeType, RoiWidth = match.RoiWidth, RoiHeight = match.RoiHeight, RoiRadius = match.RoiRadius
+                });
+            }
+            if (frozen.Count != count)
+                throw new InvalidOperationException("Shape 候选列表在冻结期间数量变化，禁止混用结果。");
+            return frozen;
+        }
+
+        private static void ValidateContourBudgetS145(HObject modelContours, int candidateCount)
+        {
+            HTuple objectCount = null, pointCounts = null;
+            try
+            {
+                HOperatorSet.CountObj(modelContours, out objectCount);
+                if (objectCount == null || objectCount.Length != 1 || objectCount.I < 1 || objectCount.I > MaximumModelContoursS145)
+                    throw new InvalidOperationException("Shape 模型轮廓须为 1–256 个对象，超限不复制或按候选变换。");
+                // Local HALCON 20.11 .NET documentation confirms this count-only API.
+                // Do not GetContourXld/ToDArr an unbounded point sequence to count it.
+                HOperatorSet.ContourPointNumXld(modelContours, out pointCounts);
+                if (pointCounts == null || pointCounts.Length != objectCount.I)
+                    throw new InvalidOperationException("Shape 模型轮廓点数返回不完整，不能确认图形预算。");
+                long totalPoints = 0;
+                for (int index = 0; index < pointCounts.Length; index++)
+                {
+                    double points = pointCounts[index].D;
+                    if (!IsFiniteS145(points) || points < 1 || points != Math.Floor(points) || points > MaximumOutputContourPointsS145)
+                        throw new InvalidOperationException("Shape 模型轮廓点数无效或超过 1000000 上限。");
+                    totalPoints += (long)points;
+                    if (totalPoints > MaximumOutputContourPointsS145 || totalPoints * candidateCount > MaximumOutputContourPointsS145)
+                        throw new InvalidOperationException("Shape 全部候选轮廓总点数超过 1000000；正式 XLD 不截取前100或部分轮廓。");
+                }
+            }
+            finally
+            {
+                if (objectCount != null) objectCount.Dispose();
+                if (pointCounts != null) pointCounts.Dispose();
+            }
+        }
+
+        private List<ShapeMatchResult> BuildResults(HTuple row, HTuple column, HTuple angle, HTuple scale, HTuple score,
+            int requestedMatches, double minimumScore)
+        {
+            // Validate every HALCON tuple before allocating a copied list/array.
+            if (row == null || column == null || angle == null || scale == null || score == null ||
+                row.Length != column.Length || row.Length != angle.Length || row.Length != scale.Length || row.Length != score.Length ||
+                row.Length > requestedMatches || row.Length > MaximumCandidateCountS145)
+            {
+                throw new InvalidOperationException("HALCON Shape 候选输出缺失、长度不一致或超过请求/1000 上限；不截断后冒充完整结果。");
+            }
+            int count = row.Length;
+            for (int index = 0; index < count; index++)
+            {
+                double r = row[index].D, c = column[index].D, a = angle[index].D, s = scale[index].D, quality = score[index].D;
+                if (!IsFiniteS145(r) || !IsFiniteS145(c) || !IsFiniteS145(a) || !IsFiniteS145(RadToDeg(a)) ||
+                    !IsFiniteS145(s) || s <= 0 || !IsFiniteS145(quality) || quality < minimumScore - 1e-7 || quality > 1 + 1e-7)
+                {
+                    throw new InvalidOperationException("HALCON Shape 返回非有限或不合法候选；不发布部分列表、零值或旧结果。");
+                }
+            }
+            List<ShapeMatchResult> results = new List<ShapeMatchResult>(count);
             RoiData displayFrame = definition == null ? null : definition.DisplayFrame;
 
-            for (int i = 0; i < scores.Length; i++)
+            for (int i = 0; i < count; i++)
             {
                 results.Add(new ShapeMatchResult
                 {
-                    Row = rows[i],
-                    Column = columns[i],
-                    AngleDeg = RadToDeg(angles[i]),
-                    Scale = scales[i],
-                    Score = scores[i],
+                    SourceIndex = i,
+                    Row = row[i].D,
+                    Column = column[i].D,
+                    AngleDeg = RadToDeg(angle[i].D),
+                    Scale = scale[i].D,
+                    Score = score[i].D,
                     RoiShapeType = displayFrame == null ? (RoiShapeType?)null : displayFrame.ShapeType,
                     RoiWidth = displayFrame == null ? 0 : Math.Abs(displayFrame.Column2 - displayFrame.Column1),
                     RoiHeight = displayFrame == null ? 0 : Math.Abs(displayFrame.Row2 - displayFrame.Row1),
@@ -302,10 +418,17 @@ namespace HalconWinFormsDemo.Services
                 int scoreOrder = right.Score.CompareTo(left.Score);
                 if (scoreOrder != 0) return scoreOrder;
                 int rowOrder = left.Row.CompareTo(right.Row);
-                return rowOrder != 0 ? rowOrder : left.Column.CompareTo(right.Column);
+                if (rowOrder != 0) return rowOrder;
+                int columnOrder = left.Column.CompareTo(right.Column);
+                return columnOrder != 0 ? columnOrder : left.SourceIndex.CompareTo(right.SourceIndex);
             });
             for (int index = 0; index < ordered.Count; index++) ordered[index].Index = index + 1;
             return ordered;
+        }
+
+        private static bool IsFiniteS145(double value)
+        {
+            return !double.IsNaN(value) && !double.IsInfinity(value);
         }
 
         private void EnsureModel()

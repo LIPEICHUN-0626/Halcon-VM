@@ -42,6 +42,16 @@ namespace HalconWinFormsDemo
 
         public bool WasApplied { get; private set; }
 
+        // Optional for standalone compatibility; MainWindow always supplies a captured lease.
+        public Func<bool> EngineeringEditAllowedS137 { get; set; }
+
+        private bool CheckEngineeringEditS137()
+        {
+            if (EngineeringEditAllowedS137 == null || EngineeringEditAllowedS137()) return true;
+            ValidationText.Text = "工程授权或方案状态已改变；草稿保留，请解锁后重新打开参数窗。";
+            return false;
+        }
+
         public bool OpenRoiWorkspaceRequested { get; private set; }
 
         public VisionTool? RequestedRoiTool { get; private set; }
@@ -135,7 +145,9 @@ namespace HalconWinFormsDemo
 
         private bool ApplyDraft()
         {
+            if (!CheckEngineeringEditS137()) return false;
             VmToolParameterData p; double lower; double upper; double tolerance; string comparisonOperator; if (!TryReadDraft(out p, out lower, out upper, out tolerance, out comparisonOperator)) return false;
+            if (!CheckEngineeringEditS137()) return false;
             tool.InstanceName = InstanceNameTextBox.Text.Trim(); tool.IsEnabled = EnabledCheckBox.IsChecked == true; tool.Parameters = p;
             if (ToolMetadata.SupportsRoi(tool.Kind)) tool.ReplaceRoiBindings(roiBindingRows.Where(item => item.IsBound).Select(item => item.RoiId));
             ApplyInputDraft();
@@ -148,7 +160,9 @@ namespace HalconWinFormsDemo
         private void OkButton_Click(object sender, RoutedEventArgs e) { if (ApplyDraft()) DialogResult = true; }
         private void TrialRunButton_Click(object sender, RoutedEventArgs e)
         {
+            if (!CheckEngineeringEditS137()) return;
             VmToolParameterData draft; double lower; double upper; double tolerance; string comparisonOperator; if (!TryReadDraft(out draft, out lower, out upper, out tolerance, out comparisonOperator)) return;
+            if (!CheckEngineeringEditS137()) return;
             VmToolParameterData old = tool.Parameters; double oldLower = tool.NumericLowerLimit; double oldUpper = tool.NumericUpperLimit; double oldTolerance = tool.NumericTolerance; string oldOperator = tool.NumericOperator; List<string> oldBindings = tool.BoundRoiIds.ToList(); List<VmToolInputBindingData> oldInputBindings = tool.InputBindings.Select(item => item.Clone()).ToList(); string oldInputToolId = tool.InputToolId; string oldInputPortName = tool.InputPortName;
             try { tool.Parameters = draft; tool.ReplaceRoiBindings(roiBindingRows.Where(item => item.IsBound).Select(item => item.RoiId)); ApplyInputDraft(); tool.NumericLowerLimit = lower; tool.NumericUpperLimit = upper; tool.NumericTolerance = tolerance; tool.NumericOperator = comparisonOperator; if (trialRun != null) trialRun(tool); RefreshInputRowStates(); FooterText.Text = "试运行完成，草稿尚未应用"; }
             finally { tool.Parameters = old; tool.ReplaceRoiBindings(oldBindings); tool.ReplaceInputBindings(oldInputBindings); tool.InputToolId = oldInputToolId; tool.InputPortName = oldInputPortName; tool.NumericLowerLimit = oldLower; tool.NumericUpperLimit = oldUpper; tool.NumericTolerance = oldTolerance; tool.NumericOperator = oldOperator; }

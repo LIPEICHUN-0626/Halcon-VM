@@ -9,7 +9,7 @@ namespace HalconWinFormsDemo.Models
     [DataContract]
     public sealed class VmImageBatchTraceRecord
     {
-        public const int CurrentSchemaVersion = 3;
+        public const int CurrentSchemaVersion = 4;
 
         [DataMember(Order = 1)] public int SchemaVersion { get; set; }
         [DataMember(Order = 2)] public string BatchId { get; set; }
@@ -28,6 +28,9 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 15)] public string Outcome { get; set; }
         [DataMember(Order = 16)] public List<VmImageBatchTraceItem> Items { get; set; }
         [DataMember(Order = 17, EmitDefaultValue = false)] public bool AssetsEnabled { get; set; }
+        [DataMember(Order = 18, EmitDefaultValue = false)] public string FlowId { get; set; }
+        [DataMember(Order = 19, EmitDefaultValue = false)] public string FlowName { get; set; }
+        public string FlowDisplay { get { return string.IsNullOrWhiteSpace(FlowId) ? "旧记录 · 流程未知" : FlowName; } }
 
         public string StartedAtText { get { return ToLocalText(StartedAtUtc); } }
         public string CompletedAtText { get { return ToLocalText(CompletedAtUtc); } }
@@ -100,6 +103,10 @@ namespace HalconWinFormsDemo.Models
         [DataMember(Order = 10, EmitDefaultValue = false)] public string ResultImageSource { get; set; }
         [DataMember(Order = 11, EmitDefaultValue = false)] public List<VmBatchTraceLayerSnapshotData> Layers { get; set; }
         [DataMember(Order = 12, EmitDefaultValue = false)] public List<VmBatchTraceToolResultData> ToolResults { get; set; }
+        [DataMember(Order = 13, EmitDefaultValue = false)] public string PairKey { get; set; }
+        [DataMember(Order = 14, EmitDefaultValue = false)] public string SecondaryFilePath { get; set; }
+        [DataMember(Order = 15, EmitDefaultValue = false)] public string SourceToolIdA { get; set; }
+        [DataMember(Order = 16, EmitDefaultValue = false)] public string SourceToolIdB { get; set; }
 
         [IgnoreDataMember] public string AssetState { get; set; }
         [IgnoreDataMember] public string AssetMessage { get; set; }

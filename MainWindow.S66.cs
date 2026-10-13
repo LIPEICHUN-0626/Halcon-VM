@@ -153,7 +153,7 @@ namespace HalconWinFormsDemo
             SetSelectedFlowPortBinding(target, targetPort, sourceToolId, sourcePortName);
             VmToolInputBindingData candidate = target.GetInputBinding(targetPort.PortName);
             string error = candidate == null ? "订阅未写入。" : GetInputBindingConfigurationError(target, candidate);
-            if (string.IsNullOrWhiteSpace(error) && target.Kind == VmToolKind.NumericJudge) error = GetNumericJudgeConfigurationError(target);
+            if (string.IsNullOrWhiteSpace(error) && target.Kind == VmToolKind.NumericJudge && targetPort.PortName == "Value") error = GetNumericJudgeConfigurationError(target);
             if (string.IsNullOrWhiteSpace(error)) return true;
             RestoreSelectedFlowPortBinding(target, targetPort, previous, oldTool, oldPort);
             return false;
@@ -236,13 +236,20 @@ namespace HalconWinFormsDemo
         private string ResolveImagePixelContextIdS66(VmToolInstance tool, ISet<string> visited)
         {
             if (tool == null || !visited.Add(tool.ToolId)) return null;
+            if (tool.Kind == VmToolKind.BranchValueSelection)
+            {
+                return ResolveOutputCoordinateContextS102(tool, "Value", visited);
+            }
             foreach (VmToolInputBindingData binding in tool.InputBindings)
             {
+                if (binding.TargetPortName == "$RunCondition") continue;
                 VmToolInstance source = GetInputSourceTool(binding);
                 if (source == null) continue;
                 object raw;
                 if (source.TryGetOutputValue(binding.SourcePortName, out raw))
                 {
+                    VmPose2D pose = raw as VmPose2D;
+                    if (pose != null && !string.IsNullOrWhiteSpace(pose.CoordinateContextId)) return pose.CoordinateContextId;
                     VmPoint2D point = raw as VmPoint2D;
                     if (point != null && !string.IsNullOrWhiteSpace(point.CoordinateContextId)) return point.CoordinateContextId;
                     VmPoint2DArray points = raw as VmPoint2DArray;
@@ -255,7 +262,8 @@ namespace HalconWinFormsDemo
                     if (ellipse != null && !string.IsNullOrWhiteSpace(ellipse.CoordinateContextId)) return ellipse.CoordinateContextId;
                 }
                 VmPortDefinition sourcePort = ToolMetadata.GetInstanceOutputPorts(source).FirstOrDefault(port => string.Equals(port.PortName, binding.SourcePortName, StringComparison.OrdinalIgnoreCase));
-                if (sourcePort != null && string.Equals(sourcePort.DataType, "Image", StringComparison.OrdinalIgnoreCase)) return source.ToolId + "." + sourcePort.PortName;
+                if (sourcePort != null && (sourcePort.DataType == "Image" || sourcePort.DataType == "Region" || sourcePort.DataType == "XLD"))
+                    return ResolveOutputCoordinateContextS102(source, sourcePort.PortName, visited);
                 string nested = ResolveImagePixelContextIdS66(source, visited);
                 if (!string.IsNullOrWhiteSpace(nested)) return nested;
             }

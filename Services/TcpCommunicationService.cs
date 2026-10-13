@@ -15,6 +15,10 @@ namespace HalconWinFormsDemo.Services
         private NetworkStream stream;
         private CancellationTokenSource cancellation;
         private bool serverMode;
+        private TcpClient connectingClient;
+        private long sessionVersion;
+
+        public long SessionVersion { get { lock (syncRoot) return sessionVersion; } }
 
         public event EventHandler<TcpCommunicationMessageEventArgs> MessageReceived;
         public event EventHandler<TcpCommunicationStatusEventArgs> StatusChanged;
@@ -41,73 +45,110 @@ namespace HalconWinFormsDemo.Services
         public void StartServer(string ipAddress, int port, Encoding encoding)
         {
             Stop();
-            serverMode = true;
-            cancellation = new CancellationTokenSource();
             IPAddress address = string.IsNullOrWhiteSpace(ipAddress) || ipAddress == "0.0.0.0"
                 ? IPAddress.Any
                 : IPAddress.Parse(ipAddress);
-            listener = new TcpListener(address, port);
-            listener.Start();
-            IsRunning = true;
-            OnStatus("服务端监听已启动：" + address + ":" + port);
-            Task.Run(delegate { AcceptLoop(encoding ?? Encoding.UTF8, cancellation.Token); });
+            TcpListener ownedListener = new TcpListener(address, port);
+            CancellationToken token;
+            long version;
+            lock (syncRoot)
+            {
+                ownedListener.Start();
+                serverMode = true;
+                cancellation = new CancellationTokenSource();
+                token = cancellation.Token;
+                listener = ownedListener;
+                version = sessionVersion;
+                IsRunning = true;
+            }
+            OnStatus("服务端监听已启动：" + address + ":" + port, version);
+            Task.Run(delegate { AcceptLoop(ownedListener, encoding ?? Encoding.UTF8, token, version); });
         }
 
         public void ConnectClient(string ipAddress, int port, Encoding encoding)
         {
             Stop();
-            serverMode = false;
-            cancellation = new CancellationTokenSource();
-            IsRunning = true;
-            OnStatus("客户端连接中：" + ipAddress + ":" + port);
+            TcpClient ownedClient = new TcpClient();
+            CancellationToken token;
+            long version;
+            lock (syncRoot)
+            {
+                serverMode = false;
+                cancellation = new CancellationTokenSource();
+                token = cancellation.Token;
+                connectingClient = ownedClient;
+                version = sessionVersion;
+                IsRunning = true;
+            }
+            OnStatus("客户端连接中：" + ipAddress + ":" + port, version);
             Task.Run(delegate
             {
                 try
                 {
-                    TcpClient tcpClient = new TcpClient();
-                    tcpClient.Connect(ipAddress, port);
-                    SetClient(tcpClient);
-                    OnStatus("客户端已连接：" + ipAddress + ":" + port);
-                    ReceiveLoop(encoding ?? Encoding.UTF8, cancellation.Token);
+                    if (token.IsCancellationRequested) return;
+                    ownedClient.Connect(ipAddress, port);
+                    NetworkStream ownedStream;
+                    if (!TrySetClient(ownedClient, token, version, out ownedStream)) return;
+                    OnStatus("客户端已连接：" + ipAddress + ":" + port, version);
+                    ReceiveLoop(ownedClient, ownedStream, encoding ?? Encoding.UTF8, token, version, false);
                 }
                 catch (Exception ex)
                 {
-                    OnError("客户端连接失败", ex);
-                    Stop();
+                    long stoppedVersion = StopSession(version);
+                    if (stoppedVersion >= 0) OnError("客户端连接失败", ex, stoppedVersion);
                 }
+                finally { CloseClientOnly(ownedClient, version); ownedClient.Close(); }
             });
         }
 
-        public void Send(string text, Encoding encoding, bool appendNewLine)
+        public void Send(string text, Encoding encoding, bool appendNewLine, int writeTimeoutMs = 0)
         {
             string payload = appendNewLine ? (text ?? string.Empty) + Environment.NewLine : (text ?? string.Empty);
             byte[] bytes = (encoding ?? Encoding.UTF8).GetBytes(payload);
+            long version;
             lock (syncRoot)
             {
+                version = sessionVersion;
                 if (stream == null || !stream.CanWrite)
                 {
                     throw new InvalidOperationException("TCP 未连接。");
                 }
 
-                stream.Write(bytes, 0, bytes.Length);
-                stream.Flush();
+                int previousTimeout = stream.WriteTimeout;
+                try
+                {
+                    if (writeTimeoutMs > 0) stream.WriteTimeout = writeTimeoutMs;
+                    stream.Write(bytes, 0, bytes.Length);
+                    stream.Flush();
+                }
+                finally
+                {
+                    if (stream != null && stream.CanWrite) stream.WriteTimeout = previousTimeout;
+                }
             }
 
-            OnStatus("发送：" + payload.TrimEnd('\r', '\n'));
+            OnStatus("发送：" + payload.TrimEnd('\r', '\n'), version);
         }
 
         public void Stop()
         {
-            CancellationTokenSource token = cancellation;
-            cancellation = null;
-            if (token != null)
-            {
-                token.Cancel();
-                token.Dispose();
-            }
+            StopSession(null);
+        }
 
+        // A worker may only finish its own session, never a later user connection.
+        private long StopSession(long? expectedVersion)
+        {
+            CancellationTokenSource token;
+            bool wasRunning, wasServer;
+            long stoppedVersion;
             lock (syncRoot)
             {
+                if (expectedVersion.HasValue && expectedVersion.Value != sessionVersion) return -1;
+                stoppedVersion = ++sessionVersion;
+                token = cancellation; cancellation = null;
+                wasRunning = IsRunning; wasServer = serverMode;
+                IsRunning = false;
+                if (connectingClient != null) { connectingClient.Close(); connectingClient = null; }
                 if (stream != null)
                 {
                     stream.Dispose();
@@ -126,13 +167,9 @@ namespace HalconWinFormsDemo.Services
                     listener = null;
                 }
             }
-
-            if (IsRunning)
-            {
-                OnStatus(serverMode ? "服务端已停止。" : "客户端已断开。");
-            }
-
-            IsRunning = false;
+            if (token != null) { token.Cancel(); token.Dispose(); }
+            if (wasRunning) OnStatus(wasServer ? "服务端已停止。" : "客户端已断开。", stoppedVersion);
+            return stoppedVersion;
         }
 
         public void Dispose()
@@ -140,20 +177,25 @@ namespace HalconWinFormsDemo.Services
             Stop();
         }
 
-        private void AcceptLoop(Encoding encoding, CancellationToken token)
+        private void AcceptLoop(TcpListener ownedListener, Encoding encoding, CancellationToken token, long version)
         {
             while (!token.IsCancellationRequested)
             {
                 try
                 {
-                    TcpClient accepted = listener.AcceptTcpClient();
-                    SetClient(accepted);
-                    IPEndPoint endpoint = accepted.Client.RemoteEndPoint as IPEndPoint;
-                    OnStatus("客户端已接入：" + (endpoint == null ? "unknown" : endpoint.ToString()));
-                    ReceiveLoop(encoding, token);
-                    if (serverMode && IsRunning && !token.IsCancellationRequested)
+                    TcpClient accepted = ownedListener.AcceptTcpClient();
+                    try
                     {
-                        OnStatus("服务端监听中，等待新的客户端接入。");
+                        NetworkStream ownedStream;
+                        if (!TrySetClient(accepted, token, version, out ownedStream)) return;
+                        IPEndPoint endpoint = accepted.Client.RemoteEndPoint as IPEndPoint;
+                        OnStatus("客户端已接入：" + (endpoint == null ? "unknown" : endpoint.ToString()), version);
+                        ReceiveLoop(accepted, ownedStream, encoding, token, version, true);
+                    }
+                    finally { CloseClientOnly(accepted, version); accepted.Close(); }
+                    if (!token.IsCancellationRequested)
+                    {
+                        OnStatus("服务端监听中，等待新的客户端接入。", version);
                     }
                 }
                 catch (ObjectDisposedException)
@@ -164,50 +206,44 @@ namespace HalconWinFormsDemo.Services
                 {
                     if (!token.IsCancellationRequested)
                     {
-                        OnStatus("服务端监听已结束。");
+                        OnStatus("服务端监听已结束。", version);
                     }
                     return;
                 }
                 catch (Exception ex)
                 {
-                    OnError("服务端监听异常", ex);
+                    if (!token.IsCancellationRequested) OnError("服务端监听异常", ex, version);
                 }
             }
         }
 
-        private void ReceiveLoop(Encoding encoding, CancellationToken token)
+        private void ReceiveLoop(TcpClient ownedClient, NetworkStream ownedStream, Encoding encoding,
+            CancellationToken token, long version, bool ownedServerMode)
         {
             byte[] buffer = new byte[4096];
-            while (!token.IsCancellationRequested && CanSend)
+            while (!token.IsCancellationRequested)
             {
                 try
                 {
-                    NetworkStream currentStream;
                     lock (syncRoot)
                     {
-                        currentStream = stream;
+                        if (sessionVersion != version || !ReferenceEquals(client, ownedClient)) return;
                     }
-
-                    if (currentStream == null)
-                    {
-                        return;
-                    }
-
-                    int count = currentStream.Read(buffer, 0, buffer.Length);
+                    int count = ownedStream.Read(buffer, 0, buffer.Length);
                     if (count <= 0)
                     {
-                        OnStatus("对端已断开连接。");
-                        CloseClientOnly();
-                        if (!serverMode)
+                        CloseClientOnly(ownedClient, version);
+                        OnStatus("对端已断开连接。", version);
+                        if (!ownedServerMode)
                         {
-                            IsRunning = false;
-                            OnStatus("客户端已断开。");
+                            lock (syncRoot) { if (sessionVersion == version) IsRunning = false; }
+                            OnStatus("客户端已断开。", version);
                         }
                         return;
                     }
 
                     string text = encoding.GetString(buffer, 0, count);
-                    OnMessage(text);
+                    OnMessage(text, version);
                 }
                 catch (ObjectDisposedException)
                 {
@@ -217,22 +253,25 @@ namespace HalconWinFormsDemo.Services
                 {
                     if (!token.IsCancellationRequested)
                     {
-                        OnError("TCP 接收异常", ex);
+                        OnError("TCP 接收异常", ex, version);
                     }
-                    CloseClientOnly();
-                    if (!serverMode)
+                    CloseClientOnly(ownedClient, version);
+                    if (!ownedServerMode)
                     {
-                        IsRunning = false;
+                        lock (syncRoot) { if (sessionVersion == version) IsRunning = false; }
                     }
                     return;
                 }
             }
         }
 
-        private void SetClient(TcpClient tcpClient)
+        private bool TrySetClient(TcpClient tcpClient, CancellationToken token, long version, out NetworkStream ownedStream)
         {
+            ownedStream = null;
             lock (syncRoot)
             {
+                if (sessionVersion != version || token.IsCancellationRequested || !IsRunning)
+                { tcpClient.Close(); return false; }
                 if (stream != null)
                 {
                     stream.Dispose();
@@ -245,13 +284,17 @@ namespace HalconWinFormsDemo.Services
 
                 client = tcpClient;
                 stream = tcpClient.GetStream();
+                ownedStream = stream;
+                if (ReferenceEquals(connectingClient, tcpClient)) connectingClient = null;
+                return true;
             }
         }
 
-        private void CloseClientOnly()
+        private void CloseClientOnly(TcpClient ownedClient, long version)
         {
             lock (syncRoot)
             {
+                if (sessionVersion != version || !ReferenceEquals(client, ownedClient)) return;
                 if (stream != null)
                 {
                     stream.Dispose();
@@ -266,64 +309,74 @@ namespace HalconWinFormsDemo.Services
             }
         }
 
-        private void OnMessage(string text)
+        private void OnMessage(string text, long version)
         {
-            EventHandler<TcpCommunicationMessageEventArgs> handler = MessageReceived;
-            if (handler != null)
+            lock (syncRoot)
             {
-                handler(this, new TcpCommunicationMessageEventArgs(text));
+                if (version != sessionVersion) return;
+                EventHandler<TcpCommunicationMessageEventArgs> handler = MessageReceived;
+                if (handler != null) handler(this, new TcpCommunicationMessageEventArgs(text, version));
             }
         }
 
-        private void OnStatus(string message)
+        private void OnStatus(string message, long? version = null)
         {
-            EventHandler<TcpCommunicationStatusEventArgs> handler = StatusChanged;
-            if (handler != null)
+            lock (syncRoot)
             {
-                handler(this, new TcpCommunicationStatusEventArgs(message));
+                long current = version ?? sessionVersion;
+                if (current != sessionVersion) return;
+                EventHandler<TcpCommunicationStatusEventArgs> handler = StatusChanged;
+                if (handler != null) handler(this, new TcpCommunicationStatusEventArgs(message, current));
             }
         }
 
-        private void OnError(string message, Exception exception)
+        private void OnError(string message, Exception exception, long version)
         {
-            EventHandler<TcpCommunicationErrorEventArgs> handler = ErrorOccurred;
-            if (handler != null)
+            lock (syncRoot)
             {
-                handler(this, new TcpCommunicationErrorEventArgs(message, exception));
+                if (version != sessionVersion) return;
+                EventHandler<TcpCommunicationErrorEventArgs> handler = ErrorOccurred;
+                if (handler != null) handler(this, new TcpCommunicationErrorEventArgs(message, exception, version));
             }
         }
     }
 
     public sealed class TcpCommunicationMessageEventArgs : EventArgs
     {
-        public TcpCommunicationMessageEventArgs(string text)
+        public TcpCommunicationMessageEventArgs(string text, long sessionVersion = 0)
         {
             Text = text;
+            SessionVersion = sessionVersion;
         }
 
         public string Text { get; private set; }
+        public long SessionVersion { get; private set; }
     }
 
     public sealed class TcpCommunicationStatusEventArgs : EventArgs
     {
-        public TcpCommunicationStatusEventArgs(string message)
+        public TcpCommunicationStatusEventArgs(string message, long sessionVersion = 0)
         {
             Message = message;
+            SessionVersion = sessionVersion;
         }
 
         public string Message { get; private set; }
+        public long SessionVersion { get; private set; }
     }
 
     public sealed class TcpCommunicationErrorEventArgs : EventArgs
     {
-        public TcpCommunicationErrorEventArgs(string message, Exception exception)
+        public TcpCommunicationErrorEventArgs(string message, Exception exception, long sessionVersion = 0)
         {
             Message = message;
             Exception = exception;
+            SessionVersion = sessionVersion;
         }
 
         public string Message { get; private set; }
 
         public Exception Exception { get; private set; }
+        public long SessionVersion { get; private set; }
     }
 }

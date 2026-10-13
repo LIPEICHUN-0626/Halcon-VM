@@ -36,6 +36,8 @@ namespace HalconWinFormsDemo.Models
         public const string String = "String";
         public const string Boolean = "Boolean";
         public const string ResultCode = "ResultCode";
+        public const string NumberArray = "Number[]";
+        public const string StringArray = "String[]";
 
         public static string Normalize(string value)
         {
@@ -44,6 +46,8 @@ namespace HalconWinFormsDemo.Models
             if (string.Equals(value, String, StringComparison.OrdinalIgnoreCase)) return String;
             if (string.Equals(value, Boolean, StringComparison.OrdinalIgnoreCase)) return Boolean;
             if (string.Equals(value, ResultCode, StringComparison.OrdinalIgnoreCase)) return ResultCode;
+            if (string.Equals(value, NumberArray, StringComparison.OrdinalIgnoreCase)) return NumberArray;
+            if (string.Equals(value, StringArray, StringComparison.OrdinalIgnoreCase)) return StringArray;
             return value.Trim();
         }
 
@@ -52,7 +56,9 @@ namespace HalconWinFormsDemo.Models
             return string.Equals(value, Number, StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(value, String, StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(value, Boolean, StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(value, ResultCode, StringComparison.OrdinalIgnoreCase);
+                   string.Equals(value, ResultCode, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, NumberArray, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(value, StringArray, StringComparison.OrdinalIgnoreCase);
         }
 
         public static string ToPortDataType(string value)
@@ -72,6 +78,8 @@ namespace HalconWinFormsDemo.Models
                 return true;
             }
 
+            if (VmArrayContractS105.IsType(normalizedType))
+                return VmScriptArrayContractS107.TryParseDefault(normalizedType, source, out value, out error);
             if (string.Equals(normalizedType, Number, StringComparison.OrdinalIgnoreCase))
             {
                 double number;
@@ -194,6 +202,39 @@ namespace HalconWinFormsDemo.Models
         public double NumberValue { get; private set; }
         public string TextValue { get; private set; }
         public bool BooleanValue { get; private set; }
+        [OptionalField] private double[] numberArray;
+        [OptionalField] private string[] stringArray;
+
+        public double[] NumberArrayValue
+        {
+            get { if (ValueType != VmScriptScalarType.NumberArray || numberArray == null) throw new InvalidOperationException("此脚本值不是数值数组。"); return (double[])numberArray.Clone(); }
+        }
+        public string[] StringArrayValue
+        {
+            get { if (ValueType != VmScriptScalarType.StringArray || stringArray == null) throw new InvalidOperationException("此脚本值不是文本数组。"); return (string[])stringArray.Clone(); }
+        }
+        public static ScriptScalarValue FromNumberArray(double[] value)
+        {
+            var validated = new VmNumberArrayS105(value);
+            return new ScriptScalarValue { ValueType = VmScriptScalarType.NumberArray, numberArray = validated.ToArray(), TextValue = string.Empty };
+        }
+        public static ScriptScalarValue FromStringArray(string[] value)
+        {
+            var validated = new VmStringArrayS105(value);
+            return new ScriptScalarValue { ValueType = VmScriptScalarType.StringArray, stringArray = Enumerable.Range(0, validated.Count).Select(index => validated[index]).ToArray(), TextValue = string.Empty };
+        }
+
+        public void Validate()
+        {
+            if (!VmScriptScalarType.IsSupported(ValueType)) throw new InvalidOperationException("脚本返回不支持的类型：" + ValueType);
+            if (ValueType == VmScriptScalarType.Number && (double.IsNaN(NumberValue) || double.IsInfinity(NumberValue))) throw new InvalidOperationException("脚本数值必须为有限值。");
+            if (ValueType == VmScriptScalarType.ResultCode && TextValue != "OK" && TextValue != "NG") throw new InvalidOperationException("脚本结果码必须为 OK 或 NG。");
+            if (ValueType == VmScriptScalarType.NumberArray) new VmNumberArrayS105(numberArray);
+            if (ValueType == VmScriptScalarType.StringArray) new VmStringArrayS105(stringArray);
+        }
+
+        [OnDeserialized]
+        private void ValidateAfterTransfer(StreamingContext context) { Validate(); }
 
         public static ScriptScalarValue FromNumber(double value)
         {
@@ -220,6 +261,8 @@ namespace HalconWinFormsDemo.Models
 
         public object ToObject()
         {
+            if (ValueType == VmScriptScalarType.NumberArray) return new VmNumberArrayS105(numberArray);
+            if (ValueType == VmScriptScalarType.StringArray) return new VmStringArrayS105(stringArray);
             if (ValueType == VmScriptScalarType.Number) return NumberValue;
             if (ValueType == VmScriptScalarType.Boolean) return BooleanValue;
             return TextValue ?? string.Empty;
@@ -266,10 +309,14 @@ namespace HalconWinFormsDemo.Models
         public bool HasInput(string name) { return namedInputs.ContainsKey(NormalizeName(name)); }
         public bool HasParameter(string name) { return namedParameters.ContainsKey(NormalizeName(name)); }
         public double GetInputNumber(string name) { return GetValue(namedInputs, name, VmScriptScalarType.Number, "输入").NumberValue; }
+        public double[] GetInputNumberArray(string name) { return GetValue(namedInputs, name, VmScriptScalarType.NumberArray, "输入").NumberArrayValue; }
+        public string[] GetInputStringArray(string name) { return GetValue(namedInputs, name, VmScriptScalarType.StringArray, "输入").StringArrayValue; }
         public string GetInputString(string name) { return GetValue(namedInputs, name, VmScriptScalarType.String, "输入").TextValue ?? string.Empty; }
         public bool GetInputBoolean(string name) { return GetValue(namedInputs, name, VmScriptScalarType.Boolean, "输入").BooleanValue; }
         public string GetInputResultCode(string name) { return GetValue(namedInputs, name, VmScriptScalarType.ResultCode, "输入").TextValue ?? string.Empty; }
         public double GetParameterNumber(string name) { return GetValue(namedParameters, name, VmScriptScalarType.Number, "参数").NumberValue; }
+        public double[] GetParameterNumberArray(string name) { return GetValue(namedParameters, name, VmScriptScalarType.NumberArray, "参数").NumberArrayValue; }
+        public string[] GetParameterStringArray(string name) { return GetValue(namedParameters, name, VmScriptScalarType.StringArray, "参数").StringArrayValue; }
         public string GetParameterString(string name) { return GetValue(namedParameters, name, VmScriptScalarType.String, "参数").TextValue ?? string.Empty; }
         public bool GetParameterBoolean(string name) { return GetValue(namedParameters, name, VmScriptScalarType.Boolean, "参数").BooleanValue; }
         public string GetParameterResultCode(string name) { return GetValue(namedParameters, name, VmScriptScalarType.ResultCode, "参数").TextValue ?? string.Empty; }
@@ -317,6 +364,8 @@ namespace HalconWinFormsDemo.Models
         }
 
         public void SetNumber(string name, double value) { SetNamedOutput(name, ScriptScalarValue.FromNumber(value)); }
+        public void SetNumberArray(string name, double[] value) { SetNamedOutput(name, ScriptScalarValue.FromNumberArray(value)); }
+        public void SetStringArray(string name, string[] value) { SetNamedOutput(name, ScriptScalarValue.FromStringArray(value)); }
         public void SetString(string name, string value) { SetNamedOutput(name, ScriptScalarValue.FromString(value)); }
         public void SetBoolean(string name, bool value) { SetNamedOutput(name, ScriptScalarValue.FromBoolean(value)); }
         public void SetResultCode(string name, string value) { SetNamedOutput(name, ScriptScalarValue.FromResultCode(value)); }
@@ -326,6 +375,7 @@ namespace HalconWinFormsDemo.Models
             string key = (name ?? string.Empty).Trim();
             if (key.Length == 0) throw new ArgumentException("输出名称不能为空。", "name");
             if (namedOutputs.ContainsKey(key)) throw new InvalidOperationException("脚本重复写入命名输出：" + key);
+            if (key.Length > 64 || namedOutputs.Count >= 64) throw new InvalidOperationException("脚本最多返回 64 个命名输出，名称最多 64 字符。");
             namedOutputs.Add(key, value);
         }
 
