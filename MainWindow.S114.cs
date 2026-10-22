@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using HalconDotNet;
 using HalconWinFormsDemo.Models;
 
@@ -41,6 +42,7 @@ namespace HalconWinFormsDemo
 
         private sealed class ReplayCursorS114
         {
+            public string Folder;
             public string[] Files;
             public int Next;
             public int Requests;
@@ -49,9 +51,18 @@ namespace HalconWinFormsDemo
 
         private readonly Dictionary<string, CameraSessionS114> cameraSessionsS114 = new Dictionary<string, CameraSessionS114>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, ReplayCursorS114> replayCursorsS114 = new Dictionary<string, ReplayCursorS114>(StringComparer.OrdinalIgnoreCase);
+        private bool updatingReplayChoiceUI03;
+        private sealed class ReplayChoiceUI03
+        {
+            public WeakReference Owner { get; set; }
+            public int Index { get; set; }
+            public string Path { get; set; }
+            public string DisplayText { get { return (Index + 1).ToString(CultureInfo.InvariantCulture) + " · " + System.IO.Path.GetFileName(Path); } }
+        }
 
         private void LoadImageSourceDraftS114(VmToolParameterData parameters, VmToolInstance tool)
         {
+            DockReplayListExpanderUI03.IsExpanded = false;
             DockImageSourceModeS114.SelectedValue = VmImageSourceModeS114.Normalize(parameters.ImageSourceModeS114);
             DockReplayFolderS114.Text = parameters.ImageReplayFolderS114 ?? string.Empty;
             DockCameraInterfaceS114.Text = parameters.CameraInterfaceS114 ?? string.Empty;
@@ -63,6 +74,7 @@ namespace HalconWinFormsDemo
             UpdateImageSourceModeVisibilityS114();
             UpdateCameraStatusS114(tool);
             RefreshAcquisitionDiagnosticS115();
+            RefreshImageSourceTaskUI03();
         }
 
         private bool ReadImageSourceDraftS114(VmToolParameterData parameters)
@@ -97,15 +109,165 @@ namespace HalconWinFormsDemo
             if (!dockDraftUpdating && !RequireEngineeringEditS137("修改图像采集模式")) return;
             UpdateImageSourceModeVisibilityS114();
             DockDraftValue_Changed(sender, e);
+            RefreshImageSourceTaskUI03();
         }
 
         private void UpdateImageSourceModeVisibilityS114()
         {
             if (DockImageSourceFileS114 == null) return;
-            string mode = VmImageSourceModeS114.Normalize(DockImageSourceModeS114.SelectedValue as string);
+            // SelectionChanged precedes SelectedValue commit on this control.
+            var selected = DockImageSourceModeS114.SelectedItem as VmToolValueOption;
+            string mode = VmImageSourceModeS114.Normalize(selected == null ? DockImageSourceModeS114.SelectedValue as string : selected.Key);
             DockImageSourceFileS114.Visibility = mode == VmImageSourceModeS114.File ? Visibility.Visible : Visibility.Collapsed;
             DockImageSourceReplayS114.Visibility = mode == VmImageSourceModeS114.Replay ? Visibility.Visible : Visibility.Collapsed;
             DockImageSourceCameraS114.Visibility = mode == VmImageSourceModeS114.Camera ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void DockSourcePathChangedUI03(object sender, TextChangedEventArgs e)
+        {
+            DockDraftValue_Changed(sender, e);
+            RefreshImageSourceTaskUI03();
+        }
+
+        private void SelectSourceFileDraftUI03(string path, long lease)
+        {
+            if (dockEditingTool == null || dockEditingTool.Kind != VmToolKind.ImageSource || !IsEngineeringEditLeaseCurrentS137(lease)) return;
+            DockLocalImagePathTextBox.Text = path;
+            // Blank SN stays automatic; do not turn the first filename into a
+            // permanent identifier for all later chosen files.
+            DockFooterText.Text = "已选择文件，尚未读取；F5读取草稿，应用后保存配置。";
+        }
+
+        private static string SourcePathBriefUI03(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return "尚未选择";
+            try
+            {
+                string name = Path.GetFileName(value.Trim().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                return string.IsNullOrWhiteSpace(name) ? value : name;
+            }
+            catch { return "路径格式需要修正"; }
+        }
+
+        private void RefreshImageSourceTaskUI03()
+        {
+            if (DockSourceCurrentFrameUI03 == null) return;
+            UpdateImageSourceModeVisibilityS114();
+            DockSourceFileBriefUI03.Text = SourcePathBriefUI03(DockLocalImagePathTextBox.Text);
+            DockSourceFileBriefUI03.ToolTip = DockLocalImagePathTextBox.Text;
+            DockReplayFolderBriefUI03.Text = SourcePathBriefUI03(DockReplayFolderS114.Text);
+            DockReplayFolderBriefUI03.ToolTip = DockReplayFolderS114.Text;
+            VmToolInstance tool = dockEditingTool;
+            if (tool == null || tool.Kind != VmToolKind.ImageSource) return;
+            if (!subflowTrialActiveS102)
+            {
+                DockTrialRunButton.Content = "▶ 读取一帧";
+                DockTrialRunButton.ToolTip = "F5：按当前来源草稿读取一帧，不应用配置；回放使用下一次位置，相机须已明确连接。";
+            }
+            object raw;
+            VmImageSnapshot snapshot = tool.TryGetOutputValue("Image", out raw) ? raw as VmImageSnapshot : null;
+            if (snapshot == null || snapshot.IsDisposed || snapshot.ProducerToolId != tool.ToolId || tool.ResultCode != "OK")
+            {
+                DockSourceCurrentFrameUI03.Text = "当前输出：无有效帧";
+                DockSourceCurrentFrameUI03.ToolTip = string.IsNullOrWhiteSpace(tool.ErrorMessage) ? "请明确读取一帧；选择路径、模式或打开方案不会自动取图。" : tool.ErrorMessage;
+            }
+            else
+            {
+                double index, count;
+                bool indexed = tool.TryGetNumericOutput("FrameIndex", out index) && index >= 1 && Math.Truncate(index) == index;
+                bool counted = tool.TryGetNumericOutput("FrameCount", out count) && count >= 0 && Math.Truncate(count) == count;
+                string origin = tool.RuntimeResultOrigin == VmRuntimeResultOrigin.DraftTrial ? "草稿帧" : tool.RuntimeResultOrigin == VmRuntimeResultOrigin.ModuleExecution ? "已运行帧" : "未标记来源帧";
+                object sourceMode;
+                string mode = tool.TryGetOutputValue("SourceMode", out sourceMode) ? sourceMode as string : null;
+                string modeName = mode == VmImageSourceModeS114.File ? "文件" : mode == VmImageSourceModeS114.Replay ? "回放" : mode == VmImageSourceModeS114.Camera ? "相机" : "方式未发布";
+                DockSourceCurrentFrameUI03.Text = origin + "[" + modeName + "]：" + SourcePathBriefUI03(snapshot.SourcePath) +
+                    (indexed ? " · " + index.ToString("0", CultureInfo.InvariantCulture) + (counted && count > 0 ? "/" + count.ToString("0", CultureInfo.InvariantCulture) : string.Empty) : " · 帧号未发布") +
+                    " · " + snapshot.Width + "×" + snapshot.Height +
+                    (dockDraftDirty && tool.RuntimeResultOrigin != VmRuntimeResultOrigin.DraftTrial ? " · 草稿未重新读取" : string.Empty);
+                object timestamp;
+                string time = tool.TryGetOutputValue("Timestamp", out timestamp) && timestamp is string ? (string)timestamp : "未发布";
+                DockSourceCurrentFrameUI03.ToolTip = "实际输出：" + snapshot.SourcePath + "\nSN：" + snapshot.SerialNumber + "\n帧时间：" + time + "\n" + origin + "；只显示最后真实输出，不把所选路径当成已经读取。";
+            }
+            if (DockReplayListExpanderUI03.IsExpanded) RefreshReplayChoicesUI03(false);
+        }
+
+        private ReplayCursorS114 GetReplayCursorS114(VmToolInstance tool, VmToolParameterData parameters)
+        {
+            string folder = Path.GetFullPath(parameters.ImageReplayFolderS114);
+            string[] files = Directory.EnumerateFiles(folder, "*", SearchOption.TopDirectoryOnly)
+                .Where(IsReplayImageS114).Take(10001).ToArray();
+            if (files.Length == 0 || files.Length > 10000)
+                throw new InvalidOperationException("回放目录需要 1–10000 张受支持的图片。当前：" + files.Length.ToString(CultureInfo.InvariantCulture));
+            Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+            ReplayCursorS114 cursor;
+            if (!replayCursorsS114.TryGetValue(tool.ToolId, out cursor) || !PathsEqual(cursor.Folder, folder) || !cursor.Files.SequenceEqual(files, StringComparer.OrdinalIgnoreCase))
+            {
+                cursor = new ReplayCursorS114 { Folder = folder, Files = files, Next = 0 };
+                replayCursorsS114[tool.ToolId] = cursor;
+            }
+            return cursor;
+        }
+
+        private bool ReplayChoiceMatchesAppliedUI03(VmToolInstance tool)
+        {
+            var selected = DockImageSourceModeS114.SelectedItem as VmToolValueOption;
+            try { return tool != null && tool.Kind == VmToolKind.ImageSource && tool.Parameters != null &&
+                VmImageSourceModeS114.Normalize(tool.Parameters.ImageSourceModeS114) == VmImageSourceModeS114.Replay &&
+                VmImageSourceModeS114.Normalize(selected == null ? DockImageSourceModeS114.SelectedValue as string : selected.Key) == VmImageSourceModeS114.Replay &&
+                PathsEqual(tool.Parameters.ImageReplayFolderS114, DockReplayFolderS114.Text); }
+            catch { return false; }
+        }
+
+        private void DockReplayListExpandedUI03(object sender, RoutedEventArgs e) { RefreshReplayChoicesUI03(true); }
+
+        private void RefreshReplayChoicesUI03(bool readDirectory)
+        {
+            if (updatingReplayChoiceUI03 || DockReplayNextChoiceUI03 == null) return;
+            updatingReplayChoiceUI03 = true;
+            try
+            {
+                VmToolInstance tool = dockEditingTool;
+                DockReplayNextChoiceUI03.IsEnabled = false;
+                if (!ReplayChoiceMatchesAppliedUI03(tool))
+                {
+                    DockReplayNextChoiceUI03.ItemsSource = null;
+                    DockReplayListStatusUI03.Text = "目录/模式草稿请先应用；F5仍可按当前草稿取图。";
+                    return;
+                }
+                ReplayCursorS114 cursor;
+                if (readDirectory)
+                {
+                    long lease = CaptureEngineeringEditLeaseS137("查看回放列表");
+                    if (lease < 0 || !CanChangeRecipeS134()) return;
+                    cursor = GetReplayCursorS114(tool, tool.Parameters);
+                    if (!IsEngineeringEditLeaseCurrentS137(lease) || dockEditingTool != tool || !ReplayChoiceMatchesAppliedUI03(tool)) return;
+                }
+                else if (!replayCursorsS114.TryGetValue(tool.ToolId, out cursor))
+                { DockReplayListStatusUI03.Text = "尚无回放列表；重新展开查看，不会读取图像。"; return; }
+                if (!PathsEqual(cursor.Folder, tool.Parameters.ImageReplayFolderS114))
+                { DockReplayNextChoiceUI03.ItemsSource = null; DockReplayListStatusUI03.Text = "列表属于旧目录，请重新展开。"; return; }
+                DockReplayNextChoiceUI03.ItemsSource = cursor.Files.Select((path, index) => new ReplayChoiceUI03 { Owner = new WeakReference(tool), Index = index, Path = path }).ToList();
+                DockReplayNextChoiceUI03.SelectedIndex = cursor.Next;
+                DockReplayNextChoiceUI03.IsEnabled = CanChangeRecipeS134(false);
+                DockReplayListStatusUI03.Text = cursor.Files.Length + " 张 · 下一次读取 " + (cursor.Next + 1) + "；选择不取图，到末尾回首张。";
+            }
+            catch (Exception ex) { DockReplayNextChoiceUI03.ItemsSource = null; DockReplayListStatusUI03.Text = "列表不可用：" + ex.Message; }
+            finally { updatingReplayChoiceUI03 = false; }
+        }
+
+        private void DockReplayNextChoiceChangedUI03(object sender, SelectionChangedEventArgs e)
+        {
+            if (updatingReplayChoiceUI03 || dockDraftUpdating) return;
+            VmToolInstance tool = dockEditingTool;
+            var choice = DockReplayNextChoiceUI03.SelectedItem as ReplayChoiceUI03;
+            long lease = CaptureEngineeringEditLeaseS137("选择下一回放帧");
+            ReplayCursorS114 cursor;
+            if (lease < 0 || choice == null || choice.Owner == null || !ReferenceEquals(choice.Owner.Target, tool) || !CanChangeRecipeS134() || !ReplayChoiceMatchesAppliedUI03(tool) ||
+                !replayCursorsS114.TryGetValue(tool.ToolId, out cursor) || !PathsEqual(cursor.Folder, tool.Parameters.ImageReplayFolderS114) ||
+                choice.Index < 0 || choice.Index >= cursor.Files.Length || cursor.Files[choice.Index] != choice.Path || !IsEngineeringEditLeaseCurrentS137(lease))
+            { RefreshReplayChoicesUI03(false); return; }
+            cursor.Next = choice.Index;
+            RefreshReplayChoicesUI03(false);
         }
 
         private void DockBrowseReplayFolderS114_Click(object sender, RoutedEventArgs e)
@@ -365,16 +527,8 @@ namespace HalconWinFormsDemo
             {
                 if (mode == VmImageSourceModeS114.Replay)
                 {
-                    string[] files = Directory.EnumerateFiles(p.ImageReplayFolderS114, "*", SearchOption.TopDirectoryOnly)
-                        .Where(IsReplayImageS114).OrderBy(item => item, StringComparer.OrdinalIgnoreCase).Take(10001).ToArray();
-                    if (files.Length == 0 || files.Length > 10000)
-                        throw new InvalidOperationException("回放目录需要 1–10000 张受支持的图片。当前：" + files.Length.ToString(CultureInfo.InvariantCulture));
-                    ReplayCursorS114 cursor;
-                    if (!replayCursorsS114.TryGetValue(tool.ToolId, out cursor) || !cursor.Files.SequenceEqual(files, StringComparer.OrdinalIgnoreCase))
-                    {
-                        cursor = new ReplayCursorS114 { Files = files, Next = 0 };
-                        replayCursorsS114[tool.ToolId] = cursor;
-                    }
+                    ReplayCursorS114 cursor = GetReplayCursorS114(tool, p);
+                    string[] files = cursor.Files;
                     DateTimeOffset requestTime = DateTimeOffset.UtcNow;
                     cursor.Requests++;
                     if (p.ReplayMinimumIntervalMsS115 > 0 && cursor.LastRequestUtc.HasValue &&

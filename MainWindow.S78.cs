@@ -118,7 +118,9 @@ namespace HalconWinFormsDemo
                 }
                 RefreshUiState();
                 HeaderStatusText.Text = sampleAvailable
-                    ? "示例“" + displayName + "”已装载；不会自动运行，请从上到下查看模块后点击“运行流程”。"
+                    ? IsLearningProjectKeyS146(key)
+                        ? "示例“" + displayName + "”已装载；请按学习步骤准备图像、参数及所需模型/标定，再主动运行。"
+                        : "示例“" + displayName + "”已装载；不会自动运行，请从上到下查看模块后点击“运行流程”。"
                     : "示例“" + displayName + "”已装载，但未找到本机 HALCON 示例图像；请在首个图像源中选择自己的图片。";
                 LogInfo(HeaderStatusText.Text);
                 CompleteLearningProjectLoadS146(key, displayName);

@@ -83,9 +83,13 @@ namespace HalconWinFormsDemo
         private void ShowPointSetDetailsS103_Click(object sender, RoutedEventArgs e)
         {
             var element = sender as FrameworkElement;
-            var port = element == null ? null : element.DataContext as VmTaskResultSummaryRow;
-            var tool = dockEditingTool; object raw;
-            if (port == null || tool == null || port.DataType != "Point2D[]" || !tool.TryGetOutputValue(port.PortName, out raw) || !(raw is VmPoint2DArray)) return;
+            VmToolInstance tool; VmPortDefinition port; object raw;
+            if (!TryResolveDetailValueUI06(element == null ? null : element.DataContext, out tool, out port, out raw) || port.DataType != "Point2D[]") return;
+            BuildPointDetailWindowUI06(tool, port, raw).ShowDialog();
+        }
+
+        private Window BuildPointDetailWindowUI06(VmToolInstance tool, VmPortDefinition port, object raw)
+        {
             var snapshot = ((VmPoint2DArray)raw).Clone();
             if (((VmPoint2DArray)raw).Points == null) snapshot.IsValid = false;
             var points = snapshot.Points;
@@ -97,7 +101,7 @@ namespace HalconWinFormsDemo
             var errors = points.Select(errorFor).ToList();
             var root = new DockPanel { Margin = new Thickness(12) };
             var heading = new TextBlock { Text = tool.InstanceName + " · " + port.DisplayName + "\n" + snapshot.ToDisplayString() +
-                "\n只读快照：" + DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture) + "；不随重跑变化，不修改或过滤实际数据。",
+                "\n" + BuildResultOriginTextS88(tool) + "\n只读快照：" + DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture) + "；不随重跑变化，不修改或过滤实际数据。",
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,8) };
             DockPanel.SetDock(heading, Dock.Top); root.Children.Add(heading);
             var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0,8,0,0) };
@@ -135,8 +139,11 @@ namespace HalconWinFormsDemo
                 page = 0; refresh();
             };
             onlyInvalid.Checked += filter; onlyInvalid.Unchecked += filter; refresh();
-            new Window { Owner = moduleParameterWindowS89 ?? this, Title = "点集明细 · " + tool.InstanceName, Content = root,
-                Width = 660, Height = 470, MinWidth = 520, MinHeight = 320, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.CenterOwner }.ShowDialog();
+            var detail = new Window { Owner = ShowActivated ? moduleParameterWindowS89 ?? this : null, ShowActivated = ShowActivated,
+                Title = "点集明细 · " + tool.InstanceName, Content = root,
+                Width = 660, Height = 470, MinWidth = 520, MinHeight = 320, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+            if (!ShowActivated) { detail.WindowStartupLocation = WindowStartupLocation.Manual; detail.Left = Left; detail.Top = Top; }
+            return detail;
         }
 
         private void LoadGeometryReuseExampleS103_Click(object sender, RoutedEventArgs e) { LoadExampleProgramS78("geometry-reuse"); }

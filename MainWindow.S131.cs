@@ -267,6 +267,7 @@ namespace HalconWinFormsDemo
                 trained.MinScore = latest.MinScore; trained.MaxMatches = latest.MaxMatches; trained.MaxOverlap = latest.MaxOverlap; trained.Subpixel = latest.Subpixel;
                 if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
                 nccDraftS131 = trained; retained = true;
+                DockNccTrainingS131.IsExpanded = false;
                 DockNccTrainingStatusS131.Text = "新模板进入草稿 · F5 试运行，确认后应用";
                 DockDraftValue_Changed(sender, e);
                 LogInfo(tool.InstanceName + " NCC 模板已制作：" + trained.ModelSha256 + "；尚未替换已应用版本");
@@ -293,7 +294,10 @@ namespace HalconWinFormsDemo
             DockNccTrainS131.IsEnabled = stopped && !busy && nccPreviewImageS131 != null && nccTrainingBoxS131.HasValue;
             DockNccPreviewS131.IsEnabled = stopped && !busy;
             DockNccCancelS131.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
-            DockNccModelStateS131.Text = nccDraftS131.HasModel ? "模板版本 " + nccDraftS131.ModelSha256.Substring(0, 10) + " · " + (nccDraftS131.TrainingColumn2 - nccDraftS131.TrainingColumn1 + 1) + "×" + (nccDraftS131.TrainingRow2 - nccDraftS131.TrainingRow1 + 1) + " px" : "未制作模板 · 读取输入并框选目标";
+            var applied = dockEditingTool == null || dockEditingTool.Parameters == null ? null : dockEditingTool.Parameters.NccMatchingS131;
+            bool pending = nccDraftS131.HasModel && (applied == null || !string.Equals(nccDraftS131.ModelPath, applied.ModelPath, StringComparison.OrdinalIgnoreCase));
+            DockNccModelStateS131.Text = nccDraftS131.HasModel ? (pending ? "新模板草稿 · 待应用" : "已应用模板 · 重跑看结果") : "未配置模板 · 先读取图像";
+            DockNccModelStateS131.ToolTip = nccDraftS131.HasModel ? nccDraftS131.ModelPath + "\nSHA256: " + nccDraftS131.ModelSha256 : "输入图像 → 框选目标 → 制作草稿模板 → F5 → 应用";
         }
 
         private InspectionRecord RunNccMatchingS131(VmToolInstance tool, HImage image)

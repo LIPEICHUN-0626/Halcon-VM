@@ -10,7 +10,7 @@ namespace HalconWinFormsDemo
 {
     public partial class MainWindow
     {
-        private bool flowTaskLensModeS76 = true;
+        private bool flowTaskLensModeS76;
 
         private void FlowCardDisplayMode_CheckedS76(object sender, RoutedEventArgs e)
         {
@@ -21,7 +21,7 @@ namespace HalconWinFormsDemo
             int compact = flowTools.Count(item => item.IsTaskLensCompactS76);
             HeaderStatusText.Text = flowTaskLensModeS76
                 ? string.Format(CultureInfo.InvariantCulture, "任务透镜：{0} 个当前/相关步骤完整显示，{1} 个无关步骤压成状态行；执行与配方未改变。", flowTools.Count - compact, compact)
-                : string.Format(CultureInfo.InvariantCulture, "全部展开：{0} 个流程步骤显示完整卡片；执行与配方未改变。", flowTools.Count);
+                : string.Format(CultureInfo.InvariantCulture, "固定紧凑：{0} 个步骤保持位置与卡片高度，端口按需展开；执行与配方未改变。", flowTools.Count);
         }
 
         private void UpdateFlowTaskLensStatesS76()

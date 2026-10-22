@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using HalconDotNet;
 using HalconWinFormsDemo.Models;
 
@@ -9,6 +10,131 @@ namespace HalconWinFormsDemo
 {
     public partial class MainWindow
     {
+        private TextBox invalidParameterFieldUI07;
+        private object invalidParameterBrushUI07, invalidParameterThicknessUI07, invalidParameterTipUI07;
+
+        private string FilterModeUI07()
+        {
+            var selected = DockImageFilterModeComboBox.SelectedItem as VmImageFilterModeOption;
+            return VmImageFilterMode.Normalize(selected == null ? null : selected.Key);
+        }
+
+        private string EnhancementModeUI07()
+        {
+            var selected = DockImageEnhancementModeComboBox.SelectedItem as VmImageEnhancementModeOption;
+            return VmImageEnhancementMode.Normalize(selected == null ? null : selected.Key);
+        }
+
+        private string ChannelModeUI07()
+        {
+            var selected = DockImageChannelModeComboBox.SelectedItem as VmImageChannelModeOption;
+            return VmImageChannelMode.Normalize(selected == null ? null : selected.Key);
+        }
+
+        private string DifferenceModeUI07()
+        {
+            var selected = DockImageDifferenceModeComboBox.SelectedItem as VmImageDifferenceModeOption;
+            return VmImageDifferenceMode.Normalize(selected == null ? null : selected.Key);
+        }
+
+        private string ProjectiveOutputModeUI07()
+        {
+            var selected = DockProjectiveOutputModeComboBox.SelectedItem as VmLayerOption;
+            return VmProjectiveOutputMode.Normalize(selected == null ? null : selected.Key);
+        }
+
+        private string NumericOperationUI07()
+        {
+            var selected = DockNumericCalculationOperationComboBox.SelectedItem as VmTcpOption;
+            return VmNumericCalculationOperation.Normalize(selected == null ? null : selected.Key);
+        }
+
+        // Shared by the read-only four-point preview and explicit draft validation.
+        // Hidden size fields never replace the applied values in another mode.
+        private bool TryReadProjectiveSizeUI07(out int width, out int height, out TextBox field, out string error)
+        {
+            width = height = 0;
+            field = DockProjectiveOutputWidthTextBox;
+            error = "输出宽：请输入 2–16384 的整数（像素）。";
+            if (!int.TryParse(field.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out width) || width < 2 || width > 16384) return false;
+            field = DockProjectiveOutputHeightTextBox;
+            error = "输出高：请输入 2–16384 的整数（像素）。";
+            if (!int.TryParse(field.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out height) || height < 2 || height > 16384) return false;
+            error = "输出宽×高不能超过 67108864 像素，请减小尺寸。";
+            if ((long)width * height > 67108864L) return false;
+            error = null;
+            field = null;
+            return true;
+        }
+
+        private void ClearParameterFieldErrorUI07()
+        {
+            if (invalidParameterFieldUI07 == null) return;
+            RestoreParameterPropertyUI07(invalidParameterFieldUI07, Control.BorderBrushProperty, invalidParameterBrushUI07);
+            RestoreParameterPropertyUI07(invalidParameterFieldUI07, Control.BorderThicknessProperty, invalidParameterThicknessUI07);
+            RestoreParameterPropertyUI07(invalidParameterFieldUI07, FrameworkElement.ToolTipProperty, invalidParameterTipUI07);
+            invalidParameterFieldUI07 = null;
+            DockValidationText.Visibility = Visibility.Visible;
+            DockAdvancedParameterValidationText.Text = string.Empty;
+            DockAdvancedParameterValidationText.Visibility = Visibility.Collapsed;
+        }
+
+        private static void RestoreParameterPropertyUI07(DependencyObject field, DependencyProperty property, object value)
+        {
+            if (value == DependencyProperty.UnsetValue) field.ClearValue(property);
+            else field.SetValue(property, value);
+        }
+
+        private bool FailParameterFieldUI07(TextBox field, string message)
+        {
+            ClearParameterFieldErrorUI07();
+            invalidParameterFieldUI07 = field;
+            invalidParameterBrushUI07 = field.ReadLocalValue(Control.BorderBrushProperty);
+            invalidParameterThicknessUI07 = field.ReadLocalValue(Control.BorderThicknessProperty);
+            invalidParameterTipUI07 = field.ReadLocalValue(FrameworkElement.ToolTipProperty);
+            field.BorderBrush = Brushes.Firebrick; field.BorderThickness = new Thickness(2);
+            field.ToolTip = message;
+            DockValidationText.Text = message;
+            DockValidationText.Visibility = Visibility.Collapsed;
+            DockAdvancedParameterValidationText.Text = message;
+            DockAdvancedParameterValidationText.Visibility = Visibility.Visible;
+            SetDockDraftUiState("请修正参数", true);
+            DockFooterText.Text = "请修改标红字段";
+            // Reveal only when this particular field is in a folded advanced row.
+            Grid grid = field.Parent as Grid;
+            if (grid != null && Grid.GetRow(field) < grid.RowDefinitions.Count)
+            {
+                RowDefinition row = grid.RowDefinitions[Grid.GetRow(field)];
+                foreach (DockAdvancedParameterRowState state in dockAdvancedParameterRows)
+                {
+                    if (!ReferenceEquals(state.Row, row)) continue;
+                    dockAdvancedParameterExpandedByKind[dockEditingTool.Kind] = true;
+                    UpdateDockAdvancedParameterLayout(dockEditingTool);
+                    break;
+                }
+            }
+            SelectCentralConfigurationTaskS77(DockParametersTaskTab, "Parameters");
+            DockConfigurationTabs.UpdateLayout(); field.BringIntoView();
+            if (moduleParameterWindowS89 != null && moduleParameterWindowS89.ShowActivated && moduleParameterWindowS89.IsActive)
+                field.Focus();
+            return false;
+        }
+
+        private bool ReadIntegerParameterUI07(TextBox field, string name, int minimum, int maximum, bool odd, out int value)
+        {
+            if (int.TryParse(field.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) &&
+                value >= minimum && value <= maximum && (!odd || value % 2 == 1)) return true;
+            return FailParameterFieldUI07(field, name + "：请输入 " + minimum + "–" + maximum + (odd ? " 的奇数（像素）。" : " 的整数（像素）。"));
+        }
+
+        private bool ReadNumberParameterUI07(TextBox field, string name, double minimum, double maximum, bool excludeMinimum, out double value)
+        {
+            if (TryParseUiDouble(field.Text, out value) && !double.IsNaN(value) && !double.IsInfinity(value) &&
+                (excludeMinimum ? value > minimum : value >= minimum) && value <= maximum) return true;
+            return FailParameterFieldUI07(field, name + "：请输入" + (excludeMinimum ? "大于 " : "不小于 ") + minimum.ToString(CultureInfo.InvariantCulture) +
+                " 且不超过 " + maximum.ToString(CultureInfo.InvariantCulture) + " 的有限数值。");
+        }
+
         private void SetDockParameterRowVisibilityS85(FrameworkElement anchor, bool visible)
         {
             if (anchor == null) return;
@@ -27,14 +153,14 @@ namespace HalconWinFormsDemo
             RefreshArrayReorderFieldsS108();
             if (DockImageFilterModeComboBox != null)
             {
-                bool mean = VmImageFilterMode.Normalize(DockImageFilterModeComboBox.SelectedValue as string) == VmImageFilterMode.Mean;
+                bool mean = FilterModeUI07() == VmImageFilterMode.Mean;
                 SetDockParameterRowVisibilityS85(DockImageFilterWidthTextBox, mean);
                 SetDockParameterRowVisibilityS85(DockImageFilterRadiusTextBox, !mean);
             }
 
             if (DockImageEnhancementModeComboBox != null)
             {
-                bool linear = VmImageEnhancementMode.Normalize(DockImageEnhancementModeComboBox.SelectedValue as string) == VmImageEnhancementMode.LinearScale;
+                bool linear = EnhancementModeUI07() == VmImageEnhancementMode.LinearScale;
                 SetDockParameterRowVisibilityS85(DockImageEnhancementScaleTextBox, linear);
                 SetDockParameterRowVisibilityS85(DockImageEnhancementMaskWidthTextBox, !linear);
                 SetDockParameterRowVisibilityS85(DockImageEnhancementFactorTextBox, !linear);
@@ -42,20 +168,20 @@ namespace HalconWinFormsDemo
 
             if (DockImageChannelModeComboBox != null)
             {
-                bool extract = VmImageChannelMode.Normalize(DockImageChannelModeComboBox.SelectedValue as string) == VmImageChannelMode.Extract;
+                bool extract = ChannelModeUI07() == VmImageChannelMode.Extract;
                 SetDockParameterRowVisibilityS85(DockImageChannelIndexTextBox, extract);
             }
 
             if (DockImageDifferenceModeComboBox != null)
             {
-                bool directional = VmImageDifferenceMode.Normalize(DockImageDifferenceModeComboBox.SelectedValue as string) != VmImageDifferenceMode.AbsoluteDifference;
+                bool directional = DifferenceModeUI07() != VmImageDifferenceMode.AbsoluteDifference;
                 DockImageDifferenceAddLabel.Visibility = directional ? Visibility.Visible : Visibility.Collapsed;
                 DockImageDifferenceAddTextBox.Visibility = directional ? Visibility.Visible : Visibility.Collapsed;
             }
 
             if (DockProjectiveOutputModeComboBox != null)
             {
-                bool explicitSize = VmProjectiveOutputMode.Normalize(DockProjectiveOutputModeComboBox.SelectedValue as string) == VmProjectiveOutputMode.ExplicitSize;
+                bool explicitSize = ProjectiveOutputModeUI07() == VmProjectiveOutputMode.ExplicitSize;
                 SetDockParameterRowVisibilityS85(DockProjectiveOutputWidthTextBox, explicitSize);
             }
 
@@ -68,7 +194,7 @@ namespace HalconWinFormsDemo
 
             if (DockNumericCalculationOperationComboBox != null)
             {
-                bool round = VmNumericCalculationOperation.Normalize(DockNumericCalculationOperationComboBox.SelectedValue as string) == VmNumericCalculationOperation.Round;
+                bool round = NumericOperationUI07() == VmNumericCalculationOperation.Round;
                 SetDockParameterRowVisibilityS85(DockNumericCalculationRoundDigitsTextBox, round);
             }
         }

@@ -125,8 +125,17 @@ namespace HalconWinFormsDemo
                  row.PortName == "Image" && currentImage != null);
             row.IsConfigured = string.IsNullOrWhiteSpace(configurationError) &&
                 (selected != null && !selected.IsDefault || defaultConfigured);
+            object currentRaw = null;
+            bool bound = selected != null && !selected.IsDefault;
+            bool hasSnapshot = bound && source != null && source.IsEnabled && source.LastOutputUtc.HasValue &&
+                (source.ResultCode == "OK" || source.ResultCode == "NG") && string.IsNullOrWhiteSpace(source.ErrorMessage) &&
+                source.TryGetOutputValue(selected.SourcePortName, out currentRaw) && currentRaw != null;
+            string valueError = hasSnapshot ? GetResultValueErrorUI06(row.DataType, currentRaw) : null;
+            row.CanInspectValueUI06 = hasSnapshot && (currentRaw is VmPoint2DArray || valueError == null && VmArrayContractS105.IsType(row.DataType));
+            if (bound) row.CurrentValue = !hasSnapshot ? "--" : valueError == null ? source.GetFormattedOutput(selected.SourcePortName) : "类型/数值无效";
             row.IsReady = row.IsConfigured &&
-                (row.IsOptional && selected != null && selected.IsDefault ||
+                (bound ? hasSnapshot && valueError == null && source.RuntimeResultOrigin == VmRuntimeResultOrigin.ModuleExecution :
+                 row.IsOptional && selected != null && selected.IsDefault ||
                  row.PortName == "ROI" || row.PortName == "SearchROI" ||
                  !string.Equals(row.CurrentValue, "--", StringComparison.Ordinal));
 
@@ -136,6 +145,21 @@ namespace HalconWinFormsDemo
                 row.StatusText = "不可用 · " + configurationError;
                 row.DiagnosticText = configurationError;
             }
+            else if (bound && hasSnapshot)
+            {
+                bool preview = source.RuntimeResultOrigin != VmRuntimeResultOrigin.ModuleExecution;
+                row.StateKey = valueError != null ? "Error" : preview ? "Preview" : "Ready";
+                row.StatusText = valueError != null ? "输出类型 / 数值无效" :
+                    (source.RuntimeResultOrigin == VmRuntimeResultOrigin.DraftTrial ? "草稿预览 · " : preview ? "来源未标注 · " : "最近执行 · ") + ShortResultValueS88(BriefTypedValueUI06(currentRaw, row.CurrentValue), 64);
+                row.DiagnosticText = (valueError == null ? "只读当前来源快照；实际使用时仍检查应用参数、模型版本及坐标。" : valueError) +
+                    "\n" + BuildResultOriginTextS88(source) + " · 输出版本 " + source.RuntimeOutputVersion.ToString(CultureInfo.InvariantCulture);
+            }
+            else if (bound && row.IsConfigured)
+            {
+                row.StateKey = "Waiting";
+                row.StatusText = "已选择 · 暂无有效值";
+                row.DiagnosticText = "保留真实端口连接；请运行上游。可选输入已连接时也需要有效值，不回退旧值。";
+            }
             else if (row.IsReady)
             {
                 row.StateKey = "Ready";
@@ -143,7 +167,7 @@ namespace HalconWinFormsDemo
                     ? "未连接 · 可选，不阻塞运行"
                     : (string.Equals(row.CurrentValue, "--", StringComparison.Ordinal)
                         ? "来源可用 · 使用默认任务范围"
-                        : "有值 · " + row.CurrentValue);
+                        : "有值 · " + ShortResultValueS88(row.CurrentValue, 64));
                 row.DiagnosticText = "来源、顺序和类型检查通过。";
             }
             else if (row.IsOptional)
@@ -523,7 +547,7 @@ namespace HalconWinFormsDemo
             DockContinuousTrialToggleButtonS87.ToolTip = hasTool && dockEditingTool.Kind == VmToolKind.SubflowCall
                 ? "重复运行当前子流程草稿及其内部步骤；每轮结束后等待设定间隔，不运行父流程。停止在当前算子结束后的安全边界生效。"
                 : "重复试运行当前模块草稿；每轮结束后等待设定间隔，不运行整条流程。";
-            DockTrialRunButton.Content = pausedCall ? "▶ 继续调用" : "▶ 试运行当前模块";
+            DockTrialRunButton.Content = pausedCall ? "▶ 继续调用" : hasTool && dockEditingTool.Kind == VmToolKind.ImageSource ? "▶ 读取一帧" : "▶ 试运行当前模块";
             DockTrialRunButton.ToolTip = pausedCall ? "F5：继续当前已暂停的子流程，不重新开始，不运行父流程。" : "F5：使用当前草稿只运行此模块一次。";
             DockTrialRunButton.IsEnabled = pausedCall || hasTool && !running && !otherBusy;
             DockSubflowStepButtonS102.Visibility = pausedCall ? Visibility.Visible : Visibility.Collapsed;

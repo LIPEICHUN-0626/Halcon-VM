@@ -350,17 +350,19 @@ namespace HalconWinFormsDemo.Models
         public event PropertyChangedEventHandler PropertyChanged;
 
         public VmRoiLayer Layer { get; set; }
+        public string MissingRoiId { get; set; }
         public bool IsCompatible { get; set; } = true;
-        public string CompatibilityText { get { return IsCompatible ? string.Empty : "不同图像来源；不能跨源绑定"; } }
+        public bool CanChangeBinding { get { return IsCompatible || IsBound; } }
+        public string CompatibilityText { get { return Layer == null && !string.IsNullOrWhiteSpace(MissingRoiId) ? "已缺失；取消勾选后选择当前检测区" : IsCompatible ? string.Empty : "不同图像来源；可解绑，不能跨源绑定"; } }
 
         public string RoiId
         {
-            get { return Layer == null ? string.Empty : Layer.RoiId; }
+            get { return Layer == null ? MissingRoiId ?? string.Empty : Layer.RoiId; }
         }
 
         public string Name
         {
-            get { return Layer == null ? "--" : Layer.Name; }
+            get { return Layer == null ? (string.IsNullOrWhiteSpace(MissingRoiId) ? "--" : "缺失 ROI · " + RoiIdText) : Layer.Name; }
         }
 
         public string ShapeText
@@ -407,6 +409,7 @@ namespace HalconWinFormsDemo.Models
                 if (handler != null)
                 {
                     handler(this, new PropertyChangedEventArgs("IsBound"));
+                    handler(this, new PropertyChangedEventArgs("CanChangeBinding"));
                 }
             }
         }

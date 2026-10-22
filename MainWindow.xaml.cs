@@ -1363,7 +1363,7 @@ namespace HalconWinFormsDemo
             double automaticCanvasWidthS73 = GetAutomaticFlowCanvasWidthS73();
             double leftMargin = isManualFlowLayout ? 64 : Math.Max(38, Math.Min(110, (automaticCanvasWidthS73 - 400) * 0.5));
             const double topMargin = 34;
-            const double nodeGap = 34;
+            const double nodeGap = 24;
 
             UpdateFlowTaskLensStatesS76();
 
@@ -1383,7 +1383,7 @@ namespace HalconWinFormsDemo
                     ? 32
                     : tool.ShowFlowDetails
                     ? Math.Min(tool.IsGroupCollapsed ? 205 : 280, Math.Max(tool.IsGroupCollapsed ? 104 : 132, 72 + portRows * portPitch))
-                    : 72;
+                    : 52;
                 double automaticX = leftMargin;
                 double automaticY = nextAutomaticY;
                 if (!isManualFlowLayout || !tool.HasManualGraphPosition ||
@@ -4905,8 +4905,8 @@ namespace HalconWinFormsDemo
             VmProductionWidgetLayoutData value;
             if (items.TryGetValue(VmProductionRunLayoutData.Scheme, out value)) { ProductionSchemeWidgetTitleText.Text = value.Title; ProductionSchemeWidget.Visibility = value.IsVisible ? Visibility.Visible : Visibility.Collapsed; }
             if (items.TryGetValue(VmProductionRunLayoutData.Image, out value)) ProductionImageTitleText.Text = value.Title;
-            if (items.TryGetValue(VmProductionRunLayoutData.OverallResult, out value)) { ProductionOverallResultWidget.Header = value.Title; ProductionOverallResultWidget.Visibility = Visibility.Visible; }
-            if (items.TryGetValue(VmProductionRunLayoutData.Statistics, out value)) { ProductionStatisticsWidget.Header = value.Title; ProductionStatisticsWidget.Visibility = value.IsVisible ? Visibility.Visible : Visibility.Collapsed; }
+            if (items.TryGetValue(VmProductionRunLayoutData.OverallResult, out value)) { ProductionOverallResultWidget.Header = value.Title == "总判定" ? "最近流程结果" : value.Title; ProductionOverallResultWidget.Visibility = Visibility.Visible; }
+            if (items.TryGetValue(VmProductionRunLayoutData.Statistics, out value)) { ProductionStatisticsWidget.Header = value.Title == "生产统计" ? "流程统计 · 含工程运行" : value.Title; ProductionStatisticsWidget.Visibility = value.IsVisible ? Visibility.Visible : Visibility.Collapsed; }
             if (items.TryGetValue(VmProductionRunLayoutData.RunControl, out value)) { ProductionRunControlWidget.Header = value.Title; ProductionRunControlWidget.Visibility = Visibility.Visible; }
             if (items.TryGetValue(VmProductionRunLayoutData.Batch, out value)) { ProductionBatchWidget.Header = value.Title; ProductionBatchWidget.Visibility = value.IsVisible ? Visibility.Visible : Visibility.Collapsed; }
             if (items.TryGetValue(VmProductionRunLayoutData.Alarm, out value)) { ProductionAlarmWidget.Header = value.Title; ProductionAlarmWidget.Visibility = value.IsVisible ? Visibility.Visible : Visibility.Collapsed; }
@@ -4989,8 +4989,8 @@ namespace HalconWinFormsDemo
             RefreshProductionRunView();
             ApplyProductionRunLayout(productionLayoutDesignMode ? CaptureProductionLayoutDraft() : productionRunLayout);
             HeaderStatusText.Text = enabled
-                ? "已切换到操作员运行界面；这只是页面切换，不会自动开始检测。当前方案、图像、结果、统计和报警与开发界面共用。"
-                : "已返回开发界面；运行界面中的方案和执行状态已保留。";
+                ? "运行界面 · 当前流程：" + GetProjectFlowNameS104() + "；仅切换页面，未启动检测。"
+                : "工程编辑 · 当前流程：" + GetProjectFlowNameS104() + "；原执行状态保留。";
             ScheduleRefreshDisplay();
         }
 
@@ -5028,8 +5028,13 @@ namespace HalconWinFormsDemo
         {
             if (ProductionRunPanel == null) return;
 
-            ProductionSchemeText.Text = (RecipeNameText == null ? "方案：未加载" : RecipeNameText.Text) + " / 当前流程：" + GetProjectFlowNameS104();
-            ProductionModeStateText.Text = "真实执行器 · " + (ModeStatusText == null ? "待命" : ModeStatusText.Text.Replace("模式：", string.Empty));
+            string flowName = GetProjectFlowNameS104();
+            ProductionSchemeText.Text = RecipeNameText == null ? "方案：未加载" : RecipeNameText.Text;
+            ProductionSchemeText.ToolTip = ProductionSchemeText.Text;
+            ProductionModeStateText.Text = "当前流程：" + flowName;
+            ProductionModeStateText.ToolTip = "本页运行的是“" + flowName + "”，不运行方案里的其他流程。当前状态：" +
+                (ModeStatusText == null ? "待命" : ModeStatusText.Text.Replace("模式：", string.Empty));
+            ProductionRunOnceButtonUI08.ToolTip = "运行当前流程“" + flowName + "”全部启用步骤一次；不运行方案中的其他流程。";
             string result = FlowRunResultText == null || string.IsNullOrWhiteSpace(FlowRunResultText.Text) ? "--" : FlowRunResultText.Text;
             if (result == "NG" && currentRootExecutionErrorS136) result = "ERROR"; // Display execution faults separately; the original outcome/PLC mapping stays unchanged.
             ProductionOverallResultText.Text = result;
@@ -5037,7 +5042,7 @@ namespace HalconWinFormsDemo
                 ? System.Windows.Media.Brushes.LimeGreen
                 : (string.Equals(result, "RUN", StringComparison.OrdinalIgnoreCase) ? System.Windows.Media.Brushes.DeepSkyBlue
                     : (result == "--" ? System.Windows.Media.Brushes.WhiteSmoke : System.Windows.Media.Brushes.OrangeRed));
-            ProductionElapsedText.Text = "耗时：" + (FlowRunElapsedText == null ? "--" : FlowRunElapsedText.Text);
+            ProductionElapsedText.Text = "最近流程耗时：" + (FlowRunElapsedText == null ? "--" : FlowRunElapsedText.Text);
             ProductionCurrentToolText.Text = FlowCurrentToolText == null ? "--" : FlowCurrentToolText.Text;
             ProductionStopReasonText.Text = FlowStopReasonText == null ? "--" : FlowStopReasonText.Text;
             ProductionQueueSummaryText.Text = string.IsNullOrWhiteSpace(imageQueueBatchSummary) ? "批次：未运行" : imageQueueBatchSummary;
@@ -8788,6 +8793,7 @@ namespace HalconWinFormsDemo
 
             if (flowPortDragSession != null)
             {
+                if (aggregateConnectionChoiceSessionUI04 != null) return;
                 if (!flowPortDragSession.IsClickArmed && e.LeftButton != MouseButtonState.Pressed)
                 {
                     CancelFlowPortDrag("端口拖拽已取消。", true);
@@ -8868,6 +8874,9 @@ namespace HalconWinFormsDemo
 
         private void FlowGraphCanvas_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
+            // Candidate/close buttons finish on MouseUp. The armed connection
+            // must not consume their routed event before Button raises Click.
+            if (aggregateConnectionChoiceSessionUI04 != null && IsFlowNodeCommandHitS79(e.OriginalSource as DependencyObject)) return;
             if (flowNodeDragSession != null && e.ChangedButton == MouseButton.Left)
             {
                 CompleteFlowNodeDrag(true);
@@ -8896,7 +8905,7 @@ namespace HalconWinFormsDemo
                 }
                 else if (!valid)
                 {
-                    CancelFlowPortDrag("连线未修改：" + (string.IsNullOrWhiteSpace(validationError) ? "请拖到兼容端口。" : validationError), true);
+                    if (!OpenPendingConnectionChoicesUI04()) CancelFlowPortDrag("连线未修改：" + (string.IsNullOrWhiteSpace(validationError) ? "请拖到兼容端口。" : validationError), true);
                 }
                 else
                 {
@@ -9383,7 +9392,7 @@ namespace HalconWinFormsDemo
 
             VmFlowConnectionVisual connection = GetSelectedFlowConnection();
             bool graphVisible = FlowGraphViewport != null && FlowGraphViewport.Visibility == Visibility.Visible;
-            FlowConnectionInspectorBorder.Visibility = connection != null && graphVisible ? Visibility.Visible : Visibility.Collapsed;
+            FlowConnectionInspectorBorder.Visibility = connection != null && graphVisible && aggregateConnectionChoiceSessionUI04 == null ? Visibility.Visible : Visibility.Collapsed;
             if (connection == null)
             {
                 return;
@@ -9503,6 +9512,7 @@ namespace HalconWinFormsDemo
         {
             aggregatePortHoverDetectedS75 = false;
             aggregatePortHoverErrorS75 = string.Empty;
+            pendingConnectionPairsUI04 = null;
             DependencyObject current = FlowGraphCanvas == null ? null : FlowGraphCanvas.InputHitTest(point) as DependencyObject;
             while (current != null && !ReferenceEquals(current, FlowGraphCanvas))
             {
@@ -9639,6 +9649,8 @@ namespace HalconWinFormsDemo
                 return false;
             }
             if (!EvaluateFlowPortConnection(sourceChip, targetChip, out error)) return false;
+            VmToolInstance originalSourceUI04 = flowTools.First(item => string.Equals(item.ToolId, sourceChip.OwnerToolId, StringComparison.OrdinalIgnoreCase));
+            VmToolInstance originalTargetUI04 = flowTools.First(item => string.Equals(item.ToolId, targetChip.OwnerToolId, StringComparison.OrdinalIgnoreCase));
             if (!ConfirmDockDraftChanges("修改输入绑定"))
             {
                 error = "当前参数草稿已保留。";
@@ -9648,6 +9660,8 @@ namespace HalconWinFormsDemo
             // The original draft dialog pumps messages: endpoints or run state may have changed.
             if (isContinuousRunning || isFlowExecutionActive)
             { error = "运行状态已改变，绑定未修改。"; return false; }
+            if (!flowTools.Contains(originalSourceUI04) || !flowTools.Contains(originalTargetUI04))
+            { error = "连接模块实例已改变，请重新选择；原绑定未修改。"; return false; }
             if (!EvaluateFlowPortConnection(sourceChip, targetChip, out error)) return false;
             VmToolInstance source = flowTools.First(item => string.Equals(item.ToolId, sourceChip.OwnerToolId, StringComparison.OrdinalIgnoreCase));
             VmToolInstance target = flowTools.First(item => string.Equals(item.ToolId, targetChip.OwnerToolId, StringComparison.OrdinalIgnoreCase));
@@ -9725,7 +9739,11 @@ namespace HalconWinFormsDemo
 
         private void CancelFlowPortDrag(string status, bool logStatus)
         {
+            if (aggregateConnectionChoiceSessionUI04 != null) CloseFlowAggregatePortFlyoutS75();
+            pendingConnectionPairsUI04 = null;
             flowPortDragSession = null;
+            UpdateFlowConnectionInspector();
+            UpdateFlowPortInspector();
             if (FlowPortDragPreviewPath != null) FlowPortDragPreviewPath.Visibility = Visibility.Collapsed;
             if (FlowPortDragStatusBorder != null) FlowPortDragStatusBorder.Visibility = Visibility.Collapsed;
             if (FlowGraphCanvas != null && FlowGraphCanvas.IsMouseCaptured) Mouse.Capture(null);
@@ -9750,7 +9768,7 @@ namespace HalconWinFormsDemo
                 : (input ? ToolMetadata.GetInstanceInputPorts(tool) : ToolMetadata.GetInstanceOutputPorts(tool))
                     .FirstOrDefault(item => string.Equals(item.PortName, selectedFlowPortName, StringComparison.OrdinalIgnoreCase));
             bool graphVisible = FlowGraphViewport != null && FlowGraphViewport.Visibility == Visibility.Visible;
-            if (tool == null || port == null || !graphVisible)
+            if (tool == null || port == null || !graphVisible || aggregateConnectionChoiceSessionUI04 != null)
             {
                 FlowPortInspectorBorder.Visibility = Visibility.Collapsed;
                 if (tool == null || port == null)
@@ -10101,12 +10119,20 @@ namespace HalconWinFormsDemo
             }
 
             FlowToolList.SelectedItem = tool;
+            if (!ReferenceEquals(FlowToolList.SelectedItem, tool)) return;
             SetFlowEditorView(true);
+            long navigationRequest = ++flowNavigationRequestUI05;
+            string session = projectSessionIdS104;
+            string flowId = activeProjectFlowIdS104;
+            WeakReference target = new WeakReference(tool);
             Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(delegate
             {
+                VmToolInstance current = target.Target as VmToolInstance;
+                if (navigationRequest != flowNavigationRequestUI05 || session != projectSessionIdS104 || flowId != activeProjectFlowIdS104 ||
+                    current == null || !flowTools.Contains(current) || !ReferenceEquals(FlowToolList.SelectedItem, current)) return;
                 double zoom = FlowZoomSlider == null ? 1 : FlowZoomSlider.Value;
-                FlowGraphViewport.ScrollToHorizontalOffset(Math.Max(0, (tool.GraphX + 140) * zoom - FlowGraphViewport.ViewportWidth / 2.0));
-                FlowGraphViewport.ScrollToVerticalOffset(Math.Max(0, (tool.GraphY + tool.GraphHeight / 2.0) * zoom - FlowGraphViewport.ViewportHeight / 2.0));
+                FlowGraphViewport.ScrollToHorizontalOffset(Math.Max(0, (current.GraphX + 140) * zoom - FlowGraphViewport.ViewportWidth / 2.0));
+                FlowGraphViewport.ScrollToVerticalOffset(Math.Max(0, (current.GraphY + current.GraphHeight / 2.0) * zoom - FlowGraphViewport.ViewportHeight / 2.0));
             }));
             HeaderStatusText.Text = statusText;
         }
@@ -11258,6 +11284,7 @@ namespace HalconWinFormsDemo
             dockDraftUpdating = true;
             try
             {
+                ClearParameterFieldErrorUI07();
                 dockEditingTool = tool;
                 UpdateCentralModuleConfigurationTitleS77(tool);
                 dockInputPortRows.Clear();
@@ -11858,6 +11885,8 @@ namespace HalconWinFormsDemo
                 int advancedFieldCount = 0;
                 HashSet<string> preferredCommonParameters;
                 bool hasTaskProfile = TryGetPreferredCommonParameterNamesS83(tool.Kind, out preferredCommonParameters);
+                if (tool.Kind == VmToolKind.ImageEnhancement && EnhancementModeUI07() == VmImageEnhancementMode.LocalContrast)
+                    preferredCommonParameters = NamesS83("DockImageEnhancementModeComboBox", "DockImageEnhancementMaskWidthTextBox", "DockImageEnhancementMaskHeightTextBox", "DockImageEnhancementFactorTextBox");
                 CompactTaskParameterFieldsS83(activePanel, preferredCommonParameters);
                 foreach (Grid grid in FindTopLevelParameterGrids(activePanel))
                 {
@@ -11899,7 +11928,7 @@ namespace HalconWinFormsDemo
                 }
 
                 DockParameterPriorityBar.Visibility = Visibility.Visible;
-                DockKeyParameterSummaryText.Text = string.Format(
+                DockKeyParameterSummaryText.Text = tool.Kind == VmToolKind.ImageSource ? "来源配置 · 选择后明确读取" : string.Format(
                     CultureInfo.InvariantCulture,
                     hasTaskProfile
                         ? "常用参数 · {0} 项"
@@ -12042,6 +12071,7 @@ namespace HalconWinFormsDemo
 
         private void RefreshDockConfigurationRuntime(VmToolInstance tool)
         {
+            if (tool != null && tool.Kind == VmToolKind.ImageSource) RefreshImageSourceTaskUI03();
             if (tool == null || DockRunStateText == null)
             {
                 return;
@@ -12099,6 +12129,7 @@ namespace HalconWinFormsDemo
             }
 
             dockDraftDirty = true;
+            ClearParameterFieldErrorUI07();
             SetDockDraftUiState("未应用", true);
             DockFooterText.Text = "草稿已修改；试运行不会自动应用";
             DockValidationText.Text = string.Empty;
@@ -12212,7 +12243,7 @@ namespace HalconWinFormsDemo
                 return;
             }
 
-            bool mean = VmImageFilterMode.Normalize(DockImageFilterModeComboBox.SelectedValue as string) == VmImageFilterMode.Mean;
+            bool mean = FilterModeUI07() == VmImageFilterMode.Mean;
             SetDockParameterRowVisibilityS85(DockImageFilterWidthTextBox, mean);
             SetDockParameterRowVisibilityS85(DockImageFilterRadiusTextBox, !mean);
         }
@@ -12220,7 +12251,7 @@ namespace HalconWinFormsDemo
         private void UpdateDockImageEnhancementParameterState()
         {
             if (DockImageEnhancementModeComboBox == null) return;
-            bool linear = VmImageEnhancementMode.Normalize(DockImageEnhancementModeComboBox.SelectedValue as string) == VmImageEnhancementMode.LinearScale;
+            bool linear = EnhancementModeUI07() == VmImageEnhancementMode.LinearScale;
             SetDockParameterRowVisibilityS85(DockImageEnhancementScaleTextBox, linear);
             SetDockParameterRowVisibilityS85(DockImageEnhancementMaskWidthTextBox, !linear);
             SetDockParameterRowVisibilityS85(DockImageEnhancementFactorTextBox, !linear);
@@ -12229,7 +12260,7 @@ namespace HalconWinFormsDemo
         private void UpdateDockImageDifferenceParameterState()
         {
             if (DockImageDifferenceModeComboBox == null) return;
-            bool directional = VmImageDifferenceMode.Normalize(DockImageDifferenceModeComboBox.SelectedValue as string) != VmImageDifferenceMode.AbsoluteDifference;
+            bool directional = DifferenceModeUI07() != VmImageDifferenceMode.AbsoluteDifference;
             DockImageDifferenceAddTextBox.IsEnabled = directional;
         }
 
@@ -12242,7 +12273,7 @@ namespace HalconWinFormsDemo
         private void UpdateDockProjectiveOutputSizeState()
         {
             if (DockProjectiveOutputModeComboBox == null) return;
-            bool explicitSize = VmProjectiveOutputMode.Normalize(DockProjectiveOutputModeComboBox.SelectedValue as string) == VmProjectiveOutputMode.ExplicitSize;
+            bool explicitSize = ProjectiveOutputModeUI07() == VmProjectiveOutputMode.ExplicitSize;
             DockProjectiveOutputWidthTextBox.IsEnabled = explicitSize;
             DockProjectiveOutputHeightTextBox.IsEnabled = explicitSize;
         }
@@ -12447,17 +12478,15 @@ namespace HalconWinFormsDemo
                 SetProjectivePoint(preview, false, index, targetRow, targetColumn);
             }
             preview.ImageProjectiveInterpolation = VmProjectiveInterpolation.Normalize(DockProjectiveInterpolationComboBox.SelectedValue as string);
-            preview.ImageProjectiveOutputMode = VmProjectiveOutputMode.Normalize(DockProjectiveOutputModeComboBox.SelectedValue as string);
-            int width;
-            int height;
-            if (!int.TryParse(DockProjectiveOutputWidthTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out width) ||
-                !int.TryParse(DockProjectiveOutputHeightTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out height))
+            preview.ImageProjectiveOutputMode = ProjectiveOutputModeUI07();
+            if (preview.ImageProjectiveOutputMode == VmProjectiveOutputMode.ExplicitSize)
             {
-                error = "显式输出宽度和高度必须是整数。";
-                return false;
+                int width, height;
+                TextBox invalidField;
+                if (!TryReadProjectiveSizeUI07(out width, out height, out invalidField, out error)) return false;
+                preview.ImageProjectiveOutputWidth = width;
+                preview.ImageProjectiveOutputHeight = height;
             }
-            preview.ImageProjectiveOutputWidth = width;
-            preview.ImageProjectiveOutputHeight = height;
             preview.ImageProjectiveTransformDomain = DockProjectiveTransformDomainCheckBox.IsChecked == true;
             return true;
         }
@@ -12643,45 +12672,49 @@ namespace HalconWinFormsDemo
             }
             else if (tool.Kind == VmToolKind.ImageChannel)
             {
-                parameters.ImageChannelMode = VmImageChannelMode.Normalize(DockImageChannelModeComboBox.SelectedValue as string);
-                if (!int.TryParse(DockImageChannelIndexTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer))
+                parameters.ImageChannelMode = ChannelModeUI07();
+                if (parameters.ImageChannelMode == VmImageChannelMode.Extract)
                 {
-                    return FailDockDraft("图像通道序号必须是整数。");
+                    if (!int.TryParse(DockImageChannelIndexTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer) || integer < 1)
+                        return FailParameterFieldUI07(DockImageChannelIndexTextBox, "通道序号：请输入从 1 开始的整数，不得超过实际图像通道数。");
+                    parameters.ImageChannelIndex = integer;
                 }
-                parameters.ImageChannelIndex = integer;
             }
             else if (tool.Kind == VmToolKind.ImageFilter)
             {
-                parameters.ImageFilterMode = VmImageFilterMode.Normalize(DockImageFilterModeComboBox.SelectedValue as string);
-                if (!int.TryParse(DockImageFilterWidthTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer))
+                parameters.ImageFilterMode = FilterModeUI07();
+                if (parameters.ImageFilterMode == VmImageFilterMode.Mean)
                 {
-                    return FailDockDraft("均值滤波模板宽必须是整数。");
+                    if (!ReadIntegerParameterUI07(DockImageFilterWidthTextBox, "窗口宽", 3, 255, true, out integer)) return false;
+                    parameters.ImageFilterMaskWidth = integer;
+                    if (!ReadIntegerParameterUI07(DockImageFilterHeightTextBox, "窗口高", 3, 255, true, out integer)) return false;
+                    parameters.ImageFilterMaskHeight = integer;
                 }
-                parameters.ImageFilterMaskWidth = integer;
-                if (!int.TryParse(DockImageFilterHeightTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer))
+                else
                 {
-                    return FailDockDraft("均值滤波模板高必须是整数。");
+                    if (!ReadIntegerParameterUI07(DockImageFilterRadiusTextBox, "中值半径", 1, 100, false, out integer)) return false;
+                    parameters.ImageFilterRadius = integer;
                 }
-                parameters.ImageFilterMaskHeight = integer;
-                if (!int.TryParse(DockImageFilterRadiusTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer))
-                {
-                    return FailDockDraft("中值滤波半径必须是整数。");
-                }
-                parameters.ImageFilterRadius = integer;
             }
             else if (tool.Kind == VmToolKind.ImageEnhancement)
             {
-                parameters.ImageEnhancementMode = VmImageEnhancementMode.Normalize(DockImageEnhancementModeComboBox.SelectedValue as string);
-                if (!TryParseUiDouble(DockImageEnhancementScaleTextBox.Text, out number)) return FailDockDraft("图像增强灰度增益必须是数值。");
-                parameters.ImageEnhancementScale = number;
-                if (!TryParseUiDouble(DockImageEnhancementOffsetTextBox.Text, out number)) return FailDockDraft("图像增强灰度偏移必须是数值。");
-                parameters.ImageEnhancementOffset = number;
-                if (!int.TryParse(DockImageEnhancementMaskWidthTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("局部增强模板宽必须是整数。");
-                parameters.ImageEnhancementMaskWidth = integer;
-                if (!int.TryParse(DockImageEnhancementMaskHeightTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("局部增强模板高必须是整数。");
-                parameters.ImageEnhancementMaskHeight = integer;
-                if (!TryParseUiDouble(DockImageEnhancementFactorTextBox.Text, out number)) return FailDockDraft("局部增强因子必须是数值。");
-                parameters.ImageEnhancementFactor = number;
+                parameters.ImageEnhancementMode = EnhancementModeUI07();
+                if (parameters.ImageEnhancementMode == VmImageEnhancementMode.LinearScale)
+                {
+                    if (!ReadNumberParameterUI07(DockImageEnhancementScaleTextBox, "灰度增益", 0.01, 10, false, out number)) return false;
+                    parameters.ImageEnhancementScale = number;
+                    if (!ReadNumberParameterUI07(DockImageEnhancementOffsetTextBox, "灰度偏移", -255, 255, false, out number)) return false;
+                    parameters.ImageEnhancementOffset = number;
+                }
+                else
+                {
+                    if (!ReadIntegerParameterUI07(DockImageEnhancementMaskWidthTextBox, "局部窗口宽", 3, 255, true, out integer)) return false;
+                    parameters.ImageEnhancementMaskWidth = integer;
+                    if (!ReadIntegerParameterUI07(DockImageEnhancementMaskHeightTextBox, "局部窗口高", 3, 255, true, out integer)) return false;
+                    parameters.ImageEnhancementMaskHeight = integer;
+                    if (!ReadNumberParameterUI07(DockImageEnhancementFactorTextBox, "增强因子", 0, 20, true, out number)) return false;
+                    parameters.ImageEnhancementFactor = number;
+                }
             }
             else if (tool.Kind == VmToolKind.ImageResize)
             {
@@ -12737,9 +12770,17 @@ namespace HalconWinFormsDemo
                 if (!TryParseUiDouble(DockProjectiveTargetRow4TextBox.Text, out number)) return FailDockDraft("透视目标点 4 Row 必须是数值。"); parameters.ImageProjectiveTargetRow4 = number;
                 if (!TryParseUiDouble(DockProjectiveTargetColumn4TextBox.Text, out number)) return FailDockDraft("透视目标点 4 Column 必须是数值。"); parameters.ImageProjectiveTargetColumn4 = number;
                 parameters.ImageProjectiveInterpolation = VmProjectiveInterpolation.Normalize(DockProjectiveInterpolationComboBox.SelectedValue as string);
-                parameters.ImageProjectiveOutputMode = VmProjectiveOutputMode.Normalize(DockProjectiveOutputModeComboBox.SelectedValue as string);
-                if (!int.TryParse(DockProjectiveOutputWidthTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("透视显式输出宽度必须是整数。"); parameters.ImageProjectiveOutputWidth = integer;
-                if (!int.TryParse(DockProjectiveOutputHeightTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("透视显式输出高度必须是整数。"); parameters.ImageProjectiveOutputHeight = integer;
+                parameters.ImageProjectiveOutputMode = ProjectiveOutputModeUI07();
+                if (parameters.ImageProjectiveOutputMode == VmProjectiveOutputMode.ExplicitSize)
+                {
+                    int width, height;
+                    TextBox invalidField;
+                    string sizeError;
+                    if (!TryReadProjectiveSizeUI07(out width, out height, out invalidField, out sizeError))
+                        return FailParameterFieldUI07(invalidField, sizeError);
+                    parameters.ImageProjectiveOutputWidth = width;
+                    parameters.ImageProjectiveOutputHeight = height;
+                }
                 parameters.ImageProjectiveTransformDomain = DockProjectiveTransformDomainCheckBox.IsChecked == true;
             }
             else if (tool.Kind == VmToolKind.SubpixelEdgeExtraction)
@@ -12779,11 +12820,14 @@ namespace HalconWinFormsDemo
             }
             else if (tool.Kind == VmToolKind.ImageDifference)
             {
-                parameters.ImageDifferenceMode = VmImageDifferenceMode.Normalize(DockImageDifferenceModeComboBox.SelectedValue as string);
-                if (!TryParseUiDouble(DockImageDifferenceMultiplierTextBox.Text, out number)) return FailDockDraft("双图像差分灰度增益必须是数值。");
+                parameters.ImageDifferenceMode = DifferenceModeUI07();
+                if (!ReadNumberParameterUI07(DockImageDifferenceMultiplierTextBox, "灰度增益", 0, 100, true, out number)) return false;
                 parameters.ImageDifferenceMultiplier = number;
-                if (!TryParseUiDouble(DockImageDifferenceAddTextBox.Text, out number)) return FailDockDraft("双图像差分灰度偏移必须是数值。");
-                parameters.ImageDifferenceAdd = number;
+                if (parameters.ImageDifferenceMode != VmImageDifferenceMode.AbsoluteDifference)
+                {
+                    if (!ReadNumberParameterUI07(DockImageDifferenceAddTextBox, "灰度偏移", -65535, 65535, false, out number)) return false;
+                    parameters.ImageDifferenceAdd = number;
+                }
             }
             else if (tool.Kind == VmToolKind.DynamicThreshold)
             {
@@ -13093,9 +13137,13 @@ namespace HalconWinFormsDemo
             }
             else if (tool.Kind == VmToolKind.NumericCalculation)
             {
-                parameters.NumericCalculationOperation = VmNumericCalculationOperation.Normalize(DockNumericCalculationOperationComboBox.SelectedValue as string);
-                if (!int.TryParse(DockNumericCalculationRoundDigitsTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer)) return FailDockDraft("数值运算小数位数必须是整数。");
-                parameters.NumericCalculationRoundDigits = integer;
+                parameters.NumericCalculationOperation = NumericOperationUI07();
+                if (parameters.NumericCalculationOperation == VmNumericCalculationOperation.Round)
+                {
+                    if (!int.TryParse(DockNumericCalculationRoundDigitsTextBox.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out integer) || integer < 0 || integer > 15)
+                        return FailParameterFieldUI07(DockNumericCalculationRoundDigitsTextBox, "小数位数：请输入 0–15 的整数。");
+                    parameters.NumericCalculationRoundDigits = integer;
+                }
             }
             else if (tool.Kind == VmToolKind.PositionCorrection2D)
             {
@@ -13529,6 +13577,7 @@ namespace HalconWinFormsDemo
 
         private bool FailDockDraft(string message)
         {
+            ClearParameterFieldErrorUI07();
             DockValidationText.Text = message;
             RevealDockAdvancedParametersForValidation(message);
             SetDockDraftUiState("校验失败", true);
@@ -13719,7 +13768,7 @@ namespace HalconWinFormsDemo
                     LastMessageText.Text = (lastResultIsSimulationS121 ? "离线模拟结果（禁止外发）：" : "当前模块调试结果（未自动外发）：") + lastResultPayload;
                     HeaderStatusText.Text = tool.InstanceName + " 试运行返回 " + record.ResultCode + "；未应用草稿。";
                 }
-                else RunStandaloneTool(tool, "停靠式模块配置试运行");
+                else RunStandaloneToolCoreUI02(tool, "停靠式模块配置试运行", false);
                 DockFooterText.Text = "试运行完成；草稿尚未应用";
                 SetDockDraftUiState(dockDraftDirty ? "未应用" : "试运行", dockDraftDirty);
             }
@@ -13732,6 +13781,7 @@ namespace HalconWinFormsDemo
             finally
             {
                 tool.Parameters = oldParameters;
+                RestoreShapeResourceAfterDraftTrialUI02(tool, oldParameters);
                 tool.ReplaceInputBindings(oldInputBindings);
                 tool.ReplaceRoiBindings(oldRoiBindings);
                 tool.InputToolId = oldInputToolId;
@@ -13857,7 +13907,8 @@ namespace HalconWinFormsDemo
                     DataType = port.DataType,
                     IsOptional = port.IsOptional,
                     SourceOptions = options,
-                    SelectedSourceKey = savedKey
+                    SelectedSourceKey = savedKey,
+                    LastPresentedSourceKeyUI06 = savedKey
                 };
                 RefreshDockInputRowState(row);
                 dockInputPortRows.Add(row);
@@ -14065,10 +14116,18 @@ namespace HalconWinFormsDemo
         {
             ComboBox comboBox = sender as ComboBox;
             VmInputPortEditorRow row = comboBox == null ? null : comboBox.DataContext as VmInputPortEditorRow;
-            if (row == null || dockDraftUpdating)
+            if (row == null || dockDraftUpdating || !dockInputPortRows.Contains(row))
             {
                 return;
             }
+            // Virtualized task cards materialize after LoadDockConfiguration clears
+            // its updating flag. Re-showing the same selected source is not an edit.
+            // SelectionChanged may precede the SelectedValue binding commit.
+            var choice = comboBox.SelectedItem as VmInputSourceOption;
+            if (choice == null || row.SourceOptions == null || !row.SourceOptions.Contains(choice) ||
+                string.Equals(choice.Key, row.LastPresentedSourceKeyUI06, StringComparison.Ordinal)) return;
+            row.SelectedSourceKey = choice.Key;
+            row.LastPresentedSourceKeyUI06 = choice.Key;
             RefreshDockInputRowState(row);
             if (dockEditingTool != null && dockEditingTool.Kind == VmToolKind.WorldPointPairMeasurement)
                 foreach (VmInputPortEditorRow other in dockInputPortRows.Where(item => !ReferenceEquals(item, row))) RefreshDockInputRowState(other);
@@ -14092,7 +14151,7 @@ namespace HalconWinFormsDemo
             if (!RequireEngineeringEditS137("重置输入订阅")) return;
             foreach (VmInputPortEditorRow row in dockInputPortRows)
             {
-                row.SelectedSourceKey = GetDockDefaultInputKey(row.PortName);
+                row.RestoreSourceKeyUI06(GetDockDefaultInputKey(row.PortName));
                 RefreshDockInputRowState(row);
             }
             DockInputPortItemsControl.Items.Refresh();
@@ -14152,6 +14211,9 @@ namespace HalconWinFormsDemo
                         IsCompatible = IsRoiCompatibleWithToolS112(layer, tool)
                     });
                 }
+                if (tool.Kind == VmToolKind.ImageThreshold)
+                    foreach (string missing in tool.BoundRoiIds.Where(id => !roiLayers.Any(layer => string.Equals(layer.RoiId, id, StringComparison.OrdinalIgnoreCase))))
+                        dockRoiBindingRows.Add(new VmRoiBindingItem { MissingRoiId = missing, IsBound = true });
             }
 
             bool supportsMode = tool != null && (tool.Kind == VmToolKind.Blob || tool.Kind == VmToolKind.GrayStat || tool.Kind == VmToolKind.EdgeMeasure);
@@ -14222,7 +14284,7 @@ namespace HalconWinFormsDemo
         {
             if (!RequireEngineeringEditS137("编辑ROI草稿绑定")) return;
             VmRoiBindingItem row = (sender as CheckBox)?.DataContext as VmRoiBindingItem;
-            if (row != null && !row.IsCompatible) { row.IsBound = false; return; }
+            if (row != null && !row.IsCompatible) row.IsBound = false;
             UpdateDockRoiSummary();
             DockDraftValue_Changed(sender, e);
         }
@@ -14247,15 +14309,11 @@ namespace HalconWinFormsDemo
 
         private void DockOpenRoiWorkspaceButton_Click(object sender, RoutedEventArgs e)
         {
-            if (dockEditingTool != null && SupportsDockConfiguration(dockEditingTool.Kind) && dockDraftDirty && !ApplyDockConfigurationDraft(true))
-            {
-                return;
-            }
-            RightTabs.SelectedItem = RoiTab;
-            RoiLayerPanel.Visibility = Visibility.Visible;
-            RoiLayerPanelColumn.Width = new GridLength(220);
-            ToggleRoiLayerPanelButton.Content = "隐藏图层";
-            HeaderStatusText.Text = dockEditingTool == null ? "已打开 ROI 工作区。" : "已打开 " + dockEditingTool.InstanceName + " 的 ROI 工作区。";
+            // Enter the existing image drawing task without applying the editor
+            // draft or opening the legacy side panel over the current workspace.
+            RectangleRoiButton_Click(sender, e);
+            if (roiEditor.Tool == VisionTool.RectangleRoi)
+                HeaderStatusText.Text = "请在当前模块的图像区画矩形；参数草稿保留，其他形状可从图像区 ROI 菜单选择。";
         }
 
         private void DockBrowseLocalImageButton_Click(object sender, RoutedEventArgs e)
@@ -14272,12 +14330,7 @@ namespace HalconWinFormsDemo
             if (dialog.ShowDialog(this) == true)
             {
             if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
-            DockLocalImagePathTextBox.Text = dialog.FileName;
-                if (string.IsNullOrWhiteSpace(DockLocalImageSerialTextBox.Text))
-                {
-                    DockLocalImageSerialTextBox.Text = Path.GetFileNameWithoutExtension(dialog.FileName);
-                }
-                DockFooterText.Text = "已选择图像；应用或试运行后生效";
+                SelectSourceFileDraftUI03(dialog.FileName, editLeaseS137);
             }
         }
 
@@ -20029,7 +20082,12 @@ namespace HalconWinFormsDemo
 
         private void RunStandaloneTool(VmToolInstance tool, string source)
         {
-            RunUiAction(source, delegate
+            RunStandaloneToolCoreUI02(tool, source, true);
+        }
+
+        private void RunStandaloneToolCoreUI02(VmToolInstance tool, string source, bool showErrorDialog)
+        {
+            Action run = delegate
             {
                 if (isContinuousRunning || isFlowExecutionActive || isImageQueueBatchRunning || IsCurrentToolContinuousTrialRunningS87)
                 {
@@ -20053,7 +20111,9 @@ namespace HalconWinFormsDemo
                     tool.ElapsedMilliseconds);
                 RefreshUiState();
                 ScheduleRefreshDisplay();
-            });
+            };
+            if (showErrorDialog) RunUiAction(source, run);
+            else run(); // The parameter trial already has an inline error boundary.
         }
 
         private InspectionRecord ExecuteFlowTool(VmToolInstance tool, string source)
@@ -20314,7 +20374,7 @@ namespace HalconWinFormsDemo
                         {
                             record = RunImageThresholdTool(tool, inputImage);
                             ApplyRecordImage(record, tool, inputImage);
-                            tool.InputSummary = GetImageInputSummary(tool);
+                            tool.InputSummary = GetImageInputSummary(tool) + " + " + GetRoiInputSummary(tool);
                             tool.OutputSummary = record.Message;
                         }
                         break;
@@ -24140,6 +24200,9 @@ namespace HalconWinFormsDemo
             }
 
             HImage gray = null;
+            HRegion effectiveRoi = null;
+            HObject reducedImage = null;
+            HObject operationDomain = null;
             HObject thresholdRegion = null;
             HObject connectedRegion = null;
             try
@@ -24151,7 +24214,18 @@ namespace HalconWinFormsDemo
                 }
 
                 gray = CreateGrayImage(inputImage);
-                HOperatorSet.Threshold(gray, out thresholdRegion, parameters.ImageThresholdMinGray, parameters.ImageThresholdMaxGray);
+                effectiveRoi = CreateEffectiveRoiRegion(tool, false);
+                HObject operationImage = gray;
+                if (effectiveRoi != null)
+                {
+                    HOperatorSet.ReduceDomain(gray, effectiveRoi, out reducedImage);
+                    operationImage = reducedImage;
+                }
+                HOperatorSet.GetDomain(operationImage, out operationDomain);
+                double effectiveArea = GetRegionArea(operationDomain);
+                if (effectiveArea <= 0)
+                    throw new InvalidOperationException("阈值检测域与输入图像有效域交集为空，请调整 ROI 或输入图像；不会回退全图。");
+                HOperatorSet.Threshold(operationImage, out thresholdRegion, parameters.ImageThresholdMinGray, parameters.ImageThresholdMaxGray);
                 HOperatorSet.Connection(thresholdRegion, out connectedRegion);
 
                 HTuple count;
@@ -24170,10 +24244,11 @@ namespace HalconWinFormsDemo
                 string grayConvention = inputChannels > 1 ? "rgb1_to_gray" : "单通道保持";
                 string thresholdText = string.Format(
                     CultureInfo.InvariantCulture,
-                    "[{0:0.###}, {1:0.###}] / {2}",
+                    "[{0:0.###}, {1:0.###}] / {2} / {3}",
                     parameters.ImageThresholdMinGray,
                     parameters.ImageThresholdMaxGray,
-                    grayConvention);
+                    grayConvention,
+                    effectiveRoi == null ? "输入有效域" : "输入有效域∩ROI");
 
                 tool.SetOutputValue("Region", VmRegionSnapshot.Create(connectedRegion, tool.ToolId, tool.InstanceName, "Region"));
                 tool.SetOutputValue("Area", totalArea);
@@ -24197,6 +24272,9 @@ namespace HalconWinFormsDemo
             {
                 DisposeObject(connectedRegion);
                 DisposeObject(thresholdRegion);
+                DisposeObject(operationDomain);
+                DisposeObject(reducedImage);
+                if (effectiveRoi != null) effectiveRoi.Dispose();
                 if (gray != null)
                 {
                     gray.Dispose();

@@ -31,8 +31,8 @@ namespace HalconWinFormsDemo
                 foreach (var row in dockInputPortRows)
                 {
                     string key;
-                    if (saved.TryGetValue(row.PortName, out key) && row.SourceOptions.Any(option => option.Key == key && option.IsValid)) row.SelectedSourceKey = key;
-                    else row.SelectedSourceKey = GetDockDefaultInputKey(row.PortName);
+                    if (saved.TryGetValue(row.PortName, out key) && row.SourceOptions.Any(option => option.Key == key && option.IsValid)) row.RestoreSourceKeyUI06(key);
+                    else row.RestoreSourceKeyUI06(GetDockDefaultInputKey(row.PortName));
                     RefreshDockInputRowState(row);
                 }
             }

@@ -94,6 +94,15 @@ namespace HalconWinFormsDemo.Services
             }
         }
 
+        public void SaveCopy(string filePath)
+        {
+            EnsureModel();
+            if (string.IsNullOrWhiteSpace(filePath)) throw new ArgumentException("Please choose a template path.", "filePath");
+            HOperatorSet.WriteShapeModel(modelId, filePath);
+            WriteMetadata(filePath);
+            // Export does not change the active resource or definition identity.
+        }
+
         public void Load(string filePath)
         {
             if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))

@@ -39,6 +39,7 @@ namespace HalconWinFormsDemo
                 return;
             }
             parameters.Normalize();
+            shapeDraftModelPathUI02 = parameters.ShapeModelPath ?? string.Empty;
             DockShapeModelNameTextBox.Text = parameters.ShapeModelName;
             DockShapeMinScoreTextBox.Text = parameters.ShapeMinScore.ToString("0.###", CultureInfo.InvariantCulture);
             DockShapeMaxMatchesTextBox.Text = parameters.ShapeMaxMatches.ToString(CultureInfo.InvariantCulture);
@@ -56,13 +57,14 @@ namespace HalconWinFormsDemo
             if (!string.IsNullOrWhiteSpace(parameters.ShapeTrainingRoiId) && roiOptions.All(item => !string.Equals(item.Key, parameters.ShapeTrainingRoiId, StringComparison.OrdinalIgnoreCase)))
                 roiOptions.Add(new VmToolValueOption { Key = parameters.ShapeTrainingRoiId, DisplayText = "无效训练 ROI · " + parameters.ShapeTrainingRoiId.Substring(0, Math.Min(8, parameters.ShapeTrainingRoiId.Length)) });
             DockShapeTrainingRoiComboBox.ItemsSource = roiOptions;
-            DockShapeTrainingRoiComboBox.SelectedValue = string.IsNullOrWhiteSpace(parameters.ShapeTrainingRoiId) && roiOptions.Count > 0 ? roiOptions[0].Key : parameters.ShapeTrainingRoiId;
+            DockShapeTrainingRoiComboBox.SelectedValue = string.IsNullOrWhiteSpace(parameters.ShapeTrainingRoiId) ? null : parameters.ShapeTrainingRoiId;
             UpdateShapeModelStateText(tool);
         }
 
         private bool TryReadShapeDockDraftFields(VmToolParameterData parameters, out string error)
         {
             error = string.Empty;
+            parameters.ShapeModelPath = shapeDraftModelPathUI02 ?? string.Empty;
             double number;
             int integer;
             parameters.ShapeModelName = (DockShapeModelNameTextBox.Text ?? string.Empty).Trim();
@@ -109,49 +111,19 @@ namespace HalconWinFormsDemo
             {
                 VmToolInstance tool = dockEditingTool;
                 if (tool == null || tool.Kind != VmToolKind.ShapeMatch) throw new InvalidOperationException("请先选中 Shape Model 模块。");
+                if (!CanChangeRecipeS134()) return;
                 if (isFlowExecutionActive || isContinuousRunning || IsCurrentToolContinuousTrialRunningS87) throw new InvalidOperationException("请先停止运行再制作模板。");
-                if (!ApplyDockConfigurationDraft(false)) throw new InvalidOperationException("请先修正 Shape 配置草稿。");
-                VmToolParameterData p = tool.Parameters;
+                if (!ShapeInputMatchesDraftUI02(tool)) throw new InvalidOperationException("Image 来源草稿有改动，请先明确应用，再制作模板；不会自动提交参数。");
+                VmToolParameterData p = tool.Parameters.Clone();
+                string draftError;
+                if (!TryReadShapeDockDraftFields(p, out draftError)) throw new InvalidOperationException(draftError);
+                draftError = p.Validate(VmToolKind.ShapeMatch);
+                if (!string.IsNullOrWhiteSpace(draftError)) throw new InvalidOperationException(draftError);
                 VmRoiLayer layer = roiLayers.FirstOrDefault(item => string.Equals(item.RoiId, p.ShapeTrainingRoiId, StringComparison.OrdinalIgnoreCase));
                 if (layer == null || layer.Geometry == null || !layer.IsEnabled || layer.IsMask || !IsAreaRoiShape(layer.Geometry.ShapeType))
                     throw new InvalidOperationException("训练 ROI 已失效；请选择已启用的面检测区。");
-                FlowEditSnapshot before = CaptureFlowEditSnapshot();
-                using (HImage inputImage = CreateToolInputImage(tool))
-                using (TemplateDefinition definition = new TemplateDefinition
-                {
-                    TemplateName = p.ShapeModelName, TemplateRoi = layer.Geometry.Clone(),
-                    TrainingMask = TemplateDefinition.CloneRegion(layer.Geometry.Region), DisplayFrame = layer.Geometry.Clone(), Options = CreateShapeOptions(p)
-                })
-                {
-                    TemplateItem item = new TemplateItem
-                    {
-                        Name = p.ShapeModelName, TemplateRoi = layer.Geometry.Clone(),
-                        TrainingMask = TemplateDefinition.CloneRegion(layer.Geometry.Region), DisplayFrame = layer.Geometry.Clone(), Options = CreateShapeOptions(p)
-                    };
-                    try
-                    {
-                        item.Service.Train(inputImage, definition);
-                        if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
-                        string path = CreateShapeModelVersionPathS89(tool);
-                        item.Service.Save(path);
-                        if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
-                        p.ShapeModelPath = path;
-                        SetShapeToolResource(tool, item);
-                        item = null;
-                    }
-                    finally { if (item != null) item.Dispose(); }
-                }
-                shapeToolMatches.Remove(tool.ToolId);
-                currentMatches.Clear();
-                InvalidateToolRunResult(tool, "Shape 模型已重新训练");
-                InvalidateDownstreamResults(tool, "上游 Shape 模型已重新训练");
-                CommitFlowEditHistory("制作模板：" + tool.InstanceName, before);
-                ScheduleRecipeStateCheck();
-                UpdateShapeModelStateText(tool);
-                RefreshShapeCandidateGrid(tool);
-                RefreshUiState();
-                ScheduleRefreshDisplay();
-                LogInfo("Shape 模型已训练并受管保存：" + p.ShapeModelPath);
+                if (!IsRoiCompatibleWithToolS112(layer, tool)) throw new InvalidOperationException("训练 ROI 属于另一图像来源，请明确选择当前图像上的区域。");
+                TrainShapeGeometryDraftUI02(tool, layer.Geometry, p, editLeaseS137);
             });
         }
 
@@ -166,21 +138,24 @@ namespace HalconWinFormsDemo
             if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
             RunUiAction("加载 Shape 模型", delegate
             {
-                TemplateItem item = LoadShapeTemplateItem(dialog.FileName);
-                if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) { item.Dispose(); return; }
-                VmToolParameterData p = tool.Parameters ?? new VmToolParameterData();
-                p.ShapeModelPath = dialog.FileName;
-                p.ShapeModelName = string.IsNullOrWhiteSpace(item.Name) ? Path.GetFileNameWithoutExtension(dialog.FileName) : item.Name;
-                ApplyShapeOptionsToParameters(p, item.Options);
-                tool.Parameters = p;
-                SetShapeToolResource(tool, item);
-                shapeToolMatches.Remove(tool.ToolId);
-                InvalidateToolRunResult(tool, "Shape 模型资源已更换");
-                InvalidateDownstreamResults(tool, "上游 Shape 模型资源已更换");
-                ScheduleRecipeStateCheck();
-                LoadDockConfigurationDraft(tool);
-                LogInfo("Shape 模型已加载：" + dialog.FileName);
+                ImportShapeModelDraftUI02(tool, dialog.FileName, editLeaseS137);
             });
+        }
+
+        private void ImportShapeModelDraftUI02(VmToolInstance tool, string path, long editLeaseS137)
+        {
+            if (dockEditingTool != tool || !CanChangeRecipeS134() || !IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
+            using (TemplateItem item = LoadShapeTemplateItem(path))
+            {
+                if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
+                var draft = tool.Parameters.Clone(); draft.ShapeModelPath = path; draft.ShapeTrainingRoiId = string.Empty;
+                draft.ShapeModelName = string.IsNullOrWhiteSpace(item.Name) ? Path.GetFileNameWithoutExtension(path) : item.Name;
+                ApplyShapeOptionsToParameters(draft, item.Options);
+                LoadShapeDockDraftFields(tool, draft);
+            }
+            DockDraftValue_Changed(null, null); UpdateShapeModelStateText(tool);
+            HeaderStatusText.Text = "Shape 模型已进入草稿；F5 试运行，确认后应用。";
+            LogInfo(HeaderStatusText.Text);
         }
 
         private void DockShapeSaveButton_Click(object sender, RoutedEventArgs e)
@@ -195,12 +170,10 @@ namespace HalconWinFormsDemo
                 SaveFileDialog dialog = new SaveFileDialog { Filter = "HALCON shape model|*.shm", FileName = SafeFileName((tool.Parameters ?? new VmToolParameterData()).ShapeModelName, "ShapeModel_001") + ".shm" };
                 if (dialog.ShowDialog(this) != true) return;
                 if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
-                item.Service.Save(dialog.FileName);
+                if (PathsEqual(dialog.FileName, item.TemplatePath)) throw new InvalidOperationException("导出副本请选择与当前模型不同的路径。");
+                item.Service.SaveCopy(dialog.FileName);
                 if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
-                tool.Parameters.ShapeModelPath = dialog.FileName;
-                ScheduleRecipeStateCheck();
-                UpdateShapeModelStateText(tool);
-                LogInfo("Shape 模型已另存并设为当前资源：" + dialog.FileName);
+                LogInfo("已导出 Shape 模型副本，当前模型/参数不变：" + dialog.FileName);
             });
         }
 
@@ -431,7 +404,10 @@ namespace HalconWinFormsDemo
         {
             if (DockShapeModelStateText == null || tool == null || tool.Kind != VmToolKind.ShapeMatch) return;
             VmToolParameterData p = tool.Parameters ?? new VmToolParameterData();
-            DockShapeModelStateText.Text = HasShapeModelResource(tool) ? "模型：" + p.ShapeModelName + " · 已就绪" : (string.IsNullOrWhiteSpace(p.ShapeModelPath) ? "模型：未配置" : "模型：资源失效");
+            bool pending = dockEditingTool == tool && !string.IsNullOrWhiteSpace(shapeDraftModelPathUI02) &&
+                !string.Equals(shapeDraftModelPathUI02, p.ShapeModelPath, StringComparison.OrdinalIgnoreCase);
+            DockShapeModelStateText.Text = pending ? "新模板草稿 · 待应用" : HasShapeModelResource(tool) ? "已应用模板 · 重跑看结果" : "未配置模板 · 先读取图像";
+            DockShapeModelStateText.ToolTip = pending ? shapeDraftModelPathUI02 : p.ShapeModelPath;
         }
 
         private string GetManagedShapeModelPath(VmToolInstance tool)

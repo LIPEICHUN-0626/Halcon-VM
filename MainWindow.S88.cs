@@ -51,7 +51,7 @@ namespace HalconWinFormsDemo
                 { VmToolKind.BranchValueSelection, new[] { "SelectedBranch", "Value", "SelectedResultCode" } },
                 { VmToolKind.SubflowCall, new[] { VmSubflowLoopS111.Completed, VmSubflowLoopS111.Planned, "ExecutedCount" } },
                 { VmToolKind.EdgeMeasure, new[] { "EdgeCount", "MeanAmplitude", "Distance" } },
-                { VmToolKind.ShapeMatch, new[] { "MatchCount", "HasSelection", "SelectedIndex", "SelectedScore" } },
+                { VmToolKind.ShapeMatch, new[] { "MatchCount", "SelectedScore", "SelectedPoint", "SelectedPose" } },
                 { VmToolKind.DataCode2DRecognition, new[] { "DecodedText", "CodeCount", "CenterRow", "CenterColumn" } },
                 { VmToolKind.BarCode1DRecognition, new[] { "DecodedText", "CodeCount", "CenterRow", "CenterColumn" } },
                 { VmToolKind.OcrRecognition, new[] { "Text", "CharacterCount", "MinimumConfidence", "LowConfidenceCount" } },
@@ -59,7 +59,7 @@ namespace HalconWinFormsDemo
                 { VmToolKind.CaliperEdgePairMeasurement, new[] { "PrimaryDistance", "PairCount", "FirstAmplitude", "SecondAmplitude" } },
                 { VmToolKind.LinearCaliperArrayMeasurement, new[] { "MeanDistance", "ValidCount", "FailedCount", "PairCount" } },
                 { VmToolKind.ImageEdgeLineFindingS143, new[] { "HasLine", "ValidCount", "AngleDegrees", "MaxResidual" } },
-                { VmToolKind.ConnectedObjectAnalysisS144, new[] { "Count", "HasSelection", "SelectedIndex", "SelectedArea" } },
+                { VmToolKind.ConnectedObjectAnalysisS144, new[] { "Count", "SelectedArea", "SelectedPoint", "Areas" } },
                 { VmToolKind.CircularCaliperCircleFinder, new[] { "Radius", "ValidCount", "FailedCount", "MaxResidual" } },
                 { VmToolKind.RingWallThicknessMeasurement, new[] { "MeanThickness", "MinThickness", "MaxThickness", "Eccentricity" } },
                 { VmToolKind.TextAssembly, new[] { "Text", "Length", "InputCount" } },
@@ -82,7 +82,7 @@ namespace HalconWinFormsDemo
                 { VmToolKind.CameraDistortionCorrection, new[] { "Width", "Height", "MappedObjectCount", "CalibrationRmsPx" } },
                 { VmToolKind.ColorInspectionHsv, new[] { "AreaRatio", "Area", "RegionCount", "HueCenter" } },
                 { VmToolKind.VariationSurfaceInspection, new[] { "Area", "RegionCount", "AreaRatio", "SampleCount" } },
-                { VmToolKind.NccTemplateMatch, new[] { "MatchCount", "HasSelection", "SelectedIndex", "SelectedScore" } },
+                { VmToolKind.NccTemplateMatch, new[] { "MatchCount", "SelectedScore", "SelectedPoint", "SelectedPose" } },
                 { VmToolKind.PoseImageAlignment, new[] { "EffectivePixels", "TranslationRow", "TranslationColumn", "RotationDegrees" } },
                 { VmToolKind.WorldPointPairMeasurement, new[] { "WorldDistance", "DirectionAngle", "Unit" } }
             };
@@ -158,17 +158,86 @@ namespace HalconWinFormsDemo
         {
             object raw = null;
             bool hasValue = tool != null && tool.TryGetOutputValue(port.PortName, out raw) && raw != null;
-            bool validType = !hasValue || IsDisplayScalarTypeValidS88(port.DataType, raw);
+            string error = hasValue ? GetResultValueErrorUI06(port.DataType, raw) : null;
+            bool validType = string.IsNullOrWhiteSpace(error);
             string value = hasValue ? validType ? tool.GetFormattedOutput(port.PortName) : "类型/数值无效" : "--";
             return new VmTaskResultSummaryRow
             {
+                CanInspectValueUI06 = raw is VmPoint2DArray || hasValue && validType && VmArrayContractS105.IsType(port.DataType),
                 PortName = port.PortName,
                 DisplayName = string.IsNullOrWhiteSpace(port.DisplayName) ? port.PortName : port.DisplayName,
                 DataType = port.DataType,
-                ValueText = ShortResultValueS88(value, 92),
+                ValueText = ShortResultValueS88(hasValue && validType ? BriefTypedValueUI06(raw, value) : value, 92),
                 StateKey = hasValue ? validType ? "Ready" : "Invalid" : "Waiting",
-                DetailText = port.PortName + " · " + port.DataType + " · " + value
+                DetailText = port.PortName + " · " + port.DataType + " · " + value +
+                    (validType ? "" : "\n" + error)
             };
+        }
+
+        // Read-only presentation validation. Execution still owns applied-definition,
+        // model-generation and coordinate-consumer qualification.
+        private static string GetResultValueErrorUI06(string type, object raw)
+        {
+            if (!IsDisplayScalarTypeValidS88(type, raw)) return "输出与声明类型不一致，或数值不是有限数。";
+            try
+            {
+                if (VmArrayContractS105.IsType(type)) VmArrayContractS105.RequireType(type, raw);
+                else if (VmFlowValueContractS103.IsGeometryType(type)) VmFlowValueContractS103.RequireGeometry(type, raw);
+            }
+            catch (InvalidOperationException error) { return error.Message; }
+            return null;
+        }
+
+        private static string BriefTypedValueUI06(object raw, string fallback)
+        {
+            var point = raw as VmPoint2D;
+            if (point != null) return string.Format(CultureInfo.InvariantCulture, "X {0:0.###} · Y {1:0.###} px", point.Column, point.Row);
+            var pose = raw as VmPose2D;
+            if (pose != null) return string.Format(CultureInfo.InvariantCulture, "X {0:0.###} · Y {1:0.###} px · {2:0.###}°", pose.Column, pose.Row, pose.AngleDegrees);
+            var points = raw as VmPoint2DArray;
+            if (points != null)
+            {
+                int total = points.Points == null ? 0 : points.Points.Count;
+                int valid = points.Points == null ? 0 : points.Points.Count(item => item != null &&
+                    string.IsNullOrWhiteSpace(item.GetValidationError()) && item.CoordinateContext == points.CoordinateContext && item.CoordinateContextId == points.CoordinateContextId);
+                return total.ToString(CultureInfo.InvariantCulture) + " 个点 · 有效 " + valid.ToString(CultureInfo.InvariantCulture);
+            }
+            var numbers = raw as VmNumberArrayS105;
+            if (numbers != null) return numbers.Count.ToString(CultureInfo.InvariantCulture) + " 项 · " +
+                string.Join(", ", Enumerable.Range(0, Math.Min(3, numbers.Count)).Select(index => numbers[index].ToString("G6", CultureInfo.InvariantCulture))) + (numbers.Count > 3 ? " …" : "");
+            return fallback;
+        }
+
+        private bool TryResolveDetailValueUI06(object context, out VmToolInstance source, out VmPortDefinition port, out object raw)
+        {
+            source = null; port = null; raw = null;
+            if (dockEditingTool == null || !flowTools.Contains(dockEditingTool)) return false;
+            var result = context as VmTaskResultSummaryRow;
+            string portName;
+            if (result != null)
+            {
+                if (!dockTaskResultRowsS88.Contains(result) && !dockTechnicalResultRowsS88.Contains(result)) return false;
+                source = dockEditingTool; portName = result.PortName;
+            }
+            else
+            {
+                var input = context as VmInputPortEditorRow;
+                if (input == null || !dockInputPortRows.Contains(input)) return false;
+                var selected = input.SourceOptions.FirstOrDefault(item => item.Key == input.SelectedSourceKey);
+                if (selected == null || selected.IsDefault || !selected.IsValid) return false;
+                var matches = flowTools.Where(item => item.ToolId == selected.SourceToolId).ToList();
+                if (matches.Count != 1) return false;
+                source = matches[0]; portName = selected.SourcePortName;
+                if (!source.IsEnabled || flowTools.IndexOf(source) >= flowTools.IndexOf(dockEditingTool) ||
+                    !string.IsNullOrWhiteSpace(GetDraftInputBindingErrorS108(dockEditingTool,
+                        new VmToolInputBindingData { TargetPortName = input.PortName, SourceToolId = source.ToolId, SourcePortName = portName }))) return false;
+            }
+            var ports = ToolMetadata.GetInstanceOutputPorts(source).Where(item => item.PortName == portName).ToList();
+            if (ports.Count != 1 || !source.LastOutputUtc.HasValue || !string.IsNullOrWhiteSpace(source.ErrorMessage) ||
+                (source.ResultCode != "OK" && source.ResultCode != "NG") || !source.TryGetOutputValue(portName, out raw) || raw == null) return false;
+            port = ports[0];
+            // Point detail keeps invalid members visible for diagnosis; never repairs/filter them.
+            return port.DataType == "Point2D[]" ? raw is VmPoint2DArray : string.IsNullOrWhiteSpace(GetResultValueErrorUI06(port.DataType, raw));
         }
 
         private static bool IsDisplayScalarTypeValidS88(string type, object raw)
@@ -204,7 +273,7 @@ namespace HalconWinFormsDemo
 
         private static string ShortResultValueS88(string value, int maximumLength)
         {
-            string text = string.IsNullOrWhiteSpace(value) ? "--" : value.Trim();
+            string text = string.IsNullOrWhiteSpace(value) ? "--" : value.Trim().Replace("\r", "\\r").Replace("\n", "\\n").Replace("\t", "\\t");
             return text.Length <= maximumLength ? text : text.Substring(0, Math.Max(1, maximumLength - 1)) + "…";
         }
 
@@ -226,7 +295,8 @@ namespace HalconWinFormsDemo
                     || preferred != null && preferred.Contains(row.PortName)).ToList();
             }
             List<VmTaskResultSummaryRow> candidates = rows
-                .Where(row => !string.Equals(row.PortName, "ResultCode", StringComparison.OrdinalIgnoreCase) && !IsGraphicResultTypeS88(row.DataType))
+                .Where(row => !string.Equals(row.PortName, "ResultCode", StringComparison.OrdinalIgnoreCase) &&
+                    (!IsGraphicResultTypeS88(row.DataType) || preferred != null && preferred.Contains(row.PortName)))
                 .OrderByDescending(row => GetTaskResultPriorityS88(row, preferred))
                 .ThenBy(row => rows.IndexOf(row))
                 .ToList();

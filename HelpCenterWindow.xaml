@@ -47,9 +47,18 @@
             </Border>
             <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" Background="#CBD5E1"/>
             <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="5">
-                <FlowDocumentScrollViewer x:Name="HelpDocumentViewer" VerticalScrollBarVisibility="Auto" IsToolBarVisible="False">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <DockPanel x:Name="HelpSectionBarUI10" Margin="12,8,12,0" Visibility="Collapsed">
+                        <TextBlock Text="本页" VerticalAlignment="Center" Foreground="#64748B" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="HelpSectionPickerUI10" MinHeight="26" MaxWidth="260" HorizontalAlignment="Left"
+                                  DisplayMemberPath="Title" SelectionChanged="HelpSectionPickerUI10_SelectionChanged"
+                                  ToolTip="直接跳到本页的操作步骤、输入或输出。只滚动帮助，不打开模块或改变方案。"/>
+                    </DockPanel>
+                <FlowDocumentScrollViewer x:Name="HelpDocumentViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" IsToolBarVisible="False">
                     <FlowDocument x:Name="HelpDocument" PagePadding="20" FontFamily="Microsoft YaHei UI" FontSize="13" Foreground="#1E293B"/>
                 </FlowDocumentScrollViewer>
+                </Grid>
             </Border>
         </Grid>
         <Border Grid.Row="2" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="0,1,0,0" Padding="12,6">

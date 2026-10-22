@@ -202,7 +202,7 @@ namespace HalconWinFormsDemo
                 StationEditingProtectionBadgeS137.Text = label;
                 StationEditingProtectionBadgeS137.ToolTip = state.Status + "\n切换页面不代表授权；停止始终可用。";
             }
-            if (ReturnDeveloperModeButtonS137 != null) ReturnDeveloperModeButtonS137.Content = canEdit ? "← 返回开发界面" : "工程解锁…";
+            if (ReturnDeveloperModeButtonS137 != null) ReturnDeveloperModeButtonS137.Content = canEdit ? "← 工程编辑" : "工程解锁…";
             if (ProductionEngineeringImageCommandsS137 != null) ProductionEngineeringImageCommandsS137.Visibility = canEdit ? Visibility.Visible : Visibility.Collapsed;
             if (ProductionStopImageBatchS137 != null) ProductionStopImageBatchS137.Visibility = isImageQueueBatchRunning ? Visibility.Visible : Visibility.Collapsed;
             SetProtectedContentEnabledS137(DockParametersTaskTab, canEdit);

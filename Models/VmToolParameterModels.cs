@@ -2035,7 +2035,8 @@ namespace HalconWinFormsDemo.Models
             {
                 if (!VmNumericCalculationOperation.IsSupported(NumericCalculationOperation))
                     return "数值运算仅支持加、减、乘、除、最小、最大、绝对值或四舍五入。";
-                if (NumericCalculationRoundDigits < 0 || NumericCalculationRoundDigits > 15)
+                if (VmNumericCalculationOperation.Normalize(NumericCalculationOperation) == VmNumericCalculationOperation.Round &&
+                    (NumericCalculationRoundDigits < 0 || NumericCalculationRoundDigits > 15))
                     return "数值运算四舍五入精度必须是 0 到 15 位。";
             }
 

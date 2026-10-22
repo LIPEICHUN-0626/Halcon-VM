@@ -137,9 +137,13 @@ namespace HalconWinFormsDemo
         private void ShowArrayDetailsS105_Click(object sender, RoutedEventArgs e)
         {
             var element = sender as FrameworkElement;
-            var port = element == null ? null : element.DataContext as VmTaskResultSummaryRow;
-            var tool = dockEditingTool; object raw;
-            if (tool == null || port == null || !VmArrayContractS105.IsType(port.DataType) || !tool.TryGetOutputValue(port.PortName, out raw)) return;
+            VmToolInstance tool; VmPortDefinition port; object raw;
+            if (!TryResolveDetailValueUI06(element == null ? null : element.DataContext, out tool, out port, out raw) || !VmArrayContractS105.IsType(port.DataType)) return;
+            BuildArrayDetailWindowUI06(tool, port, raw).ShowDialog();
+        }
+
+        private Window BuildArrayDetailWindowUI06(VmToolInstance tool, VmPortDefinition port, object raw)
+        {
             VmArrayContractS105.RequireType(port.DataType, raw);
             object snapshot = VmArrayContractS105.Clone(raw);
             var numbers = snapshot as VmNumberArrayS105; var texts = snapshot as VmStringArrayS105;
@@ -150,6 +154,7 @@ namespace HalconWinFormsDemo
                 indexValue is VmNumberArrayS105 && ((VmNumberArrayS105)indexValue).Count == count) sourceIndices = ((VmNumberArrayS105)indexValue).Clone();
             var root = new DockPanel { Margin = new Thickness(12) };
             var header = new TextBlock { Text = tool.InstanceName + " · " + port.DisplayName + " · " + count + " 项\n索引从 0 开始；只读快照，不随重跑变化。" +
+                "\n" + BuildResultOriginTextS88(tool) +
                 (sourceIndices == null ? "" : "\n来源索引相对本模块输入；合并时以第一数组 + 追加数组为一组。"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,10) };
             DockPanel.SetDock(header, Dock.Top); root.Children.Add(header);
             var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0,8,0,0) };
@@ -173,8 +178,11 @@ namespace HalconWinFormsDemo
             };
             previous.Click += delegate { if (page > 0) { page--; refresh(); } };
             next.Click += delegate { if (page + 1 < pages) { page++; refresh(); } }; refresh();
-            new Window { Owner = moduleParameterWindowS89 ?? this, Title = "数组明细", Content = root, Width = 570, Height = 420,
-                MinWidth = 420, MinHeight = 300, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.CenterOwner }.ShowDialog();
+            var detail = new Window { Owner = ShowActivated ? moduleParameterWindowS89 ?? this : null, ShowActivated = ShowActivated,
+                Title = "数组明细 · " + tool.InstanceName, Content = root, Width = 570, Height = 420,
+                MinWidth = 420, MinHeight = 300, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+            if (!ShowActivated) { detail.WindowStartupLocation = WindowStartupLocation.Manual; detail.Left = Left; detail.Top = Top; }
+            return detail;
         }
 
         private void LoadArrayExampleS105_Click(object sender, RoutedEventArgs e) { LoadExampleProgramS78("array-data"); }

@@ -11,6 +11,94 @@ namespace HalconWinFormsDemo
     public partial class MainWindow
     {
         private bool updatingConnectionBindingS79;
+        private List<Tuple<VmFlowPortChip, VmFlowPortChip, int>> pendingConnectionPairsUI04;
+        private sealed class ConnectionChoiceUI04
+        {
+            public string Key { get; set; }
+            public string SourceToolId { get; set; }
+            public string SourcePortName { get; set; }
+            public string TargetPortName { get; set; }
+            public string DisplayText { get; set; }
+            public string DetailText { get; set; }
+            public bool IsValid { get; set; }
+            public WeakReference Source { get; set; }
+            public WeakReference Target { get; set; }
+            public FlowPortDragSession Session { get; set; }
+        }
+
+        private bool OpenPendingConnectionChoicesUI04()
+        {
+            if (flowPortDragSession == null || pendingConnectionPairsUI04 == null || pendingConnectionPairsUI04.Count < 2) return false;
+            var session = flowPortDragSession;
+            var choices = new List<ConnectionChoiceUI04>();
+            foreach (var pair in pendingConnectionPairsUI04)
+            {
+                VmToolInstance source = flowTools.FirstOrDefault(t => t.ToolId == pair.Item1.OwnerToolId);
+                VmToolInstance target = flowTools.FirstOrDefault(t => t.ToolId == pair.Item2.OwnerToolId);
+                string error;
+                if (source == null || target == null || !EvaluateFlowPortConnection(pair.Item1, pair.Item2, out error)) continue;
+                VmPortDefinition sourceDefinition = ToolMetadata.GetInstanceOutputPorts(source).First(p => p.PortName == pair.Item1.PortName);
+                VmPortDefinition targetDefinition = ToolMetadata.GetInstanceInputPorts(target).First(p => p.PortName == pair.Item2.PortName);
+                choices.Add(new ConnectionChoiceUI04 { SourceToolId = source.ToolId, SourcePortName = pair.Item1.PortName,
+                    TargetPortName = pair.Item2.PortName, Source = new WeakReference(source), Target = new WeakReference(target),
+                    Session = session, IsValid = true,
+                    DisplayText = sourceDefinition.DisplayName + " → " + targetDefinition.DisplayName,
+                    DetailText = source.InstanceName + "." + pair.Item1.PortName + " → " + target.InstanceName + "." + pair.Item2.PortName + " · " + pair.Item1.DataType });
+            }
+            if (choices.Count < 2) return false;
+            VmToolInstance placement = choices[0].Target.Target as VmToolInstance;
+            OpenFlowAggregatePortFlyoutS75(placement, "IN");
+            aggregateConnectionChoiceSessionUI04 = session;
+            FlowAggregatePortItemsS75.Visibility = Visibility.Collapsed;
+            FlowConnectionPairItemsUI04.ItemsSource = choices;
+            FlowConnectionPairItemsUI04.Visibility = Visibility.Visible;
+            FlowAggregatePortTitleTextS75.Text = "选择连接 · " + placement.InstanceName;
+            FlowAggregatePortSummaryTextS75.Text = choices.Count + " 个兼容组合，点击一项绑定。";
+            FlowAggregatePortHintTextS75.Text = "仅配置订阅，不运行模块；关闭或 Esc 保留原绑定。";
+            FlowConnectionInspectorBorder.Visibility = Visibility.Collapsed;
+            FlowPortInspectorBorder.Visibility = Visibility.Collapsed;
+            // Keep the existing canvas flyout inside the *visible* scrolled view,
+            // not merely inside the much larger graph bounds.
+            double zoom = Math.Max(0.1, FlowGraphScaleTransform.ScaleX);
+            double width = Math.Min(292, Math.Max(180, FlowGraphViewport.ViewportWidth / zoom - 32));
+            double height = Math.Min(360, Math.Max(100, FlowGraphViewport.ViewportHeight / zoom - 32));
+            FlowAggregatePortFlyoutS75.Width = width;
+            FlowAggregatePortFlyoutS75.MaxHeight = height;
+            FlowAggregatePortFlyoutS75.UpdateLayout();
+            double left = FlowGraphViewport.HorizontalOffset / zoom + Math.Max(16, (FlowGraphViewport.ViewportWidth / zoom - width) / 2);
+            double minTop = FlowGraphViewport.VerticalOffset / zoom + 16;
+            double maxTop = minTop + Math.Max(0, FlowGraphViewport.ViewportHeight / zoom - FlowAggregatePortFlyoutS75.ActualHeight - 32);
+            Canvas.SetLeft(FlowAggregatePortFlyoutS75, left);
+            Canvas.SetTop(FlowAggregatePortFlyoutS75, Math.Max(minTop, Math.Min(maxTop, Canvas.GetTop(FlowAggregatePortFlyoutS75))));
+            session.IsClickArmed = true;
+            if (FlowGraphCanvas.IsMouseCaptured) Mouse.Capture(null);
+            FlowPortDragPreviewPath.Visibility = Visibility.Collapsed;
+            FlowPortDragStatusBorder.Visibility = Visibility.Collapsed;
+            return true;
+        }
+
+        private bool ApplyConnectionChoiceUI04(ConnectionChoiceUI04 choice)
+        {
+            if (choice == null || !choice.IsValid || !ReferenceEquals(choice.Session, flowPortDragSession) ||
+                !ReferenceEquals(choice.Session, aggregateConnectionChoiceSessionUI04)) return false;
+            VmToolInstance source = flowTools.FirstOrDefault(t => t.ToolId == choice.SourceToolId);
+            VmToolInstance target = choice.Target.Target as VmToolInstance;
+            if (source == null || !ReferenceEquals(source, choice.Source.Target) || target == null || !flowTools.Contains(target))
+            { CancelFlowPortDrag("连接对象已改变，请重新选择；原绑定未修改。", false); CloseFlowAggregatePortFlyoutS75(); return false; }
+            VmFlowPortChip sourcePort = source.FlowOutputPorts.FirstOrDefault(p => p.PortName == choice.SourcePortName);
+            VmFlowPortChip targetPort = target.FlowInputPorts.FirstOrDefault(p => p.PortName == choice.TargetPortName);
+            string error;
+            bool applied = TryApplyFlowPortBinding(sourcePort, targetPort, out error);
+            CancelFlowPortDrag(applied ? null : "绑定未修改：" + error, false);
+            CloseFlowAggregatePortFlyoutS75();
+            return applied;
+        }
+
+        private void FlowConnectionPairChoice_ClickUI04(object sender, RoutedEventArgs e)
+        {
+            ApplyConnectionChoiceUI04((sender as FrameworkElement)?.Tag as ConnectionChoiceUI04);
+            e.Handled = true;
+        }
 
         private bool IsFlowNodeCommandHitS79(DependencyObject hit)
         {
@@ -39,7 +127,7 @@ namespace HalconWinFormsDemo
             {
                 VmFlowPortChip hoverPort = ResolveConnectionBodyHoverS79(tool);
                 if (hoverPort != null) TryCompleteArmedFlowConnectionS79(hoverPort);
-                else HeaderStatusText.Text = "不能连接：" + aggregatePortHoverErrorS75 + "；可换一个模块或按 Esc 取消。";
+                else if (!OpenPendingConnectionChoicesUI04()) HeaderStatusText.Text = "不能连接：" + aggregatePortHoverErrorS75 + "；可换一个模块或按 Esc 取消。";
                 return;
             }
             List<VmFlowConnectionVisual> inputs = flowConnections.Where(item =>
@@ -81,6 +169,7 @@ namespace HalconWinFormsDemo
         private bool HandleConnectionMouseDownS79(MouseButtonEventArgs e)
         {
             if (e.ChangedButton != MouseButton.Left || isContinuousRunning || isFlowExecutionActive || flowNodeDragSession != null) return false;
+            if (aggregateConnectionChoiceSessionUI04 != null && IsFlowNodeCommandHitS79(e.OriginalSource as DependencyObject)) return false;
             Point point = e.GetPosition(FlowGraphCanvas);
             if (flowPortDragSession != null)
             {
@@ -89,6 +178,7 @@ namespace HalconWinFormsDemo
                 if (port != null) return CompleteArmedFlowConnectionS79(port);
                 if (aggregatePortHoverDetectedS75)
                 {
+                    if (OpenPendingConnectionChoicesUI04()) return true;
                     HeaderStatusText.Text = "不能连接：" + aggregatePortHoverErrorS75 + " 可换一个模块，或按 Esc 取消。";
                     return true;
                 }
@@ -123,7 +213,7 @@ namespace HalconWinFormsDemo
             updatingConnectionBindingS79 = true;
             try
             {
-                List<VmInputSourceOption> options = new List<VmInputSourceOption>();
+                List<ConnectionChoiceUI04> options = new List<ConnectionChoiceUI04>();
                 VmToolInstance target = flowTools.FirstOrDefault(tool => tool.ToolId == connection.TargetToolId);
                 VmFlowPortChip targetPort = target == null ? null : target.FlowInputPorts.FirstOrDefault(port => port.PortName == connection.TargetPortName);
                 foreach (VmToolInstance source in flowTools)
@@ -131,16 +221,21 @@ namespace HalconWinFormsDemo
                 {
                     string error;
                     if (!EvaluateFlowPortConnection(port, targetPort, out error)) continue;
-                    options.Add(new VmInputSourceOption { Key = BuildDockSourceKey(source.ToolId, port.PortName),
-                        SourceToolId = source.ToolId, SourcePortName = port.PortName, DataType = port.DataType,
-                        DisplayText = source.InstanceName + "." + port.PortName, IsValid = true });
+                    VmPortDefinition definition = ToolMetadata.GetInstanceOutputPorts(source).First(p => p.PortName == port.PortName);
+                    options.Add(new ConnectionChoiceUI04 { Key = BuildDockSourceKey(source.ToolId, port.PortName),
+                        SourceToolId = source.ToolId, SourcePortName = port.PortName, TargetPortName = connection.TargetPortName,
+                        Source = new WeakReference(source), Target = new WeakReference(target),
+                        DisplayText = source.InstanceName + " · " + definition.DisplayName + " (" + port.PortName + ")",
+                        DetailText = source.InstanceName + "." + port.PortName + " · " + port.DataType + "；类型兼容不代表已有本次运行值。", IsValid = true });
                 }
                 string key = BuildDockSourceKey(connection.SourceToolId, connection.SourcePortName);
                 if (!options.Any(option => option.Key == key))
-                    options.Add(new VmInputSourceOption { Key = key, DisplayText = connection.SourceEndpointText + "（当前来源不可用）", IsValid = false });
+                    options.Add(new ConnectionChoiceUI04 { Key = key, DisplayText = connection.SourceEndpointText + "（当前来源不可用）", DetailText = "原绑定保留，请明确重选兼容来源。", IsValid = false });
                 FlowConnectionBindingComboS79.ItemsSource = options;
                 FlowConnectionBindingComboS79.SelectedValue = key;
                 FlowConnectionBindingComboS79.IsEnabled = !isContinuousRunning && !isFlowExecutionActive;
+                FlowConnectionCandidateStatusUI04.Text = options.Count(o => o.IsValid) + " 个兼容来源 · 选择即绑定";
+                FlowConnectionCandidateStatusUI04.ToolTip = "候选来自真实前序、启用模块的正式端口定义；未运行也可搭建流程，不使用摘要猜测数据。";
             }
             finally { updatingConnectionBindingS79 = false; }
         }
@@ -148,12 +243,14 @@ namespace HalconWinFormsDemo
         private void FlowConnectionBindingCombo_SelectionChangedS79(object sender, SelectionChangedEventArgs e)
         {
             if (updatingConnectionBindingS79) return;
-            VmInputSourceOption option = FlowConnectionBindingComboS79.SelectedItem as VmInputSourceOption;
+            ConnectionChoiceUI04 option = FlowConnectionBindingComboS79.SelectedItem as ConnectionChoiceUI04;
             VmFlowConnectionVisual connection = GetSelectedFlowConnection();
             if (option == null || connection == null) return;
             if (option.Key == BuildDockSourceKey(connection.SourceToolId, connection.SourcePortName)) return;
             VmToolInstance source = flowTools.FirstOrDefault(tool => tool.ToolId == option.SourceToolId);
             VmToolInstance target = flowTools.FirstOrDefault(tool => tool.ToolId == connection.TargetToolId);
+            if (!option.IsValid || !ReferenceEquals(source, option.Source?.Target) || !ReferenceEquals(target, option.Target?.Target) || option.TargetPortName != connection.TargetPortName)
+            { UpdateConnectionBindingSelectorS79(connection); HeaderStatusText.Text = "来源选择已失效，请重新选择；原绑定未修改。"; return; }
             VmFlowPortChip sourcePort = source == null ? null : source.FlowOutputPorts.FirstOrDefault(port => port.PortName == option.SourcePortName);
             VmFlowPortChip targetPort = target == null ? null : target.FlowInputPorts.FirstOrDefault(port => port.PortName == connection.TargetPortName);
             string error;
@@ -208,7 +305,7 @@ namespace HalconWinFormsDemo
                 ? flowPortDragSession.AggregateOriginDirection
                 : (flowPortDragSession.FixedTargetPort == null ? "OUT" : "IN");
             HeaderStatusText.Text = string.Equals(direction, "OUT", StringComparison.OrdinalIgnoreCase)
-                ? "已选来源：现在点击下游模块顶部连接点；系统会自动绑定最合适的同类型端口。"
+                ? "已选来源：点击下游顶部连接点；唯一兼容组合直接绑定，多组合请明确选择。"
                 : "已选目标输入：现在点击上游模块底部连接点；系统会自动替换真实来源。";
         }
 
@@ -219,6 +316,7 @@ namespace HalconWinFormsDemo
             VmFlowPortChip hoverPort = ResolveAggregateHoverPortS75(hoverTool, hoverDirection, out resolveError);
             if (hoverPort == null)
             {
+                if (OpenPendingConnectionChoicesUI04()) return true;
                 HeaderStatusText.Text = "不能自动连接：" + resolveError + "；可在端口列表精确选择。";
                 OpenFlowAggregatePortFlyoutS75(hoverTool, hoverDirection);
                 return true;
@@ -244,6 +342,7 @@ namespace HalconWinFormsDemo
             string error;
             if (!TryResolveFlowPortDragEndpoints(flowPortDragSession, hoverPort, out source, out target, out error))
             {
+                if (OpenPendingConnectionChoicesUI04()) return true;
                 HeaderStatusText.Text = "不能连接：" + error + "；待连接状态仍保留，可换一个端点或按 Esc 取消。";
                 return true;
             }
@@ -255,6 +354,7 @@ namespace HalconWinFormsDemo
 
         private VmFlowPortChip ResolveAggregateHoverPortS79(VmToolInstance hoverTool, string hoverDirection, out string error)
         {
+            pendingConnectionPairsUI04 = null;
             error = string.Empty;
             if (flowPortDragSession == null || hoverTool == null)
             {
@@ -281,11 +381,18 @@ namespace HalconWinFormsDemo
                 error = origin.InstanceName + " 与 " + hoverTool.InstanceName + " 没有可用的同类型前向端口。";
                 return null;
             }
+            if (pairs.Count > 1)
+            {
+                pendingConnectionPairsUI04 = pairs;
+                error = "存在 " + pairs.Count + " 个兼容组合，请明确选择来源和目标输入。";
+                return null;
+            }
             return originIsOutput ? pairs[0].Item2 : pairs[0].Item1;
         }
 
         private bool TryResolveAggregateFlowConnectionS79(FlowPortDragSession session, VmFlowPortChip hoverPort, out VmFlowPortChip sourcePort, out VmFlowPortChip targetPort, out string error)
         {
+            pendingConnectionPairsUI04 = null;
             sourcePort = null;
             targetPort = null;
             error = string.Empty;
@@ -302,6 +409,12 @@ namespace HalconWinFormsDemo
             if (pairs.Count == 0)
             {
                 error = originIsOutput ? "目标没有兼容的可绑定输入端口。" : "来源没有兼容的可绑定输出端口。";
+                return false;
+            }
+            if (pairs.Count > 1)
+            {
+                pendingConnectionPairsUI04 = pairs;
+                error = "该端点有多个兼容来源/输入，请明确选择连接组合。";
                 return false;
             }
             sourcePort = pairs[0].Item1;

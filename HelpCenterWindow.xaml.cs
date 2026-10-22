@@ -15,9 +15,12 @@ namespace HalconWinFormsDemo
         private readonly List<HelpTopic> allTopics = new List<HelpTopic>();
         private readonly ObservableCollection<HelpTopic> visibleTopics = new ObservableCollection<HelpTopic>();
         private bool filteringTopicsUI10;
+        private readonly ObservableCollection<HelpSectionUI10> helpSectionsUI10 = new ObservableCollection<HelpSectionUI10>();
+        private bool renderingTopicUI10;
         public HelpCenterWindow(VmToolKind? selectedTool)
         {
             InitializeComponent();
+            HelpSectionPickerUI10.ItemsSource = helpSectionsUI10;
             HelpTopicList.ItemsSource = visibleTopics;
             BuildTopics();
             ApplyFilter(string.Empty);
@@ -120,16 +123,42 @@ namespace HalconWinFormsDemo
 
         private void RenderTopic(HelpTopic topic)
         {
-            HelpDocument.Blocks.Clear();
-            if (topic == null)
+            renderingTopicUI10 = true;
+            try
             {
-                AddSubheading("没有匹配的帮助");
-                AddParagraph("试着缩短关键词、切换到全部目录，或清空搜索。这里不会改变当前方案。", false, Color.FromRgb(71, 85, 105));
-                return;
+                helpSectionsUI10.Clear();
+                HelpSectionBarUI10.Visibility = Visibility.Collapsed;
+                HelpDocument.Blocks.Clear();
+                if (topic == null)
+                {
+                    AddSubheading("没有匹配的帮助");
+                    AddParagraph("试着缩短关键词、切换到全部目录，或清空搜索。这里不会改变当前方案。", false, Color.FromRgb(71, 85, 105));
+                    helpSectionsUI10.Clear();
+                }
+                else
+                {
+                    AddHeading(topic.Title, 25, Colors.White, Color.FromRgb(38, 52, 73));
+                    helpSectionsUI10.Add(new HelpSectionUI10 { Title = "概览", Target = HelpDocument.Blocks.FirstBlock });
+                    if (topic.ToolKind.HasValue) RenderToolTopic(topic.ToolKind.Value);
+                    else RenderGuideTopic(topic.Key);
+                    HelpSectionBarUI10.Visibility = helpSectionsUI10.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+                    HelpSectionPickerUI10.SelectedIndex = 0;
+                }
             }
-            AddHeading(topic.Title, 25, Colors.White, Color.FromRgb(38, 52, 73));
-            if (topic.ToolKind.HasValue) RenderToolTopic(topic.ToolKind.Value);
-            else RenderGuideTopic(topic.Key);
+            finally { renderingTopicUI10 = false; }
+            // A new document must not inherit a previous chapter's scroll point.
+            // No delayed callback or focus change can route back to an old topic.
+            HelpDocumentViewer.UpdateLayout();
+            if (HelpDocument.Blocks.FirstBlock != null) HelpDocument.Blocks.FirstBlock.BringIntoView();
+        }
+
+        private void HelpSectionPickerUI10_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (renderingTopicUI10 || HelpDocument == null) return;
+            var section = HelpSectionPickerUI10.SelectedItem as HelpSectionUI10;
+            if (section == null || !helpSectionsUI10.Contains(section) || !HelpDocument.Blocks.Contains(section.Target)) return;
+            HelpDocumentViewer.UpdateLayout();
+            section.Target.BringIntoView();
         }
 
         private void RenderToolTopic(VmToolKind kind)
@@ -166,8 +195,15 @@ namespace HalconWinFormsDemo
                 "双击模块，在参数小窗的“常用”页先设置最多 4 项关键参数；其余进入更多参数。",
                 "涉及图像区域时在“ROI”页绑定检测区或屏蔽区。",
                 "点击“试运行”，在图像区、结果页和步骤记录中同时核对输出。",
-                "点击“应用”，再保存方案；应用前的草稿不会改变正式配方。"
+                "点击“应用”后重新运行本模块，再继续下游并保存；草稿不自动进入正式配方，应用会清旧输出。"
             });
+            if (kind == VmToolKind.ImageThreshold)
+            {
+                AddSubheading("阈值检测范围");
+                AddParagraph("常用页只设置灰度上下限，范围短摘要显示当前草稿选择。在 ROI 页绑定本地检测区或同图像链前序 Region；本地检测区合并后扣除屏蔽，继承策略沿原选择。HALCON threshold 只计算输入有效域与最终检测域交集，不扩大原图有效域。", false, Color.FromRgb(51, 65, 85));
+                AddBullet("未绑定 ROI 时使用输入有效域；绑定丢失、身份重复、全部停用、跨图像坐标或交集为空均拒绝，不回退全图/旧结果。纯屏蔽不能单独使用。普通阈值不支持逐 ROI 独立执行；本地位置修正沿原模块条件与来源，不做隐式跨坐标转换。旧未标注来源的本地 ROI 按原兼容语义保留，建议在当前真实图像上重新绘制。");
+                AddBullet("F5 试当前草稿，不自动应用；确认真实 Region/Area 后应用，再运行本模块和下游并保存。图上画了框不代表旧输出已更新。估算暗/亮目标仍读取已应用 ROI，只把建议灰度写入草稿。");
+            }
             if (VmArrayReorderS108.IsTool(kind))
             {
                 AddSubheading("排序、切片、合并与标签对应");
@@ -260,12 +296,12 @@ namespace HalconWinFormsDemo
                 AddNumberedSteps(new[]
                 {
                     "把图像源的 Image 直接连接本模块的 Image，不需要独立模板模块。",
-                    "双击打开参数小窗，在制作模板区域点击读取输入图像；其他处理类上游须先运行。",
-                    "在窗内图像拖动框选目标，点击制作模板。框选仅是训练范围，不会限制搜索。",
-                    "默认全图搜索；需要限制范围时再到 ROI 页配置。按 F5 只试运行本模块。",
-                    "查看分数、位姿和轮廓，必要时把 Score 接到数值判定，最后保存方案与模型资源。"
+                    "双击打开参数小窗，在制作区点击读取图像；只读取已应用 Image 来源，不自动应用其他参数。来源有草稿改动时先明确应用，其他处理类上游须先运行。",
+                    "在窗内图像明确框选目标，点击制作草稿模板。新独立版本只进入草稿，旧正式模板保留；框选只用于训练，不限制后续搜索。",
+                    "默认搜索输入有效域；需要限制范围时再到 ROI 页配置。按 F5 试当前草稿，模板/参数不会自动应用，错误在原结果与状态区显示。",
+                    "确认分数、位姿和轮廓后应用，再明确重跑得到正式结果。Score可接数值判定，最后保存方案与模型资源。更多中的加载模型仍进草稿，导出已应用模型只保存独立副本。"
                 });
-                AddBullet("更换输入图像后请重新读取并框选；最小分数和最大数量在常用页，其余搜索参数按需展开。", Color.FromRgb(71, 85, 105));
+                AddBullet("更换输入图像后请重新读取并框选，旧预览不能制作模板；不会默认猜选已有ROI。最小分数和最大数量在常用页，名称、明确训练ROI和文件管理在更多中；取消修改保留已应用模板，未应用模型版本不获得正式选定位姿资格。", Color.FromRgb(71, 85, 105));
             }
             if (kind == VmToolKind.OcrRecognition)
             {
@@ -472,11 +508,11 @@ namespace HalconWinFormsDemo
                 AddParagraph("先完成一个简单流程，再逐步增加工具。启动是空白方案；示例必须主动选择，不会自动运行。", false, Color.FromRgb(51, 65, 85));
                 AddNumberedSteps(new[] {
                     "添加：从左侧展开分类，双击图像源和所需工具；也可搜索名称或任务词。",
-                    "连接：从上游小端点连到下游，兼容端口自动绑定；点卡片底部订阅栏可重新选择来源。",
+                    "连接：从上游小端点连到下游；只有一种兼容组合时自动绑定，多种组合明确选择。点卡片底部订阅栏可重选。",
                     "配置：双击模块打开小窗。常用 / 输入 / ROI / 结果四页快速切换，单击用于选择或拖动。",
-                    "试运行：参数窗打开时F5试当前草稿；点击应用后才进入正式方案。Ctrl+Enter可应用。",
+                    "试运行：参数窗打开时F5试当前草稿；Ctrl+Enter应用。应用会清旧输出，重新运行后再继续下游。",
                     "看结果：图像区看本次图层，结果页看真实值与异常。卡片记录打开独立日志/通讯窗。",
-                    "保存：保存方案保留已应用参数与订阅。关闭参数窗后F5运行当前流程；Shift+F5请求停止。" });
+                    "保存：保存已应用参数与订阅。关闭参数窗后F5按顶部所选运行范围执行；Shift+F5请求停止。" });
                 AddSubheading("需要更多说明时");
                 AddTopicLinkUI10("示例与完整学习项目", "LearningProjects");
                 AddTopicLinkUI10("界面与参数操作", "Workspace");
@@ -485,14 +521,15 @@ namespace HalconWinFormsDemo
             }
             else if (key == "LearningProjects")
             {
-                AddParagraph("最快学习方式：顶部“示例程序”按入门、检测定位、测量标定、数据扩展、流程工程分组，原示例仍保留；完整学习项目提供组合流程。主动装载后按流程从上到下逐个双击模块，不会自动运行。", true, Color.FromRgb(15, 118, 110));
+                AddParagraph("最快学习方式：顶部“示例程序”首层直接选择检测入门、定位应用或测量应用三个完整项目；其他示例仍按原五类分组。主动装载后按学习步骤从上到下配置，不会自动运行。", true, Color.FromRgb(15, 118, 110));
                 AddParagraph("推荐从“示例程序 → 入门 → 入门 · 亮度分布与沿线分析（自带图像）”开始：运行流程后看全图灰度分布，再打开水平线分析，拖动采样线离开亮区，重新试运行并比较曲线。示例的判定上下限仅用于教学，不是现场验收标准。", false, Color.FromRgb(51, 65, 85));
                 AddSubheading("三条完整学习路径");
-                AddBullet("示例程序 → 完整学习项目 → 对象检测、条件判定与生产查看：源图、阈值与连通对象经真实面积数组/数量判定，再用 Passed 驱动条件执行，最后在本流程生产结果项看本次周期。需自己设置符合图像的阈值与学习门槛，主动切换运行界面并执行完整周期；分析成功不等于产品合格，证据默认关闭，不连接设备或启用触发。", Color.FromRgb(71, 85, 105));
-                AddBullet("示例程序 → 完整学习项目 → 明确选取、参考对齐与边缘测量：NCC 的正式 SelectedPose 驱动固定参考对齐，对齐图进入搜索带找边与覆盖判定。项目不预造模板或固定参考；先在真实输入上制作并应用模板、重新运行并明确采参考，再编辑对齐图上的搜索带。原图与对齐图坐标独立，原 ROI 不会自动迁移。", Color.FromRgb(71, 85, 105));
-                AddBullet("示例程序 → 完整学习项目 → 同链标定与世界距离：真实找边点进入点集拟合，像素端点经同链平面标定变成世界点，再计算世界距离并判定。项目不预造标定样本、比例或毫米结果；须采至少三个非退化的像素/世界对应点，填写真实单位并应用。边缘段拟合端点距离不是工件尺寸或现场精度认证。", Color.FromRgb(71, 85, 105));
+                AddBullet("示例程序 → 检测入门 · 对象计数与判定：源图、阈值与连通对象经真实面积数组/数量判定，再用 Passed 驱动条件执行，最后在本流程生产结果项看本次周期。需自己设置符合图像的阈值与学习门槛，主动切换运行界面并执行完整周期；分析成功不等于产品合格，证据默认关闭，不连接设备或启用触发。", Color.FromRgb(71, 85, 105));
+                AddBullet("示例程序 → 定位应用 · 模板对齐后测边：NCC 的正式 SelectedPose 驱动固定参考对齐，对齐图进入搜索带找边与覆盖判定。项目不预造模板或固定参考；先在真实输入上制作并应用模板、重新运行并明确采参考，再编辑对齐图上的搜索带。原图与对齐图坐标独立，原 ROI 不会自动迁移。", Color.FromRgb(71, 85, 105));
+                AddBullet("示例程序 → 测量应用 · 标定与实际距离：真实找边点进入点集拟合，像素端点经同链平面标定变成世界点，再计算世界距离并判定。项目不预造标定样本、比例或毫米结果；须采至少三个非退化的像素/世界对应点，填写真实单位并应用。边缘段拟合端点距离不是工件尺寸或现场精度认证。", Color.FromRgb(71, 85, 105));
                 AddParagraph("从“示例程序 → 当前项目学习步骤…”按需打开一个可关闭的任务窗：默认看当前一步，主动打开已有模块或切换步骤，不缩窄流程。上一步/下一步仅导航，训练、采参考、标定、F5、应用、运行和保存仍须您明确操作。临时步号不是算法状态、真实启动准备、合格证明或验收；删除模块、切换方案或身份失效时不会按同名猜替代模块。缺图片、模板、参考或标定须按提示补齐，不补旧结果。", false, Color.FromRgb(51, 65, 85));
                 AddParagraph("当前步骤按需显示第一条已知定义缺口及准确入口；例如尚无已应用NCC模板或固定参考时，按钮直达原制作/参考任务。提示不自动读取、训练或采参考；应用后再查看缺口，没有已知缺口也不等于实际输入/算法通过。条件后继尚未执行不被当成旧结果可用。", false, Color.FromRgb(51, 65, 85));
+                AddParagraph("学习窗顶部可直接选择任意步骤，不必展开技术说明；选择只换提示，不替换正在编辑的模块或草稿。修改参数后按“F5试草稿 → 应用 → 重新运行”操作，再继续下游；应用会清除旧输出。缺图片时先选择图片，再明确读取。", false, Color.FromRgb(51, 65, 85));
                 AddParagraph("不知道工具名时，在模块箱搜索任务词，例如去噪、找圆、亮度或扫码；多个词以空格分隔。搜索只筛选目录，不会添加模块或修改流程；清空后回到原来的工具模式。", false, Color.FromRgb(51, 65, 85));
                 AddParagraph("启动和新建均从空白方案开始，不会自动加入模板匹配或加载上次方案。已有方案请从文件或最近列表主动打开；恢复副本和示例程序也由您主动选择。", false, Color.FromRgb(51, 65, 85));
                 AddParagraph("双流程学习：选择“示例程序 → 流程工程 → 方案 · 双流程检测与指令触发”。两条流程使用不同的自制图像，示例不连接设备、不自动运行，并关闭自动结果发送。", false, Color.FromRgb(51, 65, 85));
@@ -508,7 +545,7 @@ namespace HalconWinFormsDemo
                 AddSubheading("按钮说明"); AddParagraph("高频按钮使用明确动词；低频命令收在“更多命令”。把鼠标停在按钮或参数组上，会显示浅色技术说明。", false, Color.FromRgb(51, 65, 85));
                 AddBullet("模块卡“记录”打开独立只读步骤窗口，不遮住流程。取消跟随最新只冻结查看，不停止执行或采集；搜索过滤快照，复制/导出当前页文本。步骤历史只显示具有精确会话、流程、模块归属的最近200条记录，同名或改名不猜关联；旧纯文本仍在全局日志。通讯页标注真实离线模拟输出，查看不会连接或发送；导出是当前查看快照，不是完整历史。");
                 AddBullet("结果页默认显示关键类型值，更多里查看全部端口。最近草稿试运行与模块执行明确区分，不代表整流程合格；应用、改输入或失效后旧值和耗时清空，等待重跑。执行异常单独显示，不把它当产品NG；类型或数值无效会明确提示，不能从日志摘要猜结果。未标注的执行来源不会冒称正式生产。");
-                AddBullet("图像区的适应和1:1只改变查看比例；ROI菜单直接选择绘制形状。确认新ROI时以正在编辑的模块为准，普通单击其他节点不会改归属；已有草稿保留。切换到另一图像坐标、尺寸或编辑对象时，未确认绘制取消，已有ROI不会自动迁移。指定来源尚未运行或已移除时保持无图，不借用全局旧图。只在明确支持ROI的工具中绑定；普通阈值分割目前不支持本地ROI。");
+                AddBullet("图像区的适应和1:1只改变查看比例；ROI菜单直接选择绘制形状。确认新ROI时以正在编辑的模块为准，普通单击其他节点不会改归属；已有草稿保留。切换到另一图像坐标、尺寸或编辑对象时，未确认绘制取消，已有ROI不会自动迁移。指定来源尚未运行或已移除时保持无图，不借用全局旧图。普通阈值支持检测ROI和屏蔽，实际检测范围与输入图像有效域取交集；绘制后须明确应用，失效/跨源ROI不会悄悄回退全图。其他工具以实际ROI支持状态为准。");
             }
             else if (key == "Workflow")
             {
@@ -688,12 +725,24 @@ namespace HalconWinFormsDemo
         {
             HelpDocument.Blocks.Add(new Paragraph(new Run(text)) { FontSize = size, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(foreground), Background = new SolidColorBrush(background), Padding = new Thickness(12, 8, 12, 8), Margin = new Thickness(0, 0, 0, 14) });
         }
-        private void AddSubheading(string text) { HelpDocument.Blocks.Add(new Paragraph(new Run(text)) { FontSize = 17, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42)), Margin = new Thickness(0, 16, 0, 7) }); }
+        private void AddSubheading(string text)
+        {
+            var heading = new Paragraph(new Run(text)) { FontSize = 17, FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42)), Margin = new Thickness(0, 16, 0, 7) };
+            HelpDocument.Blocks.Add(heading);
+            helpSectionsUI10.Add(new HelpSectionUI10 { Title = text, Target = heading });
+        }
         private void AddParagraph(string text, bool bold, Color color) { HelpDocument.Blocks.Add(new Paragraph(new Run(text)) { FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal, Foreground = new SolidColorBrush(color), LineHeight = 22, Margin = new Thickness(0, 3, 0, 8) }); }
         private void AddBullet(string text) { AddBullet(text, Color.FromRgb(71, 85, 105)); }
         private void AddBullet(string text, Color color) { System.Windows.Documents.List list = new System.Windows.Documents.List { MarkerStyle = TextMarkerStyle.Disc, Margin = new Thickness(22, 2, 0, 5) }; list.ListItems.Add(new ListItem(new Paragraph(new Run(text)) { Foreground = new SolidColorBrush(color), Margin = new Thickness(0) })); HelpDocument.Blocks.Add(list); }
         private void AddNumberedSteps(IEnumerable<string> steps) { System.Windows.Documents.List list = new System.Windows.Documents.List { MarkerStyle = TextMarkerStyle.Decimal, Margin = new Thickness(26, 4, 0, 8) }; foreach (string step in steps) list.ListItems.Add(new ListItem(new Paragraph(new Run(step)) { Margin = new Thickness(0, 2, 0, 5), LineHeight = 21 })); HelpDocument.Blocks.Add(list); }
         private void CloseButton_Click(object sender, RoutedEventArgs e) { Close(); }
+
+        private sealed class HelpSectionUI10
+        {
+            public string Title { get; set; }
+            public Block Target { get; set; }
+        }
 
         private sealed class HelpTopic
         {

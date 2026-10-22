@@ -18,6 +18,7 @@ namespace HalconWinFormsDemo
         private string aggregatePortFlyoutDirectionS75;
         private bool aggregatePortHoverDetectedS75;
         private string aggregatePortHoverErrorS75 = string.Empty;
+        private FlowPortDragSession aggregateConnectionChoiceSessionUI04;
 
         private void FlowAggregateAnchor_MouseLeftButtonDownS75(object sender, MouseButtonEventArgs e)
         {
@@ -46,6 +47,12 @@ namespace HalconWinFormsDemo
         private void OpenFlowAggregatePortFlyoutS75(VmToolInstance tool, string direction)
         {
             if (tool == null || FlowAggregatePortFlyoutS75 == null) return;
+            FlowAggregatePortFlyoutS75.Width = 292;
+            FlowAggregatePortFlyoutS75.MaxHeight = 360;
+            aggregateConnectionChoiceSessionUI04 = null;
+            FlowConnectionPairItemsUI04.Visibility = Visibility.Collapsed;
+            FlowConnectionPairItemsUI04.ItemsSource = null;
+            FlowAggregatePortItemsS75.Visibility = Visibility.Visible;
             aggregatePortFlyoutToolS75 = tool;
             aggregatePortFlyoutDirectionS75 = direction;
             aggregatePortFlyoutItemsS75.Clear();
@@ -74,6 +81,7 @@ namespace HalconWinFormsDemo
 
         private void CloseFlowAggregatePortFlyoutButton_ClickS75(object sender, RoutedEventArgs e)
         {
+            if (aggregateConnectionChoiceSessionUI04 != null) CancelFlowPortDrag("已取消连接选择，原绑定保留。", false);
             CloseFlowAggregatePortFlyoutS75();
         }
 
@@ -83,6 +91,8 @@ namespace HalconWinFormsDemo
             aggregatePortFlyoutToolS75 = null;
             aggregatePortFlyoutDirectionS75 = null;
             aggregatePortFlyoutItemsS75.Clear();
+            aggregateConnectionChoiceSessionUI04 = null;
+            if (FlowConnectionPairItemsUI04 != null) { FlowConnectionPairItemsUI04.ItemsSource = null; FlowConnectionPairItemsUI04.Visibility = Visibility.Collapsed; }
         }
 
         private void FlowAggregatePortChoice_MouseLeftButtonDownS75(object sender, MouseButtonEventArgs e)
@@ -143,6 +153,7 @@ namespace HalconWinFormsDemo
 
         private VmFlowPortChip ResolveAggregateHoverPortS75(VmToolInstance owner, string direction, out string error)
         {
+            pendingConnectionPairsUI04 = null;
             error = string.Empty;
             if (owner == null || flowPortDragSession == null)
             {
@@ -178,6 +189,9 @@ namespace HalconWinFormsDemo
             if (candidates.Count == 1) return candidates[0];
             if (candidates.Count > 1)
             {
+                pendingConnectionPairsUI04 = BuildCompatiblePortPairsS79(
+                    flowPortDragSession.FixedTargetPort == null ? new[] { flowPortDragSession.SourcePort } : candidates.AsEnumerable(),
+                    flowPortDragSession.FixedTargetPort == null ? candidates.AsEnumerable() : new[] { flowPortDragSession.FixedTargetPort });
                 error = owner.InstanceName + " 有 " + candidates.Count.ToString(CultureInfo.InvariantCulture) + " 个兼容 " + direction + " 端口；请点击圆点并选择精确端口。";
                 return null;
             }

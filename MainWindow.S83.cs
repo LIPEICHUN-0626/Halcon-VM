@@ -20,8 +20,9 @@ namespace HalconWinFormsDemo
             "DockNumericLowerTextBox", "DockNumericUpperTextBox", "DockNumericToleranceTextBox",
             "DockNccMinScoreS131", "DockNccMaxMatchesS131",
             "DockImageChannelIndexTextBox", "DockImageFilterWidthTextBox", "DockImageFilterHeightTextBox", "DockImageFilterRadiusTextBox",
+            "DockImageDifferenceMultiplierTextBox", "DockImageDifferenceAddTextBox", "DockProjectiveOutputWidthTextBox", "DockProjectiveOutputHeightTextBox", "DockNumericCalculationRoundDigitsTextBox",
             "DockLocalAdaptiveMaskWidthTextBox", "DockLocalAdaptiveMaskHeightTextBox", "DockLocalAdaptiveOffsetTextBox",
-            "DockImageEnhancementScaleTextBox", "DockImageEnhancementOffsetTextBox", "DockImageResizeWidthTextBox", "DockImageResizeHeightTextBox",
+            "DockImageEnhancementScaleTextBox", "DockImageEnhancementOffsetTextBox", "DockImageEnhancementMaskWidthTextBox", "DockImageEnhancementMaskHeightTextBox", "DockImageEnhancementFactorTextBox", "DockImageResizeWidthTextBox", "DockImageResizeHeightTextBox",
             "DockImageRotateAngleTextBox", "DockImageAffineTranslateRowTextBox", "DockImageAffineTranslateColumnTextBox", "DockImageAffineRotationTextBox",
             "DockSubpixelEdgeAlphaTextBox", "DockSubpixelEdgeLowTextBox", "DockSubpixelEdgeHighTextBox",
             "DockPolarCenterRowTextBox", "DockPolarCenterColumnTextBox", "DockPolarInnerRadiusTextBox", "DockPolarOuterRadiusTextBox",
@@ -42,8 +43,9 @@ namespace HalconWinFormsDemo
                 ComboBox choice = input as ComboBox;
                 if (choice != null && preferred != null && preferred.Contains(choice.Name))
                 {
-                    choice.MinWidth = 160;
-                    choice.MaxWidth = 220;
+                    bool pairedChoice = choice.Name == "DockProjectiveOutputModeComboBox" || choice.Name == "DockProjectiveInterpolationComboBox";
+                    choice.MinWidth = pairedChoice ? 112 : 160;
+                    choice.MaxWidth = pairedChoice ? 140 : 220;
                     choice.HorizontalAlignment = HorizontalAlignment.Left;
                 }
             }
@@ -65,7 +67,7 @@ namespace HalconWinFormsDemo
                 { VmToolKind.ImageMirror, NamesS83("DockImageMirrorModeComboBox") },
                 { VmToolKind.ImageRotate, NamesS83("DockImageRotateAngleTextBox", "DockImageRotateInterpolationComboBox") },
                 { VmToolKind.ImageAffineTransform, NamesS83("DockImageAffineTranslateRowTextBox", "DockImageAffineTranslateColumnTextBox", "DockImageAffineRotationTextBox") },
-                { VmToolKind.ImageProjectiveTransform, NamesS83("DockProjectiveOutputModeComboBox", "DockProjectiveInterpolationComboBox") },
+                { VmToolKind.ImageProjectiveTransform, NamesS83("DockProjectiveOutputModeComboBox", "DockProjectiveInterpolationComboBox", "DockProjectiveOutputWidthTextBox", "DockProjectiveOutputHeightTextBox") },
                 { VmToolKind.CameraDistortionCorrection, NamesS83("DockCameraModeS126") },
                 { VmToolKind.SubpixelEdgeExtraction, NamesS83("DockSubpixelEdgeFilterComboBox", "DockSubpixelEdgeAlphaTextBox", "DockSubpixelEdgeLowTextBox", "DockSubpixelEdgeHighTextBox") },
                 { VmToolKind.PolarImageUnwrap, NamesS83("DockPolarCenterRowTextBox", "DockPolarCenterColumnTextBox", "DockPolarInnerRadiusTextBox", "DockPolarOuterRadiusTextBox") },

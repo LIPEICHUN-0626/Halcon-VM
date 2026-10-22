@@ -16,6 +16,7 @@ namespace HalconWinFormsDemo
     {
         private Window moduleParameterWindowS89;
         private bool closingModuleParameterWindowS89;
+        private string shapeDraftModelPathUI02;
         private string shapePreviewIdentityS89;
         private HImage shapePreviewGlobalImageS89;
         private int shapePreviewWidthS89;
@@ -191,9 +192,17 @@ namespace HalconWinFormsDemo
         private void ShapeReadInputButton_ClickS89(object sender, RoutedEventArgs e)
         {
             if (dockEditingTool == null || dockEditingTool.Kind != VmToolKind.ShapeMatch) return;
-            if (isFlowExecutionActive || isContinuousRunning || IsCurrentToolContinuousTrialRunningS87) return;
-            if (!ApplyDockConfigurationDraft(false)) return;
+            if (!CanChangeRecipeS134()) return;
+            if (!ShapeInputMatchesDraftUI02(dockEditingTool))
+            { ShapeTrainingStatusS89.Text = "输入来源有草稿改动，请明确应用后再读取；其他参数不会自动应用。"; return; }
             RefreshShapeTrainingPreviewS89(true);
+        }
+
+        private bool ShapeInputMatchesDraftUI02(VmToolInstance tool)
+        {
+            var row = dockInputPortRows.FirstOrDefault(candidate => candidate.PortName == "Image");
+            var port = ToolMetadata.GetInstanceInputPorts(tool).FirstOrDefault(candidate => candidate.PortName == "Image");
+            return row != null && port != null && row.SelectedSourceKey == GetDockSavedInputSourceKey(tool, port);
         }
 
         private void RefreshShapeTrainingPreviewS89(bool readSource)
@@ -201,6 +210,8 @@ namespace HalconWinFormsDemo
             VmToolInstance tool = dockEditingTool;
             ClearShapeTrainingPreviewS89();
             if (tool == null || tool.Kind != VmToolKind.ShapeMatch) return;
+            long readLeaseUI02 = readSource ? CaptureEngineeringEditLeaseS137("读取Shape模板制作输入") : -1;
+            if (readSource && readLeaseUI02 < 0) return;
             ShapeTrainingExpanderS89.IsExpanded = !HasShapeModelResource(tool) || readSource;
             try
             {
@@ -211,6 +222,8 @@ namespace HalconWinFormsDemo
                     if (!source.IsEnabled) throw new InvalidOperationException("图像源已停用，请先启用。");
                     ExecuteFlowTool(source, "模板制作读取输入");
                 }
+                if (readSource && !IsEngineeringEditLeaseCurrentS137(readLeaseUI02))
+                { ShapeTrainingStatusS89.Text = "工程授权已改变，未更新训练预览。"; return; }
                 using (HImage input = CreateToolInputImage(tool))
                 {
                     HObject mono = null, display = null;
@@ -312,7 +325,7 @@ namespace HalconWinFormsDemo
         {
             if (!shapeTrainingDraftS89.HasValue)
             {
-                if (DockShapeTrainingRoiComboBox.SelectedValue == null)
+                if (string.IsNullOrWhiteSpace(DockShapeTrainingRoiComboBox.SelectedValue as string))
                 {
                     ShapeTrainingExpanderS89.IsExpanded = true;
                     ShapeTrainingStatusS89.Text = "先读取输入图像，再拖动框选要制作的模板。";
@@ -333,14 +346,26 @@ namespace HalconWinFormsDemo
             if (isFlowExecutionActive || isContinuousRunning || IsCurrentToolContinuousTrialRunningS87) throw new InvalidOperationException("请先停止运行再制作模板。");
             Rect rectangle = shapeTrainingDraftS89.Value;
             if (rectangle.Width < 8 || rectangle.Height < 8) throw new InvalidOperationException("模板框选范围太小，宽高至少为 8 个图像像素。");
-            if (!ApplyDockConfigurationDraft(false)) throw new InvalidOperationException("请先修正参数。");
+            if (!CanChangeRecipeS134() || !ShapeInputMatchesDraftUI02(tool)) throw new InvalidOperationException("请等待当前任务退出，并先明确应用 Image 来源改动；制作模板不自动提交参数。");
             if (shapePreviewIdentityS89 != GetShapePreviewIdentityS89(tool) ||
                 (!tool.InputBindings.Any(item => item.TargetPortName == "Image") && !ReferenceEquals(shapePreviewGlobalImageS89, currentImage)))
                 throw new InvalidOperationException("输入图像已更换，请重新读取并框选，避免用旧图位置制作模板。");
-            FlowEditSnapshot before = CaptureFlowEditSnapshot();
-            VmToolParameterData p = tool.Parameters;
-            using (HImage input = CreateToolInputImage(tool))
+            VmToolParameterData p = tool.Parameters.Clone();
+            string draftError;
+            if (!TryReadShapeDockDraftFields(p, out draftError)) throw new InvalidOperationException(draftError);
+            draftError = p.Validate(VmToolKind.ShapeMatch);
+            if (!string.IsNullOrWhiteSpace(draftError)) throw new InvalidOperationException(draftError);
             using (RoiData geometry = RoiData.CreateRectangle(rectangle.Top, rectangle.Left, rectangle.Bottom, rectangle.Right))
+                TrainShapeGeometryDraftUI02(tool, geometry, p, editLeaseS137);
+            shapeTrainingDraftS89 = null;
+            DockShapeTrainingRoiComboBox.SelectedValue = null;
+            ShapeTrainingExpanderS89.IsExpanded = false;
+            DrawShapeTrainingRectangleS89();
+        }
+
+        private void TrainShapeGeometryDraftUI02(VmToolInstance tool, RoiData geometry, VmToolParameterData p, long editLeaseS137)
+        {
+            using (HImage input = CreateToolInputImage(tool))
             using (TemplateDefinition definition = new TemplateDefinition
             {
                 TemplateName = p.ShapeModelName, TemplateRoi = geometry.Clone(), TrainingMask = TemplateDefinition.CloneRegion(geometry.Region),
@@ -356,27 +381,24 @@ namespace HalconWinFormsDemo
                     string path = CreateShapeModelVersionPathS89(tool);
                     item.Service.Save(path);
                     if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
-                    VmRoiLayer layer = AddRoiLayer(geometry, tool.InstanceName + " · 模板区", null);
-                    p.ShapeTrainingRoiId = layer.RoiId;
-                    p.ShapeModelPath = path;
-                    SetShapeToolResource(tool, item);
-                    item = null;
+                    shapeDraftModelPathUI02 = path;
                 }
                 finally { if (item != null) item.Dispose(); }
             }
-            InvalidateToolRunResult(tool, "模板已制作");
-            InvalidateDownstreamResults(tool, "上游模板已更换");
-            dockDraftDirty = false;
-            shapeTrainingDraftS89 = null;
-            LoadDockConfigurationDraft(tool);
-            ShapeTrainingExpanderS89.IsExpanded = false;
-            DrawShapeTrainingRectangleS89();
-            ScheduleRecipeStateCheck();
-            CommitFlowEditHistory("制作模板：" + tool.InstanceName, before);
-            RefreshUiState();
-            ScheduleRefreshDisplay();
-            LogInfo("模板制作完成：" + tool.InstanceName + "；默认全图搜索，可按 F5 试运行。");
-            HeaderStatusText.Text = "模板已制作；按 F5 试运行，结果页查看分数与位置。";
+            DockDraftValue_Changed(null, null);
+            UpdateShapeModelStateText(tool);
+            ShapeTrainingStatusS89.Text = "新模板进入草稿：F5 试运行，确认后应用。";
+            HeaderStatusText.Text = ShapeTrainingStatusS89.Text;
+            LogInfo(tool.InstanceName + " 的新 Shape 模板已保存为独立草稿版本；未替换已应用参数或模型。");
+        }
+
+        private void RestoreShapeResourceAfterDraftTrialUI02(VmToolInstance tool, VmToolParameterData applied)
+        {
+            if (tool == null || tool.Kind != VmToolKind.ShapeMatch) return;
+            TemplateItem resource;
+            if (shapeToolResources.TryGetValue(tool.ToolId, out resource) && resource != null &&
+                !string.Equals(resource.TemplatePath, applied.ShapeModelPath, StringComparison.OrdinalIgnoreCase))
+                DisposeShapeToolResource(tool.ToolId);
         }
 
         private string CreateShapeModelVersionPathS89(VmToolInstance tool)

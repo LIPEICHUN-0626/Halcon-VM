@@ -16,6 +16,90 @@ namespace HalconWinFormsDemo
     {
         private readonly ObservableCollection<FlowNavigatorItemS73> flowNavigatorItemsS73 = new ObservableCollection<FlowNavigatorItemS73>();
         private bool flowViewportResizePendingS73;
+        private long flowNavigationRequestUI05;
+        private bool updatingFlowModuleNavigatorUI05;
+        private string flowModuleNavigatorSessionUI05;
+        private string flowModuleNavigatorFlowUI05;
+        private sealed class FlowModuleChoiceUI05
+        {
+            public WeakReference Tool { get; set; }
+            public string Session { get; set; }
+            public string FlowId { get; set; }
+            public string DisplayText { get; set; }
+            public string SearchText { get; set; }
+        }
+
+        private void RefreshFlowModuleNavigatorUI05(string query = null)
+        {
+            if (FlowModuleNavigatorUI05 == null || updatingFlowModuleNavigatorUI05) return;
+            if (query == null && flowModuleNavigatorSessionUI05 == projectSessionIdS104 && flowModuleNavigatorFlowUI05 == activeProjectFlowIdS104 &&
+                FlowModuleNavigatorUI05.IsKeyboardFocusWithin && FlowModuleNavigatorUI05.IsDropDownOpen) return;
+            updatingFlowModuleNavigatorUI05 = true;
+            try
+            {
+                var options = new List<FlowModuleChoiceUI05>();
+                int requestedSequence = -1;
+                bool exactSequence = !string.IsNullOrWhiteSpace(query) && int.TryParse(query.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out requestedSequence);
+                for (int index = 0; index < flowTools.Count; index++)
+                {
+                    VmToolInstance tool = flowTools[index];
+                    string search = (index + 1).ToString(CultureInfo.InvariantCulture) + " " + tool.InstanceName + " " + tool.DisplayType;
+                    if (exactSequence ? index + 1 != requestedSequence : !string.IsNullOrWhiteSpace(query) && search.IndexOf(query.Trim(), StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    options.Add(new FlowModuleChoiceUI05 { Tool = new WeakReference(tool), Session = projectSessionIdS104,
+                        FlowId = activeProjectFlowIdS104, DisplayText = (index + 1) + "/" + flowTools.Count + " · " + tool.InstanceName, SearchText = search });
+                }
+                FlowModuleNavigatorUI05.ItemsSource = options;
+                flowModuleNavigatorSessionUI05 = projectSessionIdS104;
+                flowModuleNavigatorFlowUI05 = activeProjectFlowIdS104;
+                FlowModuleNavigatorUI05.IsEnabled = flowTools.Count > 0;
+                if (query == null)
+                    FlowModuleNavigatorUI05.SelectedItem = options.FirstOrDefault(o => ReferenceEquals(o.Tool.Target, FlowToolList.SelectedItem));
+                else FlowModuleNavigatorUI05.Text = query;
+                FlowNavigationEmptyUI05.Visibility = options.Count == 0 && !string.IsNullOrWhiteSpace(query) ? Visibility.Visible : Visibility.Collapsed;
+            }
+            finally { updatingFlowModuleNavigatorUI05 = false; }
+        }
+
+        private void FlowModuleNavigator_SearchChangedUI05(object sender, TextChangedEventArgs e)
+        {
+            if (updatingFlowModuleNavigatorUI05 || !uiReady || !(e.OriginalSource is TextBox)) return;
+            if (!FlowModuleNavigatorUI05.IsKeyboardFocusWithin) return;
+            string query = (e.OriginalSource as TextBox).Text;
+            SetFlowModuleSearchUI05(query);
+        }
+
+        private void SetFlowModuleSearchUI05(string query)
+        {
+            RefreshFlowModuleNavigatorUI05(query);
+            // Opening from typing must not clear the first entered character.
+            updatingFlowModuleNavigatorUI05 = true;
+            try { FlowModuleNavigatorUI05.IsDropDownOpen = true; }
+            finally { updatingFlowModuleNavigatorUI05 = false; }
+        }
+
+        private void FlowModuleNavigator_DropDownOpenedUI05(object sender, EventArgs e)
+        {
+            if (!updatingFlowModuleNavigatorUI05) RefreshFlowModuleNavigatorUI05(string.Empty);
+        }
+
+        private void FlowModuleNavigator_DropDownClosedUI05(object sender, EventArgs e)
+        {
+            if (!updatingFlowModuleNavigatorUI05) RefreshFlowModuleNavigatorUI05();
+        }
+
+        private void FlowModuleNavigator_SelectionChangedUI05(object sender, SelectionChangedEventArgs e)
+        {
+            if (updatingFlowModuleNavigatorUI05) return;
+            var option = FlowModuleNavigatorUI05.SelectedItem as FlowModuleChoiceUI05;
+            VmToolInstance tool = option?.Tool.Target as VmToolInstance;
+            if (option == null) return;
+            if (option.Session != projectSessionIdS104 || option.FlowId != activeProjectFlowIdS104 || tool == null || !flowTools.Contains(tool))
+            { FlowModuleNavigatorUI05.IsDropDownOpen = false; RefreshFlowModuleNavigatorUI05(); HeaderStatusText.Text = "模块定位已失效，请在当前流程重新选择。"; return; }
+            FlowModuleNavigatorUI05.IsDropDownOpen = false;
+            flowExecutionFollowPausedS72 = isFlowExecutionActive && !tool.IsExecutionPointer;
+            FocusFlowGraphTool(tool.ToolId, "已定位 #" + tool.SequenceText + " " + tool.InstanceName + "；仅选中，双击才打开参数。");
+            RefreshFlowModuleNavigatorUI05();
+        }
 
         private double GetAutomaticFlowCanvasWidthS73()
         {
@@ -50,6 +134,7 @@ namespace HalconWinFormsDemo
 
         private void RefreshFlowNavigatorS73()
         {
+            RefreshFlowModuleNavigatorUI05();
             if (FlowNavigatorRailS73 == null || FlowNavigatorTrackS73 == null || FlowNavigatorItemsS73 == null) return;
             bool visible = FlowGraphViewport != null && FlowGraphViewport.Visibility == Visibility.Visible && flowTools.Count > 1;
             FlowNavigatorRailS73.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;

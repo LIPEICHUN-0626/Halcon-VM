@@ -72,7 +72,7 @@ namespace HalconWinFormsDemo
             int index = selected == null ? (direction >= 0 ? 0 : flowTools.Count - 1) : flowTools.IndexOf(selected) + Math.Sign(direction);
             index = Math.Max(0, Math.Min(flowTools.Count - 1, index));
             VmToolInstance target = flowTools[index];
-            flowExecutionFollowPausedS72 = false;
+            flowExecutionFollowPausedS72 = isFlowExecutionActive && !target.IsExecutionPointer;
             FocusFlowGraphTool(target.ToolId, string.Format(CultureInfo.InvariantCulture,
                 "{0}已定位 {1}/{2}：{3}；Alt+↑/↓ 可继续纵向检查。",
                 source, index + 1, flowTools.Count, target.InstanceName));

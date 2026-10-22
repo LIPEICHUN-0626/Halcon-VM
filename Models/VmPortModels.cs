@@ -541,6 +541,16 @@ namespace HalconWinFormsDemo.Models
 
         public bool IsConfigured { get; set; }
 
+        public bool CanInspectValueUI06 { get; set; }
+
+        public string LastPresentedSourceKeyUI06 { get; set; }
+
+        public void RestoreSourceKeyUI06(string key)
+        {
+            LastPresentedSourceKeyUI06 = key;
+            SelectedSourceKey = key;
+        }
+
         public string OptionalText
         {
             get { return IsOptional ? "可选" : "必需"; }
@@ -578,6 +588,8 @@ namespace HalconWinFormsDemo.Models
 
     public sealed class VmTaskResultSummaryRow
     {
+        public bool CanInspectValueUI06 { get; set; }
+
         public string PortName { get; set; }
 
         public string DisplayName { get; set; }

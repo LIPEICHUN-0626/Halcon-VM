@@ -142,14 +142,28 @@ namespace HalconWinFormsDemo
         private void SwitchProjectFlowS104(string id)
         {
             if (id == activeProjectFlowIdS104) return;
+            if (!CanChangeRecipeS134()) return;
             var target = projectFlowsS104.FirstOrDefault(item => item.FlowId == id);
             if (target == null) return;
+            string requestSession = projectSessionIdS104;
+            string previousId = activeProjectFlowIdS104;
+            var previous = projectFlowsS104.FirstOrDefault(item => item.FlowId == previousId);
+            if (previous == null) return;
             if (!CanSelectConfiguredFlowS137(id)) { RefreshProjectFlowPickerS104(); return; }
             DisarmTcpTriggerS104("切换流程后需重新启用");
             if (!PrepareProjectFlowChangeS104()) return;
+            // Draft confirmation can pump the dispatcher. Never apply an old target
+            // to a replaced project/session, even if the replacement reuses its ID.
+            if (requestSession != projectSessionIdS104 || previousId != activeProjectFlowIdS104 ||
+                !projectFlowsS104.Contains(previous) || !projectFlowsS104.Contains(target) ||
+                !CanNavigateInputRepairS96() || !CanChangeRecipeS134())
+            {
+                HeaderStatusText.Text = "流程上下文已变化，本次未切换；请重新选择。";
+                RefreshProjectFlowPickerS104();
+                return;
+            }
             if (!CanSelectConfiguredFlowS137(id)) { RefreshProjectFlowPickerS104(); return; }
             SaveCurrentProjectFlowS104();
-            var previous = projectFlowsS104.First(item => item.FlowId == activeProjectFlowIdS104);
             bool tracking = recipeTrackingSuspended;
             recipeTrackingSuspended = true;
             try
@@ -206,6 +220,7 @@ namespace HalconWinFormsDemo
         private void ResetActiveFlowPresentationS104()
         {
             InvalidateProductionResultS141("当前流程已切换或初始化；等待该流程的新生产周期。");
+            SetProductionRunSaveStatusS135("当前流程尚未运行；已有周期记录仍可查询");
             if (FlowRunStatusText == null) return;
             FlowRunStatusText.Text = "当前流程等待运行"; FlowRunResultText.Text = "--";
             FlowRunElapsedText.Text = "--"; FlowStopReasonText.Text = "--"; FlowCurrentToolText.Text = "--";

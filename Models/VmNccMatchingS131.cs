@@ -242,6 +242,21 @@ namespace HalconWinFormsDemo.Models
                         metric != (p.TrainedUsePolarity ? "use_polarity" : "ignore_global_polarity"))
                         throw new InvalidOperationException("NCC 文件与已保存训练元数据不一致，请重新制作模板。" );
                     double requestedStart = ToRadians(p.AngleStartDegrees), requestedExtent = ToRadians(p.AngleExtentDegrees);
+                    double fullTurn = 2 * Math.PI;
+                    if (extent >= fullTurn - 1e-9 && requestedExtent >= fullTurn - 1e-9)
+                    {
+                        // HALCON may shift the sampling start to include zero.
+                        // A verified full-turn model remains a full turn, not an
+                        // invalid linear interval at the -pi/pi representation seam.
+                        requestedStart = start;
+                        requestedExtent = fullTurn;
+                    }
+                    else
+                    {
+                        double shift = Math.Round((start - requestedStart) / fullTurn) * fullTurn;
+                        if (requestedStart + shift >= start - 1e-9 && requestedStart + shift + requestedExtent <= start + extent + 1e-9)
+                            requestedStart += shift;
+                    }
                     if (requestedStart < start - 1e-9 || requestedStart + requestedExtent > start + extent + 1e-9)
                         throw new InvalidOperationException("搜索角度超出已制作模型的旋转范围，请缩小范围或重新制作模板；不静默截断。" );
                     HOperatorSet.SetNccModelParam(model, "timeout", SearchTimeoutMilliseconds);

@@ -3592,6 +3592,7 @@ namespace HalconWinFormsDemo.Models
                    kind == VmToolKind.GrayHistogram ||
                    kind == VmToolKind.EdgeMeasure ||
                    kind == VmToolKind.SubpixelEdgeExtraction ||
+                   kind == VmToolKind.ImageThreshold ||
                    kind == VmToolKind.AutomaticThreshold ||
                    kind == VmToolKind.LocalAdaptiveThreshold ||
                    kind == VmToolKind.ColorInspectionHsv ||

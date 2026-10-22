@@ -39,7 +39,7 @@ namespace HalconWinFormsDemo
                 foreach (var row in dockInputPortRows)
                 {
                     string key;
-                    if (saved.TryGetValue(row.PortName, out key) && row.SourceOptions.Any(option => option.Key == key && option.IsValid)) row.SelectedSourceKey = key;
+                    if (saved.TryGetValue(row.PortName, out key) && row.SourceOptions.Any(option => option.Key == key && option.IsValid)) row.RestoreSourceKeyUI06(key);
                     RefreshDockInputRowState(row);
                 }
             }
