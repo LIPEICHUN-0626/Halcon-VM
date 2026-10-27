@@ -15,6 +15,7 @@ namespace HalconWinFormsDemo
             public ComboBox Picker;
             public TextBox Name;
             public TextBlock Status;
+            public bool EditingName;
         }
         private readonly Dictionary<VmToolKind, CommunicationQueueEditorS149> communicationQueueEditorsS149 =
             new Dictionary<VmToolKind, CommunicationQueueEditorS149>();
@@ -36,7 +37,7 @@ namespace HalconWinFormsDemo
             if (queue.Samples == null || queue.SelectedIndex < 0 || queue.SelectedIndex >= queue.Samples.Count || queue.Samples[queue.SelectedIndex] == null)
                 return " · 样本选取无效";
             string name = queue.Samples[queue.SelectedIndex].Name ?? string.Empty;
-            return " · 样本[" + queue.SelectedIndex + "] " + (name.Length > 64 ? name.Substring(0, 64) : name).Replace("\r", " ").Replace("\n", " ");
+            return " · 样本" + (queue.SelectedIndex + 1) + "/" + queue.Samples.Count + " · " + (name.Length > 64 ? name.Substring(0, 64) : name).Replace("\r", " ").Replace("\n", " ");
         }
 
         private TextBox CommunicationSampleBoxS149(VmToolKind kind)
@@ -74,24 +75,30 @@ namespace HalconWinFormsDemo
                     ToolTip = "明确选取一个草稿样本；不自动应用、运行、切换下一帧或启用离线模拟。" },
                 Name = new TextBox { Width = 100, MaxLength = 64, Margin = new Thickness(0, 0, 5, 0),
                     ToolTip = "当前样本名称（1–64字符），不是设备结果。" },
-                Status = new TextBlock { Foreground = Brushes.SlateGray, FontSize = 11, TextWrapping = TextWrapping.Wrap,
+                Status = new TextBlock { Foreground = Brushes.SlateGray, FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis,
                     Margin = new Thickness(0, 3, 0, 5) }
             };
             var row = new WrapPanel { Margin = new Thickness(0, 0, 0, 3) };
             var menu = new Menu { Background = Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center };
             var manage = new MenuItem { Header = "管理", ToolTip = "只编辑当前模块草稿，不读写文件或访问设备。" };
             var add = new MenuItem { Header = "将当前响应加入队列" };
+            var rename = new MenuItem { Header = "重命名所选样本" };
             var remove = new MenuItem { Header = "删除所选样本" };
             var single = new MenuItem { Header = "返回单样本（保留当前响应）" };
-            manage.Items.Add(add); manage.Items.Add(remove); manage.Items.Add(single); menu.Items.Add(manage);
+            manage.Items.Add(add); manage.Items.Add(rename); manage.Items.Add(remove); manage.Items.Add(single); menu.Items.Add(manage);
             row.Children.Add(editor.Picker); row.Children.Add(editor.Name); row.Children.Add(menu);
             parent.Children.Insert(0, row); parent.Children.Insert(1, editor.Status);
             communicationQueueEditorsS149.Add(kind, editor);
+            var preview = CommunicationPreviewTextUI09(kind);
+            preview.TextWrapping = TextWrapping.NoWrap;
+            preview.TextTrimming = TextTrimming.CharacterEllipsis;
+            preview.SetBinding(FrameworkElement.ToolTipProperty, new System.Windows.Data.Binding("Text") { Source = preview });
             editor.Picker.SelectionChanged += delegate
             {
                 if (communicationQueueLoadingS149 || !IsCommunicationQueueOwnerCurrentS149(kind)) return;
                 if (!CanEditCommunicationQueueS149(kind)) { RefreshCommunicationQueueUiS149(kind, false); return; }
                 if (communicationQueueDraftS149 == null || editor.Picker.SelectedIndex < 0) return;
+                editor.EditingName = false;
                 communicationQueueDraftS149.SelectedIndex = editor.Picker.SelectedIndex;
                 RefreshCommunicationQueueUiS149(kind, true); MarkCommunicationQueueDraftS149(kind);
             };
@@ -103,7 +110,13 @@ namespace HalconWinFormsDemo
                 sample.Name = editor.Name.Text; MarkCommunicationQueueDraftS149(kind);
             };
             editor.Name.LostKeyboardFocus += delegate
-            { if (!communicationQueueLoadingS149 && IsCommunicationQueueOwnerCurrentS149(kind)) RefreshCommunicationQueueUiS149(kind, false); };
+            { if (!communicationQueueLoadingS149 && IsCommunicationQueueOwnerCurrentS149(kind)) { editor.EditingName = false; RefreshCommunicationQueueUiS149(kind, false); } };
+            rename.Click += delegate
+            {
+                if (!CanEditCommunicationQueueS149(kind) || SelectedCommunicationSampleS149() == null) return;
+                editor.EditingName = true; RefreshCommunicationQueueUiS149(kind, false);
+                editor.Name.Focus(); editor.Name.SelectAll();
+            };
             box.TextChanged += delegate
             {
                 if (!CanEditCommunicationQueueS149(kind)) return;
@@ -158,7 +171,7 @@ namespace HalconWinFormsDemo
             communicationQueueOwnerS149 = dockEditingTool;
             communicationQueueSessionS149 = projectSessionIdS104; communicationQueueFlowS149 = activeProjectFlowIdS104;
             communicationQueueDraftS149 = parameters.CommunicationSampleQueueS149 == null ? null : parameters.CommunicationSampleQueueS149.Clone();
-            EnsureCommunicationQueueEditorS149(kind); RefreshCommunicationQueueUiS149(kind, true);
+            EnsureCommunicationQueueEditorS149(kind).EditingName = false; RefreshCommunicationQueueUiS149(kind, true);
         }
         private void ReadCommunicationQueueS149(VmToolParameterData parameters, VmToolKind kind)
         {
@@ -174,11 +187,11 @@ namespace HalconWinFormsDemo
             try
             {
                 var queue = communicationQueueDraftS149; var sample = SelectedCommunicationSampleS149();
-                editor.Picker.ItemsSource = queue == null ? new[] { "单样本（兼容）" }
-                    : (queue.Samples ?? new List<VmCommunicationSampleS149>()).Select((item, index) => index + " · " + (item == null ? "空样本" : item.Name)).ToArray();
+                editor.Picker.ItemsSource = queue == null ? new[] { "单样本" }
+                    : (queue.Samples ?? new List<VmCommunicationSampleS149>()).Select((item, index) => (index + 1) + "/" + queue.Samples.Count + " · " + (item == null ? "空样本" : item.Name)).ToArray();
                 editor.Picker.IsEnabled = queue != null;
                 editor.Picker.SelectedIndex = queue == null ? 0 : queue.SelectedIndex;
-                editor.Name.Visibility = queue == null ? Visibility.Collapsed : Visibility.Visible;
+                editor.Name.Visibility = queue != null && editor.EditingName ? Visibility.Visible : Visibility.Collapsed;
                 editor.Name.IsEnabled = sample != null; editor.Name.Text = sample == null ? string.Empty : sample.Name;
                 var box = CommunicationSampleBoxS149(kind);
                 box.IsReadOnly = queue != null && sample == null;
@@ -192,20 +205,44 @@ namespace HalconWinFormsDemo
             if (!IsCommunicationQueueOwnerCurrentS149(kind) || !communicationQueueEditorsS149.ContainsKey(kind)) return;
             var editor = communicationQueueEditorsS149[kind]; var queue = communicationQueueDraftS149;
             string error = queue == null ? string.Empty : queue.Validate(kind);
-            string mode = CommunicationSimulationCheckS149(kind).IsChecked == true ? "离线模拟 · 原F5执行所选响应" : "模拟未启用 · F5仍沿原真实通讯路径";
-            editor.Status.Text = error.Length > 0 ? error : mode + (queue == null ? " · 单样本" : " · " + queue.Samples.Count + "项草稿");
+            string mode = CommunicationSimulationCheckS149(kind).IsChecked == true ? "离线模拟 · F5运行草稿样本" : "真实通讯 · 模拟未启用";
+            editor.Status.Text = error.Length > 0 ? error : mode;
             editor.Status.ToolTip = (error.Length > 0 ? error + "\n" : "") + mode +
-                "\n选择/编辑不自动应用或运行，也不启用模拟。1–16项，名称≤64字符，合计UTF-8≤64KiB；坏帧走原异常，不回退旧值。";
+                "\n未启用模拟时，F5仍会沿真实通讯路径。选择/编辑不自动应用或运行，也不启用模拟。1–16项，名称≤64字符，合计UTF-8≤64KiB；坏帧走原异常，不回退旧值。";
             editor.Status.Foreground = error.Length > 0 || CommunicationSimulationCheckS149(kind).IsChecked != true ? Brushes.DarkGoldenrod : Brushes.SlateGray;
         }
         private void MarkCommunicationQueueDraftS149(VmToolKind kind)
         {
             DockDraftValue_Changed(CommunicationSampleBoxS149(kind), null);
             RefreshCommunicationQueueStatusS149(kind);
-            string hint = "样本草稿已变；尚未试解析或F5，正式输出仍属于已应用定义。";
-            if (kind == VmToolKind.TcpClientExchange) DockTcpSampleResultS117.Text = hint;
-            else if (kind == VmToolKind.ModbusTcpExchange) DockModbusSampleResultS118.Text = hint;
-            else DockRtuSampleResultS119.Text = hint;
+            InvalidateCommunicationPreviewUI09();
+        }
+
+        private TextBlock CommunicationPreviewTextUI09(VmToolKind kind)
+        {
+            return kind == VmToolKind.TcpClientExchange ? DockTcpSampleResultS117 :
+                kind == VmToolKind.ModbusTcpExchange ? DockModbusSampleResultS118 :
+                kind == VmToolKind.ModbusRtuExchange ? DockRtuSampleResultS119 : null;
+        }
+
+        private void InvalidateCommunicationPreviewUI09()
+        {
+            if (dockDraftUpdating || dockEditingTool == null) return;
+            var preview = CommunicationPreviewTextUI09(dockEditingTool.Kind);
+            if (preview == null) return;
+            preview.Text = "草稿已变 · 请重新预览（不发布输出）";
+            preview.Foreground = Brushes.SlateGray;
+        }
+
+        private bool CanPreviewCommunicationUI09(VmToolKind kind)
+        {
+            if (!IsCommunicationQueueOwnerCurrentS149(kind) || !flowTools.Contains(dockEditingTool)) return false;
+            var preview = CommunicationPreviewTextUI09(kind);
+            if (!CanChangeRecipeS134(false))
+            { preview.Text = "请先停止运行，再预览当前草稿。"; preview.Foreground = Brushes.SlateGray; return false; }
+            if (communicationQueueDraftS149 != null && SelectedCommunicationSampleS149() == null)
+            { preview.Text = "请先选取一个样本，不使用旧响应。"; preview.Foreground = Brushes.IndianRed; return false; }
+            return true;
         }
     }
 }

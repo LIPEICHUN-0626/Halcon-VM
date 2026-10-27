@@ -149,7 +149,8 @@ namespace HalconWinFormsDemo
 
             int detections = dockRoiBindingRows.Count(item => item.IsBound && item.Layer != null && item.Layer.IsEnabled && !item.Layer.IsMask);
             int masks = dockRoiBindingRows.Count(item => item.IsBound && item.Layer != null && item.Layer.IsEnabled && item.Layer.IsMask);
-            DockRoiRoleSummaryText.Text = "本地：检测 " + detections.ToString(CultureInfo.InvariantCulture) + " · 屏蔽 " + masks.ToString(CultureInfo.InvariantCulture);
+            DockRoiRoleSummaryText.Text = tool.InstanceName + " · 检测 " + detections.ToString(CultureInfo.InvariantCulture) + " · 屏蔽 " + masks.ToString(CultureInfo.InvariantCulture);
+            DockRoiRoleSummaryText.ToolTip = "当前正在编辑：" + tool.InstanceName + "。勾选修改本模块绑定草稿；点击图层名称在输入图像中选中。图层可以被多个模块共享。";
             if (tool.Kind == VmToolKind.ImageThreshold)
             {
                 int bound = dockRoiBindingRows.Count(item => item.IsBound);
@@ -162,7 +163,7 @@ namespace HalconWinFormsDemo
             string sourceText = source == null || source.IsDefault ? "尚未选择前序 Region" : source.DisplayText;
             if (mode == VmRoiSourceMode.Local)
             {
-                DockRoiSourceStatusText.Text = tool.Kind == VmToolKind.ImageThreshold && dockRoiBindingRows.Any(item => item.IsBound) && detections == 0
+                DockRoiSourceStatusText.Text = (tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.ColorInspectionHsv) && dockRoiBindingRows.Any(item => item.IsBound) && detections == 0
                     ? "已绑定但没有启用检测区：不会回退全图；请启用检测区或明确解绑。"
                     : detections == 0
                     ? (ToolMetadata.RequiresRoi(tool.Kind) ? "本地模式需要至少一个已启用检测区。" : "本地模式未绑定检测区：该工具按全图运行；屏蔽区不能单独使用。")
@@ -185,6 +186,11 @@ namespace HalconWinFormsDemo
             DockRoiSourceStatusText.Foreground = needsSource && (source == null || source.IsDefault || !source.IsValid)
                 ? Brushes.Firebrick
                 : Brushes.SlateGray;
+            if (dockRoiBindingRows.Any(item => item.IsBound && (item.Layer == null || !roiLayers.Contains(item.Layer))))
+            {
+                DockRoiSourceStatusText.Text = "存在缺失 ROI：请取消缺失项，再明确选择检测区或输入有效域。";
+                DockRoiSourceStatusText.Foreground = Brushes.Firebrick;
+            }
         }
 
         private void DockRoiSourceModeComboBox_SelectionChangedS86(object sender, SelectionChangedEventArgs e)
@@ -217,13 +223,13 @@ namespace HalconWinFormsDemo
             if (tool == null || parameters == null || !ToolMetadata.SupportsRoi(tool.Kind)) return string.Empty;
             string mode = VmRoiSourceMode.Normalize(DockRoiSourceModeComboBox.SelectedValue as string);
             parameters.RoiSourceMode = mode;
-            if (tool.Kind == VmToolKind.ImageThreshold)
+            VmRoiBindingItem missing = dockRoiBindingRows.FirstOrDefault(item => item.IsBound && (item.Layer == null || !roiLayers.Contains(item.Layer)));
+            if (missing != null) return "ROI 绑定已失效：" + missing.Name + "。请取消该绑定并明确重选，不会自动丢弃缺失项。";
+            if (tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.ColorInspectionHsv)
             {
-                VmRoiBindingItem missing = dockRoiBindingRows.FirstOrDefault(item => item.IsBound && (item.Layer == null || !roiLayers.Contains(item.Layer)));
-                if (missing != null) return "阈值 ROI 绑定已失效：" + missing.Name + "。请取消该绑定并明确重选，不会回退输入全域。";
                 if (mode == VmRoiSourceMode.Local && dockRoiBindingRows.Any(item => item.IsBound) &&
                     !dockRoiBindingRows.Any(item => item.IsBound && item.Layer != null && item.Layer.IsEnabled && !item.Layer.IsMask))
-                    return "阈值没有已启用的检测区。请启用检测区，或明确解绑后使用输入有效域；屏蔽区不能单独运行。";
+                    return "没有已启用的检测区。请启用检测区，或明确解绑后使用输入有效域；屏蔽区不能单独运行。";
             }
             string portName = GetRoiSourcePortNameS86(tool);
             VmInputPortEditorRow row = dockInputPortRows.FirstOrDefault(item => string.Equals(item.PortName, portName, StringComparison.OrdinalIgnoreCase));
@@ -275,7 +281,8 @@ namespace HalconWinFormsDemo
 
         private HRegion CreateEffectiveRoiRegionS86(VmToolInstance tool, bool required)
         {
-            if (tool != null && tool.Kind == VmToolKind.ImageThreshold) ValidateThresholdRoiBindingsUIBatch02(tool);
+            if (tool != null && (tool.Kind == VmToolKind.ImageThreshold || tool.Kind == VmToolKind.ColorInspectionHsv))
+                ValidateThresholdRoiBindingsUIBatch02(tool);
             string mode = GetAppliedRoiSourceModeS86(tool);
             VmToolInputBindingData binding = GetRoiSourceBindingS86(tool);
             if (mode == VmRoiSourceMode.Local || (binding == null && mode == VmRoiSourceMode.Legacy))
@@ -337,8 +344,11 @@ namespace HalconWinFormsDemo
 
         private void ValidateThresholdRoiBindingsUIBatch02(VmToolInstance tool)
         {
+            // Both consumers use one merged effective domain. Invalid explicit
+            // bindings must never silently widen the detection area to full image.
+            string label = tool.Kind == VmToolKind.ColorInspectionHsv ? "颜色" : "阈值";
             if (VmRoiExecutionMode.Normalize(tool.Parameters == null ? null : tool.Parameters.RoiExecutionMode) == VmRoiExecutionMode.PerRoi)
-                throw new InvalidOperationException("普通灰度阈值使用合并检测域，不支持逐 ROI 独立执行。请使用合并执行配置。");
+                throw new InvalidOperationException(label + "检测使用合并检测域，不支持逐 ROI 独立执行。请使用合并执行配置。");
             string mode = GetAppliedRoiSourceModeS86(tool);
             string targetContext = ResolveTargetImageContextIdS86(tool);
             bool inheritedOnly = mode == VmRoiSourceMode.Inherited;
@@ -347,19 +357,19 @@ namespace HalconWinFormsDemo
             {
                 var matches = roiLayers.Where(candidate => string.Equals(candidate.RoiId, id, StringComparison.OrdinalIgnoreCase)).ToList();
                 if (matches.Count != 1)
-                    throw new InvalidOperationException("阈值检测区绑定已失效或身份重复：" + id + "。请在 ROI 页明确重选，不会回退全图。");
+                    throw new InvalidOperationException(label + "检测区绑定已失效或身份重复：" + id + "。请在 ROI 页明确重选，不会回退全图。");
                 VmRoiLayer layer = matches[0];
                 if (inheritedOnly && !layer.IsMask) continue; // Original inherited mode ignores local detections.
                 if (!layer.IsEnabled) continue;
                 if (layer.Geometry == null)
-                    throw new InvalidOperationException("阈值 ROI“" + layer.Name + "”没有可用几何，请重新绘制或解绑。");
+                    throw new InvalidOperationException(label + " ROI“" + layer.Name + "”没有可用几何，请重新绘制或解绑。");
                 if (!string.IsNullOrWhiteSpace(layer.ImageContextId) &&
                     (IsPendingCoordinateContextS102(targetContext) || !string.Equals(layer.ImageContextId, targetContext, StringComparison.OrdinalIgnoreCase)))
-                    throw new InvalidOperationException("阈值 ROI“" + layer.Name + "”属于另一图像来源或旧坐标版本，请重选对应图像/ROI，不会回退全图。");
+                    throw new InvalidOperationException(label + " ROI“" + layer.Name + "”属于另一图像来源或旧坐标版本，请重选对应图像/ROI，不会回退全图。");
                 activeLocal++;
             }
-            if (!inheritedOnly && GetRoiSourceBindingS86(tool) == null && tool.BoundRoiIds.Count > 0 && activeLocal == 0)
-                throw new InvalidOperationException("阈值已绑定 ROI，但全部停用；请启用检测区或明确解绑后使用输入有效域。");
+            if (!inheritedOnly && (mode == VmRoiSourceMode.Local || GetRoiSourceBindingS86(tool) == null) && tool.BoundRoiIds.Count > 0 && activeLocal == 0)
+                throw new InvalidOperationException(label + "已绑定 ROI，但全部停用；请启用检测区或明确解绑后使用输入有效域。");
         }
 
         private string GetRoiSourceSummaryS86(VmToolInstance tool)

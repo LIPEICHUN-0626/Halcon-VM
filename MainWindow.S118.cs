@@ -70,7 +70,7 @@ namespace HalconWinFormsDemo
         {
             if (DockModbusQuantityRowS118 == null || DockModbusWriteRowS118 == null) return;
             int function;
-            bool isRead = int.TryParse(DockModbusFunctionS118.SelectedValue as string, NumberStyles.Integer, CultureInfo.InvariantCulture, out function) && VmModbusFunctionS118.IsRead(function);
+            bool isRead = int.TryParse((DockModbusFunctionS118.SelectedItem as VmToolValueOption)?.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out function) && VmModbusFunctionS118.IsRead(function);
             DockModbusQuantityRowS118.Visibility = isRead ? Visibility.Visible : Visibility.Collapsed;
             DockModbusWriteRowS118.Visibility = isRead ? Visibility.Collapsed : Visibility.Visible;
             UpdateCommunicationRecoveryModeS120(false, isRead);
@@ -94,6 +94,7 @@ namespace HalconWinFormsDemo
 
         private void LoadModbusSampleS118_Click(object sender, RoutedEventArgs e)
         {
+            if (!CanPreviewCommunicationUI09(VmToolKind.ModbusTcpExchange)) return;
             long editLeaseS137 = CaptureEngineeringEditLeaseS137("生成 Modbus TCP 模拟样本");
             if (editLeaseS137 < 0) return;
             VmToolParameterData draft = new VmToolParameterData();
@@ -116,6 +117,7 @@ namespace HalconWinFormsDemo
 
         private void ParseModbusSampleS118_Click(object sender, RoutedEventArgs e)
         {
+            if (!CanPreviewCommunicationUI09(VmToolKind.ModbusTcpExchange)) return;
             VmToolParameterData draft = new VmToolParameterData();
             if (!ReadModbusDraftS118(draft)) return;
             try
@@ -124,8 +126,7 @@ namespace HalconWinFormsDemo
                 byte[] frame = ModbusTcpServiceS118.ParseHexFrame(DockModbusSampleFrameS118.Text);
                 if (frame.Length < 2) throw new InvalidOperationException("Modbus TCP 样本帧缺少事务号。");
                 ModbusTcpResponseS118 response = ModbusTcpServiceS118.ParseResponse(frame, request, (frame[0] << 8) | frame[1]);
-                DockModbusSampleResultS118.Text = "解析成功 · " + FormatModbusDecodePreviewS122(response.Values, request.FunctionCode, draft) +
-                    "；点击运行当前模块才发布流程输出。";
+                DockModbusSampleResultS118.Text = "预览（不发布） · " + FormatModbusDecodePreviewS122(response.Values, request.FunctionCode, draft);
                 DockModbusSampleResultS118.Foreground = Brushes.ForestGreen;
             }
             catch (Exception ex)

@@ -20,9 +20,20 @@ namespace HalconWinFormsDemo
         private void RefreshScriptArrayHintS107()
         {
             if (ScriptInterfaceArrayHintS107 == null || ScriptInterfaceTypeComboBox == null || ScriptInterfaceDefaultTextBox == null || ScriptInterfaceDirectionComboBox == null) return;
-            string type = VmScriptScalarType.Normalize(ScriptInterfaceTypeComboBox.SelectedValue as string);
-            string direction = VmScriptMemberDirection.Normalize(ScriptInterfaceDirectionComboBox.SelectedValue as string);
+            // SelectionChanged can precede SelectedValue binding propagation.
+            string type = VmScriptScalarType.Normalize((ScriptInterfaceTypeComboBox.SelectedItem as VmToolValueOption)?.Key);
+            string direction = VmScriptMemberDirection.Normalize((ScriptInterfaceDirectionComboBox.SelectedItem as VmToolValueOption)?.Key);
+            ScriptInterfaceRequiredCheckBox.IsEnabled = ScriptInterfaceEditorPanel.IsEnabled && direction != VmScriptMemberDirection.Parameter;
+            var requiredRow = ScriptInterfaceRequiredCheckBox.Parent as UIElement;
+            if (requiredRow != null) requiredRow.Visibility = direction == VmScriptMemberDirection.Parameter ? Visibility.Collapsed : Visibility.Visible;
+            ScriptInterfaceRequiredCheckBox.Content = direction == VmScriptMemberDirection.Parameter ? "参数使用设定值" : "必需";
+            ScriptInterfaceRequiredCheckBox.ToolTip = direction == VmScriptMemberDirection.Output
+                ? "脚本必须写入此输出；缺失即失败并清除旧输出。"
+                : "必需输入必须连接有效上游；未连接或来源失效即失败，不借用旧值。";
             bool array = VmArrayContractS105.IsType(type);
+            ScriptInterfaceDefaultTextBox.Width = type == VmScriptScalarType.Number ? 120 : double.NaN;
+            ScriptInterfaceDefaultTextBox.MaxWidth = type == VmScriptScalarType.Number ? 140 : double.PositiveInfinity;
+            ScriptInterfaceDefaultTextBox.HorizontalAlignment = type == VmScriptScalarType.Number ? HorizontalAlignment.Left : HorizontalAlignment.Stretch;
             ScriptInterfaceDefaultTextBox.Height = array ? 56 : 26;
             ScriptInterfaceDefaultTextBox.AcceptsReturn = array;
             ScriptInterfaceDefaultTextBox.TextWrapping = array ? TextWrapping.Wrap : TextWrapping.NoWrap;

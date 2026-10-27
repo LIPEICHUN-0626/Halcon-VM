@@ -81,6 +81,11 @@ namespace HalconWinFormsDemo
             if (ImageContextComboBox == null) return;
             var sources = flowTools.Where(item => item.Kind == VmToolKind.ImageSource).ToList();
             var entries = new List<VmImageContextOption>(VmImageContextOption.CreateAll());
+            var inputTool = GetImageTaskToolS89();
+            if (inputTool != null)
+                foreach (var port in ToolMetadata.GetInstanceInputPorts(inputTool).Where(item => item.DataType == "Image"))
+                    entries.Add(new VmImageContextOption { Key = VmImageContextOption.InputPortPrefix + port.PortName,
+                        DisplayText = inputTool.InstanceName + " · " + port.DisplayName + "（已应用）" });
             foreach (VmToolInstance source in sources)
             {
                 VmImageSnapshot snapshot = GetImageSnapshot(source, "Image");
@@ -98,7 +103,7 @@ namespace HalconWinFormsDemo
             string previous = GetImageContextSelectionKeyS112();
             if (!entries.Any(item => string.Equals(item.Key, previous, StringComparison.OrdinalIgnoreCase)))
             {
-                if (previous.StartsWith(VmImageContextOption.SourcePrefix, StringComparison.Ordinal))
+                if (previous.StartsWith(VmImageContextOption.SourcePrefix, StringComparison.Ordinal) || previous.StartsWith(VmImageContextOption.InputPortPrefix, StringComparison.Ordinal))
                     entries.Add(new VmImageContextOption { Key = previous, DisplayText = "已移除来源（请重新选择）" });
                 else { previous = VmImageContextOption.GlobalInput; imageContextManuallySelected = false; }
             }
@@ -121,6 +126,93 @@ namespace HalconWinFormsDemo
             VmToolInstance producer = flowTools.FirstOrDefault(item =>
                 string.Equals(item.ToolId, image.Snapshot.ProducerToolId, StringComparison.OrdinalIgnoreCase));
             return producer == null ? null : ResolveOutputCoordinateContextS102(producer, image.Snapshot.ProducerPortName);
+        }
+
+        private void DockViewInputImageUI05_Click(object sender, RoutedEventArgs e)
+        {
+            var row = (sender as FrameworkElement)?.DataContext as VmInputPortEditorRow;
+            var tool = dockEditingTool;
+            if (!centralModuleConfigurationOpenS77 || tool == null || !flowTools.Contains(tool) || row == null ||
+                !dockInputPortRows.Contains(row) || row.DataType != "Image") return;
+            string error = null;
+            var port = ToolMetadata.GetInstanceInputPorts(tool).FirstOrDefault(item => item.PortName == row.PortName && item.DataType == "Image");
+            if (historicalImageMode || isFlowExecutionActive || isContinuousRunning || isImageQueueBatchRunning || IsCurrentToolContinuousTrialRunningS87)
+                error = "请先停止运行或退出历史查看，再查看输入图像。";
+            else if (pendingRoi != null || roiEditor.IsDrawing || roiEditor.IsPolygonDrawing || roiGeometryDraftDirty || roiEditingLayer != null)
+                error = "请先确认/应用或取消正在编辑的 ROI，再切换输入画面。";
+            else if (port == null || row.SelectedSourceKey != GetDockSavedInputSourceKey(tool, port))
+                error = "这路来源尚未应用；请先应用或取消来源修改。查看图像不会自动应用或运行。";
+            if (error != null) { DockInputSummaryText.Text = error; return; }
+            RefreshImageSourceOptionsS112();
+            SetImageContextSelection(VmImageContextOption.InputPortPrefix + row.PortName);
+            imageContextManuallySelected = true;
+            UpdateImageContextViewport(true);
+            RefreshUiState(); ScheduleRefreshDisplay();
+            DockInputSummaryText.Text = "正在查看：" + row.DisplayName + " · 已应用来源；缺图时保持空白，不会自动读图。";
+        }
+
+        private ResolvedImageContext ResolveImageInputPortUI05(VmToolInstance tool, VmPortDefinition port, string requested)
+        {
+            if (tool == null || port == null || !flowTools.Contains(tool))
+                return CreateEmptyImageContext(requested, "当前模块已无此 Image 输入，请重新选择。", "输入不可用");
+            var binding = tool.GetInputBinding(port.PortName);
+            string label = tool.InstanceName + "." + port.DisplayName;
+            if (binding == null)
+                return port.PortName == "Image" ? CreateGlobalImageContext(requested, currentImage == null ? "系统.Image 暂无图像，请明确加载。" : "已应用输入 · 系统.Image", label + " ← 系统.Image") :
+                    CreateEmptyImageContext(requested, "此输入尚未连接；不会借用另一输入或全局图像。", label + " ← 未连接");
+            var source = GetInputSourceTool(binding);
+            var snapshot = GetImageSnapshot(source, binding.SourcePortName);
+            bool validPort = source != null && ToolMetadata.GetInstanceOutputPorts(source).Any(item => item.PortName == binding.SourcePortName && item.DataType == "Image");
+            string sourceLabel = label + " ← " + GetBindingSourceText(binding);
+            if (!validPort || flowTools.IndexOf(source) >= flowTools.IndexOf(tool) || !source.IsEnabled || !source.LastOutputUtc.HasValue ||
+                (source.ResultCode != "OK" && source.ResultCode != "NG") || !string.IsNullOrWhiteSpace(source.ErrorMessage) || snapshot == null || snapshot.IsDisposed)
+                return CreateEmptyImageContext(requested, "已应用来源暂无有效图像；请检查并明确运行上游。", sourceLabel);
+            return CreateSnapshotContext(requested, snapshot, sourceLabel,
+                source.RuntimeResultOrigin == VmRuntimeResultOrigin.ModuleExecution ? "已应用输入 · 最近执行图像" : "已应用输入 · 来源草稿/未标注预览，不代表正式结果");
+        }
+
+        private void DockLocateRoiUI03_Click(object sender, RoutedEventArgs e)
+        {
+            var row = (sender as FrameworkElement)?.DataContext as VmRoiBindingItem;
+            var tool = dockEditingTool;
+            string error = null;
+            if (!centralModuleConfigurationOpenS77 || tool == null || !flowTools.Contains(tool) ||
+                row == null || !dockRoiBindingRows.Contains(row) || row.Layer == null || !roiLayers.Contains(row.Layer))
+                error = "ROI 或编辑模块已变化，请重新选择当前列表中的图层。";
+            else if (historicalImageMode || isContinuousRunning || isFlowExecutionActive || isImageQueueBatchRunning || IsCurrentToolContinuousTrialRunningS87 || System.Threading.Volatile.Read(ref tcpTriggerPendingS104) != 0)
+                error = "请先停止运行或退出历史查看，再选择 ROI。";
+            else if (roiGeometryDraftDirty || roiEditingLayer != null || pendingRoi != null || roiEditor.IsDrawing || roiEditor.IsPolygonDrawing)
+                error = "请先应用或取消正在修改、绘制的 ROI，再切换图层。";
+            else if (!row.CanLocate || !row.Layer.IsVisible || !IsRoiCompatibleWithToolS112(row.Layer, tool))
+                error = "该 ROI 缺少几何、已隐藏或属于其他图像；请先在图层菜单检查。";
+            else if (ToolMetadata.GetInstanceInputPorts(tool).Where(port => port.DataType == "Image").Any(port =>
+                dockInputPortRows.Any(input => input.PortName == port.PortName && input.SelectedSourceKey != GetDockSavedInputSourceKey(tool, port))))
+                error = "输入图像来源尚未应用；请先应用或取消输入修改。";
+            else
+            {
+                var context = ResolveModuleInputContext(tool, VmImageContextOption.ModuleInput, null);
+                if (!context.HasImage || !LayerMatchesImageS112(row.Layer, context) ||
+                    GetImageCoordinateContextS112(context) != ResolveTargetImageContextIdS86(tool))
+                    error = "当前模块输入图像不可用或坐标不匹配；请先明确读取对应图像。";
+            }
+            if (error != null)
+            {
+                DockRoiSourceStatusText.Text = error;
+                DockRoiSourceStatusText.Foreground = System.Windows.Media.Brushes.Firebrick;
+                return;
+            }
+            // Reuse the original selection and handles; no binding, geometry or draft commit.
+            bool changedImage = GetImageContextSelectionKeyS112() != VmImageContextOption.ModuleInput;
+            SetImageContextSelection(VmImageContextOption.ModuleInput);
+            if (changedImage) UpdateImageContextViewport(true);
+            roiEditor.Tool = VisionTool.Select;
+            RoiLayerList.SelectedItem = row.Layer;
+            SelectRoiLayer(row.Layer);
+            ShowRoiOverlayCheckBox.IsChecked = true;
+            ScheduleRefreshDisplay();
+            DockRoiSourceStatusText.Text = row.Layer.Name + " · " + row.Layer.RoleText +
+                (row.Layer.IsLocked ? " · 已锁定，只读查看" : " · 已选中，可在图像中拖动控制点");
+            DockRoiSourceStatusText.Foreground = System.Windows.Media.Brushes.Teal;
         }
 
         private bool LayerMatchesImageS112(VmRoiLayer layer, ResolvedImageContext image)

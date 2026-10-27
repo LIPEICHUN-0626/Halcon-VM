@@ -13,6 +13,9 @@ namespace HalconWinFormsDemo
         private VmToolInstance colorPickingToolS129;
         private VmImageSnapshot colorPickingImageS129;
         private long colorPickEditLeaseS137 = -1;
+        private WeakReference<VmImageSnapshot> colorSampleImageUI03;
+        private string colorPickNoticeUI03;
+        private string colorPickDetailsUI03;
 
         private void LoadColorExampleS129_Click(object sender, RoutedEventArgs e)
         { if (RequireEngineeringEditS137("载入颜色检测示例")) LoadExampleProgramS78("color-coverage"); }
@@ -22,7 +25,7 @@ namespace HalconWinFormsDemo
             var source = CreateFlowTool(VmToolKind.ImageSource, "01 彩色零件图像", true, null);
             var color = CreateFlowTool(VmToolKind.ColorInspectionHsv, "02 红色区域检测", true, null);
             var feature = CreateFlowTool(VmToolKind.RegionFeatureFilter, "03 排除小色块", true, null);
-            var judge = CreateFlowTool(VmToolKind.NumericJudge, "04 红色覆盖比例判定", true, null);
+            var judge = CreateFlowTool(VmToolKind.NumericJudge, "04 原始红色覆盖比例判定", true, null);
             foreach (var tool in new[] { source, color, feature, judge }) flowTools.Add(tool);
             color.SetInputBinding("Image", source.ToolId, "Image");
             feature.SetInputBinding("Region", color.ToolId, "Region");
@@ -39,6 +42,7 @@ namespace HalconWinFormsDemo
         private void LoadColorDraftS129(VmToolParameterData parameters)
         {
             EndColorPickS129();
+            ClearColorSampleUI03();
             var color = parameters.ColorInspectionS129 ?? new VmColorInspectionParametersS129();
             DockColorHueS129.Text = color.HueDegrees.ToString("R", CultureInfo.InvariantCulture);
             DockColorToleranceS129.Text = color.HueToleranceDegrees.ToString("R", CultureInfo.InvariantCulture);
@@ -72,6 +76,42 @@ namespace HalconWinFormsDemo
             return true;
         }
 
+        private void ClearColorSampleUI03()
+        {
+            colorSampleImageUI03 = null;
+            colorPickNoticeUI03 = colorPickDetailsUI03 = null;
+            if (DockColorChipS129 != null) DockColorChipS129.Background = Brushes.Transparent;
+        }
+
+        private void SetColorNoticeUI03(string message, string details = null)
+        {
+            colorPickNoticeUI03 = message; colorPickDetailsUI03 = details ?? message;
+            DockColorSampleSummaryS129.Text = message;
+            DockColorSampleSummaryS129.ToolTip = colorPickDetailsUI03;
+        }
+
+        // Existing metadata only: refreshing this panel must not acquire images,
+        // calculate HSV or change the applied configuration.
+        private string ColorPickUnavailableUI03(VmToolInstance tool)
+        {
+            if (tool == null || tool.Kind != VmToolKind.ColorInspectionHsv) return "请打开颜色检测模块";
+            if (!IsVariationTaskStoppedS130() || historicalImageMode) return "请先停止运行并返回当前图像";
+            if (!ColorInputDraftMatchesS129(tool)) return "先应用输入 / ROI 来源，再取色";
+            var binding = tool.GetInputBinding("Image");
+            if (binding == null) return "在“输入”页连接 RGB 图像";
+            string error = GetInputBindingConfigurationError(tool, binding);
+            if (!string.IsNullOrWhiteSpace(error)) return error;
+            var source = GetInputSourceTool(binding);
+            var snapshot = GetImageSnapshot(source, binding.SourcePortName);
+            if (source == null || !source.IsEnabled || source.ResultCode != "OK" || !source.LastOutputUtc.HasValue ||
+                !string.IsNullOrWhiteSpace(source.ErrorMessage) || snapshot == null || snapshot.IsDisposed)
+                return "先运行上游图像源，再取色";
+            if (snapshot.ChannelCount != 3) return "当前为灰度图，请在“输入”页选择 RGB 图像";
+            try { ValidateThresholdRoiBindingsUIBatch02(tool); }
+            catch (InvalidOperationException ex) { return ex.Message; }
+            return null;
+        }
+
         private bool ColorInputDraftMatchesS129(VmToolInstance tool)
         {
             foreach (var port in ToolMetadata.GetInstanceInputPorts(tool))
@@ -102,20 +142,35 @@ namespace HalconWinFormsDemo
 
         private void RefreshColorPickStateS129()
         {
-            if (colorPickingToolS129 == null) return;
-            var binding = colorPickingToolS129.GetInputBinding("Image");
-            if (!CanPickColorS129() || binding == null || !ReferenceEquals(colorPickingImageS129, GetImageSnapshot(GetInputSourceTool(binding), binding.SourcePortName)))
-            { EndColorPickS129(); DockColorSampleSummaryS129.Text = "取色已结束 · 模块、输入/ROI 或运行状态发生变化"; }
+            if (dockDraftUpdating || DockColorPickButtonUI03 == null || dockEditingTool == null || dockEditingTool.Kind != VmToolKind.ColorInspectionHsv) return;
+            var binding = dockEditingTool.GetInputBinding("Image");
+            var snapshot = binding == null ? null : GetImageSnapshot(GetInputSourceTool(binding), binding.SourcePortName);
+            string reason = ColorPickUnavailableUI03(dockEditingTool);
+            if (colorPickingToolS129 != null && (!CanPickColorS129() || reason != null || !ReferenceEquals(colorPickingImageS129, snapshot)))
+            { EndColorPickS129(); ClearColorSampleUI03(); SetColorNoticeUI03("图像或配置已改变，请重新取色"); }
+            VmImageSnapshot sampled;
+            if (colorSampleImageUI03 != null && (!colorSampleImageUI03.TryGetTarget(out sampled) || !ReferenceEquals(sampled, snapshot) || reason != null))
+                ClearColorSampleUI03();
+            DockColorPickButtonUI03.IsEnabled = reason == null && colorPickingToolS129 == null;
+            DockColorPickButtonUI03.ToolTip = reason ?? "在当前模块的 RGB 输入图像上单击有色点；仅填写草稿色相，不改变容差、不自动应用或运行。";
+            if (reason != null) { DockColorSampleSummaryS129.Text = reason; DockColorSampleSummaryS129.ToolTip = reason; }
+            else if (colorPickingToolS129 == null)
+            {
+                DockColorSampleSummaryS129.Text = colorPickNoticeUI03 ?? string.Format(CultureInfo.InvariantCulture, "输入 {0}×{1} RGB · 可取色或手填色相", snapshot.Width, snapshot.Height);
+                DockColorSampleSummaryS129.ToolTip = colorPickDetailsUI03 ?? (snapshot.ProducerToolName + "." + snapshot.ProducerPortName + " · " + snapshot.DisplayText);
+            }
         }
 
         private void DockColorPickS129_Click(object sender, RoutedEventArgs e)
         {
             long editLeaseS137 = CaptureEngineeringEditLeaseS137("图像取色写入草稿");
             if (editLeaseS137 < 0) return;
-            RunUiAction("图像取色", delegate
+            try
             {
                 EndColorPickS129();
                 var tool = dockEditingTool;
+                string unavailable = ColorPickUnavailableUI03(tool);
+                if (unavailable != null) throw new InvalidOperationException(unavailable);
                 if (tool == null || tool.Kind != VmToolKind.ColorInspectionHsv || historicalImageMode || isFlowExecutionActive ||
                     isContinuousRunning || isImageQueueBatchRunning || IsCurrentToolContinuousTrialRunningS87 ||
                     System.Threading.Volatile.Read(ref tcpTriggerPendingS104) != 0)
@@ -138,30 +193,35 @@ namespace HalconWinFormsDemo
                 colorPickingToolS129 = tool; colorPickingImageS129 = snapshot;
                 colorPickEditLeaseS137 = editLeaseS137;
                 DockColorCancelPickS129.Visibility = Visibility.Visible;
-                DockColorSampleSummaryS129.Text = "在模块输入图像上单击目标颜色 · 仅更新草稿 · Esc 取消";
+                ClearColorSampleUI03();
+                SetColorNoticeUI03("点击输入图像中的目标颜色 · Esc 取消", "只更新当前草稿的目标色相；饱和度、亮度和容差保留。点击必须位于实际输入图像与有效 ROI / 屏蔽范围内。");
+                DockColorPickButtonUI03.IsEnabled = false;
                 HeaderStatusText.Text = DockColorSampleSummaryS129.Text;
                 ScheduleRefreshDisplay();
-            });
+            }
+            catch (Exception ex) { SetColorNoticeUI03(ex.Message); HeaderStatusText.Text = ex.Message; }
         }
 
         private void DockColorCancelPickS129_Click(object sender, RoutedEventArgs e)
-        { EndColorPickS129(); DockColorSampleSummaryS129.Text = "取色已取消 · 原参数草稿保留"; }
+        { EndColorPickS129(); SetColorNoticeUI03("取色已取消 · 原参数草稿保留"); RefreshColorPickStateS129(); }
 
         private bool ColorMouseDownS129(System.Drawing.PointF point, bool comparison)
         {
             if (colorPickingToolS129 == null) return false;
             if (!IsEngineeringEditLeaseCurrentS137(colorPickEditLeaseS137))
-            { EndColorPickS129(); DockColorSampleSummaryS129.Text = "工程授权已改变，取色未写入草稿"; return true; }
-            if (!CanPickColorS129()) { EndColorPickS129(); return true; }
+            { EndColorPickS129(); SetColorNoticeUI03("工程授权已改变，取色未写入草稿"); return true; }
+            string unavailable = ColorPickUnavailableUI03(colorPickingToolS129);
+            if (!CanPickColorS129() || unavailable != null)
+            { EndColorPickS129(); SetColorNoticeUI03(unavailable ?? "取色已结束，请在当前模块重新开始"); return true; }
             var context = comparison ? ResolveDualInputImageContext() : ResolveImageContext();
             var binding = colorPickingToolS129.GetInputBinding("Image");
             if (binding == null || !ReferenceEquals(GetImageSnapshot(GetInputSourceTool(binding), binding.SourcePortName), colorPickingImageS129))
-            { EndColorPickS129(); DockColorSampleSummaryS129.Text = "图像已更新，请重新开始取色。"; return true; }
+            { EndColorPickS129(); SetColorNoticeUI03("图像已更新，请重新开始取色。"); return true; }
             if (!context.HasImage || !ReferenceEquals(context.Snapshot, colorPickingImageS129))
-            { DockColorSampleSummaryS129.Text = "请在该模块订阅的输入画面上取色。"; return true; }
+            { SetColorNoticeUI03("请在该模块订阅的输入画面上取色。"); return true; }
             int row = (int)Math.Floor(point.Y), column = (int)Math.Floor(point.X);
             if (row < 0 || column < 0 || row >= context.Height || column >= context.Width)
-            { DockColorSampleSummaryS129.Text = "取样点越界，请点击图像内的颜色。"; return true; }
+            { SetColorNoticeUI03("取样点越界，请点击图像内的颜色。"); return true; }
             try
             {
                 double[] sample;
@@ -182,18 +242,24 @@ namespace HalconWinFormsDemo
                     using (VmHsvImagesS129 hsv = VmHsvImagesS129.Create(pixel, null)) sample = hsv.ReadSample(pixel, 0, 0);
                 }
                 if (sample[1] < 3 || sample[2] < 2)
-                    throw new InvalidOperationException("该点饱和度过低或太暗，色相不稳定；请改选有色点。检测黑/白/灰可在更多参数将容差设为 180°，再限定饱和度和亮度。");
+                    throw new InvalidOperationException("该点饱和度过低或太暗，请改选有色点。检测黑/白/灰可在常用页将容差设为 180°，再限定饱和度和亮度。");
                 double hue = ((sample[0] % 360) + 360) % 360;
                 if (!IsEngineeringEditLeaseCurrentS137(colorPickEditLeaseS137))
-                { EndColorPickS129(); DockColorSampleSummaryS129.Text = "工程授权已改变，取色未写入草稿"; return true; }
-                DockColorHueS129.Text = hue.ToString("R", CultureInfo.InvariantCulture);
-                DockColorChipS129.Background = new SolidColorBrush(Color.FromRgb(ToColorByteS129(sample[3]), ToColorByteS129(sample[4]), ToColorByteS129(sample[5])));
-                DockColorSampleSummaryS129.Text = string.Format(CultureInfo.InvariantCulture,
-                    "样本 X={0}, Y={1} · H={2:0.##}° S={3:0.##}% V={4:0.##}% · 色相已填入草稿", column, row, hue, sample[1], sample[2]);
+                { EndColorPickS129(); SetColorNoticeUI03("工程授权已改变，取色未写入草稿"); return true; }
+                var sampledImage = colorPickingImageS129;
                 EndColorPickS129();
+                // A picked pixel proposes a user-editable angle, not float noise
+                // filling the short field. Explicit existing recipe values stay exact.
+                double proposedHue = Math.Round(hue, 3) % 360;
+                DockColorHueS129.Text = proposedHue.ToString("0.###", CultureInfo.InvariantCulture);
                 DockDraftValue_Changed(DockColorHueS129, new RoutedEventArgs());
+                colorSampleImageUI03 = new WeakReference<VmImageSnapshot>(sampledImage);
+                DockColorChipS129.Background = new SolidColorBrush(Color.FromRgb(ToColorByteS129(sample[3]), ToColorByteS129(sample[4]), ToColorByteS129(sample[5])));
+                SetColorNoticeUI03(string.Format(CultureInfo.InvariantCulture, "已取色 H {0:0.###}° · 仅填入草稿", proposedHue),
+                    string.Format(CultureInfo.InvariantCulture, "样本 X={0}, Y={1} · H={2:G9}° S={3:0.##}% V={4:0.##}% · 容差和过滤范围保留；F5 试运行，应用后重跑下游。", column, row, hue, sample[1], sample[2]));
+                RefreshColorPickStateS129();
             }
-            catch (Exception ex) { DockColorSampleSummaryS129.Text = ex.Message; HeaderStatusText.Text = ex.Message; }
+            catch (Exception ex) { SetColorNoticeUI03(ex.Message); HeaderStatusText.Text = ex.Message; }
             return true;
         }
 

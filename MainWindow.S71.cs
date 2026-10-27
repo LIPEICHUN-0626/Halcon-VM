@@ -32,6 +32,10 @@ namespace HalconWinFormsDemo
         private bool flowStepActivityTimerInitializedS71;
         private string flowStepLogSnapshotS71 = string.Empty;
         private string flowStepCommunicationSnapshotS71 = string.Empty;
+        // Explicit open/refresh establishes navigation identity. The follow timer
+        // updates text only; historical log strings never become action targets.
+        private string flowStepNavigationDefinitionUI07;
+        private long flowStepNavigationGenerationUI07;
 
         private bool IsToolboxSnippetModeActiveS71 { get { return toolboxSnippetModeS71; } }
 
@@ -326,6 +330,7 @@ namespace HalconWinFormsDemo
                 flowStepActivityWindowS71.Show();
             }
             FlowStepFollowS71.IsChecked = true;
+            CaptureFlowStepNavigationUI07();
             RefreshFlowStepActivityS71();
             if (!flowStepActivityTimerInitializedS71)
             {
@@ -338,11 +343,103 @@ namespace HalconWinFormsDemo
             HeaderStatusText.Text = "已打开 " + tool.SequenceText + " " + tool.InstanceName + " 的步骤日志 / 通讯子页面。";
         }
 
-        private void RefreshFlowStepActivityButton_Click(object sender, RoutedEventArgs e) { RefreshFlowStepActivityS71(); }
+        private void RefreshFlowStepActivityButton_Click(object sender, RoutedEventArgs e)
+        {
+            CaptureFlowStepNavigationUI07();
+            RefreshFlowStepActivityS71();
+        }
+
+        private void CaptureFlowStepNavigationUI07()
+        {
+            ++flowStepNavigationGenerationUI07;
+            flowStepNavigationDefinitionUI07 = null;
+            try
+            {
+                flowStepNavigationDefinitionUI07 = recipeService.GetRecipeFingerprint(CaptureRecipe());
+                FlowStepNavigationStatusUI07.Text = "定位保留草稿；打开参数需确认。历史记录仅供查看。";
+            }
+            catch (Exception)
+            {
+                FlowStepNavigationStatusUI07.Text = "当前定义无法确认；记录可查看，暂不能跳转。";
+            }
+        }
+
+        private bool ResolveFlowStepNavigationUI07(long generation, out VmToolInstance tool, out string reason)
+        {
+            tool = flowStepActivityInstanceS71?.Target as VmToolInstance;
+            reason = "步骤或查看窗口已改变，请重新打开记录。";
+            if (generation != flowStepNavigationGenerationUI07 || flowStepActivityWindowS71 == null ||
+                flowStepActivitySessionS71 != projectSessionIdS104 || flowStepActivityFlowIdS71 != activeProjectFlowIdS104 ||
+                tool == null || !flowTools.Contains(tool) || tool.ToolId != flowStepActivityToolIdS71 ||
+                flowTools.Count(item => item.ToolId == flowStepActivityToolIdS71) != 1) return false;
+            if (!CanNavigateProductionAlarmTaskS150(out reason)) return false;
+            try
+            {
+                if (flowStepNavigationDefinitionUI07 == null ||
+                    flowStepNavigationDefinitionUI07 != recipeService.GetRecipeFingerprint(CaptureRecipe()))
+                { reason = "方案定义已改变；请刷新快照后再定位当前模块，不沿旧记录猜测修复。"; return false; }
+            }
+            catch (Exception) { reason = "当前定义无法确认，未跳转；请刷新快照后重试。"; return false; }
+            reason = string.Empty;
+            return true;
+        }
+
+        private void FlowStepNavigateUI07_Click(object sender, RoutedEventArgs e)
+        {
+            long generation = ++flowStepNavigationGenerationUI07;
+            bool edit = (sender as FrameworkElement)?.Tag as string == "Parameters";
+            VmToolInstance tool; string reason;
+            if (!ResolveFlowStepNavigationUI07(generation, out tool, out reason))
+            { FlowStepNavigationStatusUI07.Text = reason; return; }
+            if (!edit)
+            {
+                // Selection only: do not invoke the ordinary selection handler's
+                // draft confirmation or switch the page / current image context.
+                bool selecting = flowSelectionUpdating;
+                flowSelectionUpdating = true;
+                try { FlowToolList.SelectedItem = tool; }
+                finally { flowSelectionUpdating = selecting; }
+                if (!ResolveFlowStepNavigationUI07(generation, out tool, out reason) || !ReferenceEquals(FlowToolList.SelectedItem, tool))
+                { FlowStepNavigationStatusUI07.Text = "选择已改变，未继续定位。"; return; }
+                FlowStepNavigationStatusUI07.Text = "已选中“" + tool.InstanceName + "”；页面、参数草稿和图像保持不变。";
+                Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(delegate
+                {
+                    VmToolInstance current; string invalid;
+                    if (productionRunMode || FlowGraphViewport == null || !FlowGraphViewport.IsVisible ||
+                        !ResolveFlowStepNavigationUI07(generation, out current, out invalid) ||
+                        !ReferenceEquals(FlowToolList.SelectedItem, current)) return;
+                    if (FlowToolList.IsVisible) FlowToolList.ScrollIntoView(current);
+                    double zoom = FlowZoomSlider == null ? 1 : FlowZoomSlider.Value;
+                    double x = (current.GraphX + 140) * zoom - FlowGraphViewport.ViewportWidth / 2;
+                    double y = (current.GraphY + current.GraphHeight / 2) * zoom - FlowGraphViewport.ViewportHeight / 2;
+                    if (double.IsNaN(x) || double.IsInfinity(x) || double.IsNaN(y) || double.IsInfinity(y)) return;
+                    FlowGraphViewport.ScrollToHorizontalOffset(Math.Max(0, x));
+                    FlowGraphViewport.ScrollToVerticalOffset(Math.Max(0, y));
+                }));
+                return;
+            }
+            if (productionRunMode || tool.Kind == VmToolKind.SubflowInput)
+            { FlowStepNavigationStatusUI07.Text = "请先进入工程页面；调用输入边界需在上一级调用模块配置。"; return; }
+            long lease = CaptureEngineeringEditLeaseS137("从步骤记录打开参数");
+            if (lease < 0) { FlowStepNavigationStatusUI07.Text = "未获得编辑许可，参数未打开。"; return; }
+            if (!IsEngineeringEditLeaseCurrentS137(lease) || !ResolveFlowStepNavigationUI07(generation, out tool, out reason))
+            { FlowStepNavigationStatusUI07.Text = "编辑许可或步骤已改变，请重新选择。"; return; }
+            if (!ReferenceEquals(dockEditingTool, tool) && !ConfirmDockDraftChanges("从步骤记录打开参数"))
+            { FlowStepNavigationStatusUI07.Text = "已取消，保留原参数草稿。"; return; }
+            if (!IsEngineeringEditLeaseCurrentS137(lease) || !ResolveFlowStepNavigationUI07(generation, out tool, out reason))
+            { FlowStepNavigationStatusUI07.Text = "确认后上下文已改变，请刷新快照后再打开。"; return; }
+            OpenCentralModuleConfigurationS77(tool, true);
+            if (!IsEngineeringEditLeaseCurrentS137(lease) || !ResolveFlowStepNavigationUI07(generation, out tool, out reason) ||
+                !centralModuleConfigurationOpenS77 || !ReferenceEquals(dockEditingTool, tool))
+            { FlowStepNavigationStatusUI07.Text = "指定参数未打开或上下文已改变；未执行修复。"; return; }
+            FlowStepNavigationStatusUI07.Text = "已打开“" + tool.InstanceName + "”参数；输入来源在“输入”页，不自动应用或重跑。";
+        }
 
         private void CloseFlowStepActivityButton_Click(object sender, RoutedEventArgs e)
         {
             flowStepActivityTimerS71.Stop();
+            ++flowStepNavigationGenerationUI07;
+            flowStepNavigationDefinitionUI07 = null;
             if (flowStepActivityWindowS71 != null)
             {
                 closingFlowStepActivityS71 = true;
@@ -356,6 +453,7 @@ namespace HalconWinFormsDemo
             }
             FlowStepActivityPanel.Visibility = Visibility.Collapsed;
             flowStepActivityToolIdS71 = null;
+            flowStepActivityInstanceS71 = null;
             HeaderStatusText.Text = "已关闭步骤记录子页面；流程画布保持纵向调试视图。";
         }
 
@@ -367,14 +465,18 @@ namespace HalconWinFormsDemo
             {
                 FlowStepActivityTitleText.Text = "步骤已删除或失效";
                 FlowStepActivitySummaryText.Text = "请关闭本页并重新选择流程步骤。";
+                FlowStepActivitySummaryText.ToolTip = null;
+                FlowStepLocateUI07.IsEnabled = FlowStepParametersUI07.IsEnabled = false;
                 FlowStepLogTextBox.Text = "--";
                 FlowStepCommunicationTextBox.Text = "--";
                 flowStepLogSnapshotS71 = flowStepCommunicationSnapshotS71 = string.Empty;
                 return;
             }
             FlowStepActivityTitleText.Text = tool.SequenceText + "  " + tool.InstanceName + " · " + tool.DisplayType;
+            FlowStepLocateUI07.IsEnabled = FlowStepParametersUI07.IsEnabled = true;
             FlowStepActivitySummaryText.Text = "状态 " + tool.RunStatus + " · 结果 " + tool.ResultCode + " · 耗时 " + tool.ElapsedText +
-                (string.IsNullOrWhiteSpace(tool.ErrorMessage) ? string.Empty : " · 异常 " + tool.ErrorMessage);
+                (string.IsNullOrWhiteSpace(tool.ErrorMessage) ? string.Empty : " · 异常 " + tool.ErrorMessage.Replace('\r', ' ').Replace('\n', ' '));
+            FlowStepActivitySummaryText.ToolTip = string.IsNullOrWhiteSpace(tool.ErrorMessage) ? null : tool.ErrorMessage;
             List<string> logs = new List<string>();
             if (!string.IsNullOrWhiteSpace(tool.OutputSummary)) logs.Add("[本步骤结果] " + tool.OutputSummary);
             if (!string.IsNullOrWhiteSpace(tool.InputSummary)) logs.Add("[输入] " + tool.InputSummary);

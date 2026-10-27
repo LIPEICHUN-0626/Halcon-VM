@@ -122,7 +122,7 @@ namespace HalconWinFormsDemo
         {
             if (DockRtuQuantityRowS119 == null || DockRtuWriteRowS119 == null) return;
             int function;
-            bool read = int.TryParse(DockRtuFunctionS119.SelectedValue as string, NumberStyles.Integer, CultureInfo.InvariantCulture, out function) && VmModbusFunctionS118.IsRead(function);
+            bool read = int.TryParse((DockRtuFunctionS119.SelectedItem as VmToolValueOption)?.Key, NumberStyles.Integer, CultureInfo.InvariantCulture, out function) && VmModbusFunctionS118.IsRead(function);
             DockRtuQuantityRowS119.Visibility = read ? Visibility.Visible : Visibility.Collapsed;
             DockRtuWriteRowS119.Visibility = read ? Visibility.Collapsed : Visibility.Visible;
             UpdateCommunicationRecoveryModeS120(true, read);
@@ -163,6 +163,7 @@ namespace HalconWinFormsDemo
 
         private void LoadRtuSampleS119_Click(object sender, RoutedEventArgs e)
         {
+            if (!CanPreviewCommunicationUI09(VmToolKind.ModbusRtuExchange)) return;
             long editLeaseS137 = CaptureEngineeringEditLeaseS137("生成 RTU 模拟样本");
             if (editLeaseS137 < 0) return;
             VmToolParameterData draft = new VmToolParameterData();
@@ -180,14 +181,14 @@ namespace HalconWinFormsDemo
 
         private void ParseRtuSampleS119_Click(object sender, RoutedEventArgs e)
         {
+            if (!CanPreviewCommunicationUI09(VmToolKind.ModbusRtuExchange)) return;
             VmToolParameterData draft = new VmToolParameterData();
             if (!ReadRtuDraftS119(draft)) return;
             try
             {
                 byte[] frame = ModbusRtuServiceS119.ParseHexFrame(DockRtuSampleFrameS119.Text);
                 ModbusRtuResponseS119 result = ModbusRtuServiceS119.ParseResponse(frame, BuildRtuRequestS119(draft));
-                DockRtuSampleResultS119.Text = "解析成功 · " + FormatModbusDecodePreviewS122(result.Values, draft.RtuFunctionCodeS119, draft) +
-                    "；点击运行当前模块才发布流程输出。";
+                DockRtuSampleResultS119.Text = "预览（不发布） · " + FormatModbusDecodePreviewS122(result.Values, draft.RtuFunctionCodeS119, draft);
                 DockRtuSampleResultS119.Foreground = Brushes.ForestGreen;
             }
             catch (Exception ex) { DockRtuSampleResultS119.Text = "解析失败：" + ex.Message; DockRtuSampleResultS119.Foreground = Brushes.IndianRed; }

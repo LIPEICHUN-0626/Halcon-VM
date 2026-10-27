@@ -896,7 +896,9 @@ namespace HalconWinFormsDemo.Models
             TcpResponseModeS117 = VmTcpResponseModeS117.Normalize(TcpResponseModeS117);
             ModbusRegisterTypeS122 = VmModbusRegisterDecodeS122.NormalizeType(ModbusRegisterTypeS122);
             ModbusWordOrderS122 = VmModbusRegisterDecodeS122.NormalizeOrder(ModbusWordOrderS122);
-            PlanarCalibrationUnitS124 = string.IsNullOrWhiteSpace(PlanarCalibrationUnitS124) ? "mm" : PlanarCalibrationUnitS124.Trim();
+            // Missing legacy field keeps its historical default. An explicitly
+            // empty unit is incomplete configuration, not measured millimetres.
+            PlanarCalibrationUnitS124 = PlanarCalibrationUnitS124 == null ? "mm" : PlanarCalibrationUnitS124.Trim();
             PlanarCalibrationSamplesS124 = PlanarCalibrationSamplesS124 ?? new List<VmPlanarSampleS124>();
             CameraRectifyModeS126 = CameraRectifyModeS126 == "fullsize" ? "fullsize" : "fixed";
             CameraSamplePathsS127 = CameraSamplePathsS127 ?? new List<string>();
@@ -1421,7 +1423,7 @@ namespace HalconWinFormsDemo.Models
             }
             if (kind == VmToolKind.PlanarCalibration2D)
             {
-                if (PlanarCalibrationUnitS124 == null || PlanarCalibrationUnitS124.Length < 1 || PlanarCalibrationUnitS124.Length > 16)
+                if (string.IsNullOrWhiteSpace(PlanarCalibrationUnitS124) || PlanarCalibrationUnitS124.Length > 16)
                     return "标定单位必须为 1–16 个字符。";
                 try { VmPlanarCalibrationS124.Fit(PlanarCalibrationSamplesS124,
                     PlanarCalibrationSamplesS124 == null || PlanarCalibrationSamplesS124.Count == 0 || PlanarCalibrationSamplesS124[0] == null

@@ -545,6 +545,9 @@ namespace HalconWinFormsDemo.Models
 
         public string LastPresentedSourceKeyUI06 { get; set; }
 
+        public bool HasSourceDraftUI05 { get; set; }
+        public string ShortDisplayNameUI05 { get { return (DisplayName ?? PortName ?? "").Split('（')[0]; } }
+
         public void RestoreSourceKeyUI06(string key)
         {
             LastPresentedSourceKeyUI06 = key;
@@ -558,7 +561,7 @@ namespace HalconWinFormsDemo.Models
 
         public string RequirementText
         {
-            get { return IsOptional ? "可选" : "必需"; }
+            get { return (IsOptional ? "可选" : "必需") + (HasSourceDraftUI05 ? " · 未应用" : ""); }
         }
 
         public string SelectedSourceKey
@@ -1083,6 +1086,7 @@ namespace HalconWinFormsDemo.Models
         public const string ModuleInput = "ModuleInput";
         public const string ModuleOutput = "ModuleOutput";
         public const string SourcePrefix = "Source:";
+        public const string InputPortPrefix = "InputPort:";
 
         public string Key { get; set; }
 

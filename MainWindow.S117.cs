@@ -43,7 +43,7 @@ namespace HalconWinFormsDemo
         private void UpdateTcpResponseModeVisibilityS117()
         {
             if (DockTcpResponseFieldsS117 == null) return;
-            string mode = VmTcpResponseModeS117.Normalize(DockTcpResponseModeS117.SelectedValue as string);
+            string mode = VmTcpResponseModeS117.Normalize((DockTcpResponseModeS117.SelectedItem as VmToolValueOption)?.Key);
             DockTcpResponseFieldsS117.Visibility = mode == VmTcpResponseModeS117.None ? Visibility.Collapsed : Visibility.Visible;
             DockTcpResponseDelimiterRowS117.Visibility = mode == VmTcpResponseModeS117.Delimited ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -83,21 +83,21 @@ namespace HalconWinFormsDemo
 
         private void TryParseTcpSampleS117_Click(object sender, RoutedEventArgs e)
         {
-            if (dockEditingTool == null || dockEditingTool.Kind != VmToolKind.TcpClientExchange) return;
-            VmToolParameterData parameters = (dockEditingTool.Parameters ?? new VmToolParameterData()).Clone();
-            ReadTcpResponseDraftS117(parameters);
-            parameters.TcpClientWaitForResponse = DockTcpClientWaitForResponseCheckBox.IsChecked == true;
+            if (!CanPreviewCommunicationUI09(VmToolKind.TcpClientExchange)) return;
             try
             {
+                VmToolParameterData parameters = (dockEditingTool.Parameters ?? new VmToolParameterData()).Clone();
+                ReadTcpResponseDraftS117(parameters);
+                parameters.TcpClientWaitForResponse = DockTcpClientWaitForResponseCheckBox.IsChecked == true;
                 Dictionary<string, object> mapped = VmTcpResponseMappingS117.Parse(DockTcpSampleResponseS117.Text ?? string.Empty, parameters);
                 DockTcpSampleResultS117.Text = mapped.Count == 0 ? "未启用字段映射；请先选择响应格式。" :
-                    "试解析成功" + BuildTcpMappedSummaryS117(mapped) + "。此结果不会写入流程输出。";
-                DockTcpSampleResultS117.Foreground = Brushes.LightGreen;
+                    "预览（不发布）" + BuildTcpMappedSummaryS117(mapped);
+                DockTcpSampleResultS117.Foreground = Brushes.ForestGreen;
             }
             catch (Exception ex)
             {
                 DockTcpSampleResultS117.Text = "试解析失败：" + ex.Message;
-                DockTcpSampleResultS117.Foreground = Brushes.LightCoral;
+                DockTcpSampleResultS117.Foreground = Brushes.IndianRed;
             }
         }
     }

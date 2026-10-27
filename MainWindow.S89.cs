@@ -14,6 +14,40 @@ namespace HalconWinFormsDemo
 {
     public partial class MainWindow
     {
+        private bool CloseFlowMoreUI10()
+        {
+            if (FlowMoreToggleButton == null || FlowMoreToggleButton.IsChecked != true) return false;
+            FlowMoreToggleButton.IsChecked = false;
+            return true;
+        }
+
+        private void CloseFlowMore_ClickUI10(object sender, RoutedEventArgs e) { CloseFlowMoreUI10(); }
+
+        private void FlowMoreCommand_ClickUI10(object sender, RoutedEventArgs e)
+        {
+            // Toggle/radio/expander selections stay open; original action buttons
+            // retain their handlers and close only this lightweight command panel.
+            if (e.OriginalSource is System.Windows.Controls.Button) CloseFlowMoreUI10();
+        }
+
+        private void MainWindow_PreviewMouseDownUI10(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            DismissFlowMoreOutsideUI10(e.OriginalSource as DependencyObject);
+        }
+
+        private void DismissFlowMoreOutsideUI10(DependencyObject source)
+        {
+            if (FlowMoreToggleButton == null || FlowMoreToggleButton.IsChecked != true) return;
+            while (source != null)
+            {
+                if (ReferenceEquals(source, FlowMorePanelUI10) || ReferenceEquals(source, FlowMoreToggleButton)) return;
+                var content = source as FrameworkContentElement;
+                DependencyObject parent = content?.Parent;
+                if (parent == null && source is System.Windows.Media.Visual) parent = System.Windows.Media.VisualTreeHelper.GetParent(source);
+                source = parent ?? LogicalTreeHelper.GetParent(source);
+            }
+            CloseFlowMoreUI10();
+        }
         private Window moduleParameterWindowS89;
         private bool closingModuleParameterWindowS89;
         private string shapeDraftModelPathUI02;
@@ -136,6 +170,48 @@ namespace HalconWinFormsDemo
             FlowRunShortcutHintS89.Text = centralModuleConfigurationOpenS77 && dockEditingTool != null
                 ? "F5 试运行：" + dockEditingTool.InstanceName
                 : isFlowExecutionActive && isPauseRequested ? "F5 继续当前流程" : "F5 运行当前流程";
+            RefreshRunRangeActionsUI06();
+        }
+
+        private bool DescribeRunRangeUI06(VmFlowRunRequestMode mode, out string description)
+        {
+            try
+            {
+                var selected = FlowToolList == null ? null : FlowToolList.SelectedItem as VmToolInstance;
+                var plan = VmFlowExecutionPlanner.BuildPlan(flowTools, selected, mode);
+                description = plan.RangeText + " · " + plan.Tools.Count + " 个启用模块" +
+                    (mode == VmFlowRunRequestMode.Full ? "" : " · 所选 #" + selected.SequenceText + " " + selected.InstanceName);
+                return true;
+            }
+            catch (InvalidOperationException ex) { description = ex.Message; return false; }
+        }
+
+        private bool ValidateManualRangeUI06(VmFlowRunRequestMode mode)
+        {
+            string description;
+            if (DescribeRunRangeUI06(mode, out description)) return true;
+            HeaderStatusText.Text = "本次运行未开始：" + description + " 不会自动扩大为全流程。";
+            return false;
+        }
+
+        private void RefreshRunRangeActionsUI06()
+        {
+            if (FlowRunToHereButtonUI06 == null || FlowRunFromHereButtonUI06 == null || FlowRunSelectedButtonS89 == null) return;
+            var selected = FlowToolList == null ? null : FlowToolList.SelectedItem as VmToolInstance;
+            string suffix = selected != null && flowTools.Contains(selected) ? " #" + selected.SequenceText : "所选";
+            bool available = !historicalImageMode && !isFlowExecutionActive && !isContinuousRunning && !isImageQueueBatchRunning &&
+                !IsCurrentToolContinuousTrialRunningS87 && System.Threading.Volatile.Read(ref tcpTriggerPendingS104) == 0;
+            string description;
+            bool current = DescribeRunRangeUI06(VmFlowRunRequestMode.Current, out description);
+            FlowRunSelectedButtonS89.Content = "▶ " + (current ? "选中 #" + selected.SequenceText : "选中模块");
+            FlowRunSelectedButtonS89.ToolTip = description + "。使用已应用参数；参数窗F5另行试运行正在编辑模块的草稿，不自动运行上游。";
+            FlowRunSelectedButtonS89.IsEnabled = current && available;
+            FlowRunToHereButtonUI06.Content = "运行到" + suffix;
+            FlowRunToHereButtonUI06.IsEnabled = DescribeRunRangeUI06(VmFlowRunRequestMode.ToHere, out description) && available;
+            FlowRunToHereButtonUI06.ToolTip = description + "。从起点执行到所选位置（含所选），范围结束；使用已应用参数。与监视器中“运行后暂停”不同。";
+            FlowRunFromHereButtonUI06.Content = "从" + suffix + "运行";
+            FlowRunFromHereButtonUI06.IsEnabled = DescribeRunRangeUI06(VmFlowRunRequestMode.FromHere, out description) && available;
+            FlowRunFromHereButtonUI06.ToolTip = description + "。从所选位置执行到末尾；上游须已有有效结果，不补跑上游、不使用参数草稿。";
         }
 
         private bool TryHandleModuleParameterShortcutS89(Key key, ModifierKeys modifiers)

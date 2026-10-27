@@ -353,6 +353,8 @@ namespace HalconWinFormsDemo.Models
         public string MissingRoiId { get; set; }
         public bool IsCompatible { get; set; } = true;
         public bool CanChangeBinding { get { return IsCompatible || IsBound; } }
+        public bool CanLocate { get { return Layer != null && Layer.Geometry != null && IsCompatible; } }
+        public string LocateHint { get { return GeometryText + " · " + StateText + "。点击名称在当前模块输入图像中选中；拖动控制点修改。勾选只改变模块绑定草稿；共享图层的几何修改影响所有绑定模块，不随参数取消撤回。"; } }
         public string CompatibilityText { get { return Layer == null && !string.IsNullOrWhiteSpace(MissingRoiId) ? "已缺失；取消勾选后选择当前检测区" : IsCompatible ? string.Empty : "不同图像来源；可解绑，不能跨源绑定"; } }
 
         public string RoiId

@@ -16,6 +16,10 @@ namespace HalconWinFormsDemo
         private readonly ObservableCollection<VmScriptInterfaceMemberData> scriptInterfaceDraftMembers = new ObservableCollection<VmScriptInterfaceMemberData>();
         private VmToolInstance scriptInterfaceTool;
         private bool scriptInterfaceUiUpdating;
+        private Window scriptInterfaceWindowUI08;
+        private Panel scriptInterfaceHomeUI08;
+        private bool closingScriptInterfaceUI08;
+        private string scriptInterfaceSessionUI08, scriptInterfaceFlowUI08, scriptInterfaceDefinitionUI08;
 
         private void PopulateScriptNamedContext(VmToolInstance tool, VmToolParameterData parameters, ScriptToolContext context)
         {
@@ -159,9 +163,9 @@ namespace HalconWinFormsDemo
             };
             ScriptInterfaceTypeComboBox.ItemsSource = new[]
             {
-                new VmToolValueOption { Key = VmScriptScalarType.Number, DisplayText = "Number" },
-                new VmToolValueOption { Key = VmScriptScalarType.String, DisplayText = "String" },
-                new VmToolValueOption { Key = VmScriptScalarType.Boolean, DisplayText = "Boolean" },
+                new VmToolValueOption { Key = VmScriptScalarType.Number, DisplayText = "数值 Number" },
+                new VmToolValueOption { Key = VmScriptScalarType.String, DisplayText = "文本 String" },
+                new VmToolValueOption { Key = VmScriptScalarType.Boolean, DisplayText = "布尔 Boolean" },
                 new VmToolValueOption { Key = VmScriptScalarType.ResultCode, DisplayText = "结果码 ResultCode" },
                 new VmToolValueOption { Key = VmScriptScalarType.NumberArray, DisplayText = "数值数组 Number[]" },
                 new VmToolValueOption { Key = VmScriptScalarType.StringArray, DisplayText = "文本数组 String[]" }
@@ -176,36 +180,71 @@ namespace HalconWinFormsDemo
                 HeaderStatusText.Text = "请先返回开发模式，再设计脚本接口。";
                 return;
             }
-            VmToolInstance selected = FlowToolList == null ? null : FlowToolList.SelectedItem as VmToolInstance;
-            if (selected == null || selected.Kind != VmToolKind.CSharpDllScript)
+            bool fromDock = (sender as FrameworkElement)?.Tag as string == "ScriptDock";
+            VmToolInstance selected = fromDock ? dockEditingTool : FlowToolList?.SelectedItem as VmToolInstance;
+            if (selected == null || selected.Kind != VmToolKind.CSharpDllScript || !flowTools.Contains(selected))
             {
-                selected = flowTools.FirstOrDefault(item => item.Kind == VmToolKind.CSharpDllScript);
-            }
-            if (selected == null)
-            {
-                MessageBox.Show(this, "请先从脚本分类添加并选择一个“C# / DLL 脚本”工具。", "脚本接口", MessageBoxButton.OK, MessageBoxImage.Information);
+                HeaderStatusText.Text = "请先选择要配置的 C# / DLL 脚本；不会自动打开其他脚本。";
                 return;
             }
+            if (scriptInterfaceWindowUI08 != null)
+            {
+                if (ReferenceEquals(scriptInterfaceTool, selected))
+                { if (scriptInterfaceWindowUI08.ShowActivated) scriptInterfaceWindowUI08.Activate(); }
+                else HeaderStatusText.Text = "请先完成或关闭当前接口草稿，再打开另一个脚本。";
+                return;
+            }
+            long lease = CaptureEngineeringEditLeaseS137("打开脚本接口");
+            string session = projectSessionIdS104, flow = activeProjectFlowIdS104;
+            string reason;
+            if (lease < 0 || !CanNavigateProductionAlarmTaskS150(out reason)) return;
+            if (!ConfirmDockDraftChanges("设计脚本接口")) return;
+            if (!IsEngineeringEditLeaseCurrentS137(lease) || session != projectSessionIdS104 || flow != activeProjectFlowIdS104 ||
+                !flowTools.Contains(selected) || !CanNavigateProductionAlarmTaskS150(out reason)) return;
             OpenScriptInterfaceWorkspace(selected);
         }
 
         private void OpenScriptInterfaceWorkspace(VmToolInstance tool)
         {
-            if (tool == null || tool.Kind != VmToolKind.CSharpDllScript) return;
+            if (tool == null || tool.Kind != VmToolKind.CSharpDllScript || !flowTools.Contains(tool)) return;
             scriptInterfaceTool = tool;
             scriptInterfaceDraftMembers.Clear();
-            VmToolParameterData parameters = tool.Parameters ?? new VmToolParameterData();
+            VmToolParameterData parameters = (tool.Parameters ?? new VmToolParameterData()).Clone();
             parameters.Normalize();
             foreach (VmScriptInterfaceMemberData member in parameters.ScriptInterfaceMembers) scriptInterfaceDraftMembers.Add(member.Clone());
             ScriptInterfaceToolNameText.Text = tool.InstanceName;
-            ScriptInterfaceContractText.Text = "固定入口：public static ScriptToolResult Execute(ScriptToolContext input)";
+            ScriptInterfaceContractText.Text = "应用接口后，回参数窗的“输入”页连接来源。";
+            ScriptInterfaceContractText.ToolTip = "固定入口：public static ScriptToolResult Execute(ScriptToolContext input)";
             ScriptInterfaceValidationText.Text = "接口草稿尚未修改。固定兼容端口继续保留。";
             ScriptInterfaceValidationText.Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105));
             ScriptInterfaceMemberListBox.SelectedItem = scriptInterfaceDraftMembers.FirstOrDefault();
             RefreshScriptInterfaceCounts();
             GlobalVariableWorkspace.Visibility = Visibility.Collapsed;
             ExternalResourceWorkspace.Visibility = Visibility.Collapsed;
-            MainWorkspaceGrid.Visibility = Visibility.Collapsed;
+            scriptInterfaceSessionUI08 = projectSessionIdS104;
+            scriptInterfaceFlowUI08 = activeProjectFlowIdS104;
+            scriptInterfaceDefinitionUI08 = recipeService.GetRecipeFingerprint(CaptureRecipe());
+            if (scriptInterfaceWindowUI08 == null)
+            {
+                scriptInterfaceHomeUI08 = ScriptInterfaceWorkspace.Parent as Panel;
+                scriptInterfaceHomeUI08?.Children.Remove(ScriptInterfaceWorkspace);
+                scriptInterfaceWindowUI08 = new Window
+                {
+                    Owner = this, Title = "脚本接口 · " + tool.InstanceName, Width = 800, Height = 580,
+                    MinWidth = 700, MinHeight = 440, ShowInTaskbar = false, ShowActivated = ShowActivated,
+                    WindowStartupLocation = WindowStartupLocation.Manual, Content = ScriptInterfaceWorkspace,
+                    Left = ShowActivated ? Math.Max(SystemParameters.WorkArea.Left, Math.Min(SystemParameters.WorkArea.Right - 800, Left + 50)) : Left,
+                    Top = ShowActivated ? Math.Max(SystemParameters.WorkArea.Top, Math.Min(SystemParameters.WorkArea.Bottom - 580, Top + 50)) : Top
+                };
+                scriptInterfaceWindowUI08.Resources.MergedDictionaries.Add(Resources);
+                scriptInterfaceWindowUI08.Closing += delegate(object source, System.ComponentModel.CancelEventArgs args)
+                {
+                    if (closingScriptInterfaceUI08) return;
+                    args.Cancel = true;
+                    Dispatcher.BeginInvoke(new Action(delegate { CloseScriptInterfaceButton_Click(null, null); }));
+                };
+                scriptInterfaceWindowUI08.Show();
+            }
             ScriptInterfaceWorkspace.Visibility = Visibility.Visible;
             if (DeveloperMoreToggleButton != null) DeveloperMoreToggleButton.IsChecked = false;
         }
@@ -213,11 +252,20 @@ namespace HalconWinFormsDemo
         private void CloseScriptInterfaceButton_Click(object sender, RoutedEventArgs e)
         {
             ScriptInterfaceWorkspace.Visibility = Visibility.Collapsed;
+            if (scriptInterfaceWindowUI08 != null)
+            {
+                closingScriptInterfaceUI08 = true;
+                try { scriptInterfaceWindowUI08.Content = null; scriptInterfaceWindowUI08.Close(); scriptInterfaceWindowUI08 = null; }
+                finally { closingScriptInterfaceUI08 = false; }
+                if (scriptInterfaceHomeUI08 != null && !scriptInterfaceHomeUI08.Children.Contains(ScriptInterfaceWorkspace))
+                    scriptInterfaceHomeUI08.Children.Add(ScriptInterfaceWorkspace);
+            }
+            scriptInterfaceDefinitionUI08 = null;
             scriptInterfaceTool = null;
             scriptInterfaceDraftMembers.Clear();
             SetScriptInterfaceEditor(null);
             MainWorkspaceGrid.Visibility = Visibility.Visible;
-            HeaderStatusText.Text = "已返回流程开发工作区。";
+            HeaderStatusText.Text = "接口窗口已关闭；未应用的接口草稿不写入方案。";
         }
 
         private void ScriptInterfaceMemberListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -301,11 +349,16 @@ namespace HalconWinFormsDemo
         private void ApplyScriptInterfaceButton_Click(object sender, RoutedEventArgs e)
         {
             if (!RequireEngineeringEditS137("应用脚本接口")) return;
-            if (scriptInterfaceTool == null || !flowTools.Contains(scriptInterfaceTool))
+            string reason;
+            if (scriptInterfaceWindowUI08 == null || scriptInterfaceTool == null || !flowTools.Contains(scriptInterfaceTool) ||
+                scriptInterfaceSessionUI08 != projectSessionIdS104 || scriptInterfaceFlowUI08 != activeProjectFlowIdS104)
             {
                 SetScriptInterfaceStatus("当前脚本工具已不存在，请关闭后重新选择。", true);
                 return;
             }
+            if (!CanNavigateProductionAlarmTaskS150(out reason)) { SetScriptInterfaceStatus(reason, true); return; }
+            if (dockDraftDirty || scriptInterfaceDefinitionUI08 != recipeService.GetRecipeFingerprint(CaptureRecipe()))
+            { SetScriptInterfaceStatus("参数草稿或方案已改变；请先处理参数草稿，再取消接口草稿重新载入，避免覆盖旧配置。", true); return; }
             ApplyScriptMemberButton_Click(sender, e);
             string error = VmToolParameterData.ValidateScriptInterfaceMembers(scriptInterfaceDraftMembers);
             if (!string.IsNullOrWhiteSpace(error)) { SetScriptInterfaceStatus(error, true); return; }
@@ -324,9 +377,11 @@ namespace HalconWinFormsDemo
             InvalidateDownstreamResults(scriptInterfaceTool, "脚本接口已修改");
             RefreshFlowSequence();
             RefreshDockConfigurationRuntime(scriptInterfaceTool);
+            if (ReferenceEquals(dockEditingTool, scriptInterfaceTool)) LoadDockConfigurationDraft(scriptInterfaceTool);
             CommitFlowEditHistory("修改脚本接口：" + scriptInterfaceTool.InstanceName, before);
             ScheduleRecipeStateCheck();
-            SetScriptInterfaceStatus("接口已应用：稳定成员 ID、动态端口和访问代码已同步到流程。", false);
+            scriptInterfaceDefinitionUI08 = recipeService.GetRecipeFingerprint(CaptureRecipe());
+            SetScriptInterfaceStatus("接口已应用；回“输入”页绑定来源，再明确试运行。", false);
         }
 
         private void CancelScriptInterfaceButton_Click(object sender, RoutedEventArgs e)

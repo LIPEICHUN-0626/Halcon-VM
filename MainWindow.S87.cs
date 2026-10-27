@@ -75,6 +75,8 @@ namespace HalconWinFormsDemo
             if (row == null) return;
             row.SourceText = selected == null ? "无效来源" : selected.DisplayText;
             row.ConsumerText = dockEditingTool == null ? "--" : dockEditingTool.InstanceName + "." + row.PortName;
+            var definition = dockEditingTool == null ? null : ToolMetadata.GetInstanceInputPorts(dockEditingTool).FirstOrDefault(port => port.PortName == row.PortName);
+            row.HasSourceDraftUI05 = definition != null && row.SelectedSourceKey != GetDockSavedInputSourceKey(dockEditingTool, definition);
 
             string configurationError = string.Empty;
             if (selected == null || !selected.IsValid)
@@ -548,7 +550,9 @@ namespace HalconWinFormsDemo
                 ? "重复运行当前子流程草稿及其内部步骤；每轮结束后等待设定间隔，不运行父流程。停止在当前算子结束后的安全边界生效。"
                 : "重复试运行当前模块草稿；每轮结束后等待设定间隔，不运行整条流程。";
             DockTrialRunButton.Content = pausedCall ? "▶ 继续调用" : hasTool && dockEditingTool.Kind == VmToolKind.ImageSource ? "▶ 读取一帧" : "▶ 试运行当前模块";
-            DockTrialRunButton.ToolTip = pausedCall ? "F5：继续当前已暂停的子流程，不重新开始，不运行父流程。" : "F5：使用当前草稿只运行此模块一次。";
+            DockTrialRunButton.ToolTip = pausedCall ? "F5：继续当前已暂停的子流程，不重新开始，不运行父流程。" :
+                hasTool && dockEditingTool.Kind == VmToolKind.ImageSource ? "F5：按当前来源草稿读取一帧，不应用配置；回放使用下一次位置，相机须已明确连接。" :
+                "F5：使用当前草稿只运行此模块一次。";
             DockTrialRunButton.IsEnabled = pausedCall || hasTool && !running && !otherBusy;
             DockSubflowStepButtonS102.Visibility = pausedCall ? Visibility.Visible : Visibility.Collapsed;
             DockConfigurationTabs.IsEnabled = !running && !subflowTrialActiveS102;

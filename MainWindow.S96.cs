@@ -30,7 +30,8 @@ namespace HalconWinFormsDemo
         {
             var element = sender as FrameworkElement;
             var row = element == null ? null : element.DataContext as VmInputPortEditorRow;
-            if (row == null || row.SourceOptions == null || dockEditingTool == null || !CanNavigateInputRepairS96()) return;
+            if (row == null || row.SourceOptions == null || dockEditingTool == null ||
+                !dockInputPortRows.Contains(row) || !flowTools.Contains(dockEditingTool) || !CanNavigateInputRepairS96()) return;
             var option = row.SourceOptions.FirstOrDefault(item => item.Key == row.SelectedSourceKey);
             var source = option == null ? null : flowTools.FirstOrDefault(item => item.ToolId == option.SourceToolId);
             if (source == null || ReferenceEquals(source, dockEditingTool))
@@ -39,9 +40,24 @@ namespace HalconWinFormsDemo
                 return;
             }
             VmToolInstance consumer = dockEditingTool;
+            string session = projectSessionIdS104, flow = activeProjectFlowIdS104, key = row.SelectedSourceKey;
+            long lease = CaptureEngineeringEditLeaseS137("打开输入来源参数");
+            if (lease < 0) return;
+            Func<bool> current = () => IsEngineeringEditLeaseCurrentS137(lease) &&
+                session == projectSessionIdS104 && flow == activeProjectFlowIdS104 &&
+                flowTools.Contains(consumer) && flowTools.Contains(source) &&
+                flowTools.Count(item => item.ToolId == source.ToolId) == 1;
+            if (!current() || !CanNavigateInputRepairS96() || !ReferenceEquals(dockEditingTool, consumer)) return;
+            if (!ConfirmDockDraftChanges("打开输入来源参数")) return;
+            // Confirmation can pump messages, reload rows or apply a different
+            // binding. Resolve the current editor row again before opening.
+            var currentRow = dockInputPortRows.FirstOrDefault(item => item.PortName == row.PortName);
+            if (!current() || !CanNavigateInputRepairS96() || !ReferenceEquals(dockEditingTool, consumer) ||
+                currentRow == null || currentRow.SelectedSourceKey != key)
+            { HeaderStatusText.Text = "输入来源或编辑上下文已改变，请重新选择来源模块。"; return; }
             OpenCentralModuleConfigurationS77(source, true);
             // A cancelled draft confirmation must not create a history entry.
-            if (!centralModuleConfigurationOpenS77 || !ReferenceEquals(dockEditingTool, source)) return;
+            if (!current() || !CanNavigateInputRepairS96() || !centralModuleConfigurationOpenS77 || !ReferenceEquals(dockEditingTool, source)) return;
             if (inputRepairVisitsS96.Count >= 32) inputRepairVisitsS96.RemoveAt(0);
             inputRepairVisitsS96.Add(new InputRepairVisitS96 { Consumer = consumer, Producer = source, InputPort = row.PortName });
             RefreshInputRepairNavigationS96();
@@ -54,8 +70,19 @@ namespace HalconWinFormsDemo
             RefreshInputRepairNavigationS96();
             if (inputRepairVisitsS96.Count == 0) return;
             var visit = inputRepairVisitsS96[inputRepairVisitsS96.Count - 1];
+            string session = projectSessionIdS104, flow = activeProjectFlowIdS104;
+            long lease = CaptureEngineeringEditLeaseS137("返回输入模块参数");
+            if (lease < 0) return;
+            Func<bool> current = () => IsEngineeringEditLeaseCurrentS137(lease) &&
+                session == projectSessionIdS104 && flow == activeProjectFlowIdS104 &&
+                flowTools.Contains(visit.Consumer) && flowTools.Contains(visit.Producer) &&
+                ReferenceEquals(inputRepairVisitsS96.LastOrDefault(), visit);
+            if (!current() || !ReferenceEquals(dockEditingTool, visit.Producer) || !CanNavigateInputRepairS96()) return;
+            if (!ConfirmDockDraftChanges("返回输入模块参数")) return;
+            if (!current() || !ReferenceEquals(dockEditingTool, visit.Producer) || !CanNavigateInputRepairS96())
+            { HeaderStatusText.Text = "来源导航上下文已改变，请从当前模块重新选择。"; return; }
             OpenCentralModuleConfigurationS77(visit.Consumer, true);
-            if (!centralModuleConfigurationOpenS77 || !ReferenceEquals(dockEditingTool, visit.Consumer)) return;
+            if (!current() || !CanNavigateInputRepairS96() || !centralModuleConfigurationOpenS77 || !ReferenceEquals(dockEditingTool, visit.Consumer)) return;
             inputRepairVisitsS96.RemoveAt(inputRepairVisitsS96.Count - 1);
             SelectCentralConfigurationTaskS77(DockIoTaskTab, "Io");
             var row = DockInputPortItemsControl.Items.OfType<VmInputPortEditorRow>().FirstOrDefault(item => item.PortName == visit.InputPort);

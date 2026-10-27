@@ -8,6 +8,7 @@ using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Security.Cryptography;
 using System.Windows;
+using System.Windows.Controls;
 using HalconDotNet;
 using HalconWinFormsDemo.Models;
 
@@ -17,6 +18,16 @@ namespace HalconWinFormsDemo
     {
         private List<VmPlanarSampleS124> planarDraftSamplesS124 = new List<VmPlanarSampleS124>();
         private VmPlanarFitS124 planarDraftFitS124;
+        private bool planarRowsUpdatingUI03;
+
+        private sealed class PlanarSampleRowUI03
+        {
+            public int Number { get; set; }
+            public string Pixel { get; set; }
+            public string World { get; set; }
+            public string Residual { get; set; }
+            public string Detail { get; set; }
+        }
 
         // Local run provenance, not another calibration model or recipe state.
         // The weak key cannot bless a replacement instance with the same ToolId.
@@ -101,6 +112,9 @@ namespace HalconWinFormsDemo
             DockPlanarUnitS124.Text = parameters.PlanarCalibrationUnitS124 ?? "mm";
             planarDraftSamplesS124 = (parameters.PlanarCalibrationSamplesS124 ?? new List<VmPlanarSampleS124>())
                 .Where(item => item != null).Select(item => item.Clone()).ToList();
+            DockPlanarSampleListS124.SelectedIndex = -1;
+            DockPlanarWorldXS124.Text = string.Empty;
+            DockPlanarWorldYS124.Text = string.Empty;
             RefreshPlanarCalibrationPreviewS124();
         }
 
@@ -108,6 +122,8 @@ namespace HalconWinFormsDemo
         {
             parameters.PlanarCalibrationUnitS124 = (DockPlanarUnitS124.Text ?? string.Empty).Trim();
             parameters.PlanarCalibrationSamplesS124 = planarDraftSamplesS124.Select(item => item.Clone()).ToList();
+            if (parameters.PlanarCalibrationUnitS124.Length < 1 || parameters.PlanarCalibrationUnitS124.Length > 16)
+                return FailDockDraft("请填写实际坐标单位（1–16 个字符，例如 mm）；不会自动补成毫米。");
             if (parameters.PlanarCalibrationSamplesS124.Count < 3)
                 return FailDockDraft("平面标定至少需要 3 个来自同一图像链的非共线点；请在图像中创建点 ROI 并逐个加入。");
             try { VmPlanarCalibrationS124.Fit(parameters.PlanarCalibrationSamplesS124, parameters.PlanarCalibrationSamplesS124[0].ImageContextId); }
@@ -126,6 +142,9 @@ namespace HalconWinFormsDemo
             }
             SetImageContextSelection(VmImageContextOption.ModuleInput);
             UpdateImageContextViewport(true);
+            DockPlanarSampleListS124.SelectedIndex = -1;
+            DockPlanarWorldXS124.Text = string.Empty;
+            DockPlanarWorldYS124.Text = string.Empty;
             PointRoiButton_Click(sender, e);
             DockPlanarFitStatusS124.Text = "在图像中单击并确认点 ROI，再填写世界 X/Y 并加入。";
         }
@@ -158,6 +177,7 @@ namespace HalconWinFormsDemo
                 if (existing >= 0) planarDraftSamplesS124[existing] = sample;
                 else planarDraftSamplesS124.Add(sample);
                 RefreshPlanarCalibrationPreviewS124();
+                DockPlanarSampleListS124.SelectedIndex = existing >= 0 ? existing : planarDraftSamplesS124.Count - 1;
                 DockDraftValue_Changed(sender, e);
                 ScheduleRefreshDisplay();
             }
@@ -182,22 +202,92 @@ namespace HalconWinFormsDemo
         private void RefreshPlanarCalibrationPreviewS124()
         {
             if (DockPlanarSampleListS124 == null) return;
-            VmPlanarFitS124 fit = null;
-            string status = "还需 " + Math.Max(0, 3 - planarDraftSamplesS124.Count).ToString(CultureInfo.InvariantCulture) + " 个分散的对应点";
-            if (planarDraftSamplesS124.Count >= 3)
+            // Editing or opening only invalidates the preview. Calculate on the
+            // explicit action; do not present old residuals for new samples.
+            planarDraftFitS124 = null;
+            RefreshPlanarRowsUI03();
+            DockPlanarFitStatusS124.Text = planarDraftSamplesS124.Count < 3 ?
+                "还需 " + (3 - planarDraftSamplesS124.Count).ToString(CultureInfo.InvariantCulture) + " 个分散的对应点" :
+                string.IsNullOrWhiteSpace(DockPlanarUnitS124.Text) ? "请填写实际坐标单位，再计算残差" : "对应点已就绪 · 点击“计算残差”检查后应用";
+            ScheduleRefreshDisplay();
+        }
+
+        private void RefreshPlanarRowsUI03()
+        {
+            int selected = DockPlanarSampleListS124.SelectedIndex;
+            planarRowsUpdatingUI03 = true;
+            try
             {
-                try
+                DockPlanarSampleListS124.ItemsSource = planarDraftSamplesS124.Select((item, index) => new PlanarSampleRowUI03
                 {
-                    fit = VmPlanarCalibrationS124.Fit(planarDraftSamplesS124, planarDraftSamplesS124[0].ImageContextId);
-                    status = string.Format(CultureInfo.InvariantCulture, "HALCON 拟合预览 · {0} 点 · RMS {1:0.####} / 最大 {2:0.####} {3}；应用后才保存",
-                        planarDraftSamplesS124.Count, fit.RmsResidual, fit.MaxResidual, DockPlanarUnitS124.Text ?? "mm");
-                }
-                catch (Exception ex) { status = "待修复：" + ex.Message; }
+                    Number = index + 1,
+                    Pixel = string.Format(CultureInfo.InvariantCulture, "{0:0.##}, {1:0.##}", item.PixelRow, item.PixelColumn),
+                    World = string.Format(CultureInfo.InvariantCulture, "{0:0.###}, {1:0.###}", item.WorldX, item.WorldY),
+                    Residual = planarDraftFitS124 == null ? "—" : planarDraftFitS124.Residuals[index].ToString("0.####", CultureInfo.InvariantCulture),
+                    Detail = item.ToDisplayString(index, planarDraftFitS124 == null ? (double?)null : planarDraftFitS124.Residuals[index]) + "\n图像来源：" + item.ImageContextId
+                }).ToList();
+                DockPlanarSampleListS124.SelectedIndex = selected >= planarDraftSamplesS124.Count ? -1 : selected;
             }
-            DockPlanarSampleListS124.ItemsSource = planarDraftSamplesS124.Select((item, index) =>
-                item.ToDisplayString(index, fit == null ? (double?)null : fit.Residuals[index])).ToList();
-            planarDraftFitS124 = fit;
-            DockPlanarFitStatusS124.Text = status;
+            finally { planarRowsUpdatingUI03 = false; }
+            bool hasSelection = DockPlanarSampleListS124.SelectedIndex >= 0;
+            DockPlanarUpdateSampleUI03.IsEnabled = hasSelection;
+            DockPlanarRemoveSampleUI03.IsEnabled = hasSelection;
+            DockPlanarFitButtonUI03.IsEnabled = planarDraftSamplesS124.Count >= 3;
+        }
+
+        private void DockPlanarSelectionUI03_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (planarRowsUpdatingUI03 || DockPlanarUpdateSampleUI03 == null) return;
+            int index = DockPlanarSampleListS124.SelectedIndex;
+            bool selected = index >= 0 && index < planarDraftSamplesS124.Count;
+            DockPlanarUpdateSampleUI03.IsEnabled = selected;
+            DockPlanarRemoveSampleUI03.IsEnabled = selected;
+            if (!selected) return;
+            DockPlanarWorldXS124.Text = planarDraftSamplesS124[index].WorldX.ToString("R", CultureInfo.InvariantCulture);
+            DockPlanarWorldYS124.Text = planarDraftSamplesS124[index].WorldY.ToString("R", CultureInfo.InvariantCulture);
+        }
+
+        private void DockPlanarUpdateSampleUI03_Click(object sender, RoutedEventArgs e)
+        {
+            var tool = dockEditingTool;
+            int index = DockPlanarSampleListS124.SelectedIndex;
+            if (tool == null || tool.Kind != VmToolKind.PlanarCalibration2D || index < 0 || index >= planarDraftSamplesS124.Count) return;
+            var sample = planarDraftSamplesS124[index];
+            long lease = CaptureEngineeringEditLeaseS137("更新标定点世界坐标");
+            if (lease < 0 || !IsEngineeringEditLeaseCurrentS137(lease) || !ReferenceEquals(dockEditingTool, tool) ||
+                index >= planarDraftSamplesS124.Count || !ReferenceEquals(planarDraftSamplesS124[index], sample) || !IsVariationTaskStoppedS130()) return;
+            double x, y;
+            if (!TryParseUiDouble(DockPlanarWorldXS124.Text, out x) || !TryParseUiDouble(DockPlanarWorldYS124.Text, out y) ||
+                double.IsNaN(x) || double.IsInfinity(x) || double.IsNaN(y) || double.IsInfinity(y))
+            { DockPlanarFitStatusS124.Text = "实际 X/Y 必须填写有限数值"; return; }
+            // Editing world coordinates must not silently re-sample another ROI.
+            sample = sample.Clone(); sample.WorldX = x; sample.WorldY = y;
+            planarDraftSamplesS124[index] = sample;
+            RefreshPlanarCalibrationPreviewS124();
+            DockDraftValue_Changed(sender, e);
+        }
+
+        private void DockPlanarFitUI03_Click(object sender, RoutedEventArgs e)
+        {
+            var tool = dockEditingTool;
+            if (tool == null || tool.Kind != VmToolKind.PlanarCalibration2D || !IsVariationTaskStoppedS130()) return;
+            planarDraftFitS124 = null;
+            try
+            {
+                string unit = (DockPlanarUnitS124.Text ?? string.Empty).Trim();
+                if (unit.Length < 1 || unit.Length > 16) throw new InvalidOperationException("请填写实际坐标单位（1–16 个字符）");
+                var row = dockInputPortRows.FirstOrDefault(item => item.PortName == "Image");
+                var port = ToolMetadata.GetInstanceInputPorts(tool).First(item => item.PortName == "Image");
+                if (row == null || row.SelectedSourceKey != GetDockSavedInputSourceKey(tool, port))
+                    throw new InvalidOperationException("图像来源草稿已改变，请先应用来源，再从该图像采点");
+                if (tool.GetInputBinding("Image") == null) throw new InvalidOperationException("请在输入页连接标定图像");
+                planarDraftFitS124 = VmPlanarCalibrationS124.Fit(planarDraftSamplesS124, ResolveTargetImageContextIdS86(tool));
+                DockPlanarFitStatusS124.Text = string.Format(CultureInfo.InvariantCulture, "{0} 点 · RMS {1:0.####} / 最大 {2:0.####} {3} · 草稿预览",
+                    planarDraftSamplesS124.Count, planarDraftFitS124.RmsResidual, planarDraftFitS124.MaxResidual, unit);
+            }
+            catch (Exception ex) { DockPlanarFitStatusS124.Text = "待修复：" + ex.Message; }
+            RefreshPlanarRowsUI03();
+            ScheduleRefreshDisplay();
         }
 
         private void DrawPlanarCalibrationLabelsS124(HWindow window, ResolvedImageContext image, bool isLeftViewport)
@@ -214,10 +304,13 @@ namespace HalconWinFormsDemo
                 !string.Equals(item.ImageContextId, context, StringComparison.OrdinalIgnoreCase))) return;
             double[] residuals = null;
             double rms = 0;
-            if (draft && planarDraftFitS124 != null)
+            if (draft)
             {
-                residuals = planarDraftFitS124.Residuals;
-                rms = planarDraftFitS124.RmsResidual;
+                if (planarDraftFitS124 != null)
+                {
+                    residuals = planarDraftFitS124.Residuals;
+                    rms = planarDraftFitS124.RmsResidual;
+                }
             }
             else
             {

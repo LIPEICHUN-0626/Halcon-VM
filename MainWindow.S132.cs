@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using HalconDotNet;
 using HalconWinFormsDemo.Models;
 
@@ -16,17 +17,65 @@ namespace HalconWinFormsDemo
             alignmentDraftS132 = (parameters.PoseImageAlignmentS132 ?? new VmPoseImageAlignmentParametersS132()).Clone();
             DockAlignmentSizeModeS132.SelectedValue = alignmentDraftS132.OutputSizeMode;
             DockAlignmentInterpolationS132.SelectedValue = alignmentDraftS132.Interpolation;
-            RefreshAlignmentTaskS132();
         }
 
         private bool ReadAlignmentDraftS132(VmToolParameterData parameters)
         {
-            var p = alignmentDraftS132.Clone();
-            p.OutputSizeMode = DockAlignmentSizeModeS132.SelectedValue as string;
-            p.Interpolation = DockAlignmentInterpolationS132.SelectedValue as string;
+            var p = ReadAlignmentChoicesUI03();
             string error = p.Validate();
             if (!string.IsNullOrWhiteSpace(error)) return FailDockDraft(error);
             parameters.PoseImageAlignmentS132 = p; return true;
+        }
+
+        private VmPoseImageAlignmentParametersS132 ReadAlignmentChoicesUI03()
+        {
+            // SelectedValue can lag behind SelectionChanged. Validate, preview
+            // and apply the same visible choices, including invalid selections.
+            var p = alignmentDraftS132.Clone();
+            var size = DockAlignmentSizeModeS132.SelectedItem as ComboBoxItem;
+            var interpolation = DockAlignmentInterpolationS132.SelectedItem as ComboBoxItem;
+            p.OutputSizeMode = size == null ? null : size.Tag as string;
+            p.Interpolation = interpolation == null ? null : interpolation.Tag as string;
+            return p;
+        }
+
+        private string AlignmentCaptureHintUI03(VmToolInstance tool)
+        {
+            if (tool == null || tool.Kind != VmToolKind.PoseImageAlignment) return "请打开图像对齐模块";
+            if (!IsVariationTaskStoppedS130() || nccTrainingCancellationS131 != null) return "请先停止运行或等待模板制作完成";
+            if (!AlignmentBindingsMatchDraftS132(tool)) return "先应用输入来源，再运行上游定位";
+            // Only inspect existing outputs. Painting this panel must not read
+            // images, train, run or invoke the legacy HALCON pose adaptation.
+            foreach (string port in new[] { "Image", "Pose" })
+            {
+                var binding = tool.GetInputBinding(port);
+                if (binding == null) return port == "Image" ? "在“输入”中连接原始图像" : "在“输入”中连接定位结果";
+                if (!string.IsNullOrWhiteSpace(GetInputBindingConfigurationError(tool, binding)))
+                    return "请在“输入”中检查" + (port == "Image" ? "图像来源" : "定位来源");
+                var source = GetInputSourceTool(binding); object raw;
+                if (source == null || !source.IsEnabled || source.ResultCode != "OK" || !source.LastOutputUtc.HasValue ||
+                    !string.IsNullOrWhiteSpace(source.ErrorMessage) || !source.TryGetOutputValue(binding.SourcePortName, out raw))
+                    return port == "Image" ? "请先运行上游图像源" : "请先应用模板并运行上游定位";
+                if (port == "Image" && (!(raw is VmImageSnapshot) || ((VmImageSnapshot)raw).IsDisposed)) return "请重新运行上游图像源";
+                if (port != "Pose") continue;
+                if (!(raw is VmPose2D)) return "上游尚无有效位姿，请重新定位";
+                try
+                {
+                    if ((source.Kind == VmToolKind.ShapeMatch || source.Kind == VmToolKind.NccTemplateMatch) && binding.SourcePortName == "SelectedPose")
+                        RequireRigidAppliedTemplateTargetS145(source);
+                    if (source.Kind == VmToolKind.NccTemplateMatch)
+                    {
+                        var model = source.Parameters == null ? null : source.Parameters.NccMatchingS131; object version;
+                        if (model == null || !model.HasModel || !source.TryGetOutputValue("ModelVersion", out version) ||
+                            !string.Equals(version as string, model.ModelSha256, StringComparison.OrdinalIgnoreCase))
+                            return "先应用模板并重跑定位，再采固定参考";
+                    }
+                }
+                catch (InvalidOperationException) { return "请检查定位结果：应用模板后重跑，所选目标须为原始尺度"; }
+            }
+            // The explicit capture still revalidates coordinates, resources,
+            // current image and bounds. This is not a production qualification.
+            return null;
         }
 
         private string AlignmentInputContextS132(VmToolInstance tool)
@@ -126,7 +175,6 @@ namespace HalconWinFormsDemo
                     alignmentDraftS132 = p;
                 }
                 DockDraftValue_Changed(sender, e); RefreshAlignmentTaskS132();
-                DockAlignmentStateS132.Text = "参考已进入草稿 · F5 试运行，确认后应用；不会随下一帧漂移";
                 LogInfo(tool.InstanceName + "：保存固定参考到草稿 " + alignmentDraftS132.ReferenceVersion);
             });
         }
@@ -135,14 +183,22 @@ namespace HalconWinFormsDemo
         {
             if (DockAlignmentCaptureS132 == null) return;
             var p = alignmentDraftS132;
-            DockAlignmentReferenceS132.Text = p.HasReference ? string.Format(CultureInfo.InvariantCulture, "R {0:0.##} · C {1:0.##} · {2:0.##}° · 画布 {3}×{4} · 版本 {5}", p.ReferenceRow, p.ReferenceColumn, p.ReferenceAngleDegrees, p.ReferenceWidth, p.ReferenceHeight, (p.ReferenceVersion ?? "").Substring(0, Math.Min(8, (p.ReferenceVersion ?? "").Length))) : "未保存参考 · 运行定位后取当前位姿";
-            DockAlignmentCaptureS132.IsEnabled = IsVariationTaskStoppedS130() && nccTrainingCancellationS131 == null;
             VmToolInstance tool = dockEditingTool; object raw; string context;
-            var view = p.Clone();
-            view.OutputSizeMode = DockAlignmentSizeModeS132.SelectedValue as string ?? view.OutputSizeMode;
-            view.Interpolation = DockAlignmentInterpolationS132.SelectedValue as string ?? view.Interpolation;
+            var applied = tool == null || tool.Parameters == null ? null : tool.Parameters.PoseImageAlignmentS132;
+            bool referenceApplied = p.HasReference && applied != null && applied.HasReference && p.ReferenceVersion == applied.ReferenceVersion;
+            DockAlignmentReferenceS132.Text = p.HasReference ? string.Format(CultureInfo.InvariantCulture, "{0} · {1}×{2}", referenceApplied ? "参考已应用" : "参考待应用", p.ReferenceWidth, p.ReferenceHeight) : "尚未采集参考";
+            DockAlignmentReferenceS132.ToolTip = p.HasReference ? string.Format(CultureInfo.InvariantCulture, "行 {0:0.###} / 列 {1:0.###} / 角度 {2:0.###}°\n参考版本：{3}\n固定参考不会随下一帧移动；更新只进入草稿。", p.ReferenceRow, p.ReferenceColumn, p.ReferenceAngleDegrees, p.ReferenceVersion) : "先用标准位置的产品图像完成定位，再显式采集固定参考。";
+            string hint = AlignmentCaptureHintUI03(tool);
+            DockAlignmentCaptureS132.IsEnabled = hint == null;
+            DockAlignmentCaptureS132.Content = p.HasReference ? "更新固定参考" : "采为固定参考";
+            DockAlignmentCaptureS132.ToolTip = hint ?? "将当前图像及定位姿态保存到草稿；F5 试运行，确认后应用。不自动运行或改变已应用参考。";
+            var view = ReadAlignmentChoicesUI03();
             bool ready = tool != null && tool.Kind == VmToolKind.PoseImageAlignment && tool.ResultCode == "OK" && tool.TryGetOutputValue("Image", out raw) && raw is VmImageSnapshot && !((VmImageSnapshot)raw).IsDisposed && tool.TryGetOutputCoordinateContext("Image", out context) && context == AlignmentOutputContextS132(tool, view);
-            DockAlignmentCompareS132.IsEnabled = ready && !historicalImageMode;
+            DockAlignmentCompareS132.IsEnabled = ready && !historicalImageMode && AlignmentBindingsMatchDraftS132(tool);
+            DockAlignmentStateS132.Text = hint ?? (!p.HasReference ? "定位结果已就绪，可采为固定参考" :
+                !referenceApplied ? "参考在草稿中 · F5 试运行，确认后应用" :
+                dockDraftDirty ? "参数已修改 · F5 试运行，确认后应用" :
+                ready ? "已生成对齐图，可查看前后对照" : "参考已就绪 · F5 运行对齐，再配置下游找线");
         }
 
         private void DockAlignmentCompareS132_Click(object sender, RoutedEventArgs e)
@@ -151,10 +207,9 @@ namespace HalconWinFormsDemo
             {
                 var tool = dockEditingTool;
                 string outputContext;
-                var view = alignmentDraftS132.Clone();
-                view.OutputSizeMode = DockAlignmentSizeModeS132.SelectedValue as string ?? view.OutputSizeMode;
-                view.Interpolation = DockAlignmentInterpolationS132.SelectedValue as string ?? view.Interpolation;
+                var view = ReadAlignmentChoicesUI03();
                 if (tool == null || tool.Kind != VmToolKind.PoseImageAlignment || tool.ResultCode != "OK" || GetImageSnapshot(tool, "Image") == null || historicalImageMode ||
+                    !AlignmentBindingsMatchDraftS132(tool) ||
                     !tool.TryGetOutputCoordinateContext("Image", out outputContext) || outputContext != AlignmentOutputContextS132(tool, view))
                     throw new InvalidOperationException("请先试运行对齐模块。" );
                 SetImageContextSelection(VmImageContextOption.ModuleOutput); SetDualImageMode(true);

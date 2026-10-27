@@ -44,19 +44,19 @@ namespace HalconWinFormsDemo
             StackPanel panel = rtu ? DockRtuDecodeS122 : DockModbusDecodeS122;
             DockPanel orderRow = rtu ? DockRtuOrderRowS122 : DockModbusOrderRowS122;
             if (panel == null || orderRow == null) return;
-            string rawFunction = (rtu ? DockRtuFunctionS119 : DockModbusFunctionS118).SelectedValue as string;
+            string rawFunction = ((rtu ? DockRtuFunctionS119 : DockModbusFunctionS118).SelectedItem as VmToolValueOption)?.Key;
             int function;
             bool registers = int.TryParse(rawFunction, NumberStyles.Integer, CultureInfo.InvariantCulture, out function) && (function == 3 || function == 4);
             panel.Visibility = registers ? Visibility.Visible : Visibility.Collapsed;
-            string selectedType = (rtu ? DockRtuTypeS122 : DockModbusTypeS122).SelectedValue as string;
+            string selectedType = ((rtu ? DockRtuTypeS122 : DockModbusTypeS122).SelectedItem as VmToolValueOption)?.Key;
             orderRow.Visibility = registers && VmModbusRegisterDecodeS122.IsSupportedType(selectedType) &&
                 VmModbusRegisterDecodeS122.WordCount(selectedType) > 1 ? Visibility.Visible : Visibility.Collapsed;
             TextBlock hint = rtu ? DockRtuDecodeHintS122 : DockModbusDecodeHintS122;
             if (hint != null && registers)
             {
                 int needed = VmModbusRegisterDecodeS122.IsSupportedType(selectedType) ? VmModbusRegisterDecodeS122.WordCount(selectedType) : 1;
-                hint.Text = "主值读取前 " + needed.ToString(CultureInfo.InvariantCulture) +
-                    " 个连续寄存器；数量不能少于此值。原始寄存器和帧在结果 → 更多中查看。";
+                hint.Text = "主值占 " + needed.ToString(CultureInfo.InvariantCulture) + " 个寄存器";
+                hint.ToolTip = "读取从当前地址开始的连续寄存器，数量不能少于此值。原始寄存器和完整帧在结果 → 更多中查看。";
             }
         }
 

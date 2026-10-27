@@ -12,7 +12,7 @@
         AllowDrop="True"
         DragEnter="Window_DragEnter"
         Drop="Window_Drop"
-        PreviewKeyDown="MainWindow_PreviewKeyDown">
+        PreviewKeyDown="MainWindow_PreviewKeyDown" PreviewMouseDown="MainWindow_PreviewMouseDownUI10">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <Style TargetType="{x:Type Button}">
@@ -572,62 +572,6 @@
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
                                 <ToggleButton x:Name="FlowMoreToggleButton" Content="更多 ▾" MinWidth="62" />
-                                <WrapPanel Visibility="{Binding IsChecked, ElementName=FlowMoreToggleButton, Converter={StaticResource BooleanToVisibilityConverter}}" Background="#E2E8F0">
-                                <Button x:Name="DebugStepButton" Content="▷ 单步" MinWidth="58" ToolTip="空闲时从所选模块开始；暂停时只执行下一启用模块" Click="DebugStepButton_Click" />
-                                <Button x:Name="DebugContinueButton" Content="▶ 继续" MinWidth="58" ToolTip="从断点或单步暂停位置继续确定性执行" Click="DebugContinueButton_Click" />
-                                <Button x:Name="ToggleBreakpointButton" Content="● 断点" MinWidth="58" Foreground="#B91C1C" ToolTip="设置或取消所选模块断点；断点在模块执行前命中" Click="ToggleBreakpointButton_Click" />
-                                <Button Content="运行到此" MinWidth="66" Click="RunToHereButton_Click" /><Button Content="从此运行" MinWidth="66" Click="RunFromHereButton_Click" /><Button x:Name="ClearBreakpointsButton" Content="清断点" MinWidth="54" Click="ClearBreakpointsButton_Click" />
-                                <Button x:Name="OpenConnectionIssuesButton" Content="连接问题" MinWidth="72" Foreground="#B45309" FontWeight="SemiBold" ToolTip="按需扫描全部启用模块的缺失、错误或陈旧必需输入；清单本身不会改线" Click="OpenConnectionIssuesButton_Click" />
-                                <Button x:Name="OpenFlowSnippetLibraryButton" Content="流程片段" MinWidth="72" Foreground="#0369A1" FontWeight="SemiBold" ToolTip="按需保存和插入多模块确定性流程片段；不复制运行态对象" Click="OpenFlowSnippetLibraryButton_Click" />
-                                <Border Margin="4,0,0,0" Padding="4,0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Background="#F8FAFC">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="卡片" Margin="0,0,4,0" VerticalAlignment="Center" Foreground="#64748B" />
-                                        <RadioButton x:Name="FlowAllCardsModeRadioS76" GroupName="FlowCardDisplayModeS76" Content="固定紧凑" IsChecked="True" Margin="0,0,6,0" VerticalAlignment="Center" ToolTip="默认固定紧凑卡片；选中不自动折叠其他模块，端口按需展开" Checked="FlowCardDisplayMode_CheckedS76" />
-                                        <RadioButton x:Name="FlowTaskLensModeRadioS76" GroupName="FlowCardDisplayModeS76" Content="自动聚焦" VerticalAlignment="Center" ToolTip="可选：当前任务与直接依赖展开，其他步骤自动折叠；选择会改变显示位置，不改变执行与配方" Checked="FlowCardDisplayMode_CheckedS76" />
-                                    </StackPanel>
-                                </Border>
-                                <Border Margin="4,0,0,0" Padding="4,0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Background="#F8FAFC">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="连线" Margin="0,0,4,0" VerticalAlignment="Center" Foreground="#64748B" />
-                                        <RadioButton x:Name="FlowTaskFocusModeRadioS74" GroupName="FlowConnectionDisplayModeS74" Content="任务聚焦" IsChecked="True" Margin="0,0,6,0" VerticalAlignment="Center" ToolTip="只显示当前步骤直接依赖、执行路径、断点和错误；不修改真实连接" Checked="FlowConnectionDisplayMode_CheckedS74" />
-                                        <RadioButton x:Name="FlowAllDependenciesModeRadioS74" GroupName="FlowConnectionDisplayModeS74" Content="全部依赖" VerticalAlignment="Center" ToolTip="显示完整真实 InputBindings 连接" Checked="FlowConnectionDisplayMode_CheckedS74" />
-                                    </StackPanel>
-                                </Border>
-                                <Separator Width="6" Opacity="0" />
-                                <Button x:Name="UndoFlowEditButton" Visibility="Collapsed" Content="↶ 撤销" MinWidth="58" ToolTip="撤销最近一次真实流程编辑（Ctrl+Z）" Click="UndoFlowEditButton_Click" />
-                                <Button x:Name="RedoFlowEditButton" Visibility="Collapsed" Content="↷ 重做" MinWidth="58" ToolTip="重做最近撤销的流程编辑（Ctrl+Y / Ctrl+Shift+Z）" Click="RedoFlowEditButton_Click" />
-                                <TextBlock x:Name="FlowEditHistoryText" Visibility="Collapsed" Text="历史 0/0" Margin="4,0" VerticalAlignment="Center" Foreground="#475569" ToolTip="撤销数 / 重做数" />
-                                <Separator Width="6" Opacity="0" />
-                                <Button Visibility="Collapsed" Content="复制" MinWidth="54" ToolTip="复制选中模块（Ctrl+C）" Click="CopyFlowToolButton_Click" />
-                                <Button Visibility="Collapsed" Content="粘贴" MinWidth="54" ToolTip="粘贴到选中模块之后（Ctrl+V）" Click="PasteFlowToolButton_Click" />
-                                <Button Visibility="Collapsed" Content="副本" MinWidth="54" ToolTip="立即创建选中模块副本" Click="DuplicateFlowToolButton_Click" />
-                                <Separator Width="6" Opacity="0" />
-                                <Button x:Name="CreateFlowGroupButton" Visibility="Collapsed" Content="创建组合" MinWidth="70" ToolTip="把至少 2 个选中模块组织为可保存的流程组合；不改变执行顺序" Click="CreateFlowGroupButton_Click" />
-                                <Button x:Name="UngroupFlowGroupButton" Visibility="Collapsed" Content="解组" MinWidth="50" Click="UngroupFlowGroupButton_Click" />
-                                <Button x:Name="CollapseFlowGroupButton" Visibility="Collapsed" Content="折叠" MinWidth="50" ToolTip="压缩成员端口卡，但保留全部真实端口与连线" Click="CollapseFlowGroupButton_Click" />
-                                <Button x:Name="ExpandFlowGroupButton" Visibility="Collapsed" Content="展开" MinWidth="50" Click="ExpandFlowGroupButton_Click" />
-                                <TextBox x:Name="FlowGroupNameTextBox" Visibility="Collapsed" Width="118" Margin="3,0" ToolTip="当前组合名称；输入后点击改名" />
-                                <Button x:Name="RenameFlowGroupButton" Visibility="Collapsed" Content="改名" MinWidth="48" Click="RenameFlowGroupButton_Click" />
-                                <TextBlock x:Name="FlowGroupStateText" Visibility="Collapsed" Text="组合：选择至少 2 个模块创建" Margin="4,0" VerticalAlignment="Center" Foreground="#92400E" />
-                                <Button x:Name="BatchEnableFlowToolsButton" Visibility="Collapsed" Content="启用所选" MinWidth="66" ToolTip="启用全部选中模块" Click="BatchEnableFlowToolsButton_Click" />
-                                <Button x:Name="BatchDisableFlowToolsButton" Visibility="Collapsed" Content="停用所选" MinWidth="66" ToolTip="停用全部选中模块" Click="BatchDisableFlowToolsButton_Click" />
-                                <Button x:Name="BatchDeleteFlowToolsButton" Visibility="Collapsed" Content="删除所选" MinWidth="66" ToolTip="删除全部选中模块并清理消费者连接" Click="DeleteToolButton_Click" />
-                                <Separator Width="6" Opacity="0" />
-                                <ToggleButton x:Name="FlowGraphViewButton" Content="连接画布" IsChecked="True" MinWidth="70" Click="FlowGraphViewButton_Click" />
-                                <ToggleButton x:Name="FlowListViewButton" Content="顺序列表" MinWidth="70" Click="FlowListViewButton_Click" />
-                                <Button Content="自动布局" MinWidth="66" Click="AutoLayoutFlowButton_Click" />
-                                <ToggleButton x:Name="FlowDebugMonitorToggleButton" Content="调试监视" MinWidth="66" Click="FlowDebugMonitorToggleButton_Click" ToolTip="按需显示断点、指针与本周期 I/O；默认不占用流程画布" />
-                                <TextBlock x:Name="FlowLayoutModeText" Text="布局：自动" Margin="5,0" VerticalAlignment="Center" Foreground="#0F766E" FontWeight="SemiBold" />
-                                <CheckBox x:Name="FlowSnapGridCheckBox" Content="网格 24" IsChecked="True" Margin="5,0" VerticalAlignment="Center" ToolTip="拖动与对齐时吸附到 24 像素网格" />
-                                <Button Visibility="Collapsed" Content="水平对齐" MinWidth="66" ToolTip="将所选模块顶部对齐" Click="AlignFlowToolsHorizontalButton_Click" />
-                                <Button Visibility="Collapsed" Content="垂直对齐" MinWidth="66" ToolTip="将所选模块左侧对齐" Click="AlignFlowToolsVerticalButton_Click" />
-                                <Button Visibility="Collapsed" Content="横向等距" MinWidth="66" ToolTip="三个以上模块按 X 坐标等距分布" Click="DistributeFlowToolsHorizontalButton_Click" />
-                                <Button Visibility="Collapsed" Content="纵向等距" MinWidth="66" ToolTip="三个以上模块按 Y 坐标等距分布" Click="DistributeFlowToolsVerticalButton_Click" />
-                                <Separator Width="6" Opacity="0" />
-                                <TextBlock Text="缩放" Margin="4,0" VerticalAlignment="Center" Foreground="#475569" />
-                                <Slider x:Name="FlowZoomSlider" Width="100" Minimum="0.35" Maximum="1.8" Value="1" TickFrequency="0.05" ValueChanged="FlowZoomSlider_ValueChanged" VerticalAlignment="Center" />
-                                <Button Content="适应" MinWidth="54" Click="FitFlowButton_Click" />
-                                </WrapPanel>
                                 </StackPanel>
                             </DockPanel>
                             <DockPanel Grid.Row="1" Margin="3,2,3,0">
@@ -640,7 +584,7 @@
                             </DockPanel>
                         </Grid>
                     </Border>
-                    <Grid Grid.Row="2">
+                    <Grid x:Name="FlowContentSurfaceUI10" Grid.Row="2">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="5" />
@@ -1132,6 +1076,89 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+                    <Border x:Name="FlowMorePanelUI10" Grid.ColumnSpan="3" Panel.ZIndex="50" Width="330"
+                            MaxWidth="{Binding ActualWidth, ElementName=FlowContentSurfaceUI10}" MaxHeight="{Binding ActualHeight, ElementName=FlowContentSurfaceUI10}"
+                            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="6,0" Padding="10" Background="#FCFFFFFF"
+                            BorderBrush="#94A3B8" BorderThickness="1" CornerRadius="5"
+                            Visibility="{Binding IsChecked, ElementName=FlowMoreToggleButton, Converter={StaticResource BooleanToVisibilityConverter}}"
+                            Button.Click="FlowMoreCommand_ClickUI10">
+                        <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                            <DockPanel Margin="0,0,0,7">
+                                <Button DockPanel.Dock="Right" Content="×" MinWidth="24" Width="24" MinHeight="24" Padding="0" Click="CloseFlowMore_ClickUI10" ToolTip="收起更多操作（Esc）" />
+                                <TextBlock Text="更多操作" FontWeight="SemiBold" Foreground="#334155" VerticalAlignment="Center" ToolTip="点击面板外部或按 Esc 收起；不改变参数草稿和流程布局。" />
+                            </DockPanel>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel>
+                                    <TextBlock Text="调试与范围" Foreground="#64748B" FontSize="11" Margin="0,0,0,3" />
+                                    <WrapPanel>
+                                <Button x:Name="DebugStepButton" Content="▷ 单步" MinWidth="58" ToolTip="空闲时从所选模块开始；暂停时只执行下一启用模块" Click="DebugStepButton_Click" />
+                                <Button x:Name="DebugContinueButton" Content="▶ 继续" MinWidth="58" ToolTip="从断点或单步暂停位置继续确定性执行" Click="DebugContinueButton_Click" />
+                                <Button x:Name="ToggleBreakpointButton" Content="● 断点" MinWidth="58" Foreground="#B91C1C" ToolTip="设置或取消所选模块断点；断点在模块执行前命中" Click="ToggleBreakpointButton_Click" />
+                                <Button x:Name="FlowRunToHereButtonUI06" Content="运行到此" MinWidth="66" Click="RunToHereButton_Click" /><Button x:Name="FlowRunFromHereButtonUI06" Content="从此运行" MinWidth="66" Click="RunFromHereButton_Click" /><Button x:Name="ClearBreakpointsButton" Content="清断点" MinWidth="54" Click="ClearBreakpointsButton_Click" />
+                                    </WrapPanel>
+                                    <TextBlock Text="流程工具" Foreground="#64748B" FontSize="11" Margin="0,8,0,3" />
+                                    <WrapPanel>
+                                <Button x:Name="OpenConnectionIssuesButton" Content="连接问题" MinWidth="72" Foreground="#B45309" FontWeight="SemiBold" ToolTip="按需扫描全部启用模块的缺失、错误或陈旧必需输入；清单本身不会改线" Click="OpenConnectionIssuesButton_Click" />
+                                <Button x:Name="OpenFlowSnippetLibraryButton" Content="流程片段" MinWidth="72" Foreground="#0369A1" FontWeight="SemiBold" ToolTip="按需保存和插入多模块确定性流程片段；不复制运行态对象" Click="OpenFlowSnippetLibraryButton_Click" />
+                                    </WrapPanel>
+                                    <Expander x:Name="FlowMoreDisplayUI10" Header="显示与布局" IsExpanded="False" Margin="0,8,0,0">
+                                        <StackPanel>
+                                <Border Margin="4,0,0,0" Padding="4,0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Background="#F8FAFC">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="卡片" Margin="0,0,4,0" VerticalAlignment="Center" Foreground="#64748B" />
+                                        <RadioButton x:Name="FlowAllCardsModeRadioS76" GroupName="FlowCardDisplayModeS76" Content="固定紧凑" IsChecked="True" Margin="0,0,6,0" VerticalAlignment="Center" ToolTip="默认固定紧凑卡片；选中不自动折叠其他模块，端口按需展开" Checked="FlowCardDisplayMode_CheckedS76" />
+                                        <RadioButton x:Name="FlowTaskLensModeRadioS76" GroupName="FlowCardDisplayModeS76" Content="自动聚焦" VerticalAlignment="Center" ToolTip="可选：当前任务与直接依赖展开，其他步骤自动折叠；选择会改变显示位置，不改变执行与配方" Checked="FlowCardDisplayMode_CheckedS76" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Margin="4,0,0,0" Padding="4,0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Background="#F8FAFC">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="连线" Margin="0,0,4,0" VerticalAlignment="Center" Foreground="#64748B" />
+                                        <RadioButton x:Name="FlowTaskFocusModeRadioS74" GroupName="FlowConnectionDisplayModeS74" Content="任务聚焦" IsChecked="True" Margin="0,0,6,0" VerticalAlignment="Center" ToolTip="只显示当前步骤直接依赖、执行路径、断点和错误；不修改真实连接" Checked="FlowConnectionDisplayMode_CheckedS74" />
+                                        <RadioButton x:Name="FlowAllDependenciesModeRadioS74" GroupName="FlowConnectionDisplayModeS74" Content="全部依赖" VerticalAlignment="Center" ToolTip="显示完整真实 InputBindings 连接" Checked="FlowConnectionDisplayMode_CheckedS74" />
+                                    </StackPanel>
+                                </Border>
+                                            <WrapPanel Margin="0,5,0,0">
+                                <ToggleButton x:Name="FlowGraphViewButton" Content="连接画布" IsChecked="True" MinWidth="70" Click="FlowGraphViewButton_Click" />
+                                <ToggleButton x:Name="FlowListViewButton" Content="顺序列表" MinWidth="70" Click="FlowListViewButton_Click" />
+                                <Button Content="自动布局" MinWidth="66" Click="AutoLayoutFlowButton_Click" />
+                                <ToggleButton x:Name="FlowDebugMonitorToggleButton" Content="调试监视" MinWidth="66" Click="FlowDebugMonitorToggleButton_Click" ToolTip="按需显示断点、指针与本周期 I/O；默认不占用流程画布" />
+                                <TextBlock x:Name="FlowLayoutModeText" Text="布局：自动" Margin="5,0" VerticalAlignment="Center" Foreground="#0F766E" FontWeight="SemiBold" />
+                                <CheckBox x:Name="FlowSnapGridCheckBox" Content="网格 24" IsChecked="True" Margin="5,0" VerticalAlignment="Center" ToolTip="拖动与对齐时吸附到 24 像素网格" />
+                                <Button Visibility="Collapsed" Content="水平对齐" MinWidth="66" ToolTip="将所选模块顶部对齐" Click="AlignFlowToolsHorizontalButton_Click" />
+                                <Button Visibility="Collapsed" Content="垂直对齐" MinWidth="66" ToolTip="将所选模块左侧对齐" Click="AlignFlowToolsVerticalButton_Click" />
+                                <Button Visibility="Collapsed" Content="横向等距" MinWidth="66" ToolTip="三个以上模块按 X 坐标等距分布" Click="DistributeFlowToolsHorizontalButton_Click" />
+                                <Button Visibility="Collapsed" Content="纵向等距" MinWidth="66" ToolTip="三个以上模块按 Y 坐标等距分布" Click="DistributeFlowToolsVerticalButton_Click" />
+                                            </WrapPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                <TextBlock Text="缩放" Margin="4,0" VerticalAlignment="Center" Foreground="#475569" />
+                                <Slider x:Name="FlowZoomSlider" Width="100" Minimum="0.35" Maximum="1.8" Value="1" TickFrequency="0.05" ValueChanged="FlowZoomSlider_ValueChanged" VerticalAlignment="Center" />
+                                <Button Content="适应" MinWidth="54" Click="FitFlowButton_Click" />
+                                            </StackPanel>
+                                            <WrapPanel>
+                                <Button x:Name="UndoFlowEditButton" Visibility="Collapsed" Content="↶ 撤销" MinWidth="58" ToolTip="撤销最近一次真实流程编辑（Ctrl+Z）" Click="UndoFlowEditButton_Click" />
+                                <Button x:Name="RedoFlowEditButton" Visibility="Collapsed" Content="↷ 重做" MinWidth="58" ToolTip="重做最近撤销的流程编辑（Ctrl+Y / Ctrl+Shift+Z）" Click="RedoFlowEditButton_Click" />
+                                <TextBlock x:Name="FlowEditHistoryText" Visibility="Collapsed" Text="历史 0/0" Margin="4,0" VerticalAlignment="Center" Foreground="#475569" ToolTip="撤销数 / 重做数" />
+                                <Button Visibility="Collapsed" Content="复制" MinWidth="54" ToolTip="复制选中模块（Ctrl+C）" Click="CopyFlowToolButton_Click" />
+                                <Button Visibility="Collapsed" Content="粘贴" MinWidth="54" ToolTip="粘贴到选中模块之后（Ctrl+V）" Click="PasteFlowToolButton_Click" />
+                                <Button Visibility="Collapsed" Content="副本" MinWidth="54" ToolTip="立即创建选中模块副本" Click="DuplicateFlowToolButton_Click" />
+                                <Button x:Name="CreateFlowGroupButton" Visibility="Collapsed" Content="创建组合" MinWidth="70" ToolTip="把至少 2 个选中模块组织为可保存的流程组合；不改变执行顺序" Click="CreateFlowGroupButton_Click" />
+                                <Button x:Name="UngroupFlowGroupButton" Visibility="Collapsed" Content="解组" MinWidth="50" Click="UngroupFlowGroupButton_Click" />
+                                <Button x:Name="CollapseFlowGroupButton" Visibility="Collapsed" Content="折叠" MinWidth="50" ToolTip="压缩成员端口卡，但保留全部真实端口与连线" Click="CollapseFlowGroupButton_Click" />
+                                <Button x:Name="ExpandFlowGroupButton" Visibility="Collapsed" Content="展开" MinWidth="50" Click="ExpandFlowGroupButton_Click" />
+                                <TextBox x:Name="FlowGroupNameTextBox" Visibility="Collapsed" Width="118" Margin="3,0" ToolTip="当前组合名称；输入后点击改名" />
+                                <Button x:Name="RenameFlowGroupButton" Visibility="Collapsed" Content="改名" MinWidth="48" Click="RenameFlowGroupButton_Click" />
+                                <TextBlock x:Name="FlowGroupStateText" Visibility="Collapsed" Text="组合：选择至少 2 个模块创建" Margin="4,0" VerticalAlignment="Center" Foreground="#92400E" />
+                                <Button x:Name="BatchEnableFlowToolsButton" Visibility="Collapsed" Content="启用所选" MinWidth="66" ToolTip="启用全部选中模块" Click="BatchEnableFlowToolsButton_Click" />
+                                <Button x:Name="BatchDisableFlowToolsButton" Visibility="Collapsed" Content="停用所选" MinWidth="66" ToolTip="停用全部选中模块" Click="BatchDisableFlowToolsButton_Click" />
+                                <Button x:Name="BatchDeleteFlowToolsButton" Visibility="Collapsed" Content="删除所选" MinWidth="66" ToolTip="删除全部选中模块并清理消费者连接" Click="DeleteToolButton_Click" />
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Expander>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
                     <Border x:Name="FlowStepActivityPanel" Visibility="Collapsed" Width="560" MaxHeight="620" HorizontalAlignment="Center" VerticalAlignment="Center" Background="#FCFFFFFF" BorderBrush="#475569" BorderThickness="1.5" CornerRadius="6" Padding="11" Panel.ZIndex="26">
                         <Grid>
                             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
@@ -1153,7 +1180,14 @@
                                 <TextBox x:Name="FlowStepSearchS71" TextChanged="FlowStepViewFilterChangedS71" MinWidth="100" MaxWidth="180" ToolTip="搜索当前查看快照；不删除原记录。" />
                             </DockPanel>
                             <Border Grid.Row="2" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="7" Margin="0,8,0,6">
-                                <TextBlock x:Name="FlowStepActivitySummaryText" Text="--" Foreground="#334155" TextWrapping="Wrap" />
+                                <StackPanel>
+                                    <TextBlock x:Name="FlowStepActivitySummaryText" Text="--" Foreground="#334155" TextTrimming="CharacterEllipsis" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                        <Button x:Name="FlowStepLocateUI07" Content="定位模块" Padding="7,2" MinHeight="24" Click="FlowStepNavigateUI07_Click" ToolTip="选中本页所属的当前模块，保留参数草稿、页面和图像。不将历史日志文字当作可修复事件。" />
+                                        <Button x:Name="FlowStepParametersUI07" Content="打开参数" Tag="Parameters" Padding="7,2" MinHeight="24" Click="FlowStepNavigateUI07_Click" ToolTip="打开当前模块的原参数小窗；切换前处理未应用草稿。不自动修复、运行或解除报警。" />
+                                    </StackPanel>
+                                    <TextBlock x:Name="FlowStepNavigationStatusUI07" Foreground="#64748B" FontSize="10" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                                </StackPanel>
                             </Border>
                             <TabControl x:Name="FlowStepActivityTabsS71" Grid.Row="3">
                                 <TabItem Header="步骤日志">
@@ -1491,7 +1525,7 @@
                                     </StackPanel>
                                 </Expander>
                                 <UniformGrid Columns="2" Margin="0,5,0,0">
-                                    <Button x:Name="DebugRunToSelectedButton" Content="运行到所选" Foreground="#0F766E" FontWeight="SemiBold" ToolTip="从流程起点执行并在所选模块完成后暂停" Click="DebugRunToSelectedButton_Click" />
+                                    <Button x:Name="DebugRunToSelectedButton" Content="到所选后暂停" Foreground="#0F766E" FontWeight="SemiBold" ToolTip="从起点运行；所选完成后若有后续模块，在下一模块执行前暂停。继续会运行后续，停止才结束；与流程菜单的运行到此后结束不同。" Click="DebugRunToSelectedButton_Click" />
                                     <Button Content="定位节点" Click="LocateDebugMonitorToolButton_Click" />
                                     <Button Content="打开输入" Click="OpenDebugMonitorInputButton_Click" />
                                     <Button Content="打开 I/O" Click="OpenDebugMonitorIoButton_Click" />
@@ -2709,11 +2743,11 @@
                                               <GroupBox Header="颜色检测">
                                                   <StackPanel Margin="6">
                                                       <WrapPanel Margin="0,0,0,4">
-                                                          <Button Content="图像取色" Click="DockColorPickS129_Click" Padding="7,2" ToolTip="单击模块输入图像的目标颜色，将实际 HALCON HSV 色相填入同一草稿；容差和过滤范围保留" />
+                                                          <Button x:Name="DockColorPickButtonUI03" Content="从输入图像取色" Click="DockColorPickS129_Click" Padding="7,2" ToolTipService.ShowOnDisabled="True" ToolTip="单击模块输入图像的目标颜色，将实际 HALCON HSV 色相填入同一草稿；容差和过滤范围保留" />
                                                           <Button x:Name="DockColorCancelPickS129" Content="取消取色" Click="DockColorCancelPickS129_Click" Visibility="Collapsed" Padding="6,2" Margin="5,0,0,0" />
                                                           <Border x:Name="DockColorChipS129" Width="20" Height="20" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Margin="8,0,0,0" ToolTip="最近取样点的 RGB 颜色预览；样本显示不写入方案，HSV 范围会保存" />
                                                       </WrapPanel>
-                                                      <TextBlock x:Name="DockColorSampleSummaryS129" Foreground="#64748B" FontSize="11" TextWrapping="Wrap" Text="尚未取样 · 可直接输入色相和范围" Margin="0,0,0,5" />
+                                                      <TextBlock x:Name="DockColorSampleSummaryS129" Foreground="#64748B" FontSize="11" TextTrimming="CharacterEllipsis" Text="先连接并运行 RGB 图像源" Margin="0,0,0,5" />
                                                       <Grid>
                                                           <Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                                           <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
@@ -3733,9 +3767,9 @@
                                         <StackPanel x:Name="DockAlignmentS132Panel" Visibility="Collapsed">
                                             <Border Background="#F1F5F9" Padding="7" CornerRadius="3" Margin="0,0,0,7">
                                                 <StackPanel>
-                                                    <DockPanel>
+                                                    <DockPanel LastChildFill="False">
                                                         <TextBlock Text="固定参考姿态" FontWeight="SemiBold" />
-                                                        <Button x:Name="DockAlignmentCaptureS132" Content="取当前位姿" DockPanel.Dock="Right" Click="DockAlignmentCaptureS132_Click" ToolTip="保存已连接 Pose 的本次真实位置、角度及输入尺寸到草稿，不自动运行上游，不随候选浏览或后续运行漂移。来源草稿改动须先应用。" />
+                                                        <Button x:Name="DockAlignmentCaptureS132" Content="采为固定参考" DockPanel.Dock="Right" Click="DockAlignmentCaptureS132_Click" ToolTipService.ShowOnDisabled="True" ToolTip="保存已连接 Pose 的本次真实位置、角度及输入尺寸到草稿，不自动运行上游，不随候选浏览或后续运行漂移。来源草稿改动须先应用。" />
                                                     </DockPanel>
                                                     <TextBlock x:Name="DockAlignmentReferenceS132" Text="未保存参考" Foreground="#475569" TextWrapping="Wrap" Margin="0,4,0,0" />
                                                 </StackPanel>
@@ -3744,12 +3778,12 @@
                                                 <Grid.ColumnDefinitions><ColumnDefinition Width="92" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                                 <TextBlock Text="输出范围" VerticalAlignment="Center" />
-                                                <ComboBox x:Name="DockAlignmentSizeModeS132" Grid.Column="1" SelectedValuePath="Tag" SelectionChanged="DockDraftValue_Changed" ToolTip="参考画布固定训练/检测坐标与尺寸；输入画布保持本次输入尺寸。两者均只发布真实有效域。"><ComboBoxItem Content="固定参考画布" Tag="Reference" /><ComboBoxItem Content="本次输入画布" Tag="Input" /></ComboBox>
+                                                <ComboBox x:Name="DockAlignmentSizeModeS132" Grid.Column="1" Width="190" HorizontalAlignment="Left" SelectedValuePath="Tag" SelectionChanged="DockDraftValue_Changed" ToolTip="参考画布固定训练/检测坐标与尺寸；输入画布保持本次输入尺寸。两者均只发布真实有效域。"><ComboBoxItem Content="固定参考画布" Tag="Reference" /><ComboBoxItem Content="本次输入画布" Tag="Input" /></ComboBox>
                                                 <TextBlock Grid.Row="1" Text="插值方式" VerticalAlignment="Center" />
                                                 <ComboBox x:Name="DockAlignmentInterpolationS132" Grid.Row="1" Grid.Column="1" SelectedValuePath="Tag" SelectionChanged="DockDraftValue_Changed" ToolTip="双线性将有效输入域向内保守收缩1像素，避免域边界/孔洞旁的无效像素混入插值。"><ComboBoxItem Content="双线性（保守有效域）" Tag="bilinear" /><ComboBoxItem Content="最近邻" Tag="nearest_neighbor" /></ComboBox>
                                             </Grid>
                                             <DockPanel Margin="0,7,0,0">
-                                                <Button x:Name="DockAlignmentCompareS132" Content="原图 / 对齐图" DockPanel.Dock="Right" Click="DockAlignmentCompareS132_Click" ToolTip="运行成功后用已有双视口查看左原图、右对齐图；两套 ROI 坐标独立。" />
+                                                <Button x:Name="DockAlignmentCompareS132" Content="查看对齐前后" DockPanel.Dock="Right" Click="DockAlignmentCompareS132_Click" ToolTip="运行成功后用已有双视口查看左原图、右对齐图；两套 ROI 坐标独立。" />
                                                 <TextBlock x:Name="DockAlignmentStateS132" Foreground="#64748B" TextWrapping="Wrap" Text="Image 与 Pose 必须同一图像来源；对齐图 ROI 需单独配置" FontSize="11" VerticalAlignment="Center" />
                                             </DockPanel>
                                         </StackPanel>
@@ -4173,12 +4207,15 @@
                                         <StackPanel x:Name="DockPlanarCalibrationPanelS124" Visibility="Collapsed">
                                             <GroupBox Header="平面标定 · 像素到世界">
                                                 <StackPanel Margin="5">
-                                                    <DockPanel Margin="0,0,0,5"><Button DockPanel.Dock="Right" Content="图像取点" Click="DockPlanarStartPointS124_Click" Padding="5,1" Margin="6,0,0,0" ToolTip="切到当前模块输入图像，进入点 ROI 取点；确认点 ROI 后填写实际 X/Y 并加入" /><TextBlock Text="在图像上取点，填写对应世界 X/Y；至少 3 个分散点。" Foreground="#64748B" FontSize="10" TextWrapping="Wrap" /></DockPanel>
-                                                    <WrapPanel Margin="0,0,0,5"><TextBlock Text="X" VerticalAlignment="Center" Margin="0,0,3,0" /><TextBox x:Name="DockPlanarWorldXS124" Width="64" ToolTip="该图像点对应的世界 X" /><TextBlock Text="Y" VerticalAlignment="Center" Margin="8,0,3,0" /><TextBox x:Name="DockPlanarWorldYS124" Width="64" ToolTip="该图像点对应的世界 Y" /><Button Content="加入选中点 ROI" Click="DockPlanarAddPointS124_Click" Padding="5,1" Margin="8,0,0,0" ToolTip="从当前图像的选中点 ROI 采样，不能跨图像来源" /></WrapPanel>
-                                                    <DockPanel Margin="0,0,0,4"><TextBlock Text="单位" Width="43" VerticalAlignment="Center" /><TextBox x:Name="DockPlanarUnitS124" Width="68" TextChanged="DockDraftValue_Changed" ToolTip="例如 mm；世界距离按此单位输出" /><Button DockPanel.Dock="Right" Content="移除选中" Click="DockPlanarRemovePointS124_Click" Padding="5,1" Margin="7,0,0,0" /></DockPanel>
-                                                    <ListBox x:Name="DockPlanarSampleListS124" Height="93" FontSize="10" ToolTip="点位是加入时的快照；移动 ROI 后再次加入同一 ROI 可更新。逐点残差在拟合后显示，选中一行可移除" />
-                                                    <TextBlock x:Name="DockPlanarFitStatusS124" Text="尚未采样" Foreground="#64748B" FontSize="10" TextWrapping="Wrap" Margin="0,5,0,0" />
-                                                    <Expander Header="误差与输入说明" IsExpanded="False" Margin="0,5,0,0"><TextBlock Text="拟合预览只修改草稿；点击参数窗的“应用”后才写入方案。输入页连接 Image；需要测量时再连接同一图像链的 PointA / PointB。运行输出 World2D 点、世界距离和残差，可将世界距离接数值判定。" Foreground="#64748B" TextWrapping="Wrap" Margin="4" /></Expander>
+                                                    <DockPanel Margin="0,0,0,5"><Button DockPanel.Dock="Right" Content="图像取点" Click="DockPlanarStartPointS124_Click" Padding="5,1" Margin="6,0,0,0" ToolTip="切到当前模块输入图像，确认点 ROI 后填写实际 X/Y 并加入；至少3个分散的非共线对应点。" /><TextBlock Text="取图像点 → 填实际坐标 → 加入" Foreground="#64748B" FontSize="11" VerticalAlignment="Center" /></DockPanel>
+                                                    <WrapPanel Margin="0,0,0,5"><TextBlock Text="X" VerticalAlignment="Center" Margin="0,0,3,0" /><TextBox x:Name="DockPlanarWorldXS124" Width="64" ToolTip="实际世界 X。选中列表行可回填，点击更新所选才修改草稿。" /><TextBlock Text="Y" VerticalAlignment="Center" Margin="8,0,3,0" /><TextBox x:Name="DockPlanarWorldYS124" Width="64" ToolTip="实际世界 Y，不是像素行坐标。" /><Button Content="加入图像点" Click="DockPlanarAddPointS124_Click" Padding="5,1" Margin="8,0,0,0" ToolTip="将选中点 ROI 的像素位置与这里的 X/Y 加入草稿；同一 ROI 再加入会更新快照。" /><Button x:Name="DockPlanarUpdateSampleUI03" Content="更新所选" IsEnabled="False" Click="DockPlanarUpdateSampleUI03_Click" Padding="5,1" Margin="5,0,0,0" ToolTip="只更新列表所选样本的实际 X/Y；不改变像素点、不采其他 ROI、不自动应用。" /></WrapPanel>
+                                                    <DockPanel Margin="0,0,0,5" LastChildFill="False"><TextBlock Text="单位" Width="43" VerticalAlignment="Center" /><TextBox x:Name="DockPlanarUnitS124" Width="68" MaxLength="16" TextChanged="DockDraftValue_Changed" ToolTip="按实际对应坐标填写，例如 mm；修改单位不会自动换算坐标，空白不能应用。" /><Button x:Name="DockPlanarRemoveSampleUI03" DockPanel.Dock="Right" Content="移除所选" IsEnabled="False" Click="DockPlanarRemovePointS124_Click" Padding="5,1" Margin="7,0,0,0" /></DockPanel>
+                                                    <Grid Margin="5,0,5,3" TextBlock.Foreground="#64748B" TextBlock.FontSize="10"><Grid.ColumnDefinitions><ColumnDefinition Width="26"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="65"/></Grid.ColumnDefinitions><TextBlock Text="#"/><TextBlock Grid.Column="1" Text="像素 · 行,列"/><TextBlock Grid.Column="2" Text="实际 · X,Y"/><TextBlock Grid.Column="3" Text="残差" ToolTip="与上方实际坐标同单位；不是像素误差，也不是现场精度保证。"/></Grid>
+                                                    <ListBox x:Name="DockPlanarSampleListS124" Height="100" FontSize="11" SelectionChanged="DockPlanarSelectionUI03_Changed" ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" ToolTip="选中行可修改实际 X/Y。像素位置是加入时的快照；修改样本会清除旧残差，需重新计算。">
+                                                        <ListBox.ItemTemplate><DataTemplate><Grid ToolTip="{Binding Detail}"><Grid.ColumnDefinitions><ColumnDefinition Width="26"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="65"/></Grid.ColumnDefinitions><TextBlock Text="{Binding Number}"/><TextBlock Grid.Column="1" Text="{Binding Pixel}" TextTrimming="CharacterEllipsis"/><TextBlock Grid.Column="2" Text="{Binding World}" TextTrimming="CharacterEllipsis"/><TextBlock Grid.Column="3" Text="{Binding Residual}" TextTrimming="CharacterEllipsis"/></Grid></DataTemplate></ListBox.ItemTemplate>
+                                                    </ListBox>
+                                                    <DockPanel Margin="0,6,0,0"><Button x:Name="DockPlanarFitButtonUI03" DockPanel.Dock="Right" Content="计算残差" IsEnabled="False" Click="DockPlanarFitUI03_Click" Margin="6,0,0,0" Padding="5,1" ToolTip="显式计算当前草稿的 HALCON 拟合及逐点残差；不会运行测量或自动应用。"/><TextBlock x:Name="DockPlanarFitStatusS124" Text="尚未采样" Foreground="#64748B" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" /></DockPanel>
+                                                    <Expander Header="误差与输入说明" IsExpanded="False" Margin="0,5,0,0"><TextBlock Text="计算残差只预览当前草稿，不代表现场测量精度。应用后才保存，重新运行才产生正式世界点。输入页连接 Image；需要测量时再连接同一图像链的 PointA / PointB。仅填写单位不会换算坐标；三点零残差也不是精度证明。" Foreground="#64748B" TextWrapping="Wrap" Margin="4" /></Expander>
                                                 </StackPanel>
                                             </GroupBox>
                                         </StackPanel>
@@ -4211,18 +4248,18 @@
                                                     <ComboBox x:Name="DockScriptExecutionModeComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockScriptExecutionModeComboBox_SelectionChanged" />
                                                     <TextBlock Grid.Row="1" Text="超时 ms" VerticalAlignment="Center" />
                                                     <TextBox x:Name="DockScriptTimeoutTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
-                                                    <TextBlock Grid.Row="2" Text="参数数值" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Row="2" Text="兼容数值" VerticalAlignment="Center" ToolTip="供 input.ParameterNumber 使用。命名参数（如 Offset）在“设计接口”中设置默认值。" />
                                                     <TextBox x:Name="DockScriptParameterNumberTextBox" Grid.Row="2" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
-                                                    <TextBlock Grid.Row="3" Text="参数文本" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Row="3" Text="兼容文本" VerticalAlignment="Center" ToolTip="供 input.ParameterText 使用；不是所有命名参数的统一值。" />
                                                     <TextBox x:Name="DockScriptParameterTextTextBox" Grid.Row="3" Grid.Column="1" TextChanged="DockDraftValue_Changed" />
                                                 </Grid>
                                             </GroupBox>
                                             <Border Background="#F5F3FF" BorderBrush="#DDD6FE" BorderThickness="1" CornerRadius="4" Padding="9" Margin="0,6,0,0">
                                                 <DockPanel>
-                                                    <Button DockPanel.Dock="Right" Content="设计接口…" Foreground="#7C3AED" FontWeight="SemiBold" Click="OpenScriptInterfaceButton_Click" />
+                                                    <Button x:Name="DockScriptInterfaceButtonUI08" Tag="ScriptDock" DockPanel.Dock="Right" Content="设计接口…" Foreground="#7C3AED" FontWeight="SemiBold" Click="OpenScriptInterfaceButton_Click" ToolTip="编辑当前参数窗所属脚本的命名输入、参数和输出；不根据流程中的另一个选中节点切换。" />
                                                     <StackPanel>
                                                         <TextBlock Text="脚本接口" FontWeight="SemiBold" Foreground="#4C1D95" />
-                                                        <TextBlock Text="按需声明命名输入、参数和输出；普通运行参数保持简洁。" Foreground="#6D5A90" FontSize="11" TextWrapping="Wrap" />
+                                                        <TextBlock Text="声明接口 → 输入绑定 → 试运行看结果" Foreground="#6D5A90" FontSize="11" TextTrimming="CharacterEllipsis" ToolTip="先在设计接口中声明名称与类型，参数默认值也在这里设置；应用接口后到输入页连接上游，再明确F5试运行，在结果页核对类型化输出。" />
                                                     </StackPanel>
                                                 </DockPanel>
                                             </Border>
@@ -4362,11 +4399,14 @@
                                                             </Ellipse.Style>
                                                         </Ellipse>
                                                         <StackPanel Grid.Column="1" Margin="2,0,8,0">
-                                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{Binding ShortDisplayNameUI05}" ToolTip="{Binding DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                                             <TextBlock Text="{Binding RequirementText}" Foreground="#64748B" FontSize="10" />
                                                         </StackPanel>
                                                         <ComboBox Grid.Column="2" ItemsSource="{Binding SourceOptions}" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectedValue="{Binding SelectedSourceKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" SelectionChanged="DockInputSourceComboBox_SelectionChanged" MinHeight="25" ToolTip="直接选择兼容的前序输出；技术类型和诊断在下方详情中查看" />
                                                         <DockPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="2,3,0,0">
+                                                            <Button DockPanel.Dock="Right" Content="查看图像" Click="DockViewInputImageUI05_Click" Padding="4,0" MinHeight="20" Margin="4,0,0,0" ToolTip="在原图像区查看这一路已应用的输入；不切换编辑模块、不应用来源草稿、不运行。">
+                                                                <Button.Style><Style TargetType="Button"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding DataType}" Value="Image"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></Button.Style>
+                                                            </Button>
                                                             <Button DockPanel.Dock="Right" Content="查看数组…" Click="ShowArrayDetailsS105_Click" Padding="4,0" MinHeight="20" Margin="4,0,0,0" ToolTip="查看当前选择来源的只读数组，不应用草稿或运行模块。">
                                                                 <Button.Style><Style TargetType="Button"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding DataType}" Value="Number[]"><Setter Property="Visibility" Value="Visible" /></DataTrigger><DataTrigger Binding="{Binding DataType}" Value="String[]"><Setter Property="Visibility" Value="Visible" /></DataTrigger><DataTrigger Binding="{Binding CurrentValue}" Value="--"><Setter Property="IsEnabled" Value="False" /></DataTrigger><DataTrigger Binding="{Binding StateKey}" Value="Error"><Setter Property="IsEnabled" Value="False" /></DataTrigger></Style.Triggers></Style></Button.Style>
                                                             </Button>
@@ -4432,7 +4472,7 @@
                                             <ComboBox x:Name="DockRoiSourceModeComboBox" Grid.Row="1" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockRoiSourceModeComboBox_SelectionChangedS86" Margin="0,7,0,0" ToolTip="本地绘制使用当前图层；继承前序使用真实 Region 输出；合并会把两者做并集，再扣除屏蔽区。" />
                                             <TextBlock x:Name="DockRoiInheritedSourceLabelS86" Grid.Row="2" Text="前序区域" VerticalAlignment="Center" Foreground="#475569" Margin="0,6,8,0" />
                                             <ComboBox x:Name="DockRoiInheritedSourceComboBox" Grid.Row="2" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="DockRoiInheritedSourceComboBox_SelectionChangedS86" Margin="0,6,0,0" ToolTip="只列出当前模块之前、类型为 Region 的真实输出。" />
-                                            <TextBlock x:Name="DockRoiRoleSummaryText" Grid.Row="3" Grid.ColumnSpan="2" Text="本地：检测 0 · 屏蔽 0" Foreground="#0F766E" FontSize="11" Margin="0,7,0,0" />
+                                            <TextBlock x:Name="DockRoiRoleSummaryText" Grid.Row="3" Grid.ColumnSpan="2" Text="本地：检测 0 · 屏蔽 0" Foreground="#0F766E" FontSize="11" Margin="0,7,0,0" TextTrimming="CharacterEllipsis" />
                                             <TextBlock x:Name="DockRoiSourceStatusText" Grid.Row="4" Grid.ColumnSpan="2" Text="选择来源策略后显示实际运行语义。" Foreground="#64748B" FontSize="10" TextWrapping="Wrap" Margin="0,3,0,0" />
                                         </Grid>
                                     </Border>
@@ -4444,7 +4484,7 @@
                                         </DockPanel>
                                         <ScrollViewer x:Name="DockRoiSelectionScrollUI02" Grid.Row="1" VerticalScrollBarVisibility="Auto">
                                             <ItemsControl x:Name="DockRoiBindingItemsControl">
-                                                <ItemsControl.ItemTemplate><DataTemplate><Border BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="6,4" Margin="0,0,0,4"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><CheckBox IsChecked="{Binding IsBound}" IsEnabled="{Binding CanChangeBinding}" Click="DockRoiBindingCheckBox_Click" Margin="0,0,8,0" VerticalAlignment="Center" /><StackPanel Grid.Column="1"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding GeometryText}" /><TextBlock Text="{Binding CompatibilityText}" Foreground="#B45309" FontSize="10" /></StackPanel><TextBlock Grid.Column="2" Text="{Binding ShapeText}" Foreground="#0369A1" FontSize="10" VerticalAlignment="Center" /></Grid></Border></DataTemplate></ItemsControl.ItemTemplate>
+                                                <ItemsControl.ItemTemplate><DataTemplate><Border BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="3" Padding="6,4" Margin="0,0,0,4"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><CheckBox IsChecked="{Binding IsBound}" IsEnabled="{Binding CanChangeBinding}" Click="DockRoiBindingCheckBox_Click" ToolTip="勾选将该图层加入当前模块绑定草稿；应用后生效。" Margin="0,0,8,0" VerticalAlignment="Center" /><StackPanel Grid.Column="1"><Button Click="DockLocateRoiUI03_Click" IsEnabled="{Binding CanLocate}" ToolTip="{Binding LocateHint}" ToolTipService.ShowOnDisabled="True" Background="Transparent" BorderThickness="0" Padding="2,0" MinWidth="0" MinHeight="22" HorizontalContentAlignment="Left" Foreground="#0369A1"><TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" /></Button><TextBlock Text="{Binding CompatibilityText}" Foreground="#B45309" FontSize="10" /></StackPanel><TextBlock Grid.Column="2" Text="{Binding ShapeText}" ToolTip="{Binding StateText}" Foreground="#0369A1" FontSize="10" VerticalAlignment="Center" /></Grid></Border></DataTemplate></ItemsControl.ItemTemplate>
                                             </ItemsControl>
                                         </ScrollViewer>
                                         <TextBlock x:Name="DockRoiEmptyHintUI02" Grid.Row="1" Text="暂无本地 ROI；可到图像区绘制，或选择前序 Region。" TextWrapping="Wrap" Foreground="#64748B" FontSize="11" Margin="3,7" IsHitTestVisible="False" />
@@ -5575,34 +5615,33 @@
                         <Button DockPanel.Dock="Right" Content="关闭" MinWidth="64" Click="CloseScriptInterfaceButton_Click" />
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="脚本接口设计器" FontSize="18" FontWeight="SemiBold" Foreground="#3B1B66" />
+                                <TextBlock Text="脚本接口" FontSize="15" FontWeight="SemiBold" Foreground="#3B1B66" />
                                 <Border Background="#EDE9FE" CornerRadius="8" Padding="7,2" Margin="10,1,0,0"><TextBlock x:Name="ScriptInterfaceToolNameText" Text="未选择脚本" Foreground="#6D28D9" FontWeight="SemiBold" /></Border>
                             </StackPanel>
-                            <TextBlock Text="当前脚本实例 · 标量与数组输入 / 参数 / 输出；仅在需要时展开" Foreground="#6D5A90" FontSize="11" />
+                            <TextBlock Text="输入接上游 · 参数设定值 · 输出供下游" Foreground="#6D5A90" FontSize="11" ToolTip="仅运行受信任代码；配置接口不会自动执行。参数必须有有效默认值，已连接输入失效时不会回退默认值。" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
                 <Grid Grid.Row="1" Margin="12">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="330" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="238" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                     <Border Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Padding="10">
                         <Grid>
                             <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                             <DockPanel>
-                                <TextBlock Text="接口成员" FontSize="15" FontWeight="SemiBold" Foreground="#0F172A" />
                                 <TextBlock x:Name="ScriptInterfaceCountText" DockPanel.Dock="Right" Text="输入 0 · 参数 0 · 输出 0" Foreground="#64748B" FontSize="11" VerticalAlignment="Center" />
+                                <TextBlock Text="成员" FontSize="13" FontWeight="SemiBold" Foreground="#0F172A" />
                             </DockPanel>
                             <WrapPanel Grid.Row="1" Margin="0,9,0,7">
-                                <Button Content="＋ 输入" Foreground="#0369A1" Click="AddScriptInputButton_Click" />
-                                <Button Content="＋ 参数" Foreground="#B45309" Click="AddScriptParameterButton_Click" />
-                                <Button Content="＋ 输出" Foreground="#15803D" Click="AddScriptOutputButton_Click" />
+                                <Button Content="＋ 输入" MinWidth="60" Padding="4,2" Foreground="#0369A1" Click="AddScriptInputButton_Click" />
+                                <Button Content="＋ 参数" MinWidth="60" Padding="4,2" Foreground="#B45309" Click="AddScriptParameterButton_Click" />
+                                <Button Content="＋ 输出" MinWidth="60" Padding="4,2" Foreground="#15803D" Click="AddScriptOutputButton_Click" />
                             </WrapPanel>
                             <ListBox x:Name="ScriptInterfaceMemberListBox" Grid.Row="2" BorderThickness="0" SelectionChanged="ScriptInterfaceMemberListBox_SelectionChanged">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
-                                        <Border BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="7,6">
+                                        <Border BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="7,6" ToolTip="{Binding MemberId}">
                                             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                                 <StackPanel><TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="#1E293B" /><TextBlock Text="{Binding SummaryText}" Foreground="#64748B" FontSize="11" /></StackPanel>
-                                                <TextBlock Grid.Column="1" Text="{Binding MemberId}" Foreground="#B8B3C7" FontFamily="Consolas" FontSize="9" MaxWidth="72" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
@@ -5614,46 +5653,49 @@
                             </StackPanel>
                         </Grid>
                     </Border>
-                    <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Padding="16">
+                    <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Padding="10">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <Grid>
                             <TextBlock x:Name="ScriptInterfaceEmptyText" Text="从左侧选择成员，或添加一个输入、参数、输出。" Foreground="#64748B" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             <Grid x:Name="ScriptInterfaceEditorPanel">
                                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                                 <DockPanel>
                                     <TextBlock Text="成员设置" FontSize="16" FontWeight="SemiBold" Foreground="#0F172A" />
-                                    <TextBlock x:Name="ScriptInterfaceMemberIdText" DockPanel.Dock="Right" Foreground="#94A3B8" FontFamily="Consolas" FontSize="10" />
+                                    <TextBlock x:Name="ScriptInterfaceMemberIdText" DockPanel.Dock="Right" Visibility="Collapsed" />
                                 </DockPanel>
-                                <Grid Grid.Row="1" Margin="0,14,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="92" /><ColumnDefinition Width="*" /><ColumnDefinition Width="80" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <Grid Grid.Row="1" Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="48" /><ColumnDefinition Width="*" /><ColumnDefinition Width="48" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                     <TextBlock Text="方向" VerticalAlignment="Center" /><ComboBox x:Name="ScriptInterfaceDirectionComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="ScriptArrayEditorChangedS107" />
-                                    <TextBlock Grid.Column="2" Text="类型" Margin="12,0,0,0" VerticalAlignment="Center" /><ComboBox x:Name="ScriptInterfaceTypeComboBox" Grid.Column="3" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="ScriptArrayEditorChangedS107" />
+                                    <TextBlock Grid.Column="2" Text="类型" Margin="8,0,0,0" VerticalAlignment="Center" /><ComboBox x:Name="ScriptInterfaceTypeComboBox" Grid.Column="3" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="ScriptArrayEditorChangedS107" />
                                 </Grid>
                                 <Grid Grid.Row="2" Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="92" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="名称" VerticalAlignment="Center" /><TextBox x:Name="ScriptInterfaceNameTextBox" Grid.Column="1" /></Grid>
                                 <Grid x:Name="ScriptInterfaceDefaultRow" Grid.Row="3" Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="92" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions><TextBlock Text="默认值" VerticalAlignment="Center" /><TextBox x:Name="ScriptInterfaceDefaultTextBox" Grid.Column="1" MaxLength="4096" VerticalScrollBarVisibility="Auto" TextChanged="ScriptArrayEditorChangedS107" /><TextBlock x:Name="ScriptInterfaceArrayHintS107" Grid.Row="1" Grid.Column="1" Visibility="Collapsed" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#64748B" /></Grid>
                                 <Grid Grid.Row="4" Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="92" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="约束" VerticalAlignment="Center" /><CheckBox x:Name="ScriptInterfaceRequiredCheckBox" Grid.Column="1" Content="必需；缺失时立即停止当前工具并清除旧输出" VerticalAlignment="Center" /></Grid>
                                 <Grid Grid.Row="5" Margin="0,8,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="92" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="说明" VerticalAlignment="Top" /><TextBox x:Name="ScriptInterfaceDescriptionTextBox" Grid.Column="1" Height="54" AcceptsReturn="True" TextWrapping="Wrap" /></Grid>
-                                <Border Grid.Row="6" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,12,0,0">
+                                <Expander Grid.Row="6" Header="代码访问" IsExpanded="False" Background="#F8FAFC" Margin="0,9,0,0">
                                     <Grid><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                        <DockPanel><TextBlock Text="代码访问" FontWeight="SemiBold" Foreground="#334155" /><Button DockPanel.Dock="Right" Content="复制代码" Padding="7,2" Click="CopyScriptSnippetButton_Click" /></DockPanel>
+                                        <Button Content="复制代码" HorizontalAlignment="Left" Padding="7,2" Click="CopyScriptSnippetButton_Click" />
                                         <TextBox x:Name="ScriptInterfaceSnippetTextBox" Grid.Row="1" Margin="0,7,0,0" IsReadOnly="True" FontFamily="Consolas" Background="#FFFFFF" BorderBrush="#CBD5E1" />
                                         <TextBlock x:Name="ScriptInterfacePortText" Grid.Row="2" Margin="0,6,0,0" Foreground="#64748B" FontFamily="Consolas" FontSize="10" />
                                     </Grid>
-                                </Border>
+                                </Expander>
                                 <StackPanel Grid.Row="7" Orientation="Horizontal" VerticalAlignment="Top" Margin="0,12,0,0"><Button Content="应用成员草稿" Foreground="#7C3AED" FontWeight="SemiBold" Click="ApplyScriptMemberButton_Click" /></StackPanel>
                             </Grid>
                         </Grid>
+                        </ScrollViewer>
                     </Border>
                 </Grid>
                 <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="0,1,0,0" Padding="12,8">
-                    <DockPanel LastChildFill="False">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock x:Name="ScriptInterfaceContractText" Text="固定入口：public static ScriptToolResult Execute(ScriptToolContext input)" Foreground="#475569" FontFamily="Consolas" FontSize="10" />
-                            <TextBlock x:Name="ScriptInterfaceValidationText" Text="接口草稿尚未修改。" Foreground="#64748B" TextWrapping="Wrap" />
+                            <TextBlock x:Name="ScriptInterfaceValidationText" Text="接口草稿尚未修改。" Foreground="#64748B" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
                         </StackPanel>
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
                             <Button Content="取消草稿" Click="CancelScriptInterfaceButton_Click" />
                             <Button Content="应用接口" Foreground="#7C3AED" FontWeight="SemiBold" Click="ApplyScriptInterfaceButton_Click" />
                         </StackPanel>
-                    </DockPanel>
+                    </Grid>
                 </Border>
             </Grid>
         </Border>
