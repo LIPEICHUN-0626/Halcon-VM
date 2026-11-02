@@ -74,7 +74,7 @@ namespace HalconWinFormsDemo
             RestoreParameterPropertyUI07(invalidParameterFieldUI07, Control.BorderThicknessProperty, invalidParameterThicknessUI07);
             RestoreParameterPropertyUI07(invalidParameterFieldUI07, FrameworkElement.ToolTipProperty, invalidParameterTipUI07);
             invalidParameterFieldUI07 = null;
-            DockValidationText.Visibility = Visibility.Visible;
+            DockValidationText.ClearValue(UIElement.VisibilityProperty);
             DockAdvancedParameterValidationText.Text = string.Empty;
             DockAdvancedParameterValidationText.Visibility = Visibility.Collapsed;
         }
@@ -95,7 +95,7 @@ namespace HalconWinFormsDemo
             field.BorderBrush = Brushes.Firebrick; field.BorderThickness = new Thickness(2);
             field.ToolTip = message;
             DockValidationText.Text = message;
-            DockValidationText.Visibility = Visibility.Collapsed;
+            DockValidationText.ClearValue(UIElement.VisibilityProperty);
             DockAdvancedParameterValidationText.Text = message;
             DockAdvancedParameterValidationText.Visibility = Visibility.Visible;
             SetDockDraftUiState("请修正参数", true);

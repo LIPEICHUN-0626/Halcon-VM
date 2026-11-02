@@ -131,6 +131,7 @@ namespace HalconWinFormsDemo
             SubflowBoundaryButtonS102.Visibility = inside ? Visibility.Visible : Visibility.Collapsed;
             string path = GetProjectFlowNameS104() + (inside ? " / " + string.Join(" / ", subflowEditorsS102.Reverse().Select(frame => frame.Call.InstanceName)) : string.Empty);
             FlowScopeNameS102.Text = path; FlowScopeNameS102.ToolTip = path;
+            FlowScopeNameS102.Visibility = inside ? Visibility.Visible : Visibility.Collapsed;
             SubflowBackButtonS102.ToolTip = inside ? "保存当前内部修改并返回上一级流程；主流程中的连接保持不变。" : string.Empty;
         }
 

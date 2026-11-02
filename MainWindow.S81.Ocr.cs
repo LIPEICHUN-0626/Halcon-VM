@@ -152,7 +152,7 @@ namespace HalconWinFormsDemo
                     HOperatorSet.SmallestRectangle1(sorted, out row1, out column1, out row2, out column2);
                     if (centerRows.Length != characterCount || centerColumns.Length != characterCount || areas.Length != characterCount ||
                         row1.Length != characterCount || column1.Length != characterCount || row2.Length != characterCount || column2.Length != characterCount ||
-                        areas.DArr.Any(value => double.IsNaN(value) || double.IsInfinity(value) || value <= 0))
+                        Enumerable.Range(0, areas.Length).Any(index => double.IsNaN(areas[index].D) || double.IsInfinity(areas[index].D) || areas[index].D <= 0))
                         throw new InvalidOperationException("HALCON OCR 字符区域与逐字坐标数量不一致或含空区域。");
                     for (int index = 0; index < characterCount; index++)
                         characterViews.Add(new VmOcrCharacterS133(index + 1, texts[index], scores[index], p.OcrMinimumConfidence,

@@ -62,7 +62,8 @@ namespace HalconWinFormsDemo
             DockVariationAlignedS130.IsChecked = false;
             DockVariationSamplePreviewS130.Source = null;
             DockVariationSamplePreviewS130.Visibility = Visibility.Collapsed;
-            DockVariationTrainingStatusS130.Text = "良品样本→学习→应用→F5 检测；来源改变须重建样本集";
+            DockVariationManageUI04.IsExpanded = false;
+            DockVariationTrainingStatusS130.Text = "加入不同良品 → 学习 → F5试草稿 → 应用";
             RefreshVariationTaskS130();
         }
 
@@ -120,7 +121,9 @@ namespace HalconWinFormsDemo
             if (source.Kind == VmToolKind.ImageSource)
             {
                 var p = source.Parameters ?? new VmToolParameterData();
-                text.Append(p.ImageSourceModeS114).Append('|').Append(p.CameraInterfaceS114).Append('|').Append(p.CameraDeviceS114);
+                // New sources can still carry null for legacy File mode; saving
+                // normalizes it. Hash the effective mode, not serialization shape.
+                text.Append(VmImageSourceModeS114.Normalize(p.ImageSourceModeS114)).Append('|').Append(p.CameraInterfaceS114).Append('|').Append(p.CameraDeviceS114);
             }
             else
             {
@@ -214,12 +217,20 @@ namespace HalconWinFormsDemo
             if (editLeaseS137 < 0) return;
             RunUiAction("加入对齐良品", delegate
             {
-                GetVariationInputSnapshotS130(dockEditingTool);
+                var tool = dockEditingTool;
+                GetVariationInputSnapshotS130(tool);
+                string session = projectSessionIdS104, flow = activeProjectFlowIdS104;
+                int revision = variationRevisionS130;
+                string context = variationDraftS130.DatasetContext, signature = variationDraftS130.DatasetSourceSignature;
+                Func<bool> current = () => IsEngineeringEditLeaseCurrentS137(editLeaseS137) && ReferenceEquals(dockEditingTool, tool) &&
+                    flowTools.Contains(tool) && session == projectSessionIdS104 && flow == activeProjectFlowIdS104 &&
+                    revision == variationRevisionS130 && centralModuleConfigurationOpenS77 && IsVariationTaskStoppedS130() &&
+                    VariationInputMatchesDraftS130(tool) && context == ResolveTargetImageContextIdS86(tool) && signature == VariationSourceSignatureS130(tool);
                 if (DockVariationAlignedS130.IsChecked != true) throw new InvalidOperationException("请先确认外部样本为良品且已按当前输入坐标对齐。" );
                 var dialog = new OpenFileDialog { Title = "加入已对齐的良品图像", Multiselect = true, CheckFileExists = true,
                     Filter = "图像 (*.bmp;*.png;*.jpg;*.tif;*.tiff)|*.bmp;*.png;*.jpg;*.tif;*.tiff|所有文件 (*.*)|*.*" };
                 if (dialog.ShowDialog(moduleParameterWindowS89 ?? this) != true) return;
-                if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
+                if (!current()) return;
                 var pending = new List<VmVariationSampleS130>();
                 bool retained = false;
                 try
@@ -227,7 +238,7 @@ namespace HalconWinFormsDemo
                     foreach (string path in dialog.FileNames)
                     {
                         if (variationSamplesS130.Count + pending.Count >= 64) break;
-                        if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
+                        if (!current()) return;
                         string digest = VmVariationModelS130.HashFile(path);
                         if (variationSamplesS130.Any(s => s.ImageSha256 == digest) || pending.Any(s => s.ImageSha256 == digest)) continue;
                         string managed = NewVariationResourceS130(Path.GetExtension(path));
@@ -240,7 +251,7 @@ namespace HalconWinFormsDemo
                         }
                         catch { VmVariationModelS130.DeleteCreated(managed); throw; }
                     }
-                    if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
+                    if (!current()) return;
                     foreach (var sample in pending) variationSamplesS130.Add(sample);
                     retained = true;
                     if (pending.Count > 0) VariationDatasetChangedS130(sender, e);
@@ -266,11 +277,15 @@ namespace HalconWinFormsDemo
             VariationDatasetChangedS130(sender, e);
         }
         private void DockVariationCancelS130_Click(object sender, RoutedEventArgs e)
-        { CancelVariationTrainingS130(); DockVariationTrainingStatusS130.Text = "已请求取消；当前 HALCON 算子结束后退出，不替换模型"; }
+        {
+            if (variationTrainingCancellationS130 == null) return;
+            CancelVariationTrainingS130(); DockVariationTrainingStatusS130.Text = "正在取消 · 等待当前算子结束";
+        }
 
         private void DockVariationSampleSelectionS130_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
             DockVariationSamplePreviewS130.Source = null; DockVariationSamplePreviewS130.Visibility = Visibility.Collapsed;
+            RefreshVariationTaskS130();
             var sample = DockVariationSampleListS130.SelectedItem as VmVariationSampleS130;
             if (sample == null || !File.Exists(sample.ImagePath)) return;
             try
@@ -306,6 +321,9 @@ namespace HalconWinFormsDemo
             try { modelPath = NewVariationResourceS130(".vam"); coveragePath = NewVariationResourceS130(".reg"); }
             catch (Exception ex) { DockVariationTrainingStatusS130.Text = "无法建立受管模型目录：" + ex.Message; return; }
             int revision = variationRevisionS130;
+            string session = projectSessionIdS104, flow = activeProjectFlowIdS104;
+            Func<bool> currentOwner = () => ReferenceEquals(dockEditingTool, tool) && flowTools.Contains(tool) &&
+                session == projectSessionIdS104 && flow == activeProjectFlowIdS104 && centralModuleConfigurationOpenS77;
             var cancellation = new CancellationTokenSource(); variationTrainingCancellationS130 = cancellation;
             DockVariationTrainingStatusS130.Text = "后台学习中 · 可取消；本次完成后仍须应用";
             RefreshVariationTaskS130();
@@ -315,11 +333,13 @@ namespace HalconWinFormsDemo
                 var report = await Task.Run(() => VmVariationModelS130.Train(draft, modelPath, coveragePath, cancellation.Token,
                     (index, status) => Dispatcher.BeginInvoke(new Action(delegate
                     {
-                        if (dockEditingTool != tool || revision != variationRevisionS130 || cancellation.IsCancellationRequested ||
+                        if (!currentOwner() || revision != variationRevisionS130 || cancellation.IsCancellationRequested ||
                             !ReferenceEquals(variationTrainingCancellationS130, cancellation) || !IsEngineeringEditLeaseCurrentS137(editLeaseS137, false)) return;
                         variationSamplesS130[index].Status = status; DockVariationSampleListS130.Items.Refresh();
                         DockVariationTrainingStatusS130.Text = "学习 " + (index + 1) + "/" + draft.Samples.Count + " · " + status;
                     }))));
+                if (!currentOwner()) return;
+                cancellation.Token.ThrowIfCancellationRequested();
                 if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137))
                 { DockVariationTrainingStatusS130.Text = "工程授权已改变，本次模型未进入草稿；原已应用模型保留"; return; }
                 if (dockEditingTool != tool || !centralModuleConfigurationOpenS77 || revision != variationRevisionS130 || cancellation.IsCancellationRequested ||
@@ -328,12 +348,16 @@ namespace HalconWinFormsDemo
                 { DockVariationTrainingStatusS130.Text = "来源/模块/运行状态已改变，已丢弃本次模型；请重新训练"; return; }
                 if (!IsEngineeringEditLeaseCurrentS137(editLeaseS137)) return;
                 variationDraftS130 = report.Parameters; retained = true;
-                DockVariationTrainingStatusS130.Text = report.Summary;
+                DockVariationTrainingStatusS130.Text = "学习完成 · F5试草稿，确认后应用";
                 DockDraftValue_Changed(sender, e);
                 LogInfo(tool.InstanceName + "：" + report.Summary + "，未改变已应用模型");
             }
-            catch (OperationCanceledException) { if (dockEditingTool == tool && revision == variationRevisionS130) DockVariationTrainingStatusS130.Text = "训练已取消，旧模型保留"; }
-            catch (Exception ex) { if (dockEditingTool == tool && revision == variationRevisionS130) { DockVariationTrainingStatusS130.Text = "训练失败：" + ex.Message; LogInfo(tool.InstanceName + " 良品学习失败：" + ex.Message); } }
+            catch (OperationCanceledException) { if (currentOwner()) DockVariationTrainingStatusS130.Text = "学习已取消 · 原模型保留"; }
+            catch (Exception ex)
+            {
+                if (currentOwner() && cancellation.IsCancellationRequested) DockVariationTrainingStatusS130.Text = "学习已取消 · 原模型保留";
+                else if (currentOwner() && revision == variationRevisionS130) { DockVariationTrainingStatusS130.Text = "训练失败：" + ex.Message; LogInfo(tool.InstanceName + " 良品学习失败：" + ex.Message); }
+            }
             finally
             {
                 if (!retained) { VmVariationModelS130.DeleteCreated(modelPath); VmVariationModelS130.DeleteCreated(coveragePath); }
@@ -344,17 +368,47 @@ namespace HalconWinFormsDemo
 
         private void RefreshVariationTaskS130()
         {
-            if (DockVariationTrainS130 == null) return;
+            if (DockVariationTrainS130 == null || DockVariationClearUI04 == null) return;
             bool busy = variationTrainingCancellationS130 != null;
             bool stopped = IsVariationTaskStoppedS130();
             if (busy && !stopped && !variationTrainingCancellationS130.IsCancellationRequested) CancelVariationTrainingS130();
-            DockVariationTrainS130.IsEnabled = !busy && stopped && variationSamplesS130.Count >= 3;
-            DockVariationCaptureS130.IsEnabled = !busy && stopped && variationSamplesS130.Count < 64;
-            DockVariationAddFilesS130.IsEnabled = !busy && stopped && variationSamplesS130.Count < 64;
+            string reason;
+            bool input = IsVariationInputReadyUI04(out reason);
+            bool ready = !busy && stopped && input;
+            string unavailable = busy ? "正在学习或取消，请等待当前任务结束。" : !stopped ? "请先停止运行，退出历史图片。" : reason;
+            DockVariationTrainS130.IsEnabled = ready && variationSamplesS130.Count >= 3;
+            DockVariationTrainS130.ToolTip = !ready ? unavailable : variationSamplesS130.Count < 3 ? "至少加入3张不同且已对齐的良品。" : "学习独立新版本，只进入草稿；F5可试检测，确认后应用。失败或取消不覆盖正式模型。";
+            DockVariationCaptureS130.IsEnabled = ready && variationSamplesS130.Count < 64;
+            DockVariationCaptureS130.ToolTip = !ready ? unavailable : "加入实际订阅输入与有效域；每次须先明确运行上游，获取不同良品，最多64张。不从全局或历史画面取图。";
+            DockVariationAddFilesS130.IsEnabled = ready && variationSamplesS130.Count < 64 && DockVariationAlignedS130.IsChecked == true;
+            DockVariationAddFilesS130.ToolTip = !ready ? unavailable : "确认外部图片均已对齐且为良品后导入；不自动对齐、转灰度或缩放，最多64张。";
+            DockVariationRemoveUI04.IsEnabled = !busy && stopped && DockVariationSampleListS130.SelectedItem != null;
+            DockVariationClearUI04.IsEnabled = !busy && stopped && variationSamplesS130.Count > 0;
             DockVariationCancelS130.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
             DockVariationSampleCountS130.Text = variationSamplesS130.Count + "/64 张良品";
             bool model = variationDraftS130.HasModelVersion();
-            DockVariationModelStateS130.Text = model ? "模型版本：" + variationDraftS130.Samples.Count + " 张 · " + variationDraftS130.Width + "×" + variationDraftS130.Height + " " + variationDraftS130.ImageType + " · 同一草稿/应用路径" : "模型未训练或样本已变化 · 至少 3 张对齐良品";
+            var applied = dockEditingTool?.Parameters?.VariationInspectionS130;
+            bool sameModel = model && applied != null && applied.HasModelVersion() && applied.ModelSha256 == variationDraftS130.ModelSha256 && applied.ModelDatasetKey == variationDraftS130.ModelDatasetKey;
+            DockVariationModelStateS130.Text = busy ? "正在学习 · 正式模型保留" : model ? (sameModel ? "已应用模型" : "新模型 · 待应用") + " · " + variationDraftS130.Samples.Count + "张" + (sameModel && dockDraftDirty ? " · 参数草稿" : "") : "待学习 · " + variationSamplesS130.Count + "/3张起";
+            DockVariationModelStateS130.ToolTip = (model ? variationDraftS130.Width + "×" + variationDraftS130.Height + " " + variationDraftS130.ImageType + "；模型SHA：" + variationDraftS130.ModelSha256 : "至少3张不同且已对齐的良品。") +
+                "\n这是当前配置版本状态，不是模型文件可用或现场合格证明；运行时核对资源与来源。样本改动只进入草稿，正式版本在明确应用前保留。";
+        }
+
+        private void DockVariationExternalChangedUI04(object sender, RoutedEventArgs e) { RefreshVariationTaskS130(); }
+
+        private bool IsVariationInputReadyUI04(out string reason)
+        {
+            var tool = dockEditingTool;
+            reason = "请先打开当前良品检测模块。";
+            if (tool == null || tool.Kind != VmToolKind.VariationSurfaceInspection || !flowTools.Contains(tool)) return false;
+            reason = "图像来源尚未应用，请先应用输入设置。";
+            if (!VariationInputMatchesDraftS130(tool)) return false;
+            var binding = tool.GetInputBinding("Image");
+            var source = GetInputSourceTool(binding);
+            var snapshot = binding == null ? null : GetImageSnapshot(source, binding.SourcePortName);
+            reason = "请先连接明确Image来源，并运行上游取得当前图像。";
+            if (source == null || source.ResultCode != "OK" || snapshot == null || snapshot.IsDisposed) return false;
+            reason = string.Empty; return true;
         }
 
         private ISet<string> CaptureCurrentVariationDatasetIdsS130()
@@ -428,7 +482,12 @@ namespace HalconWinFormsDemo
                     if (pixelCount <= 0) throw new InvalidOperationException("缺陷检测有效域为空。" );
                     if (VmVariationModelS130.Area(outside) > 0) throw new InvalidOperationException("检测 ROI 包含未被全部良品覆盖的像素，请限制 ROI 或重新采样；不静默缩小检测范围。" );
                     HOperatorSet.ReadVariationModel(p.ModelPath, out model);
-                    HOperatorSet.PrepareVariationModel(model, p.AbsoluteThreshold, p.VariationFactor);
+                    try { HOperatorSet.PrepareVariationModel(model, p.AbsoluteThreshold, p.VariationFactor); }
+                    catch (HOperatorException ex)
+                    {
+                        if (ex.GetErrorCode() != 8545) throw;
+                        throw new InvalidOperationException("此旧良品模型已清除训练统计，无法使用当前检测容差。请在良品样本与学习中重新学习并明确应用；不会自动重训或沿用旧阈值。", ex);
+                    }
                     using (var reduced = image.ReduceDomain(effective)) HOperatorSet.CompareVariationModel(reduced, out compared, model);
                     HOperatorSet.Intersection(compared, effective, out difference);
                     double rawArea = VmVariationModelS130.Area(difference);

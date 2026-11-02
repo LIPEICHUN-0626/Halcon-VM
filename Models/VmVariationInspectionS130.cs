@@ -199,7 +199,9 @@ namespace HalconWinFormsDemo.Models
                 }
                 cancellation.ThrowIfCancellationRequested();
                 HOperatorSet.PrepareVariationModel(model, p.AbsoluteThreshold, p.VariationFactor);
-                HOperatorSet.ClearTrainDataVariationModel(model);
+                // Keep the learned ideal/variation statistics: detection prepares
+                // thresholds from the user's current tolerances after reloading.
+                // ClearTrainData would make that operation fail with HALCON 8545.
                 HOperatorSet.WriteVariationModel(model, modelPath);
                 HOperatorSet.WriteRegion(coverage, coveragePath);
                 cancellation.ThrowIfCancellationRequested();

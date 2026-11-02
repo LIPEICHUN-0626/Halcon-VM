@@ -118,13 +118,15 @@ namespace HalconWinFormsDemo
             acquisitionDiagnosticsS115.TryGetValue(source.ToolId, out diagnostic);
             VmToolParameterData parameters = source.Parameters ?? new VmToolParameterData();
             string status = BuildImageSourceConnectionStatusS114(source, parameters);
-            ImageAcquisitionSummaryS115.Text = diagnostic == null ? status :
+            string detail = diagnostic == null ? status :
                 status + " · " + diagnostic.Outcome + " · " + diagnostic.DurationMs.ToString("0.0", CultureInfo.InvariantCulture) + " ms" +
                 (diagnostic.FrameIndex > 0 ? " · 帧 " + diagnostic.FrameIndex.ToString("0", CultureInfo.InvariantCulture) : string.Empty) +
                 " · " + diagnostic.Timestamp;
             string error = diagnostic == null ? source.ErrorMessage : diagnostic.Error;
+            ImageAcquisitionSummaryS115.Text = diagnostic == null ? status : status + " · " + diagnostic.Outcome +
+                (diagnostic.FrameIndex > 0 ? " · 第 " + diagnostic.FrameIndex.ToString("0", CultureInfo.InvariantCulture) + " 帧" : string.Empty);
             ImageAcquisitionSummaryS115.Foreground = string.IsNullOrWhiteSpace(error) ? Brushes.LightSlateGray : Brushes.LightCoral;
-            ImageAcquisitionSummaryS115.ToolTip = string.IsNullOrWhiteSpace(error) ? ImageAcquisitionSummaryS115.Text : error;
+            ImageAcquisitionSummaryS115.ToolTip = string.IsNullOrWhiteSpace(error) ? detail : detail + Environment.NewLine + error;
             bool needsRepair = !string.IsNullOrWhiteSpace(error) ||
                 !string.IsNullOrWhiteSpace(parameters.Validate(VmToolKind.ImageSource)) ||
                 VmImageSourceModeS114.Normalize(parameters.ImageSourceModeS114) == VmImageSourceModeS114.Camera &&

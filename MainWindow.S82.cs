@@ -24,6 +24,8 @@ namespace HalconWinFormsDemo
         {
             if (DockIdentityHeaderRowS82 == null || DockTaskHeaderBorder == null) return;
             DockIdentityHeaderRowS82.Height = central ? new GridLength(0) : GridLength.Auto;
+            System.Windows.Controls.Grid.SetRow(DockTaskHeaderBorder, central ? 2 : 0);
+            SetDockDraftUiState(DockDraftStateText.Text, dockDraftDirty);
             DockTaskHeaderBorder.Background = central
                 ? CentralConfigurationActionBackgroundS82
                 : DockConfigurationHeaderBackgroundS82;

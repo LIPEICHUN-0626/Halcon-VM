@@ -14,6 +14,26 @@ namespace HalconWinFormsDemo
 {
     public partial class MainWindow
     {
+        private bool CloseImageDisplayUI05()
+        {
+            if (ImageTaskToggleButton == null || ImageTaskToggleButton.IsChecked != true) return false;
+            ImageTaskToggleButton.IsChecked = false;
+            return true;
+        }
+
+        private void CloseImageDisplay_ClickUI05(object sender, RoutedEventArgs e) { CloseImageDisplayUI05(); }
+
+        private void ImageDisplayCommand_ClickUI05(object sender, RoutedEventArgs e)
+        {
+            // Original action handlers run first. Display checkboxes/toggles remain available.
+            if (e.OriginalSource is Button || ReferenceEquals(e.OriginalSource, XldContourSelectionToggleButton)) CloseImageDisplayUI05();
+        }
+
+        private void ImageDisplayPanel_PreviewKeyDownUI05(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape && CloseImageDisplayUI05()) e.Handled = true;
+        }
+
         private bool CloseFlowMoreUI10()
         {
             if (FlowMoreToggleButton == null || FlowMoreToggleButton.IsChecked != true) return false;

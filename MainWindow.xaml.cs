@@ -803,7 +803,7 @@ namespace HalconWinFormsDemo
                 RightLayerTaskHost.Children.Add(RoiLayerPanel);
             }
             if (RoiLayerPanelColumn != null) RoiLayerPanelColumn.Width = new GridLength(0);
-            if (ToggleRoiLayerPanelButton != null) ToggleRoiLayerPanelButton.Content = "图层任务";
+            if (ToggleRoiLayerPanelButton != null) ToggleRoiLayerPanelButton.Content = "图层管理";
         }
 
         private void InitializeVmWorkspace()
@@ -3009,7 +3009,9 @@ namespace HalconWinFormsDemo
                 bool hasSelection = selected != null;
                 RightParametersTaskButton.IsEnabled = hasSelection && SupportsDockConfiguration(selected.Kind);
                 RightIoTaskButton.IsEnabled = hasSelection && SupportsDockConfiguration(selected.Kind);
-                SelectedResultErrorLabel.Visibility = SelectedResultErrorText.Visibility = hasSelection && !string.IsNullOrWhiteSpace(selected.ErrorMessage)
+                SelectedResultDetailsUI04.IsEnabled = hasSelection && SupportsDockConfiguration(selected.Kind);
+                SelectedResultErrorLabel.Visibility = Visibility.Collapsed;
+                SelectedResultErrorText.Visibility = hasSelection && !string.IsNullOrWhiteSpace(selected.ErrorMessage)
                     ? Visibility.Visible : Visibility.Collapsed;
                 InspectorEmptyText.Visibility = hasSelection ? Visibility.Collapsed : Visibility.Visible;
                 ToolInstanceNameTextBox.IsEnabled = hasSelection;
@@ -3026,9 +3028,12 @@ namespace HalconWinFormsDemo
                     InspectorOutputSummaryText.Text = "--";
                     InspectorErrorText.Text = "--";
                     SelectedResultToolText.Text = "请选择流程模块；双击配置";
+                    SelectedResultToolText.ToolTip = "单击选择模块；双击打开参数小窗。";
                     SelectedResultStatusText.Text = "--";
+                    SelectedResultStatusText.ToolTip = "尚未运行";
                     SelectedResultOutputText.Text = "--";
                     SelectedResultOriginTextS88.Text = "尚无执行结果";
+                    SelectedResultOriginTextS88.ToolTip = SelectedResultOriginTextS88.Text;
                     SelectedResultErrorText.Text = "--";
                     SelectedRoiResultsDataGrid.ItemsSource = null;
                     RefreshRoiLayerContextResults(null);
@@ -3049,10 +3054,19 @@ namespace HalconWinFormsDemo
                 InspectorInputSummaryText.Text = selected.InputSummary;
                 InspectorOutputSummaryText.Text = selected.OutputSummary;
                 InspectorErrorText.Text = string.IsNullOrWhiteSpace(selected.ErrorMessage) ? "--" : selected.ErrorMessage;
-                SelectedResultToolText.Text = selected.InstanceName + " · " + selected.DisplayType;
-                SelectedResultStatusText.Text = selected.ResultCode + " · " + selected.RunStatus + " · " + selected.ElapsedText;
+                SelectedResultToolText.Text = "所选：" + selected.InstanceName;
+                SelectedResultToolText.ToolTip = selected.InstanceName + " · " + selected.DisplayType;
+                SelectedResultStatusText.ToolTip = selected.ResultCode + " · " + selected.RunStatus + " · " + selected.ElapsedText;
+                SelectedResultStatusText.Text = !string.IsNullOrWhiteSpace(selected.ErrorMessage) ? "异常"
+                    : selected.ResultCode == "--" || string.IsNullOrWhiteSpace(selected.ResultCode) ? selected.RunStatus
+                    : selected.ResultCode + " · " + selected.ElapsedText;
                 SelectedResultOutputText.Text = BuildBriefTaskValuesS88(selected);
-                SelectedResultOriginTextS88.Text = BuildResultOriginTextS88(selected);
+                SelectedResultOriginTextS88.ToolTip = BuildResultOriginTextS88(selected);
+                SelectedResultOriginTextS88.Text = selected.ResultCode == "--" || string.IsNullOrWhiteSpace(selected.ResultCode)
+                    ? "尚未运行"
+                    : selected.RuntimeResultOrigin == VmRuntimeResultOrigin.DraftTrial ? "草稿试运行 · 未应用"
+                    : selected.RuntimeResultOrigin == VmRuntimeResultOrigin.ModuleExecution ? "模块执行 · 非流程判定"
+                    : "来源未知 · 请重新运行";
                 SelectedResultErrorText.Text = string.IsNullOrWhiteSpace(selected.ErrorMessage) ? "--" : selected.ErrorMessage;
                 SelectedRoiResultsDataGrid.ItemsSource = selected.RoiResults;
                 VmToolParameterData selectedParameters = selected.Parameters ?? new VmToolParameterData();
@@ -4185,6 +4199,7 @@ namespace HalconWinFormsDemo
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            CloseImageDisplayUI05();
             if (engineeringPackageBusyS139)
             {
                 engineeringPackageCancellationS139?.Cancel(); e.Cancel = true;
@@ -4965,6 +4980,7 @@ namespace HalconWinFormsDemo
             RightTabs.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
             ProductionRunPanel.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
             ImageWorkspaceToolbarPanel.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
+            if (enabled) CloseImageDisplayUI05();
             ProductionImageTitleText.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
             RoiLayerPanel.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
             RoiLayerPanelColumn.Width = new GridLength(0);
@@ -4991,6 +5007,7 @@ namespace HalconWinFormsDemo
             HeaderStatusText.Text = enabled
                 ? "运行界面 · 当前流程：" + GetProjectFlowNameS104() + "；仅切换页面，未启动检测。"
                 : "工程编辑 · 当前流程：" + GetProjectFlowNameS104() + "；原执行状态保留。";
+            if (!enabled) ClampRightPanelWidthUI04();
             ScheduleRefreshDisplay();
         }
 
@@ -5029,6 +5046,9 @@ namespace HalconWinFormsDemo
             if (ProductionRunPanel == null) return;
 
             string flowName = GetProjectFlowNameS104();
+            ProductionFlowContextUI08.Text = "当前流程：" + flowName;
+            StyleCentralConfigurationTaskButtonS77(ReturnDeveloperModeButtonS137, !productionRunMode);
+            StyleCentralConfigurationTaskButtonS77(EnterProductionModeButton, productionRunMode);
             ProductionSchemeText.Text = RecipeNameText == null ? "方案：未加载" : RecipeNameText.Text;
             ProductionSchemeText.ToolTip = ProductionSchemeText.Text;
             ProductionModeStateText.Text = "当前流程：" + flowName;
@@ -7198,7 +7218,7 @@ namespace HalconWinFormsDemo
             ScheduleRefreshDisplay();
             if (OverlayStatusText != null)
             {
-                OverlayStatusText.Text = BuildResultOverlayLegendText();
+                RefreshResultOverlayLegendUI05();
             }
             VmResultOverlayLayer changedLayer = (sender as FrameworkElement) == null ? null : (sender as FrameworkElement).DataContext as VmResultOverlayLayer;
             if (changedLayer != null) StoreResultLayerStyle(changedLayer);
@@ -7565,7 +7585,7 @@ namespace HalconWinFormsDemo
 
             EnsureGlobalResultOverlayVisible();
             RefreshResultLayerCount();
-            OverlayStatusText.Text = BuildResultOverlayLegendText();
+            RefreshResultOverlayLegendUI05();
             HeaderStatusText.Text = "已独显 " + selected.SourceText + "；其他输出仍保留。";
             ScheduleRefreshDisplay();
         }
@@ -8041,7 +8061,7 @@ namespace HalconWinFormsDemo
             RefreshResultLayerCount();
             if (OverlayStatusText != null)
             {
-                OverlayStatusText.Text = BuildResultOverlayLegendText();
+                RefreshResultOverlayLegendUI05();
             }
             foreach (VmResultOverlayLayer layer in resultOverlayLayers) StoreResultLayerStyle(layer);
             RefreshUnifiedLayers();
@@ -8122,6 +8142,12 @@ namespace HalconWinFormsDemo
                 return;
             }
             RefreshToolCatalogView();
+        }
+
+        private void ClearToolSearchUI07_Click(object sender, RoutedEventArgs e)
+        {
+            ToolSearchTextBox.Clear();
+            if (ShowActivated) ToolSearchTextBox.Focus();
         }
 
         private void ToolSearchTextBox_PreviewKeyDownS94(object sender, KeyEventArgs e)
@@ -8275,7 +8301,9 @@ namespace HalconWinFormsDemo
                 ? modeText + " · " + visibleCount.ToString(CultureInfo.InvariantCulture) + " 个兼容工具 · 双击或 Enter 插入并连接"
                 : modeText + " · " + visibleCount.ToString(CultureInfo.InvariantCulture) + " 个工具 / " +
                   visibleCategoryCount.ToString(CultureInfo.InvariantCulture) + " 类 · Enter 追加，Ctrl+Enter / Ctrl+Shift+Enter 按锚点插入";
-            ToolCatalogStatusText.ToolTip = null;
+            ToolCatalogStatusText.ToolTip = ToolCatalogStatusText.Text + "\n双击、Enter或拖入流程；Ctrl+Enter / Ctrl+Shift+Enter 按锚点插入。";
+            if (!IsInputSourceContextActiveS68 && !IsToolRecommendationContextActiveS67)
+                ToolCatalogStatusText.Text = modeText + " · " + visibleCount.ToString(CultureInfo.InvariantCulture) + " 项";
             UpdateToolCatalogModeButtons();
             RefreshToolRecommendationBannerS67();
             RefreshInputSourceContextBannerS68();
@@ -8396,7 +8424,7 @@ namespace HalconWinFormsDemo
             if (item == null) return;
             RefreshToolCapabilityPreviewS65(item);
             ToolCapabilityExpander.IsExpanded = true;
-            ToolCatalogStatusText.Text = item.Name + " · 已显示真实能力与端口契约";
+            ToolCatalogStatusText.Text = "选中：" + item.Name;
             ToolCatalogStatusText.ToolTip = item.Description;
         }
 
@@ -9210,6 +9238,7 @@ namespace HalconWinFormsDemo
 
         private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            if (e.Key == Key.Escape && CloseImageDisplayUI05()) { e.Handled = true; return; }
             if (e.Key == Key.Escape && CloseFlowMoreUI10()) { e.Handled = true; return; }
             if (e.Key == Key.Escape && colorPickingToolS129 != null)
             { DockColorCancelPickS129_Click(sender, e); e.Handled = true; return; }
@@ -11734,6 +11763,8 @@ namespace HalconWinFormsDemo
             // parameter loaders. Refresh prerequisites only once they agree.
             if (tool != null && tool.Kind == VmToolKind.PoseImageAlignment) RefreshAlignmentTaskS132();
             if (tool != null && tool.Kind == VmToolKind.ColorInspectionHsv) RefreshColorPickStateS129();
+            if (tool != null && tool.Kind == VmToolKind.VariationSurfaceInspection) RefreshVariationTaskS130();
+            if (tool != null && tool.Kind == VmToolKind.OcrRecognition) RefreshOcrSourceTaskUI04();
             RefreshCurrentToolTrialUiS87();
             if (tool != null && SupportsInteractiveMeasurementDomain(tool.Kind) &&
                 FlowToolList != null && ReferenceEquals(FlowToolList.SelectedItem, tool))
@@ -12170,6 +12201,8 @@ namespace HalconWinFormsDemo
             }
             if (dockEditingTool.Kind == VmToolKind.PlanarCalibration2D) RefreshPlanarCalibrationPreviewS124();
             if (dockEditingTool.Kind == VmToolKind.PoseImageAlignment) RefreshAlignmentTaskS132();
+            if (dockEditingTool.Kind == VmToolKind.VariationSurfaceInspection) RefreshVariationTaskS130();
+            if (dockEditingTool.Kind == VmToolKind.OcrRecognition) RefreshOcrSourceTaskUI04();
             if (dockEditingTool.Kind == VmToolKind.ColorInspectionHsv)
             {
                 if (ReferenceEquals(sender, DockColorHueS129) || !ColorInputDraftMatchesS129(dockEditingTool)) ClearColorSampleUI03();
@@ -13607,8 +13640,10 @@ namespace HalconWinFormsDemo
             if (DockDraftStateText == null) return;
             DockDraftStateText.Text = text;
             DockDraftStateBorder.Visibility = showActions ? Visibility.Visible : Visibility.Collapsed;
-            DockRevertButton.Visibility = showActions ? Visibility.Visible : Visibility.Collapsed;
-            DockApplyButton.Visibility = showActions ? Visibility.Visible : Visibility.Collapsed;
+            bool fixedActionsUI06 = centralModuleConfigurationOpenS77 && dockEditingTool != null && SupportsDockConfiguration(dockEditingTool.Kind);
+            DockRevertButton.Visibility = showActions || fixedActionsUI06 ? Visibility.Visible : Visibility.Collapsed;
+            DockApplyButton.Visibility = showActions || fixedActionsUI06 ? Visibility.Visible : Visibility.Collapsed;
+            DockRevertButton.IsEnabled = DockApplyButton.IsEnabled = showActions;
         }
 
         private bool ApplyDockConfigurationDraft(bool refreshUi)
@@ -13824,6 +13859,7 @@ namespace HalconWinFormsDemo
                 RefreshDockConfigurationRuntime(tool);
                 RefreshInspector();
                 if (tool.Kind == VmToolKind.PoseImageAlignment && ReferenceEquals(dockEditingTool, tool)) RefreshAlignmentTaskS132();
+                if (tool.Kind == VmToolKind.VariationSurfaceInspection && ReferenceEquals(dockEditingTool, tool)) RefreshVariationTaskS130();
             }
         }
 
@@ -15952,6 +15988,11 @@ namespace HalconWinFormsDemo
             UpdateRightTaskNavigationState("Result");
         }
 
+        private void SelectedResultDetailsUI04_Click(object sender, RoutedEventArgs e)
+        {
+            ShowRightModuleTask(DockResultTaskTab, "已打开所选模块结果详情；不会运行或应用参数。", "Result");
+        }
+
         private void RightMoreTaskButton_Click(object sender, RoutedEventArgs e)
         {
             if (RightMoreTaskButton.ContextMenu == null) return;
@@ -16054,10 +16095,16 @@ namespace HalconWinFormsDemo
                 else activeTask = "More";
             }
 
-            StyleRightTaskButton(RightParametersTaskButton, activeTask == "Parameters");
-            StyleRightTaskButton(RightIoTaskButton, activeTask == "Io");
-            StyleRightTaskButton(RightResultTaskButton, activeTask == "Result");
-            StyleRightTaskButton(RightMoreTaskButton, activeTask == "More");
+            // These are actions, not tabs for the floating parameter editor.
+            // Always identify the actual right-hand workspace, even while an editor is open.
+            TabItem workspace = RightTabs.SelectedItem as TabItem;
+            if (RightWorkspaceTitleUI10 != null)
+                RightWorkspaceTitleUI10.Text = ReferenceEquals(workspace, ModuleResultTab) ? "结果"
+                    : workspace == null ? "工作区" : Convert.ToString(workspace.Header);
+            RightResultTaskButton.Visibility = ReferenceEquals(workspace, ModuleResultTab) ? Visibility.Collapsed : Visibility.Visible;
+            StyleRightTaskButton(RightParametersTaskButton, false);
+            StyleRightTaskButton(RightResultTaskButton, false);
+            StyleRightTaskButton(RightMoreTaskButton, false);
             ApplyRightWorkspaceTaskLayout(activeTask);
         }
 
@@ -16070,8 +16117,8 @@ namespace HalconWinFormsDemo
             rightWorkspaceLayoutTask = layoutTask;
 
             ImageWorkspaceRow.MinHeight = 280;
-            RightConfigurationRow.MinHeight = 210;
-            ImageWorkspaceRow.Height = new GridLength(4, GridUnitType.Star);
+            RightConfigurationRow.MinHeight = 180;
+            ImageWorkspaceRow.Height = new GridLength(5, GridUnitType.Star);
             RightConfigurationRow.Height = new GridLength(2, GridUnitType.Star);
         }
 
@@ -29391,11 +29438,24 @@ namespace HalconWinFormsDemo
 
             ImageIndexText.Text = imageFiles.Count == 0 ? "队列：0/0" : string.Format("队列：{0}/{1}", imageIndex + 1, imageFiles.Count);
             CurrentFileText.Text = "当前文件：" + (string.IsNullOrWhiteSpace(currentImagePath) ? "--" : currentImagePath);
-            ImageContextSourceText.Text = historyReadOnly ? "来源：批次历史只读快照" : "来源：" + imageContext.SourceText;
+            ImageContextSourceText.Text = historyReadOnly ? "历史只读快照" : imageContext.SourceText;
             RefreshImageAcquisitionBarS115(historyReadOnly);
             ImageContextDetailText.Text = historyReadOnly && historicalBatchItem != null
                 ? historicalBatchItem.FileName + " · " + historicalBatchItem.ResultCode
-                : imageContext.DetailText;
+                : imageContext.SourceText + "\n" + imageContext.DetailText + "\n" + imageContext.StateText;
+            VmToolInstance imageOwnerUI04 = GetImageTaskToolS89();
+            bool imageFallbackUI04 = !historyReadOnly && (imageContext.StateText ?? string.Empty).IndexOf("回退", StringComparison.Ordinal) >= 0;
+            bool imageNoticeUI04 = imageFallbackUI04 || !historyReadOnly &&
+                ((imageContext.StateText ?? string.Empty).Contains("不代表") || (imageContext.StateText ?? string.Empty).Contains("当前显示") ||
+                 (imageContext.StateText ?? string.Empty).Contains("草稿"));
+            bool moduleImageRequestUI04 = imageContext.RequestedKey == VmImageContextOption.ModuleInput ||
+                imageContext.RequestedKey == VmImageContextOption.ModuleOutput ||
+                (imageContext.RequestedKey ?? string.Empty).StartsWith(VmImageContextOption.InputPortPrefix, StringComparison.Ordinal);
+            string imageOwnerNoticeUI04 = !historyReadOnly && moduleImageRequestUI04 && centralModuleConfigurationOpenS77 && imageOwnerUI04 != null
+                ? "参数窗画面：" + imageOwnerUI04.InstanceName : string.Empty;
+            ImageContextNoticeUI04.Text = imageOwnerNoticeUI04 +
+                (imageNoticeUI04 ? (imageOwnerNoticeUI04.Length > 0 ? " · " : string.Empty) + imageContext.StateText : string.Empty);
+            ImageContextNoticeUI04.Visibility = ImageContextNoticeUI04.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
             DualRightSourceText.Text = historyReadOnly
                 ? "来源：" + (historicalToolComparisonMode ? "基准历史快照" : "批次历史只读快照")
                 : "来源：" + imageContext.SourceText + " · " + imageContext.DetailText;
@@ -29403,9 +29463,8 @@ namespace HalconWinFormsDemo
             ImageEmptyStateBorder.Visibility = hasImage ? Visibility.Collapsed : Visibility.Visible;
             ImageEmptyStateText.Text = historyReadOnly
                 ? "历史图像快照不可用，请返回实时图像或选择其他逐图记录。"
-                : imageContext.StateText + (imageContext.RequestedKey != null && imageContext.RequestedKey.StartsWith(VmImageContextOption.SourcePrefix, StringComparison.Ordinal)
-                    ? "\n请双击该图像源配置本地图片并运行；不会自动改看其他来源。"
-                    : "\n请选择全局输入，或先运行并选择具有 Image 输出/关联图像的模块。");
+                : imageContext.StateText + (imageContext.RequestedKey == VmImageContextOption.GlobalInput
+                    ? "\n点击顶部“打开图像”，或配置并运行图像源模块。" : string.Empty);
             ResolvedImageContext dualInputContext = ResolveDualInputImageContext();
             bool hasDualInputImage = dualImageMode && (historicalToolComparisonMode ? historicalComparisonImage != null : dualInputContext.HasImage);
             ImageSelectButton.IsEnabled = hasImage;
@@ -29424,15 +29483,18 @@ namespace HalconWinFormsDemo
                 : dualInputContext.DetailText + " · " + dualInputContext.StateText;
             DualInputPortComboBox.IsEnabled = !historyReadOnly && dualImageMode && dualImageInputOptions.Count > 0;
             RefreshResultOverlayLayers();
-            OverlayStatusText.Text = BuildResultOverlayLegendText();
+            RefreshResultOverlayLegendUI05();
             int visibleRoiCount = roiLayers.Count(item => item.IsVisible && item.Geometry != null && LayerMatchesImageS112(item, imageContext));
             int leftVisibleRoiCount = roiLayers.Count(item => item.IsVisible && item.Geometry != null && LayerMatchesImageS112(item, dualInputContext));
             int rightCrosshairCount = CountEnabledCrosshairs(rightImageCrosshairs);
             int leftCrosshairCount = CountEnabledCrosshairs(leftImageCrosshairs);
             int visibleMaskCount = roiLayers.Count(item => item.IsVisible && item.IsMask && item.Geometry != null && LayerMatchesImageS112(item, imageContext));
-            RoiOverlayLegendText.Text = showRoiOverlay
+            RoiOverlayLegendText.ToolTip = showRoiOverlay
                 ? "ROI：" + visibleRoiCount.ToString(CultureInfo.InvariantCulture) + " 个 · 检测区青/绿 · 屏蔽区红纹 " + visibleMaskCount.ToString(CultureInfo.InvariantCulture)
                 : "ROI：已隐藏 · 图层/绑定保留";
+            RoiOverlayLegendText.Text = showRoiOverlay
+                ? "ROI：" + visibleRoiCount.ToString(CultureInfo.InvariantCulture) + (visibleMaskCount > 0 ? " · 屏蔽 " + visibleMaskCount.ToString(CultureInfo.InvariantCulture) : string.Empty)
+                : "ROI：隐藏";
             DualLeftOverlayText.Text = showRoiOverlay
                 ? "叠加：左画面 ROI " + leftVisibleRoiCount.ToString(CultureInfo.InvariantCulture) + " · 十字线 " + leftCrosshairCount.ToString(CultureInfo.InvariantCulture) + " · 结果按来源"
                 : "叠加：ROI 隐藏 · 十字线 " + leftCrosshairCount.ToString(CultureInfo.InvariantCulture) + " · 结果关闭";
@@ -29487,6 +29549,8 @@ namespace HalconWinFormsDemo
             RefreshInspector();
             RefreshProductionRunView();
             RefreshCurrentToolTrialUiS87();
+            ProductionRunOnceButtonUI08.IsEnabled = RunOnceButton.IsEnabled;
+            ProductionStopButtonUI08.IsEnabled = StopRunButton.IsEnabled;
             RefreshStationProtectionUiS137();
             ScheduleRecipeStateCheck();
         }
@@ -29645,6 +29709,21 @@ namespace HalconWinFormsDemo
             toolOverlayObjectCount = 0;
             toolOverlayArea = 0;
             RefreshResultOverlayLayers();
+        }
+
+        private void RefreshResultOverlayLegendUI05()
+        {
+            if (OverlayStatusText == null) return;
+            OverlayStatusText.ToolTip = BuildResultOverlayLegendText();
+            ResolvedImageContext image = ResolveImageContext();
+            var matching = resultOverlayLayers.Where(item => LayerMatchesImageS112(item, image)).ToList();
+            int visible = matching.Count(item => item.IsVisible);
+            int invalid = matching.Count(item => item.StateKey == "Invalid");
+            OverlayStatusText.Text = !showResultOverlay ? "结果：已隐藏"
+                : matching.Count == 0 ? "结果：无图层"
+                : visible == 0 ? "结果：全部隐藏"
+                : "结果：" + visible.ToString(CultureInfo.InvariantCulture) + "/" + matching.Count.ToString(CultureInfo.InvariantCulture) +
+                    (invalid > 0 ? " · 失效 " + invalid.ToString(CultureInfo.InvariantCulture) : string.Empty);
         }
 
         private string BuildResultOverlayLegendText()
@@ -31140,6 +31219,7 @@ namespace HalconWinFormsDemo
                     ? Math.Min(680, Math.Max(390, RootGrid.ActualWidth * 0.42))
                     : 520;
                 RightPanelColumn.Width = new GridLength(Math.Min(state.RightPanelWidth, maximumWidth));
+                ClampRightPanelWidthUI04();
             }
 
             if (!string.IsNullOrWhiteSpace(state.LastRecipePath) && File.Exists(state.LastRecipePath))

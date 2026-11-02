@@ -27,7 +27,11 @@ namespace HalconWinFormsDemo
             "DockSubpixelEdgeAlphaTextBox", "DockSubpixelEdgeLowTextBox", "DockSubpixelEdgeHighTextBox",
             "DockPolarCenterRowTextBox", "DockPolarCenterColumnTextBox", "DockPolarInnerRadiusTextBox", "DockPolarOuterRadiusTextBox",
             "DockColorHueS129", "DockColorToleranceS129", "DockColorSatMinS129", "DockColorValueMinS129",
-            "DockVariationAbsoluteS130", "DockVariationFactorS130", "DockVariationMinAreaS130");
+            "DockVariationAbsoluteS130", "DockVariationFactorS130", "DockVariationMinAreaS130",
+            "DockOcrMinimumCharactersTextBox", "DockOcrConfidenceTextBox", "DockOcrThresholdTextBox",
+            "DockOcrMinimumAreaTextBox", "DockOcrMaximumAreaTextBox",
+            "DockDataCodeMaxResultsTextBox", "DockDataCodeTimeoutTextBox", "DockBarCodeMaxResultsTextBox",
+            "DockBarCodeNumScanlinesTextBox", "DockBarCodeMinIdenticalTextBox", "DockBarCodeOrientationTextBox", "DockBarCodeOrientationToleranceTextBox");
 
         private void CompactTaskParameterFieldsS83(FrameworkElement panel, HashSet<string> preferred)
         {

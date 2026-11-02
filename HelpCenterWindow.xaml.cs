@@ -17,24 +17,30 @@ namespace HalconWinFormsDemo
         private bool filteringTopicsUI10;
         private readonly ObservableCollection<HelpSectionUI10> helpSectionsUI10 = new ObservableCollection<HelpSectionUI10>();
         private bool renderingTopicUI10;
+        private HelpTopic preferredTopicUI09;
+        private HelpTopic currentTopicUI09;
+        private readonly List<HelpTopic> topicHistoryUI09 = new List<HelpTopic>();
+        private bool navigatingTopicUI09;
+        private bool restoringHistoryUI09;
         public HelpCenterWindow(VmToolKind? selectedTool)
         {
             InitializeComponent();
             HelpSectionPickerUI10.ItemsSource = helpSectionsUI10;
             HelpTopicList.ItemsSource = visibleTopics;
             BuildTopics();
-            ApplyFilter(string.Empty);
             HelpTopic selected = selectedTool.HasValue
                 ? allTopics.FirstOrDefault(item => item.ToolKind.HasValue && item.ToolKind.Value == selectedTool.Value)
                 : allTopics.FirstOrDefault();
-            HelpTopicList.SelectedItem = selected ?? allTopics.FirstOrDefault();
+            preferredTopicUI09 = selected ?? allTopics.FirstOrDefault();
+            ApplyFilter(string.Empty);
+            Loaded += delegate { ScrollToSelectedTopicUI09(); };
         }
 
         private void BuildTopics()
         {
             allTopics.Add(new HelpTopic("快速开始", "从打开图像到运行结果", "QuickStart"));
             allTopics.Add(new HelpTopic("学习示例与完整项目", "原示例分类、当前一步与多流程学习", "LearningProjects"));
-            allTopics.Add(new HelpTopic("界面与操作习惯", "开发界面、运行界面和参数小窗", "Workspace"));
+            allTopics.Add(new HelpTopic("界面与操作习惯", "工程编辑、运行页面和参数小窗", "Workspace"));
             allTopics.Add(new HelpTopic("标准建项流程", "模块、连接、参数、ROI、验证与保存", "Workflow"));
             allTopics.Add(new HelpTopic("调试与结果", "单步、断点、图层、日志和异常定位", "Debug"));
             allTopics.Add(new HelpTopic("方案换型与运行准备", "当前准备、目标方案预览和显式换型", "RecipeChangeover"));
@@ -62,10 +68,10 @@ namespace HalconWinFormsDemo
 
         private void ApplyFilter(string search)
         {
-            if (HelpTopicList == null || HelpStatusText == null || HelpDocument == null) return;
+            if (navigatingTopicUI09 || HelpTopicList == null || HelpStatusText == null || HelpDocument == null) return;
             string query = (search ?? string.Empty).Trim();
             string[] words = query.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-            var selected = HelpTopicList.SelectedItem as HelpTopic;
+            var selected = HelpTopicList.SelectedItem as HelpTopic ?? preferredTopicUI09;
             int scope = HelpScopeUI10 == null ? 0 : HelpScopeUI10.SelectedIndex;
             filteringTopicsUI10 = true;
             try
@@ -80,9 +86,17 @@ namespace HalconWinFormsDemo
                 HelpTopicList.SelectedItem = selected != null && visibleTopics.Contains(selected) ? selected : visibleTopics.FirstOrDefault();
             }
             finally { filteringTopicsUI10 = false; }
-            HelpStatusText.Text = "当前目录 " + visibleTopics.Count + " 项 · 帮助只读，不运行或修改方案";
+            HelpStatusText.Text = visibleTopics.Count == 0 ? "没有匹配项 · 可清空搜索或切换目录范围" : "目录 " + visibleTopics.Count + " 项 · 只读帮助";
+            HelpStatusText.ToolTip = "帮助来自当前模块元数据。查找、返回、章节定位均不加载示例、不运行或修改方案。";
             if (HelpClearSearchUI10 != null) HelpClearSearchUI10.Visibility = query.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
             RenderTopic(HelpTopicList.SelectedItem as HelpTopic);
+            ScrollToSelectedTopicUI09();
+        }
+
+        private void ScrollToSelectedTopicUI09()
+        {
+            if (IsLoaded && HelpTopicList.SelectedItem != null)
+                HelpTopicList.ScrollIntoView(HelpTopicList.SelectedItem);
         }
 
         private void HelpScopeUI10_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -93,9 +107,36 @@ namespace HalconWinFormsDemo
 
         public void SelectToolTopicUI10(VmToolKind? kind)
         {
-            HelpScopeUI10.SelectedIndex = 0; HelpSearchTextBox.Clear(); ApplyFilter(string.Empty);
-            HelpTopicList.SelectedItem = kind.HasValue ? allTopics.FirstOrDefault(topic => topic.ToolKind == kind) : allTopics.FirstOrDefault();
-            HelpTopicList.ScrollIntoView(HelpTopicList.SelectedItem);
+            NavigateTopicUI09(kind.HasValue ? allTopics.FirstOrDefault(topic => topic.ToolKind == kind) : allTopics.FirstOrDefault());
+        }
+
+        private void NavigateTopicUI09(HelpTopic topic)
+        {
+            if (topic == null || !allTopics.Contains(topic)) return;
+            navigatingTopicUI09 = true;
+            filteringTopicsUI10 = true;
+            try
+            {
+                HelpScopeUI10.SelectedIndex = 0;
+                HelpSearchTextBox.Clear();
+                HelpTopicList.SelectedItem = null;
+                preferredTopicUI09 = topic;
+            }
+            finally { navigatingTopicUI09 = false; filteringTopicsUI10 = false; }
+            ApplyFilter(string.Empty);
+        }
+
+        private void HelpHomeUI09_Click(object sender, RoutedEventArgs e)
+        { NavigateTopicUI09(allTopics.FirstOrDefault()); }
+
+        private void HelpBackUI09_Click(object sender, RoutedEventArgs e)
+        {
+            if (topicHistoryUI09.Count == 0) return;
+            HelpTopic topic = topicHistoryUI09[topicHistoryUI09.Count - 1];
+            topicHistoryUI09.RemoveAt(topicHistoryUI09.Count - 1);
+            restoringHistoryUI09 = true;
+            try { NavigateTopicUI09(topic); }
+            finally { restoringHistoryUI09 = false; }
         }
 
         private void AddTopicLinkUI10(string text, string key)
@@ -103,9 +144,7 @@ namespace HalconWinFormsDemo
             var link = new Hyperlink(new Run(text)) { ToolTip = "只打开对应帮助章节，不运行或改变方案。" };
             link.Click += delegate
             {
-                HelpScopeUI10.SelectedIndex = 0; HelpSearchTextBox.Clear(); ApplyFilter(string.Empty);
-                HelpTopicList.SelectedItem = allTopics.FirstOrDefault(topic => topic.Key == key);
-                HelpTopicList.ScrollIntoView(HelpTopicList.SelectedItem);
+                NavigateTopicUI09(allTopics.FirstOrDefault(topic => topic.Key == key));
             };
             HelpDocument.Blocks.Add(new Paragraph(link) { Margin = new Thickness(0, 3, 0, 3) });
         }
@@ -123,6 +162,18 @@ namespace HalconWinFormsDemo
 
         private void RenderTopic(HelpTopic topic)
         {
+            if (topic != null)
+            {
+                if (!restoringHistoryUI09 && currentTopicUI09 != null && currentTopicUI09 != topic)
+                {
+                    topicHistoryUI09.Add(currentTopicUI09);
+                    if (topicHistoryUI09.Count > 32) topicHistoryUI09.RemoveAt(0);
+                }
+                currentTopicUI09 = preferredTopicUI09 = topic;
+            }
+            HelpBackUI09.IsEnabled = topicHistoryUI09.Count > 0;
+            HelpLocationUI09.Text = topic == null ? "无匹配主题" : topic.ToolKind.HasValue ? ToolMetadata.GetCategory(topic.ToolKind.Value) + " · 模块参考" : "操作入门";
+            HelpLocationUI09.ToolTip = topic == null ? "清空搜索或切换范围后继续查阅。" : topic.Title;
             renderingTopicUI10 = true;
             try
             {
@@ -137,7 +188,7 @@ namespace HalconWinFormsDemo
                 }
                 else
                 {
-                    AddHeading(topic.Title, 25, Colors.White, Color.FromRgb(38, 52, 73));
+                    AddHeading(topic.Title, 22, Color.FromRgb(15, 23, 42), Colors.Transparent);
                     helpSectionsUI10.Add(new HelpSectionUI10 { Title = "概览", Target = HelpDocument.Blocks.FirstBlock });
                     if (topic.ToolKind.HasValue) RenderToolTopic(topic.ToolKind.Value);
                     else RenderGuideTopic(topic.Key);
@@ -380,8 +431,9 @@ namespace HalconWinFormsDemo
                 AddNumberedSteps(new[]
                 {
                     "从检测/分割分类添加良品变化缺陷检测，连接已对齐的单通道 Image。先运行上游，再双击模块；常用只设置最小灰差、波动倍数和最小缺陷面积。",
-                    "展开良品样本与训练。每次取得不同良品后点击加入当前输入良品；实际订阅图像及有效域会保存为受管资源。也可确认外部图片均为良品且已按当前输入坐标对齐后，多选加入对齐图片。",
+                    "展开良品样本与学习。每次取得不同良品后点击加入当前良品；实际订阅图像及有效域会保存为受管资源。列表、预览、导入、移除和清空在查看 / 管理样本中，外部图片须先确认已对齐且均为良品。没有当前有效输入或输入来源尚未应用时，采样/学习禁用，悬停查看原因。",
                     "至少 3 张、最多 64 张。点击学习良品，查看逐张尺寸/类型/哈希失败原因与训练进度。成功生成独立草稿模型，必须点击应用才成为正式配置；F5 可在原草稿路径试运行。",
+                    "状态中的新模型 · 待应用与已应用模型是两种配置状态，不是资源或现场合格证明。清空草稿不会删除原正式模型；取消参数修改可恢复它。取消学习须等待当前HALCON算子退出，完成后显示已取消，不自动覆盖旧版本。",
                     "ROI 页选择本地、继承或合并及屏蔽。有效检测区必须完全落在所有良品共同有效域内，不会偷偷缩小 ROI。按 F5 查看缺陷 Region、筛选后面积/比例/数量和学习样本数。",
                     "Area/AreaRatio/RegionCount 接数值判定，Region 可接区域筛选、轮廓或测量。空缺陷是有效执行 OK，是否产品合格由判定阈值决定；RawArea 保留面积筛选前的差异。",
                     "应用并保存方案。普通保存保留受管资源路径；迁移到别的电脑请用文件→导出工程副本，模型、共同有效域和良品样本随 JSON 一起复制。示例程序→检测·良品学习与表面缺陷提供已连接流程，但不会自动训练、运行或伪造良品集。"
@@ -474,7 +526,7 @@ namespace HalconWinFormsDemo
                 AddBullet("多图像源：在图像区“画面来源”下拉框选择具体图像源，状态会显示尺寸、待运行或异常。选定来源没有有效输出时画面保持空白，不会拿全局图像或另一图像源代替。双击图像源可选本地图片、目录逐帧回放或 HALCON 相机；相机必须显式连接，方案打开不自动连接。回放每次运行取下一张，末尾循环；折叠的模拟设置可复现缺图和过快请求。相机可选自由采集或软件触发，连接时检查设备支持；每次“采一帧”只运行当前源，运行流程才驱动下游，失败不回退旧图。采集诊断和图像区的源状态显示上次帧时间、耗时、帧号与错误，异常可直达源配置。Image、来源、逻辑 SN、UTC 时间、帧号、耗时及触发模式进入原输出端口；逻辑 SN 不是厂商硬件 SN。新绘制 ROI 记录图像坐标来源，跨源 ROI 在绑定页标为不兼容；结果图层只叠在同一图像链。学习入口：示例程序 → 采集 · 离线逐帧回放、图像 · 双来源独立检测。相机硬件待集中验证，不是多相机同步采集。");
                 AddBullet("设备资源：右侧“通讯”工作区按需展开“相机资源与占用”，可查看当前方案根流程和子流程的相机源、连接所有者、触发状态及上次错误，并直达原模块参数窗。同一 HALCON 接口与设备标识在本进程只允许一个模块连接；换流程或方案后不会自动重连。default 只是接口默认设备，不是硬件唯一序列号；此保护不能识别不同接口/别名是否指向同一物理相机，硬件行为仍待集中验证。");
                 AddBullet("TCP 响应字段：双击 TCP 客户端流程工具，常用区配置主机、端口、发送模板和等待响应；I/O 页订阅模板变量。按需展开“响应字段映射”，选择按分隔符从 0 开始的字段索引或 JSON /路径，分别配置文本、数值、布尔值输出；空白项不会出现端口。运行后原始收发、映射值和错误可在结果页查看；缺字段、格式或类型不符本次 NG，不复用旧结果。“无设备试解析”用同一解析器验证粘贴样本，不连接网络或发布运行输出。编码/行尾在折叠传输格式中，超时在更多参数；这不是 Modbus 或其他工业协议。");
-                AddBullet("双源成组检测：图像区“更多图像工具 → 图像队列 → 双源配对”按需展开，指定两个不同图像源与 A/B 图片目录，点击配对检查。同名（去扩展名）文件成为一组；缺图或重复键会拒绝运行。可先预览两源真实图片，再运行当前组或全部组。左画面默认 B、右画面 A，各自选择器仍可调整；组文件仅在本次执行中覆盖源模块文件，不改方案参数与连接。若流程包含双图差分/动态阈值，配对图尺寸、通道或位深不一致会拒绝该组。结果记录含组键、两路路径与逐工具输出；双源历史不冒充单图快照。学习入口：示例程序 → 图像 · 双源配对与绝对差分。它不是相机同步触发。");
+                AddBullet("双源成组检测：图像区“显示 → 图像队列 → 双源配对”按需展开，指定两个不同图像源与 A/B 图片目录，点击配对检查。同名（去扩展名）文件成为一组；缺图或重复键会拒绝运行。可先预览两源真实图片，再运行当前组或全部组。左画面默认 B、右画面 A，各自选择器仍可调整；组文件仅在本次执行中覆盖源模块文件，不改方案参数与连接。若流程包含双图差分/动态阈值，配对图尺寸、通道或位深不一致会拒绝该组。结果记录含组键、两路路径与逐工具输出；双源历史不冒充单图快照。学习入口：示例程序 → 图像 · 双源配对与绝对差分。它不是相机同步触发。");
                 AddBullet("TCP 指令触发：进入通讯页，展开“收到指令后运行流程”，选择目标并填写短指令，例如 RUN；应用配置后先连接受信任设备，再点“启用触发”。对端发送 RUN 加 LF 或 CRLF 换行才会运行，区分大小写，拆包和多行合包按完整行处理。忙碌时指令直接丢弃并写通讯记录，不排队补跑；需要对端按现场节拍控制发送。结果回复沿用原自动发送设置，没有另加 ACK 协议。");
                 AddBullet("触发配置随方案保存，但启用态不会保存。切换流程/方案、断线、通讯错误或点击停止后需重新启用；配置改动也会使后续触发停止。启用时切换到所选根流程，不会因当前进入子流程就改跑内部模块。此入口没有新增鉴权和加密，只能用于受信任设备与网络；不要将无认证端口暴露到公网。");
                 AddBullet("ROI、DLL 和全局变量仍是方案共享资源，引用清单包含其他流程和内部模块，仍有引用时不能直接删除。若在其他流程更改共享资源，旧流程的撤销历史可能清空以避免覆盖这些修改。删除整条流程需要确认，目前不能用模块级撤销恢复；正式删除前可先另存方案副本。");
@@ -517,6 +569,7 @@ namespace HalconWinFormsDemo
                     "看结果：图像区看本次图层，结果页看真实值与异常。卡片记录打开独立日志/通讯窗。",
                     "保存：保存已应用参数与订阅。关闭参数窗后F5按顶部所选运行范围执行；Shift+F5请求停止。" });
                 AddSubheading("需要更多说明时");
+                AddParagraph("左侧直接切换全部 / 入门 / 模块，搜索名称、任务词或端口类型。清空搜索保留最近查阅的可见主题；顶部返回可回上一主题，入门首页回到这里。查帮助不会加载示例或改变参数。", false, Color.FromRgb(71, 85, 105));
                 AddTopicLinkUI10("示例与完整学习项目", "LearningProjects");
                 AddTopicLinkUI10("界面与参数操作", "Workspace");
                 AddTopicLinkUI10("调试、结果与步骤记录", "Debug");
@@ -533,7 +586,7 @@ namespace HalconWinFormsDemo
                 AddParagraph("从“示例程序 → 当前项目学习步骤…”按需打开一个可关闭的任务窗：默认看当前一步，主动打开已有模块或切换步骤，不缩窄流程。上一步/下一步仅导航，训练、采参考、标定、F5、应用、运行和保存仍须您明确操作。临时步号不是算法状态、真实启动准备、合格证明或验收；删除模块、切换方案或身份失效时不会按同名猜替代模块。缺图片、模板、参考或标定须按提示补齐，不补旧结果。", false, Color.FromRgb(51, 65, 85));
                 AddParagraph("当前步骤按需显示第一条已知定义缺口及准确入口；例如尚无已应用NCC模板或固定参考时，按钮直达原制作/参考任务。提示不自动读取、训练或采参考；应用后再查看缺口，没有已知缺口也不等于实际输入/算法通过。条件后继尚未执行不被当成旧结果可用。", false, Color.FromRgb(51, 65, 85));
                 AddParagraph("学习窗顶部可直接选择任意步骤，不必展开技术说明；选择只换提示，不替换正在编辑的模块或草稿。修改参数后按“F5试草稿 → 应用 → 重新运行”操作，再继续下游；应用会清除旧输出。缺图片时先选择图片，再明确读取。", false, Color.FromRgb(51, 65, 85));
-                AddParagraph("不知道工具名时，在模块箱搜索任务词，例如去噪、找圆、亮度或扫码；多个词以空格分隔。搜索只筛选目录，不会添加模块或修改流程；清空后回到原来的工具模式。", false, Color.FromRgb(51, 65, 85));
+                AddParagraph("模块箱首层是分类、常用、收藏和最近，片段在标题右侧独立打开，再次点击恢复之前的工具筛选。不知道工具名时搜索任务词，如去噪、找圆、亮度或扫码；多个词以空格分隔。搜索只筛选目录，不添加或运行模块；点搜索右侧×或Esc清空，恢复原筛选和分类展开状态。底部只显示短状态，快捷说明/统计悬停查看；模块说明与输入输出按需展开。", false, Color.FromRgb(51, 65, 85));
                 AddParagraph("启动和新建均从空白方案开始，不会自动加入模板匹配或加载上次方案。已有方案请从文件或最近列表主动打开；恢复副本和示例程序也由您主动选择。", false, Color.FromRgb(51, 65, 85));
                 AddParagraph("双流程学习：选择“示例程序 → 流程工程 → 方案 · 双流程检测与指令触发”。两条流程使用不同的自制图像，示例不连接设备、不自动运行，并关闭自动结果发送。", false, Color.FromRgb(51, 65, 85));
                 AddNumberedSteps(new[] { "先运行“工位 1 · 亮度检测”，双击亮度/剖面模块查看输入和结果。", "在流程下拉框切换到“工位 2 · 圆弧测量”，运行后进入子流程查看点集、圆和返回值；旧图像会清空，不代表新流程已运行。", "在结果记录中观察两条流程的方案/流程归属；生产页只显示当前流程的会话统计和最近根流程结果。", "可复制一条流程后删除副本，再从“⋯ → 恢复已删除流程”恢复；最近 10 条恢复副本只保留到关闭或重新打开方案。", "保存或导出方案及图像后，再主动打开保存的文件，确认两条流程都在；所有流程都属于同一方案。", "通讯页已预填 RUN_CIRCLE 指向圆弧测量，但触发保持停止。仅在连接受信任设备并主动启用后，对端发送 RUN_CIRCLE 加换行才会运行；学习视觉流程无需启用通讯。" });
@@ -541,15 +594,17 @@ namespace HalconWinFormsDemo
             }
             else if (key == "Workspace")
             {
-                AddSubheading("开发界面"); AddParagraph("左侧是模块箱，中间是自上而下的流程，右上是图像，右下是结果和任务入口。单击模块选择或拖动位置；双击打开可移动参数小窗，不改变流程大小或缩放。单击其他节点不会切换窗内编辑对象，双击才切换。", false, Color.FromRgb(51, 65, 85));
-                AddBullet("参数小窗默认紧凑显示，仍可拖动和调整大小。Ctrl+1 / 2 / 3 / 4 切换常用 / 输入 / ROI / 结果；F5只试运行正在编辑的模块草稿，不自动应用；Ctrl+Enter应用当前草稿，确认后再保存方案。应用会使旧运行结果失效，等待重新运行，不用旧数值冒充当前结果。");
-                AddSubheading("运行界面"); AddParagraph("顶部“运行界面”只切换到操作员页面，不会自动启动检测。流程执行使用“运行流程”或运行界面的运行按钮。", false, Color.FromRgb(51, 65, 85));
+                AddSubheading("工程编辑"); AddParagraph("左侧是模块箱，中间是自上而下的流程，右上是图像，右下是结果和任务入口。顶部固定“工程编辑 / 运行页面”是页面切换，选中项表示当前位置，不会自动开始或停止检测，也不把工程结果变成生产结果。运行页面顶部先显示当前流程，再明确点击运行一次或停止任务；工程锁定时仍须原解锁。单击模块选择或拖动位置；双击打开参数小窗，不改变流程大小或缩放，单击其他节点不切换正在编辑的对象。", false, Color.FromRgb(51, 65, 85));
+                AddBullet("参数小窗顶部切换常用 / 输入 / ROI / 结果，底部固定试运行、应用和取消修改；未修改时应用/取消保留位置但禁用。错误在底部就近显示，可悬停看全文，不必翻到常用页底部。任务切换保留原草稿和滚动位置；切到另一模块从常用页顶部开始。Ctrl+1 / 2 / 3 / 4切换任务，F5只试当前模块草稿，Ctrl+Enter明确应用。应用使旧结果失效，重新运行后再继续下游并保存方案。");
+                AddSubheading("运行页面"); AddParagraph("顶部“运行页面”只切换到操作员页面，不会自动启动检测。先确认顶部当前流程，再点击“运行一次”；“停止任务”沿用原停止规则。返回“工程编辑”不自动停止正在执行的任务。", false, Color.FromRgb(51, 65, 85));
                 AddBullet("流程区“选中模块”只运行该节点的已应用参数，“当前流程”运行当前流程全部启用步骤，不运行其他流程。F5在参数窗打开时只控制编辑模块草稿；关闭后运行或继续当前流程，输入框焦点不会屏蔽它。Shift+F5请求停止任务并停用TCP触发；等待安全边界，不强行中断HALCON。已有任务执行时不能隐式切换运行范围；先明确停止并等待退出。");
                 AddBullet("流程“更多”中的范围按钮显示所选序号，悬停可看完整模块名与启用步骤数。“运行到此”从起点到所选位置后结束；“从此运行”只执行所选位置到末尾，上游须已有有效结果。监视器的“到所选后暂停”则从起点运行，在所选完成后的下一模块前暂停，继续会运行后续。空闲单步须先选择模块，忙碌时不自动停止或改成全流程；启动被前提检查阻止后，不把单步或暂停目标带入下一次普通运行。条件不满足显示SKIP并清除该路径旧输出，条件缺值是异常，不当作假。");
                 AddSubheading("按钮说明"); AddParagraph("高频按钮使用明确动词；低频命令收在“更多命令”。把鼠标停在按钮或参数组上，会显示浅色技术说明。", false, Color.FromRgb(51, 65, 85));
+                AddBullet("右下方标题表示当前工作区，默认是结果，不是参数页签。“参数…”或双击模块才打开原参数小窗；输入订阅在该区更多菜单中，直达同一小窗输入页。查看图层、通讯或方案工作区后，可点“返回结果”。这些入口不自动应用草稿或运行模块。");
                 AddBullet("模块卡“记录”打开独立只读步骤窗口，不遮住流程。取消跟随最新只冻结查看，不停止执行或采集；搜索过滤快照，复制/导出当前页文本。步骤历史只显示具有精确会话、流程、模块归属的最近200条记录，同名或改名不猜关联；旧纯文本仍在全局日志。通讯页标注真实离线模拟输出，查看不会连接或发送；导出是当前查看快照，不是完整历史。");
                 AddBullet("结果页默认显示关键类型值，更多里查看全部端口。最近草稿试运行与模块执行明确区分，不代表整流程合格；应用、改输入或失效后旧值和耗时清空，等待重跑。执行异常单独显示，不把它当产品NG；类型或数值无效会明确提示，不能从日志摘要猜结果。未标注的执行来源不会冒称正式生产。");
                 AddBullet("图像区的适应和1:1只改变查看比例；ROI菜单直接选择绘制形状。确认新ROI时以正在编辑的模块为准，普通单击其他节点不会改归属；已有草稿保留。切换到另一图像坐标、尺寸或编辑对象时，未确认绘制取消，已有ROI不会自动迁移。指定来源尚未运行或已移除时保持无图，不借用全局旧图。普通阈值支持检测ROI和屏蔽，实际检测范围与输入图像有效域取交集；绘制后须明确应用，失效/跨源ROI不会悄悄回退全图。其他工具以实际ROI支持状态为准。");
+                AddBullet("图像区“显示”一次打开视图、叠加和辅助分组，不再嵌套更多菜单。双画面、放大、图层管理和十字线沿原入口操作；显示开关只隐藏图形，不删除结果、ROI或绑定。平移按住右键拖动；左右视图联动按归一化中心与比例，不混用像素坐标。操作反馈在图像底部独立一行，图层短状态与像素在下一行，悬停看完整说明。Esc优先收起显示面板，不应用或放弃参数草稿。");
                 AddBullet("ROI页勾选修改当前模块的绑定草稿，点击蓝色图层名称在该模块输入图像中选中，再拖动原控制点修改。锁定图层只能查看；隐藏图层先从图层菜单显示。正在绘制或修改数值时，先确认/应用或取消再切换。共享图层的几何修改会影响所有绑定模块，取消模块参数不撤回已应用的图层几何。缺失ROI保留为可解绑条目，不会因应用其他参数而自动丢弃。");
                 AddBullet("多输入模块：输入卡片的“查看图像”在原画面中显示该路已应用来源，画面来源下拉框也可逐路选择；不切换正在编辑的模块、不自动读取或运行。来源改选会标记“未应用”，先应用或取消再查看该路。双图差分的图像A与B分别查看，缺失一路不会借用另一路或全局旧图；短标题的完整用途可悬停查看。图像源未运行、停用或异常时保持空白，来源草稿试运行的图像明确标为预览。F5试运行不应用绑定，应用后需重跑下游。");
             }

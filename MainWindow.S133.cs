@@ -61,6 +61,29 @@ namespace HalconWinFormsDemo
             DockOcrPatternGroupS133.Visibility = mode == "Pattern" ? Visibility.Visible : Visibility.Collapsed;
             DockOcrIgnoreCaseS133.Visibility = mode == "None" ? Visibility.Collapsed : Visibility.Visible;
         }
+
+        private void RefreshOcrSourceTaskUI04()
+        {
+            if (DockOcrSourceTaskUI04 == null || dockEditingTool == null || dockEditingTool.Kind != VmToolKind.OcrRecognition) return;
+            var row = dockInputPortRows.FirstOrDefault(r => r.PortName == "Characters");
+            var choice = row == null || row.SourceOptions == null ? null : row.SourceOptions.FirstOrDefault(o => o.Key == row.SelectedSourceKey);
+            bool external = row == null ? dockEditingTool.GetInputBinding("Characters") != null :
+                !string.Equals(row.SelectedSourceKey, GetDockDefaultInputKey("Characters"), StringComparison.OrdinalIgnoreCase);
+            var port = ToolMetadata.GetInstanceInputPorts(dockEditingTool).FirstOrDefault(p => p.PortName == "Characters");
+            bool pending = row != null && port != null && row.SelectedSourceKey != GetDockSavedInputSourceKey(dockEditingTool, port);
+            DockOcrSourceTaskUI04.Content = (external ? (choice == null || !choice.IsValid ? "字符：来源待修复" : "字符：前序区域") : "字符：图内分割") + (pending ? " · 未应用" : "") + " ›";
+            DockOcrSourceTaskUI04.ToolTip = external
+                ? "输入页查看或重选 Image / Characters；前序字符须与图像同源。分割灰度不参与，明暗极性仍影响识别反相；这里只显示配置，不代表来源有值。"
+                : "输入页查看 Image。未订阅 Characters 时，在图像有效域与 ROI 内按灰度分割，再按面积筛选；可在 ROI 页限定字符范围。";
+            SetDockParameterRowVisibilityS85(DockOcrThresholdTextBox, !external);
+            UpdateDockAdvancedParameterLayout(dockEditingTool);
+        }
+
+        private void DockOcrSourceTaskUI04_Click(object sender, RoutedEventArgs e)
+        {
+            if (dockEditingTool == null || dockEditingTool.Kind != VmToolKind.OcrRecognition) return;
+            SelectCentralConfigurationTaskS77(DockIoTaskTab, "Io");
+        }
         private void DockOcrValidationModeS133_Changed(object sender, SelectionChangedEventArgs e)
         {
             if (!dockDraftUpdating && !RequireEngineeringEditS137("修改 OCR 文本校验模式")) return;
@@ -70,9 +93,15 @@ namespace HalconWinFormsDemo
         private void UpdateOcrModelVersionS133()
         {
             if (DockOcrModelVersionS133 == null) return;
+            if (DockOcrModelNameUI04 != null)
+            {
+                string path = DockOcrModelTextBox.Text;
+                try { DockOcrModelNameUI04.Text = string.IsNullOrWhiteSpace(path) ? "尚未选择" : Path.GetFileName(path); }
+                catch (ArgumentException) { DockOcrModelNameUI04.Text = "路径无效 · 请重新导入"; }
+            }
             string hash = ocrValidationDraftS133.ModelSha256;
             DockOcrPinCurrentS133.Visibility = string.IsNullOrWhiteSpace(hash) ? Visibility.Visible : Visibility.Collapsed;
-            DockOcrModelVersionS133.Text = string.IsNullOrWhiteSpace(hash) ? "旧版字库路径 · 尚未固定 SHA 版本" :
+            DockOcrModelVersionS133.Text = string.IsNullOrWhiteSpace(hash) ? "字库版本未固定" :
                 "字库 " + hash.Substring(0, Math.Min(10, hash.Length)) + " · " + ocrValidationDraftS133.ClassCount + " 类";
             DockOcrModelVersionS133.ToolTip = string.IsNullOrWhiteSpace(hash) ? "旧方案兼容入口；固定当前字库或导入后，SHA、受管路径和类数进入草稿，应用后保存。" : "SHA-256: " + hash;
         }
@@ -146,7 +175,8 @@ namespace HalconWinFormsDemo
                 var all = state == null ? new List<VmOcrCharacterS133>() : state.Characters;
                 var visible = all.Where(c => !abnormal || c.IsLowConfidence || c.IsRejected).ToList();
                 DockOcrCharactersS133.ItemsSource = visible; DockOcrCharactersS133.SelectedIndex = -1;
-                DockOcrCharacterSummaryS133.Text = visible.Count + " / " + all.Count + " 字符";
+                DockOcrCharacterSummaryS133.Text = state == null ? "暂无本次字符结果" :
+                    "显示 " + visible.Count + " / " + all.Count + " · 低信 " + all.Count(c => c.IsLowConfidence) + " · 拒识 " + all.Count(c => c.IsRejected);
             }
             finally { ocrCharacterGridUpdatingS133 = false; }
             foreach (string id in ocrCharacterStatesS133.Keys.Where(id => !flowTools.Any(t => t.ToolId == id)).ToList()) ocrCharacterStatesS133.Remove(id);

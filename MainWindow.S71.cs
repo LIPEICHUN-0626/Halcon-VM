@@ -76,7 +76,7 @@ namespace HalconWinFormsDemo
             if (ToolSearchTextBox != null && !string.IsNullOrWhiteSpace(ToolSearchTextBox.Text)) ToolSearchTextBox.Text = string.Empty;
             UpdateToolboxSnippetModeButtonS71();
             RefreshToolCatalogView();
-            if (feedback) HeaderStatusText.Text = "已返回完整工具目录；76 个真实工具按 10 类就地展开，无需先选大类。";
+            if (feedback) HeaderStatusText.Text = "已返回工具目录，保留进入片段前的筛选；点击“分类”可查看全部工具。";
         }
 
         private void UpdateToolboxSnippetModeButtonS71()
@@ -128,7 +128,8 @@ namespace HalconWinFormsDemo
                 ? "本机还没有流程片段。请在流程中连续选择至少 2 个工具，再从“更多 → 流程片段”保存。"
                 : "当前搜索没有匹配片段。清空搜索可恢复本机片段列表。";
             ToolCatalogCapabilityText.Text = flowSnippetLibraryS70.Snippets.Count.ToString(CultureInfo.InvariantCulture) + " 个片段 · 本机";
-            ToolCatalogStatusText.Text = "片段 · " + toolboxSnippetItemsS71.Count.ToString(CultureInfo.InvariantCulture) + " 个可见 · 双击/Enter 插在锚点后，拖拽或右键选择位置";
+            ToolCatalogStatusText.Text = "片段 · " + toolboxSnippetItemsS71.Count.ToString(CultureInfo.InvariantCulture) + " 项";
+            ToolCatalogStatusText.ToolTip = "本机流程片段；双击/Enter插在锚点后，拖拽或右键选择位置。不自动运行。";
             RefreshToolboxSnippetPreviewS71();
         }
 

@@ -20,11 +20,57 @@
             <Setter Property="MinWidth" Value="58" />
             <Setter Property="Margin" Value="2" />
             <Setter Property="Padding" Value="7,2" />
+            <Setter Property="Background" Value="#F8FAFC" />
+            <Setter Property="Foreground" Value="#334155" />
+            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#0F766E" /></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#0F766E" /></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Opacity" Value="0.72" /></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.45" /></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="{x:Type TextBox}">
             <Setter Property="MinHeight" Value="26" />
             <Setter Property="Margin" Value="3" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style TargetType="{x:Type ToggleButton}">
+            <Setter Property="MinHeight" Value="26" />
+            <Setter Property="Padding" Value="7,2" />
+            <Setter Property="Margin" Value="2" />
+            <Setter Property="Background" Value="#F8FAFC" />
+            <Setter Property="Foreground" Value="#334155" />
+            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Surface" CornerRadius="4" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#0F766E" /><Setter TargetName="Surface" Property="Background" Value="#DDF2EC" /><Setter Property="Foreground" Value="#115E59" /></Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#0F766E" /></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="#0F766E" /></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Opacity" Value="0.72" /></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.45" /></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="{x:Type ComboBox}">
             <Setter Property="MinHeight" Value="26" />
@@ -210,7 +256,9 @@
                         <MenuItem Header="关于本软件" Click="AboutMenuItem_Click" />
                     </MenuItem>
                 </Menu>
-                <DockPanel x:Name="DeveloperAppBar" Grid.Row="1" LastChildFill="True" Height="32" Margin="8,1">
+                <Grid Grid.Row="1" x:Name="WorkspaceCommandBarUI04" Margin="0,3">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <DockPanel x:Name="DeveloperAppBar" LastChildFill="True" Height="32" Margin="8,1">
                     <StackPanel x:Name="DeveloperMetricStrip" DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Stretch" Visibility="Collapsed">
                         <Border Style="{StaticResource CompactMetricUnit}">
                             <StackPanel Orientation="Horizontal"><TextBlock Text="OK" Foreground="#64748B" VerticalAlignment="Center" /><TextBlock x:Name="MetricOkText" Text="0" Margin="4,0,0,0" FontSize="13" FontWeight="Bold" Foreground="#15803D" VerticalAlignment="Center" /></StackPanel>
@@ -227,18 +275,17 @@
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="HALCON VISION" FontSize="14" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center" Margin="2,0,12,0" ToolTip="自主工业视觉平台" />
-                        <TextBlock x:Name="RecipeNameText" Text="方案：未加载" Foreground="#475569" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="320" />
+                        <TextBlock x:Name="RecipeNameText" Text="方案：未加载" Foreground="#475569" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="200" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
                         <Border x:Name="RecipeStateBadge" Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="8" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center">
                             <TextBlock x:Name="RecipeStateBadgeText" Text="新方案" Foreground="#92400E" FontSize="11" FontWeight="SemiBold" />
                         </Border>
                     </StackPanel>
                 </DockPanel>
-                <StackPanel x:Name="DeveloperToolbarPanel" Grid.Row="2" Orientation="Horizontal" Margin="8,0,8,3" VerticalAlignment="Center">
+                <StackPanel x:Name="DeveloperToolbarPanel" Grid.Column="1" Orientation="Horizontal" Margin="8,0,8,0" VerticalAlignment="Center">
                     <Button x:Name="SaveRecipeButton" Style="{StaticResource AppBarButton}" Content="保存方案" Click="SaveRecipeButton_Click" ToolTip="保存当前方案：流程顺序、连接、参数、ROI 和界面配置" />
                     <Button x:Name="OpenImageButton" Style="{StaticResource AppBarButton}" Content="打开图像" Click="OpenImageButton_Click" ToolTip="选择一张本地图像作为当前调试输入；此操作不会开始运行" />
                     <Button x:Name="RunOnceButton" Style="{StaticResource AppBarButton}" Content="▶ 运行流程" Margin="10,1,2,1" FontWeight="Bold" Foreground="#0F766E" Click="RunOnceButton_Click" ToolTip="按流程从上到下的确定性顺序运行一次全部启用步骤" />
                     <Button x:Name="StopRunButton" Style="{StaticResource AppBarButton}" Content="■ 停止任务" Foreground="#B91C1C" Click="StopRunButton_Click" ToolTip="Shift+F5：请求停止流程、草稿连续试运行或图片批次，停用TCP触发并取消训练；等待安全边界，不强中断HALCON。" />
-                    <Button x:Name="EnterProductionModeButton" Style="{StaticResource AppBarButton}" Content="运行界面" Margin="10,1,2,1" FontWeight="SemiBold" Foreground="#1D4ED8" Click="ToggleProductionModeButton_Click" Tag="Production" ToolTip="切换到面向操作员的运行页面；只切换页面，不会自动开始检测" />
                     <ToggleButton x:Name="DeveloperMoreToggleButton" Content="更多命令" MinHeight="26" MinWidth="66" Margin="10,1,2,1" Padding="6,1" ToolTip="打开低频命令：新建/打开方案、批量图片、连续运行、调试、变量和资源配置" />
                     <Popup x:Name="DeveloperMorePopup" IsOpen="{Binding IsChecked, ElementName=DeveloperMoreToggleButton, Mode=TwoWay}" PlacementTarget="{Binding ElementName=DeveloperMoreToggleButton}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
                         <Border Background="#FFFFFF" BorderBrush="#94A3B8" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,2,0,0">
@@ -265,11 +312,17 @@
                         </Border>
                     </Popup>
                 </StackPanel>
+                <Border x:Name="WorkspaceModeSwitchUI08" Grid.Column="2" Background="#E8EEF6" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="5" Padding="2" Margin="0,0,8,0" VerticalAlignment="Center" ToolTip="页面切换，不是运行命令；不会自动开始检测。">
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="ReturnDeveloperModeButtonS137" Content="工程编辑" MinWidth="70" MinHeight="24" Padding="7,2" Margin="0" Click="ToggleProductionModeButton_Click" Tag="Developer" ToolTip="工程编辑：搭建流程和修改参数；启用保护时须显式工程解锁。只切换页面，不启动或停止任务。" />
+                        <Button x:Name="EnterProductionModeButton" Content="运行页面" MinWidth="70" MinHeight="24" Padding="7,2" Margin="2,0,0,0" Click="ToggleProductionModeButton_Click" Tag="Production" ToolTip="运行页面：查看当前流程的操作员界面。只切换页面，不自动开始检测。" />
+                    </StackPanel>
+                </Border>
+                </Grid>
                 <StackPanel x:Name="ProductionToolbarPanel" Grid.Row="2" Orientation="Horizontal" Margin="8,0,8,3" VerticalAlignment="Center" Visibility="Collapsed">
-                    <Button x:Name="ReturnDeveloperModeButtonS137" Content="← 工程编辑" FontWeight="SemiBold" Foreground="#1D4ED8" Click="ToggleProductionModeButton_Click" Tag="Developer" ToolTip="返回工程编辑；启用保护时须显式工程解锁。只切换页面，当前运行状态保留。" />
-                    <Separator Width="8" Opacity="0" />
-                    <Button x:Name="ProductionRunOnceButtonUI08" Content="▶ 当前流程运行一次" FontWeight="Bold" Foreground="#0F766E" Click="RunOnceButton_Click" ToolTip="只运行当前流程全部启用步骤，不运行方案中的其他流程。" />
-                    <Button Content="■ 停止" Foreground="#B91C1C" Click="StopRunButton_Click" />
+                    <TextBlock x:Name="ProductionFlowContextUI08" Text="当前流程：--" MaxWidth="220" TextTrimming="CharacterEllipsis" Margin="4,0,10,0" VerticalAlignment="Center" Foreground="#334155" FontWeight="SemiBold" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
+                    <Button x:Name="ProductionRunOnceButtonUI08" Content="▶ 运行一次" FontWeight="Bold" Foreground="#0F766E" Click="RunOnceButton_Click" ToolTip="只运行当前流程全部启用步骤，不运行方案中的其他流程。" />
+                    <Button x:Name="ProductionStopButtonUI08" Content="■ 停止任务" Foreground="#B91C1C" Click="StopRunButton_Click" ToolTip="请求停止当前任务，等待算子安全边界；不强中断HALCON。" />
                     <Separator Width="8" Opacity="0" />
                     <Menu x:Name="ProductionEngineeringImageCommandsS137" Background="Transparent" VerticalAlignment="Center" ToolTip="工程图片调试，与操作员生产检测分开；不自动打开图片或运行。">
                         <MenuItem Header="图片调试">
@@ -295,16 +348,16 @@
 
         <Grid x:Name="MainWorkspaceGrid" Grid.Row="1" Margin="8" SizeChanged="MainWorkspaceGrid_SizeChangedS81">
             <Grid.RowDefinitions>
-                <RowDefinition x:Name="ImageWorkspaceRow" Height="4*" MinHeight="280" />
+                <RowDefinition x:Name="ImageWorkspaceRow" Height="5*" MinHeight="280" />
                 <RowDefinition Height="5" />
-                <RowDefinition x:Name="RightConfigurationRow" Height="2*" MinHeight="210" />
+                <RowDefinition x:Name="RightConfigurationRow" Height="2*" MinHeight="180" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="ToolCatalogColumn" Width="240" MinWidth="210" />
                 <ColumnDefinition Width="5" />
                 <ColumnDefinition Width="*" MinWidth="360" />
                 <ColumnDefinition Width="5" />
-                <ColumnDefinition x:Name="RightPanelColumn" Width="520" MinWidth="390" />
+                <ColumnDefinition x:Name="RightPanelColumn" Width="*" MinWidth="390" />
             </Grid.ColumnDefinitions>
 
                     <!-- Compact industrial-vision toolbox -->
@@ -319,13 +372,19 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <DockPanel>
-                        <TextBlock x:Name="ToolCatalogCapabilityText" DockPanel.Dock="Right" Text="-- 个工具 · -- 类" Foreground="#94A3B8" FontSize="10" Margin="0,7,8,0" />
-                        <TextBlock Text="模块箱" Style="{StaticResource PanelHeader}" />
-                    </DockPanel>
+                    <Grid x:Name="ToolCatalogHeaderUI07">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <Button x:Name="ToolCatalogSnippetButton" Grid.Column="1" Content="片段" MinWidth="44" MinHeight="24" Padding="5,1" Margin="3,4,7,4" Click="ToolCatalogSnippetButton_Click" ToolTip="查看本机流程片段；再次点击恢复之前的工具筛选，不自动运行。" />
+                        <TextBlock x:Name="ToolCatalogCapabilityText" Visibility="Collapsed" Text="-- 个工具 · -- 类" />
+                        <TextBlock x:Name="ToolCatalogTitleUI07" Text="模块箱" FontSize="13" FontWeight="SemiBold" Foreground="#F8FAFC" Margin="10,8" VerticalAlignment="Center" ToolTip="{Binding Text, ElementName=ToolCatalogCapabilityText}" />
+                    </Grid>
                     <Grid Grid.Row="1" Margin="8,0,8,8">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <TextBox x:Name="ToolSearchTextBox" TextChanged="ToolSearchTextBox_TextChanged" PreviewKeyDown="ToolSearchTextBox_PreviewKeyDownS94" ToolTip="输入任务或工具名；空格分隔多个词。↓ 选择结果，唯一结果可 Enter 添加，Esc 清空并恢复原模式。" />
-                        <TextBlock Text="搜索任务或工具，如：找圆" Margin="6,0,0,0" VerticalAlignment="Center" Foreground="#94A3B8" IsHitTestVisible="False">
+                        <Button x:Name="ClearToolSearchUI07" Grid.Column="1" Content="×" Width="25" MinWidth="25" MinHeight="25" Padding="0" Margin="3,3,0,3" Click="ClearToolSearchUI07_Click" ToolTip="清空搜索，恢复搜索前的分类/筛选状态（Esc）。">
+                            <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Visibility" Value="Visible" /><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=ToolSearchTextBox}" Value=""><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers></Style></Button.Style>
+                        </Button>
+                        <TextBlock Text="搜索模块，如：找圆" Margin="6,0,0,0" VerticalAlignment="Center" Foreground="#94A3B8" IsHitTestVisible="False">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -376,13 +435,11 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <Button x:Name="ToolCatalogAllButton" Grid.Column="0" Content="全部" MinHeight="26" Padding="3,1" Margin="0,0,2,0" Click="ToolCatalogModeButton_Click" Tag="All" ToolTip="直接显示全部分类；分类标题可就地展开或收起" />
-                        <Button x:Name="ToolCatalogCommonButton" Grid.Column="1" Content="常用" MinHeight="26" Padding="3,1" Margin="0,0,2,0" Click="ToolCatalogModeButton_Click" Tag="Common" ToolTip="只显示常用工具" />
-                        <Button x:Name="ToolCatalogFavoriteButton" Grid.Column="2" Content="收藏" MinHeight="26" Padding="3,1" Margin="0,0,2,0" Click="ToolCatalogModeButton_Click" Tag="Favorite" ToolTip="只显示已收藏工具" />
-                        <Button x:Name="ToolCatalogRecentButton" Grid.Column="3" Content="最近" MinHeight="26" Padding="3,1" Margin="0,0,2,0" Click="ToolCatalogModeButton_Click" Tag="Recent" ToolTip="只显示最近使用工具" />
-                        <Button x:Name="ToolCatalogSnippetButton" Grid.Column="4" Content="片段" MinHeight="26" Padding="3,1" Click="ToolCatalogSnippetButton_Click" ToolTip="切换本机流程片段；再次点击返回全部分类" />
+                        <Button x:Name="ToolCatalogAllButton" Grid.Column="0" Content="分类" MinWidth="40" MinHeight="26" Padding="3,1" Margin="0,0,2,0" Click="ToolCatalogModeButton_Click" Tag="All" ToolTip="直接显示全部分类；分类标题可就地展开或收起" />
+                        <Button x:Name="ToolCatalogCommonButton" Grid.Column="1" Content="常用" MinWidth="40" MinHeight="26" Padding="3,1" Margin="0,0,2,0" Click="ToolCatalogModeButton_Click" Tag="Common" ToolTip="只显示常用工具" />
+                        <Button x:Name="ToolCatalogFavoriteButton" Grid.Column="2" Content="收藏" MinWidth="40" MinHeight="26" Padding="3,1" Margin="0,0,2,0" Click="ToolCatalogModeButton_Click" Tag="Favorite" ToolTip="只显示已收藏工具" />
+                        <Button x:Name="ToolCatalogRecentButton" Grid.Column="3" Content="最近" MinWidth="40" MinHeight="26" Padding="3,1" Margin="0,0,2,0" Click="ToolCatalogModeButton_Click" Tag="Recent" ToolTip="只显示最近使用工具" />
                     </Grid>
                     <Grid Grid.Row="4" Margin="6,0">
                         <ListBox x:Name="ToolCatalogList" Background="#111827" BorderThickness="0" Foreground="#E2E8F0" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="ToolCatalogList_SelectionChanged" MouseDoubleClick="ToolCatalogList_MouseDoubleClick" PreviewKeyDown="ToolCatalogList_PreviewKeyDown" PreviewMouseRightButtonDown="ToolCatalogList_PreviewMouseRightButtonDown" PreviewMouseLeftButtonDown="ToolCatalogList_PreviewMouseLeftButtonDown" PreviewMouseMove="ToolCatalogList_PreviewMouseMove">
@@ -408,7 +465,7 @@
                                                             <Expander.Header>
                                                                 <DockPanel Margin="3,5,3,3">
                                                                     <TextBlock DockPanel.Dock="Right" Text="{Binding ItemCount, StringFormat={}({0})}" Foreground="#64748B" FontSize="10" />
-                                                                    <TextBlock Text="{Binding Name}" Foreground="#38BDF8" FontWeight="SemiBold" />
+                                                                    <TextBlock Text="{Binding Name}" Foreground="#CBD5E1" FontWeight="SemiBold" />
                                                                 </DockPanel>
                                                             </Expander.Header>
                                                             <ItemsPresenter />
@@ -491,7 +548,7 @@
                         </ListBox>
                         <TextBlock x:Name="ToolCatalogEmptyText" Text="当前筛选没有工具。可切换“全部”或清空搜索。" Visibility="Collapsed" Foreground="#94A3B8" TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center" Margin="18" IsHitTestVisible="False" />
                     </Grid>
-                    <Expander x:Name="ToolCapabilityExpander" Grid.Row="5" Header="能力 / 端口预览" IsExpanded="False" Margin="7,3,7,0" Foreground="#CBD5E1" Expanded="ToolCapabilityExpander_Expanded">
+                    <Expander x:Name="ToolCapabilityExpander" Grid.Row="5" Header="模块说明 / 输入输出" IsExpanded="False" Margin="7,3,7,0" Foreground="#CBD5E1" Expanded="ToolCapabilityExpander_Expanded">
                         <Border Background="#0F172A" BorderBrush="#334155" BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,3,0,2">
                             <StackPanel>
                                 <DockPanel>
@@ -509,7 +566,7 @@
                                         <TextBlock x:Name="ToolCapabilityInsertStatusText" Text="从工具行或流程节点右键插入；缺失输入会明确保留为待连接。" Foreground="#94A3B8" FontSize="10" TextWrapping="Wrap" Margin="0,2,0,0" />
                                     </StackPanel>
                                 </Border>
-                                <TextBlock Text="规划缺口（不可拖入）：相机 SDK、完整标定、OCR/读码扩展" Foreground="#94A3B8" FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0" />
+                                <TextBlock Text="设备与现场能力需单独验证" Foreground="#94A3B8" FontSize="10" Margin="0,6,0,0" ToolTip="目录显示已有模块及真实端口。具体参数、ROI与类型支持以模块说明为准；不代表所有设备、算法模式或现场路径已经验证。" />
                             </StackPanel>
                         </Border>
                     </Expander>
@@ -528,8 +585,10 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Border Background="#263449" Padding="8,5">
+                    <Border x:Name="FlowHeadingUI04" Background="#263449" Padding="8,4">
+                        <Border.ToolTip><StackPanel><TextBlock x:Name="FlowExecutionHintS81" Text="确定性顺序执行" /><TextBlock x:Name="RunModeText" Text="模式：手动调试" /></StackPanel></Border.ToolTip>
                         <DockPanel LastChildFill="True">
+                            <TextBlock DockPanel.Dock="Left" Text="流程" Foreground="#E2E8F0" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0" />
                             <StackPanel DockPanel.Dock="Left" Margin="0,0,8,0">
                                 <DockPanel>
                                     <Button DockPanel.Dock="Right" Content="⋯" Padding="6,1" Click="OpenProjectFlowMenuS104_Click" ToolTip="管理方案中的流程">
@@ -551,11 +610,6 @@
                             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Button x:Name="SubflowBackButtonS102" Content="← 返回上级" Click="ReturnSubflowEditorS102_Click" Visibility="Collapsed" Padding="7,3" Margin="0,0,5,0" />
                                 <Button x:Name="SubflowBoundaryButtonS102" Content="输入 / 返回" Click="EditSubflowReturnSourcesS102_Click" Visibility="Collapsed" Padding="7,3" ToolTip="修改接口显示名称及返回值来源；固定端口标识不变，已有连接不会因改名断开。" />
-                            </StackPanel>
-                            <TextBlock x:Name="FlowExecutionHintS81" DockPanel.Dock="Right" Text="确定性顺序执行" Foreground="#93C5FD" VerticalAlignment="Center" Margin="10,0" />
-                            <StackPanel>
-                                <TextBlock Text="流程编辑器" Foreground="#FFFFFF" FontSize="15" FontWeight="SemiBold" />
-                                <TextBlock x:Name="RunModeText" Text="模式：手动调试" Foreground="#A7F3D0" FontSize="11" />
                             </StackPanel>
                         </DockPanel>
                     </Border>
@@ -596,7 +650,7 @@
                                 <DrawingBrush TileMode="Tile" Viewport="0,0,24,24" ViewportUnits="Absolute">
                                     <DrawingBrush.Drawing>
                                         <GeometryDrawing Brush="#FAFCFF">
-                                            <GeometryDrawing.Pen><Pen Brush="#DCE5F0" Thickness="0.7" /></GeometryDrawing.Pen>
+                                            <GeometryDrawing.Pen><Pen Brush="#EDF1F6" Thickness="0.5" /></GeometryDrawing.Pen>
                                             <GeometryDrawing.Geometry><GeometryGroup><LineGeometry StartPoint="24,0" EndPoint="24,24" /><LineGeometry StartPoint="0,24" EndPoint="24,24" /></GeometryGroup></GeometryDrawing.Geometry>
                                         </GeometryDrawing>
                                     </DrawingBrush.Drawing>
@@ -774,6 +828,16 @@
                                                         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                                                             <Border Background="#E2E8F0" CornerRadius="7" Padding="5,1" Margin="0,0,3,0" VerticalAlignment="Center"><TextBlock Text="{Binding ResultCode}" FontSize="9" Foreground="#334155" FontWeight="Bold" /></Border>
                                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                                <StackPanel.Style>
+                                                                    <Style TargetType="StackPanel">
+                                                                        <Setter Property="Visibility" Value="Hidden" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsFlowSelected}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                                                                            <DataTrigger Binding="{Binding IsMouseOver, ElementName=GraphToolCard}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                                                                            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="Visibility" Value="Visible" /></Trigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </StackPanel.Style>
                                                                 <Button Content="记录" Tag="{Binding}" MinWidth="34" MinHeight="19" Height="19" Padding="2,0" FontSize="9" Margin="0,0,3,0" Click="OpenFlowStepActivityButton_Click" ToolTip="按需打开该步骤的日志与通讯子页面" />
                                                                 <ToggleButton Content="{Binding FlowDetailToggleText}" Tag="{Binding}" MinWidth="34" MinHeight="19" Height="19" Padding="2,0" FontSize="9" Click="ToggleFlowNodeDetailsButton_Click" ToolTip="按需展开或收起完整端口；默认只显示关键依赖摘要" />
                                                             </StackPanel>
@@ -1601,12 +1665,11 @@
                     <Border Background="#182235" BorderBrush="#334155" BorderThickness="0,0,0,1" Padding="4">
                         <StackPanel>
                             <TextBlock x:Name="ProductionImageTitleText" Text="图像与叠加" Visibility="Collapsed" Foreground="#F8FAFC" FontSize="17" FontWeight="Bold" Margin="7,3,7,5" />
+                            <Button x:Name="ReturnLiveImageButton" Content="● 返回实时" Visibility="Collapsed" MinWidth="82" HorizontalAlignment="Left" FontWeight="SemiBold" Foreground="#0F766E" Click="ReturnLiveImageButton_Click" ToolTip="退出只读历史回看，恢复进入回看前的实时图像上下文；不触发流程重跑" />
                             <DockPanel x:Name="ImageWorkspaceToolbarPanel" LastChildFill="False">
                                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                                <Button x:Name="ReturnLiveImageButton" Content="● 返回实时" Visibility="Collapsed" MinWidth="82" FontWeight="SemiBold" Foreground="#34D399" Click="ReturnLiveImageButton_Click" ToolTip="退出只读历史回看，恢复进入回看前的实时图像上下文；不触发流程重跑" />
-                                <CheckBox x:Name="LinkDualImageViewsCheckBox" Content="联动视图" Visibility="Collapsed" IsChecked="True" Foreground="#C4B5FD" VerticalAlignment="Center" Margin="6,0,4,0" Checked="LinkDualImageViewsCheckBox_Changed" Unchecked="LinkDualImageViewsCheckBox_Changed" ToolTip="按归一化中心与缩放比例联动两侧，尺寸不同也不会混用像素坐标" />
                                 <Button x:Name="ImageSelectButton" Content="选择" MinWidth="48" Click="SelectImageToolButton_Click" ToolTip="选择并编辑 ROI、测量域或结果图形；不会移动图像" />
-                                <Button x:Name="ImagePanButton" Content="平移" MinWidth="48" Click="PanImageToolButton_Click" ToolTip="切换到图像浏览模式；在图像中拖动只改变视口，不修改 ROI 或算法参数" />
+                                <Button x:Name="ImagePanButton" Content="平移" MinWidth="48" Click="PanImageToolButton_Click" ToolTip="切换到图像浏览模式；按住右键拖动只改变视口，不修改 ROI 或算法参数" />
                                 <Button x:Name="ImageFitButton" Content="适应" MinWidth="48" Click="FitImageButton_Click" ToolTip="完整查看当前画面；不改变图像或ROI。" />
                                 <Button x:Name="ImageOneToOneButton" Content="1:1" MinWidth="44" Click="ImageOriginalSizeButton_Click" ToolTip="按原始像素比例查看当前画面；不改变图像或ROI。" />
                                 </StackPanel>
@@ -1634,32 +1697,52 @@
                                         </ContextMenu>
                                     </Button.ContextMenu>
                                 </Button>
-                                <ToggleButton x:Name="ImageTaskToggleButton" Content="更多 ▾" MinWidth="60" Foreground="#A5B4FC" ToolTip="按需查看双画面、放大工作区、图层和诊断。" />
-                                <WrapPanel Visibility="{Binding IsChecked, ElementName=ImageTaskToggleButton, Converter={StaticResource BooleanToVisibilityConverter}}" Background="#263449">
-                                <Button x:Name="ImageWorkspaceExpandButton" Content="放大" MinWidth="50" FontWeight="SemiBold" Foreground="#67E8F9" Click="ImageWorkspaceExpandButton_Click" ToolTip="临时把图像区扩展到主工作区；恢复后保留原流程与配置布局" />
-                                <Button x:Name="ImageLayoutToggleButton" Content="双画面" MinWidth="58" FontWeight="SemiBold" Foreground="#A5B4FC" Click="ImageLayoutToggleButton_Click" ToolTip="切换单/双画面；双画面左侧只允许当前模块真实输入，右侧保留输入/输出预览" />
-                                <ToggleButton x:Name="ImageMoreToggleButton" Content="更多图像工具 ▾" MinWidth="108" ToolTip="显示图像队列、十字线、轮廓选择、卡尺域、图层和叠加显示控制" />
-                                <WrapPanel Visibility="{Binding IsChecked, ElementName=ImageMoreToggleButton, Converter={StaticResource BooleanToVisibilityConverter}}" Background="#263449">
-                                <ToggleButton x:Name="ImageQueuePanelToggleButton" Content="图像队列" MinWidth="72" Foreground="#93C5FD" Click="ImageQueuePanelToggleButton_Click" />
-                                <Button x:Name="CrosshairPanelToggleButton" Content="十字线" MinWidth="62" Foreground="#FDE68A" Click="CrosshairPanelToggleButton_Click" />
-                                <ToggleButton x:Name="XldContourSelectionToggleButton" Content="轮廓选择" MinWidth="72" Foreground="#F0ABFC" Click="XldContourSelectionToggleButton_Click" />
-                                <Button x:Name="EditMeasurementDomainButton" Content="卡尺域" MinWidth="62" Foreground="#FBBF24" Click="EditMeasurementDomainButton_Click" />
-                                <Button x:Name="ToggleRoiLayerPanelButton" Content="图层任务" MinWidth="68" Click="ToggleRoiLayerPanelButton_Click" ToolTip="在右侧当前任务区打开图层，不遮挡图像" />
-                                <CheckBox x:Name="ShowRoiOverlayCheckBox" Content="ROI叠加" IsChecked="True" Foreground="#67E8F9" VerticalAlignment="Center" Margin="8,0,2,0" Checked="ImageOverlayVisibility_Changed" Unchecked="ImageOverlayVisibility_Changed" ToolTip="只控制 ROI 图层显示，不删除图层或绑定" />
-                                <CheckBox x:Name="ShowResultOverlayCheckBox" Content="结果叠加" IsChecked="True" Foreground="#FDE68A" VerticalAlignment="Center" Margin="6,0,2,0" Checked="ImageOverlayVisibility_Changed" Unchecked="ImageOverlayVisibility_Changed" ToolTip="只控制算法结果显示，不释放输出快照" />
-                                </WrapPanel>
-                                </WrapPanel>
+                                <ToggleButton x:Name="ImageTaskToggleButton" Content="显示 ▾" MinWidth="60" ToolTip="视图、叠加和辅助工具；一次展开，不挤压图像。" />
+                                <Popup x:Name="ImageDisplayPopupUI05" IsOpen="{Binding IsChecked, ElementName=ImageTaskToggleButton, Mode=TwoWay}" PlacementTarget="{Binding ElementName=ImageTaskToggleButton}" Placement="Bottom" StaysOpen="False" AllowsTransparency="True">
+                                    <Border x:Name="ImageDisplayPanelUI05" Width="308" Background="#F8FAFC" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="5" Padding="10" Button.Click="ImageDisplayCommand_ClickUI05" PreviewKeyDown="ImageDisplayPanel_PreviewKeyDownUI05">
+                                        <StackPanel>
+                                            <DockPanel Margin="0,0,0,7"><Button DockPanel.Dock="Right" Content="×" Width="24" MinWidth="24" MinHeight="22" Padding="0" Margin="0" Click="CloseImageDisplay_ClickUI05" ToolTip="收起显示工具（Esc）" /><TextBlock Text="图像显示" FontWeight="SemiBold" Foreground="#334155" VerticalAlignment="Center" /></DockPanel>
+                                            <TextBlock Text="视图" Foreground="#64748B" FontSize="10" Margin="2,0,0,3" />
+                                            <UniformGrid Columns="2">
+                                                <Button x:Name="ImageWorkspaceExpandButton" Content="放大图像区" Click="ImageWorkspaceExpandButton_Click" ToolTip="临时把图像区扩展到主工作区；恢复后保留原流程与配置布局" />
+                                                <Button x:Name="ImageLayoutToggleButton" Content="双画面" Click="ImageLayoutToggleButton_Click" ToolTip="左右画面分别选择模块输入/输出或指定图像源；不读取新帧，不运行算法。" />
+                                            </UniformGrid>
+                                            <CheckBox x:Name="LinkDualImageViewsCheckBox" Content="左右视图联动" Visibility="Collapsed" IsChecked="True" Foreground="#475569" Margin="5,4,0,2" Checked="LinkDualImageViewsCheckBox_Changed" Unchecked="LinkDualImageViewsCheckBox_Changed" ToolTip="按归一化中心与缩放比例联动两侧；尺寸不同也不混用像素坐标" />
+                                            <TextBlock Text="叠加" Foreground="#64748B" FontSize="10" Margin="2,10,0,4" />
+                                            <UniformGrid Columns="2" Margin="5,0,0,4">
+                                                <CheckBox x:Name="ShowRoiOverlayCheckBox" Content="显示 ROI" IsChecked="True" Foreground="#334155" Checked="ImageOverlayVisibility_Changed" Unchecked="ImageOverlayVisibility_Changed" ToolTip="只隐藏或显示 ROI，不删除图层或绑定" />
+                                                <CheckBox x:Name="ShowResultOverlayCheckBox" Content="显示算法结果" IsChecked="True" Foreground="#334155" Checked="ImageOverlayVisibility_Changed" Unchecked="ImageOverlayVisibility_Changed" ToolTip="只隐藏或显示结果叠加，不释放输出快照" />
+                                            </UniformGrid>
+                                            <UniformGrid Columns="2">
+                                                <Button x:Name="ToggleRoiLayerPanelButton" Content="图层管理" Click="ToggleRoiLayerPanelButton_Click" ToolTip="在右侧任务区查看图层；不删除图层或修改算法。" />
+                                                <Button x:Name="CrosshairPanelToggleButton" Content="十字线" Click="CrosshairPanelToggleButton_Click" />
+                                            </UniformGrid>
+                                            <TextBlock Text="辅助" Foreground="#64748B" FontSize="10" Margin="2,10,0,3" />
+                                            <UniformGrid Columns="2">
+                                                <ToggleButton x:Name="ImageQueuePanelToggleButton" Content="图像队列" Click="ImageQueuePanelToggleButton_Click" ToolTip="显示或收起已有图像列表；不自动读取下一帧。" />
+                                                <ToggleButton x:Name="XldContourSelectionToggleButton" Content="轮廓选择" Click="XldContourSelectionToggleButton_Click" />
+                                                <Button x:Name="EditMeasurementDomainButton" Content="编辑卡尺域" Click="EditMeasurementDomainButton_Click" ToolTip="编辑当前测量模块的搜索域；缺少相应模块时给出提示。" />
+                                            </UniformGrid>
+                                        </StackPanel>
+                                    </Border>
+                                </Popup>
                                 </StackPanel>
                             </DockPanel>
-                            <Border Background="#0F172A" BorderBrush="#334155" BorderThickness="1" CornerRadius="3" Margin="2,4,2,0" Padding="7,5">
+                            <Border x:Name="ImageSourceBarUI04" Background="#0F172A" BorderBrush="#334155" BorderThickness="1" CornerRadius="3" Margin="2,4,2,0" Padding="7,4">
                                 <Grid>
                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="190" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                    <TextBlock x:Name="ImageContextLabelText" Text="画面来源" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,7,0" />
-                                    <ComboBox x:Name="ImageContextComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="ImageContextComboBox_SelectionChanged" MinHeight="26" ToolTip="选择全局图像、当前模块输入/输出，或方案中指定的图像源。指定来源无有效图像时不会回退到其他图片。" />
-                                    <TextBlock x:Name="ImageContextDetailText" Grid.Column="2" Text="--" Foreground="#67E8F9" VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
-                                    <TextBlock x:Name="ImageContextSourceText" Grid.Row="1" Grid.ColumnSpan="3" Text="来源：全局输入" Foreground="#E2E8F0" FontSize="10" VerticalAlignment="Center" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
-                                    <StackPanel x:Name="ImageAcquisitionBarS115" Grid.Row="2" Grid.ColumnSpan="3" Orientation="Horizontal" Visibility="Collapsed" Margin="0,3,0,0"><TextBlock x:Name="ImageAcquisitionSummaryS115" Foreground="#94A3B8" FontSize="10" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" /><Button x:Name="ImageAcquisitionRepairS115" Content="打开源配置" Visibility="Collapsed" Click="OpenImageAcquisitionSourceS115_Click" Margin="8,0,0,0" Padding="4,1" MinHeight="20" ToolTip="定位采集异常对应的图像源模块，不自动连接或运行" /></StackPanel>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="170" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="ImageContextLabelText" Text="画面来源" Visibility="Collapsed" />
+                                    <ComboBox x:Name="ImageContextComboBox" Grid.Column="1" DisplayMemberPath="DisplayText" SelectedValuePath="Key" SelectionChanged="ImageContextComboBox_SelectionChanged" MinHeight="26" Margin="0" ToolTip="选择全局图像、当前模块输入/输出，或方案中指定的图像源。指定来源无有效图像时不会回退到其他图片。" />
+                                    <TextBlock x:Name="ImageContextSourceText" Grid.Column="2" Text="来源：全局输入" Foreground="#CBD5E1" FontSize="11" VerticalAlignment="Center" Margin="9,0,0,0" TextTrimming="CharacterEllipsis">
+                                        <TextBlock.ToolTip><ToolTip MaxWidth="420"><TextBlock x:Name="ImageContextDetailText" Text="--" TextWrapping="Wrap" /></ToolTip></TextBlock.ToolTip>
+                                    </TextBlock>
+                                    <TextBlock x:Name="ImageContextNoticeUI04" Grid.Row="1" Grid.ColumnSpan="3" Visibility="Collapsed" Foreground="#FCD34D" FontSize="10" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
+                                    <Grid x:Name="ImageAcquisitionBarS115" Grid.Row="2" Grid.ColumnSpan="3" Visibility="Collapsed" Margin="0,3,0,0">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="ImageAcquisitionSummaryS115" Foreground="#94A3B8" FontSize="10" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                        <Button x:Name="ImageAcquisitionRepairS115" Grid.Column="1" Content="打开源配置" Visibility="Collapsed" Click="OpenImageAcquisitionSourceS115_Click" Margin="8,0,0,0" Padding="4,1" MinHeight="20" ToolTip="定位采集异常对应的图像源模块，不自动连接或运行" />
+                                    </Grid>
                                 </Grid>
                             </Border>
                             <Border x:Name="HistoricalImageContextBar" Visibility="Collapsed" Background="#3B1D08" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="3" Margin="2,4,2,0" Padding="7,5">
@@ -1970,7 +2053,7 @@
                                     <wfi:WindowsFormsHost x:Name="HalconHost" Grid.Row="1" Margin="0" />
                                     <Border x:Name="ImageEmptyStateBorder" Grid.Row="1" Visibility="Collapsed" Background="#0B1220" Padding="24">
                                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="360">
-                                            <TextBlock Text="暂无可显示图像" Foreground="#E2E8F0" FontSize="18" FontWeight="SemiBold" TextAlignment="Center" />
+                                            <TextBlock Text="暂无图像" Foreground="#E2E8F0" FontSize="18" FontWeight="SemiBold" TextAlignment="Center" />
                                             <TextBlock x:Name="ImageEmptyStateText" Text="请选择全局输入，或先运行具有 Image 输出的上游模块。" Foreground="#94A3B8" TextWrapping="Wrap" TextAlignment="Center" Margin="0,8,0,0" />
                                         </StackPanel>
                                     </Border>
@@ -2221,13 +2304,14 @@
                             </Grid>
                         </Grid>
                     </Border>
-                    <Border Grid.Row="3" Background="#182235" BorderBrush="#334155" BorderThickness="0,1,0,0" Padding="7,4">
+                    <Border x:Name="ImageStatusBarUI05" Grid.Row="3" Background="#182235" BorderBrush="#334155" BorderThickness="0,1,0,0" Padding="7,4">
                         <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="2*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                            <TextBlock x:Name="OverlayStatusText" Foreground="#FDE68A" Text="结果：无可用叠加" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
-                            <TextBlock x:Name="RoiOverlayLegendText" Grid.Column="1" Foreground="#67E8F9" Text="ROI：0 个" Margin="12,0,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
-                            <TextBlock x:Name="ImagePixelStatusText" Grid.Column="2" Foreground="#FDE68A" Text="像素：--" Margin="12,0,0,0" />
-                            <TextBlock x:Name="HeaderStatusText" Grid.Column="3" Foreground="#A7F3D0" Text="就绪" Margin="12,0,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
+                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <TextBlock x:Name="HeaderStatusText" Grid.ColumnSpan="3" Foreground="#E2E8F0" Text="就绪" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
+                            <TextBlock x:Name="OverlayStatusText" Grid.Row="1" Foreground="#94A3B8" FontSize="10" Text="结果：无图层" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" />
+                            <TextBlock x:Name="RoiOverlayLegendText" Grid.Row="1" Grid.Column="1" Foreground="#94A3B8" FontSize="10" Text="ROI：0" Margin="10,3,0,0" TextTrimming="CharacterEllipsis" />
+                            <TextBlock x:Name="ImagePixelStatusText" Grid.Row="1" Grid.Column="2" Foreground="#CBD5E1" FontSize="10" Text="像素：--" Margin="10,3,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
                         </Grid>
                     </Border>
                 </Grid>
@@ -2235,20 +2319,19 @@
 
             <GridSplitter x:Name="RightWorkspaceSplitter" Grid.Column="4" Grid.Row="1" Height="5" Background="#CBD5E1" HorizontalAlignment="Stretch" />
 
-                            <!-- Progressive task inspector: three primary entries, infrequent workspaces under More. -->
+                            <!-- Read-only workspace heading; parameter actions open the existing movable editor. -->
             <Grid Grid.Column="4" Grid.Row="2">
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                 <Border Background="#E8EEF6" BorderBrush="#CBD5E1" BorderThickness="0,0,0,1" Padding="6,4">
-                    <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                        <StackPanel Orientation="Horizontal">
-                            <Button x:Name="RightParametersTaskButton" Content="模块参数" MinWidth="72" MinHeight="24" Padding="10,3" Margin="0,0,4,0" Click="RightParametersTaskButton_Click" ToolTip="打开选中模块的统一参数小窗；也可以双击流程模块。不改变流程区大小。" />
-                            <Button x:Name="RightIoTaskButton" Content="输入订阅" MinWidth="72" MinHeight="24" Padding="10,3" Margin="0,0,4,0" Click="RightIoTaskButton_Click" ToolTip="在同一参数小窗选择真实输入来源；不会执行模块。" />
-                            <Button x:Name="RightResultTaskButton" Content="运行结果" MinWidth="72" MinHeight="24" Padding="10,3" Click="RightResultTaskButton_Click" ToolTip="查看流程与选中模块的最近运行结果；不会运行或修改参数。" />
-                        </StackPanel>
-                        <Button x:Name="RightMoreTaskButton" Grid.Column="1" Content="更多 ▾" MinWidth="60" MinHeight="24" Padding="8,3" Click="RightMoreTaskButton_Click">
+                    <Grid x:Name="RightWorkspaceHeaderUI10">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <TextBlock x:Name="RightWorkspaceTitleUI10" Text="结果" Foreground="#334155" FontWeight="SemiBold" VerticalAlignment="Center" Margin="3,0,6,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
+                        <Button x:Name="RightResultTaskButton" Grid.Column="1" Content="返回结果" Visibility="Collapsed" MinWidth="68" MinHeight="24" Padding="8,3" Margin="0,0,4,0" Click="RightResultTaskButton_Click" ToolTip="返回流程与所选模块的最近运行结果，不运行或修改参数。" />
+                        <Button x:Name="RightParametersTaskButton" Grid.Column="2" Content="参数…" MinWidth="58" MinHeight="24" Padding="8,3" Margin="0,0,4,0" Click="RightParametersTaskButton_Click" ToolTip="打开选中模块的统一参数小窗；也可以双击流程模块。不改变流程区大小。" />
+                        <Button x:Name="RightMoreTaskButton" Grid.Column="3" Content="更多 ▾" MinWidth="60" MinHeight="24" Padding="8,3" Click="RightMoreTaskButton_Click" ToolTip="输入订阅、ROI、帮助与其他工作区；不会自动运行。">
                             <Button.ContextMenu>
                                 <ContextMenu>
+                                    <MenuItem x:Name="RightIoTaskButton" Header="输入订阅…" Click="RightIoTaskButton_Click" ToolTip="在同一参数小窗选择真实输入来源，不运行或应用。" />
                                     <MenuItem Header="运行设置" Click="RightRunSettingsMenuItem_Click" />
                                     <MenuItem Header="实例重命名" Click="RightRenameInstanceMenuItem_Click" />
                                     <MenuItem Header="ROI / 模板" Click="RightRoiSettingsMenuItem_Click" />
@@ -2275,29 +2358,31 @@
                 <TabItem x:Name="ModuleResultTab" Header="模块结果">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel Margin="9">
-                            <Border Background="#263449" CornerRadius="3" Padding="7,5" Margin="0,0,0,5">
+                            <Border Background="#EEF2F6" BorderBrush="#D8E0E8" BorderThickness="1" CornerRadius="4" Padding="7,4" Margin="0,0,0,5">
                                 <Grid>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                     <StackPanel>
-                                        <TextBlock x:Name="FlowRunStatusText" Text="流程待命" Foreground="#FFFFFF" FontSize="12" FontWeight="SemiBold" />
-                                        <TextBlock x:Name="FlowRunRangeText" Text="范围：--" Foreground="#BFDBFE" FontSize="10" Margin="0,2,0,0" />
+                                        <TextBlock x:Name="FlowRunStatusText" Text="流程待命" Foreground="#334155" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
+                                        <TextBlock x:Name="FlowRunRangeText" Text="范围：--" Foreground="#64748B" FontSize="10" Margin="0,1,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
                                     </StackPanel>
                                     <Border Grid.Column="1" Background="#0F766E" CornerRadius="12" Padding="10,4" VerticalAlignment="Center">
                                         <TextBlock x:Name="FlowRunResultText" Text="--" Foreground="White" FontWeight="Bold" />
                                     </Border>
                                 </Grid>
                             </Border>
-                            <GroupBox Header="选中模块" Padding="5" Margin="0,0,0,5" ToolTip="单击只选择或拖动模块；双击打开常用 / 输入 / ROI / 结果参数小窗。">
+                            <Border x:Name="SelectedResultCardUI04" Background="White" BorderBrush="#D8E0E8" BorderThickness="1" CornerRadius="4" Padding="7,5" Margin="0,0,0,5">
                                 <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="54" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                    <TextBlock Text="模块" /><TextBlock x:Name="SelectedResultToolText" Grid.Column="1" Text="请选择流程模块" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Grid.Row="1" Text="状态" /><TextBlock x:Name="SelectedResultStatusText" Grid.Row="1" Grid.Column="1" Text="--" />
-                                    <TextBlock x:Name="SelectedResultOriginTextS88" Grid.Row="2" Grid.ColumnSpan="2" Text="尚无执行结果" Foreground="#64748B" FontSize="10" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
-                                    <TextBlock Grid.Row="3" Text="输出" /><TextBlock x:Name="SelectedResultOutputText" Grid.Row="3" Grid.Column="1" Text="--" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
-                                    <TextBlock x:Name="SelectedResultErrorLabel" Grid.Row="4" Text="错误" Visibility="Collapsed" /><TextBlock x:Name="SelectedResultErrorText" Grid.Row="4" Grid.Column="1" Text="--" Visibility="Collapsed" Foreground="#B91C1C" TextWrapping="Wrap" />
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <TextBlock x:Name="SelectedResultToolText" Text="请选择流程模块" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <Button x:Name="SelectedResultDetailsUI04" Grid.Column="1" Content="详情" Padding="5,0" Margin="5,0,0,0" MinHeight="20" Click="SelectedResultDetailsUI04_Click" ToolTip="查看所选模块的完整输出和异常；不运行，不应用参数。" />
+                                    <TextBlock x:Name="SelectedResultOutputText" Grid.Row="1" Grid.ColumnSpan="2" Text="--" Foreground="#334155" FontWeight="SemiBold" Margin="0,2,0,2" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
+                                    <TextBlock x:Name="SelectedResultOriginTextS88" Grid.Row="2" Text="尚无执行结果" Foreground="#64748B" FontSize="10" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock x:Name="SelectedResultStatusText" Grid.Row="2" Grid.Column="1" Text="--" Foreground="#64748B" FontSize="10" Margin="8,0,0,0" MaxWidth="126" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock x:Name="SelectedResultErrorLabel" Grid.Row="3" Text="错误" Visibility="Collapsed" />
+                                    <TextBlock x:Name="SelectedResultErrorText" Grid.Row="3" Grid.ColumnSpan="2" Text="--" Visibility="Collapsed" Foreground="#B91C1C" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
                                 </Grid>
-                            </GroupBox>
+                            </Border>
                             <Expander x:Name="WorkspaceRunDetailsExpander" Header="流程详情 / 逐 ROI 结果" IsExpanded="False">
                               <StackPanel>
                             <GroupBox Header="本次流程运行">
@@ -2337,13 +2422,16 @@
                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                         <Border x:Name="DockTaskHeaderBorder" Background="#263449" Padding="7,5">
                             <Grid>
-                                <Grid.RowDefinitions><RowDefinition x:Name="DockIdentityHeaderRowS82" Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <Grid.RowDefinitions><RowDefinition x:Name="DockIdentityHeaderRowS82" Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                 <TextBlock x:Name="DockModuleTitleText" Text="请选择流程模块" Foreground="White" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                 <TextBlock x:Name="DockModuleTypeText" Grid.Column="1" Text="模块配置" Foreground="#BFDBFE" FontSize="10" Margin="8,0,0,0" MaxWidth="132" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}" />
                                 <TextBlock x:Name="DockQuickResultText" Grid.Column="2" Text="结果：--" Foreground="#A7F3D0" FontSize="10" Margin="10,0,0,0" VerticalAlignment="Center" />
                                 <TextBlock x:Name="DockQuickInputText" Visibility="Collapsed" Text="输入：--" />
-                                <DockPanel x:Name="DockActionRowS82" Grid.Row="1" Grid.ColumnSpan="4" Margin="0,4,0,0">
+                                <TextBlock x:Name="DockFooterText" Grid.Row="1" Grid.ColumnSpan="4" Text="选择模块开始配置" Foreground="#CBD5E1" Margin="2,0,2,4" TextTrimming="CharacterEllipsis" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}">
+                                    <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=DockValidationText}" Value=""><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                                </TextBlock>
+                                <DockPanel x:Name="DockActionRowS82" Grid.Row="2" Grid.ColumnSpan="4" Margin="0,4,0,0">
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                                         <Border x:Name="DockDraftStateBorder" Background="#0F766E" CornerRadius="9" Padding="7,1" Margin="3,0,3,0" VerticalAlignment="Center" Visibility="Collapsed">
                                             <TextBlock x:Name="DockDraftStateText" Text="未应用" Foreground="White" FontWeight="SemiBold" />
@@ -2356,8 +2444,10 @@
                                         <Button x:Name="DockSubflowStepButtonS102" Content="单步" Visibility="Collapsed" MinWidth="48" MinHeight="24" Padding="7,2" Margin="4,0,0,0" Click="DebugStepButton_Click" ToolTip="F10：执行当前已暂停子流程的下一步；不切换到父流程所选模块。" />
                                         <ToggleButton x:Name="DockContinuousTrialToggleButtonS87" Content="↻ 连续" MinWidth="62" MinHeight="24" Padding="7,2" Margin="4,0,0,0" Click="DockContinuousTrialToggleButton_ClickS87" ToolTip="按运行设置中的节拍重复试运行当前模块；不会运行整条流程" />
                                     </StackPanel>
-                                    <TextBlock x:Name="DockFooterText" Text="选择模块开始配置" VerticalAlignment="Center" Foreground="#CBD5E1" Margin="8,0" TextTrimming="CharacterEllipsis" />
                                 </DockPanel>
+                                <TextBlock x:Name="DockValidationText" Grid.Row="3" Grid.ColumnSpan="4" Foreground="#B91C1C" TextTrimming="CharacterEllipsis" Margin="2,4,2,0" ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=Text}">
+                                    <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Visible" /><Style.Triggers><Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed" /></Trigger></Style.Triggers></Style></TextBlock.Style>
+                                </TextBlock>
                             </Grid>
                         </Border>
                         <TabControl x:Name="DockConfigurationTabs" Grid.Row="1" Margin="0" BorderThickness="0" Padding="0">
@@ -2707,7 +2797,7 @@
                                           <StackPanel x:Name="DockVariationS130Panel" Visibility="Collapsed">
                                               <GroupBox Header="良品变化缺陷检测" Margin="0,0,0,8">
                                                   <StackPanel Margin="8">
-                                                      <TextBlock x:Name="DockVariationModelStateS130" Foreground="#475569" TextWrapping="Wrap" Margin="0,0,0,6" Text="模型未训练 · 至少 3 张对齐良品" ToolTip="标准模型学习每个位置的良品平均灰度与波动。不自动做定位对齐；上游处理、来源和尺寸必须与训练一致。" />
+                                                      <TextBlock x:Name="DockVariationModelStateS130" Foreground="#475569" TextTrimming="CharacterEllipsis" Margin="0,0,0,6" Text="待学习 · 至少3张良品" />
                                                       <Grid>
                                                           <Grid.ColumnDefinitions><ColumnDefinition Width="150" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                                           <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
@@ -2715,25 +2805,29 @@
                                                           <TextBlock Grid.Row="1" Text="波动倍数" VerticalAlignment="Center" /><TextBox x:Name="DockVariationFactorS130" Grid.Row="1" Grid.Column="1" Width="100" HorizontalAlignment="Left" TextChanged="DockDraftValue_Changed" ToolTip="相对每个位置的良品灰度标准差的容差倍数，默认 3；不是模型分数，也不是现场置信度。" />
                                                           <TextBlock Grid.Row="2" Text="最小缺陷面积 px" VerticalAlignment="Center" /><TextBox x:Name="DockVariationMinAreaS130" Grid.Row="2" Grid.Column="1" Width="100" HorizontalAlignment="Left" TextChanged="DockDraftValue_Changed" ToolTip="连接差异区域后按面积去除小噪点。Area/比例/HasDefect 均基于筛选后区域；RawArea 保留未筛选的原始差异。" />
                                                       </Grid>
-                                                      <Expander Header="良品样本与训练" IsExpanded="False" Margin="0,8,0,0" ToolTip="停止运行后加入至少 3 张不同良品；尺寸、类型及位置/旋转一致。样本改动只进入草稿，原已应用模型保持不变。">
+                                                      <Expander x:Name="DockVariationSamplesTaskUI04" Header="良品样本与学习" IsExpanded="False" Margin="0,8,0,0" ToolTip="停止运行后加入至少 3 张不同良品；尺寸、类型及位置/旋转一致。样本改动只进入草稿，原已应用模型保持不变。">
                                                           <StackPanel Margin="0,5,0,0">
                                                               <WrapPanel>
-                                                                  <Button x:Name="DockVariationCaptureS130" Content="加入当前输入良品" Click="DockVariationCaptureS130_Click" Padding="6,2" ToolTip="保存模块实际订阅输入的受管图像与原始有效域；每次加入前须运行上游采集不同良品。不是从全局或历史画面取图。" />
-                                                                  <Button x:Name="DockVariationAddFilesS130" Content="加入对齐图片" Click="DockVariationAddFilesS130_Click" Padding="6,2" Margin="5,0,0,0" ToolTip="把已按当前输入坐标对齐的良品图片复制进受管队列；不会偷偷对齐、转灰度或缩放。" />
+                                                                  <Button x:Name="DockVariationCaptureS130" Content="加入当前良品" Click="DockVariationCaptureS130_Click" Padding="6,2" ToolTipService.ShowOnDisabled="True" />
+                                                                  <Button x:Name="DockVariationTrainS130" Content="学习良品" Click="DockVariationTrainS130_Click" Padding="6,2" Margin="5,0,0,0" ToolTipService.ShowOnDisabled="True" />
+                                                                  <Button x:Name="DockVariationCancelS130" Content="取消学习" Click="DockVariationCancelS130_Click" Padding="6,2" Margin="5,0,0,0" Visibility="Collapsed" />
                                                               </WrapPanel>
-                                                              <CheckBox x:Name="DockVariationAlignedS130" Content="外部样本均为良品，且已按当前输入对齐" Margin="0,6,0,4" ToolTip="这是样本责任确认，不是软件自动证明对齐。未对齐图像须先经正式模板定位/图像变换工具处理并导出。" />
-                                                              <TextBlock x:Name="DockVariationSampleCountS130" Foreground="#64748B" FontSize="11" Text="0/64 张良品" />
-                                                              <ListBox x:Name="DockVariationSampleListS130" MaxHeight="125" Margin="0,4,0,4" SelectionChanged="DockVariationSampleSelectionS130_Changed">
-                                                                  <ListBox.ItemTemplate><DataTemplate><StackPanel><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip="{Binding ImagePath}" /><TextBlock Text="{Binding Status}" Foreground="#64748B" FontSize="11" /></StackPanel></DataTemplate></ListBox.ItemTemplate>
-                                                              </ListBox>
-                                                              <Image x:Name="DockVariationSamplePreviewS130" Height="95" Stretch="Uniform" Visibility="Collapsed" Margin="0,0,0,4" ToolTip="所选原始良品缩略图，仅用于查看；检测仍使用原始 HALCON 图像。" />
-                                                              <WrapPanel>
-                                                                  <Button Content="移除所选" Click="DockVariationRemoveS130_Click" Padding="6,1" />
-                                                                  <Button Content="清空草稿样本" Click="DockVariationClearS130_Click" Padding="6,1" Margin="5,0,0,0" ToolTip="清空当前草稿，保留旧模型文件供已应用方案与撤销引用；不会立即改变运行中的正式配置。" />
-                                                                  <Button x:Name="DockVariationTrainS130" Content="学习良品" Click="DockVariationTrainS130_Click" Padding="6,1" Margin="5,0,0,0" ToolTip="后台逐张学习 standard 变化模型，成功生成独立新版本后仍须应用。失败或取消不会覆盖旧模型。" />
-                                                                  <Button x:Name="DockVariationCancelS130" Content="取消学习" Click="DockVariationCancelS130_Click" Padding="6,1" Margin="5,0,0,0" Visibility="Collapsed" />
-                                                              </WrapPanel>
-                                                              <TextBlock x:Name="DockVariationTrainingStatusS130" Foreground="#475569" FontSize="11" TextWrapping="Wrap" Margin="0,5,0,0" Text="学习成功→应用→F5 检测；Area 接数值判定，执行 OK 不等于产品合格" />
+                                                              <TextBlock x:Name="DockVariationSampleCountS130" Foreground="#64748B" FontSize="11" Text="0/64 张良品" Margin="0,5,0,0" />
+                                                              <TextBlock x:Name="DockVariationTrainingStatusS130" Foreground="#475569" FontSize="11" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Margin="0,5,0,0" Text="加入至少3张不同良品，再学习" />
+                                                              <Expander x:Name="DockVariationManageUI04" Header="查看 / 管理样本" IsExpanded="False" Margin="0,6,0,0">
+                                                                  <StackPanel>
+                                                                      <ListBox x:Name="DockVariationSampleListS130" MaxHeight="100" Margin="0,4,0,4" SelectionChanged="DockVariationSampleSelectionS130_Changed">
+                                                                          <ListBox.ItemTemplate><DataTemplate><StackPanel><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip="{Binding ImagePath}" /><TextBlock Text="{Binding Status}" Foreground="#64748B" FontSize="11" /></StackPanel></DataTemplate></ListBox.ItemTemplate>
+                                                                      </ListBox>
+                                                                      <Image x:Name="DockVariationSamplePreviewS130" Height="80" Stretch="Uniform" Visibility="Collapsed" Margin="0,0,0,4" ToolTip="所选原始良品缩略图，仅用于查看；检测仍使用原始 HALCON 图像。" />
+                                                                      <CheckBox x:Name="DockVariationAlignedS130" Content="外部图片已对齐且均为良品" Margin="0,4" ToolTip="这是样本责任确认，不是软件自动证明对齐。未对齐图像须先经正式模板定位/图像变换工具处理并导出。" Checked="DockVariationExternalChangedUI04" Unchecked="DockVariationExternalChangedUI04" />
+                                                                      <WrapPanel>
+                                                                          <Button x:Name="DockVariationAddFilesS130" Content="导入图片" Click="DockVariationAddFilesS130_Click" Padding="6,2" ToolTipService.ShowOnDisabled="True" />
+                                                                          <Button x:Name="DockVariationRemoveUI04" Content="移除所选" Click="DockVariationRemoveS130_Click" Padding="6,2" Margin="5,0,0,0" />
+                                                                          <Button x:Name="DockVariationClearUI04" Content="清空草稿" Click="DockVariationClearS130_Click" Padding="6,2" Margin="5,0,0,0" ToolTip="只清空当前草稿样本；旧正式模型与资源保留，除非明确应用当前草稿。" />
+                                                                      </WrapPanel>
+                                                                  </StackPanel>
+                                                              </Expander>
                                                           </StackPanel>
                                                       </Expander>
                                                   </StackPanel>
@@ -4066,14 +4160,16 @@
                                             </GroupBox>
                                         </StackPanel>
                                         <StackPanel x:Name="DockOcrPanel" Visibility="Collapsed">
+                                            <Button x:Name="DockOcrSourceTaskUI04" Content="字符来源" HorizontalAlignment="Left" Margin="0,0,0,5" Padding="6,2" Click="DockOcrSourceTaskUI04_Click" />
                                             <GroupBox Header="HALCON OCR 字符识别" ToolTip="字符必须分离且字库应匹配实际字体；连接 Characters 使用前序字符，否则在 ROI 内分割。低置信度输出 NG，不代表正确率保证。">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="100" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                                    <TextBlock Text="字符模型" VerticalAlignment="Center" />
+                                                    <TextBlock Text="识别字库" VerticalAlignment="Center" />
                                                     <DockPanel Grid.Column="1">
                                                         <Button DockPanel.Dock="Right" Content="导入…" MinWidth="42" Padding="4,1" Click="OcrModelBrowse_ClickS81" ToolTip="导入真实 HALCON MLP .omc 字库，复制成独立 SHA 版本进入草稿；方案打包带字库。" />
-                                                        <TextBox x:Name="DockOcrModelTextBox" IsReadOnly="True" TextChanged="DockDraftValue_Changed" ToolTip="字库版本路径；导入接受管 .omc，旧方案仍可读取原路径但尚未固定SHA。" />
+                                                        <TextBlock x:Name="DockOcrModelNameUI04" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip="{Binding Text, ElementName=DockOcrModelTextBox}" />
+                                                        <TextBox x:Name="DockOcrModelTextBox" Visibility="Collapsed" IsReadOnly="True" TextChanged="DockDraftValue_Changed" />
                                                     </DockPanel>
                                                     <TextBlock Grid.Row="1" Text="最少字符" VerticalAlignment="Center" />
                                                     <TextBox x:Name="DockOcrMinimumCharactersTextBox" Grid.Row="1" Grid.Column="1" TextChanged="DockDraftValue_Changed" ToolTip="检测字符数低于此值时输出 NG；范围 1–10000" />
@@ -4307,7 +4403,6 @@
                                         <Border x:Name="DockCompatibilityPanel" Visibility="Collapsed" Background="#FFF7ED" BorderBrush="#FDBA74" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,6,0,0">
                                             <StackPanel><TextBlock Text="HDevelop 暂用兼容配置，不在缺少真实程序契约时改写入口。" TextWrapping="Wrap" /><Button Content="打开兼容配置" Margin="0,8,0,0" Click="DockOpenCompatibilityButton_Click" /></StackPanel>
                                         </Border>
-                                        <TextBlock x:Name="DockValidationText" Foreground="#B91C1C" TextWrapping="Wrap" Margin="4,8,4,0" />
                                     </StackPanel>
                                 </ScrollViewer>
                             </TabItem>
@@ -4588,7 +4683,7 @@
                                                 <DataGrid x:Name="DockShapeCandidatesDataGrid" Visibility="Collapsed" Height="190" Margin="0,6,0,0" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionChanged="DockShapeCandidatesDataGrid_SelectionChanged"><DataGrid.Columns><DataGridTextColumn Header="#" Binding="{Binding Index}" Width="34" /><DataGridTextColumn Header="Score" Binding="{Binding ScoreText}" Width="62" /><DataGridTextColumn Header="Row" Binding="{Binding RowText}" Width="68" /><DataGridTextColumn Header="Column" Binding="{Binding ColumnText}" Width="68" /><DataGridTextColumn Header="角度" Binding="{Binding AngleText}" Width="58" /><DataGridTextColumn Header="尺度" Binding="{Binding ScaleText}" Width="58" /></DataGrid.Columns></DataGrid>
                                                 <DataGrid x:Name="DockNccCandidatesS131" Visibility="Collapsed" Height="160" Margin="0,6,0,0" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionChanged="DockNccCandidateS131_Changed" ToolTip="单击候选在当前输入图像标出位置；仅查看，不改变最优 Point/Pose 输出。"><DataGrid.Columns><DataGridTextColumn Header="#" Binding="{Binding Index}" Width="32" /><DataGridTextColumn Header="分数" Binding="{Binding Score, StringFormat=F3}" Width="65" /><DataGridTextColumn Header="行" Binding="{Binding PixelRow, StringFormat=F2}" Width="70" /><DataGridTextColumn Header="列" Binding="{Binding PixelColumn, StringFormat=F2}" Width="70" /><DataGridTextColumn Header="角度 °" Binding="{Binding AngleDegrees, StringFormat=F2}" Width="70" /></DataGrid.Columns></DataGrid>
                                                 <StackPanel x:Name="DockOcrCharactersResultS133" Visibility="Collapsed" Margin="0,6,0,0">
-                                                    <DockPanel><CheckBox x:Name="DockOcrOnlyAbnormalS133" Content="只看低信 / 拒识" Checked="DockOcrFilterS133_Changed" Unchecked="DockOcrFilterS133_Changed" /><TextBlock x:Name="DockOcrCharacterSummaryS133" DockPanel.Dock="Right" Foreground="#64748B" /></DockPanel>
+                                                    <StackPanel><TextBlock x:Name="DockOcrCharacterSummaryS133" Foreground="#64748B" Margin="0,0,0,3" /><CheckBox x:Name="DockOcrOnlyAbnormalS133" Content="只看低信 / 拒识" Checked="DockOcrFilterS133_Changed" Unchecked="DockOcrFilterS133_Changed" /></StackPanel>
                                                     <DataGrid x:Name="DockOcrCharactersS133" Height="175" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionChanged="DockOcrCharacterS133_Changed" ToolTip="单击字符在同来源输入图像定位，仅查看，不修改文字或判定。"><DataGrid.Columns><DataGridTextColumn Header="#" Binding="{Binding Index}" Width="35" /><DataGridTextColumn Header="字符" Binding="{Binding Text}" Width="60" /><DataGridTextColumn Header="置信度" Binding="{Binding Confidence, StringFormat=F4}" Width="75" /><DataGridTextColumn Header="状态" Binding="{Binding StateText}" Width="80" /><DataGridTextColumn Header="Row" Binding="{Binding Row, StringFormat=F2}" Width="65" /><DataGridTextColumn Header="Column" Binding="{Binding Column, StringFormat=F2}" Width="65" /></DataGrid.Columns></DataGrid>
                                                 </StackPanel>
                                                 <DataGrid x:Name="DockRoiResultsDataGrid" Height="145" Margin="0,6,0,0" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"><DataGrid.Columns><DataGridTextColumn Header="ROI" Binding="{Binding RoiName}" Width="90" /><DataGridTextColumn Header="判定" Binding="{Binding ResultCode}" Width="55" /><DataGridTextColumn Header="数值" Binding="{Binding ValueText}" Width="100" /><DataGridTextColumn Header="说明" Binding="{Binding DisplayMessage}" Width="*" /></DataGrid.Columns></DataGrid>
@@ -4599,7 +4694,6 @@
                             </TabItem>
                             <TabItem x:Name="DockHelpTaskTab" Header="帮助"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="14"><TextBlock x:Name="DockHelpText" Text="选择模块后显示帮助。" TextWrapping="Wrap" /><TextBlock Text="草稿未应用前不会改变当前实例；试运行临时使用草稿，完成后恢复已应用参数。" Foreground="#0F766E" TextWrapping="Wrap" Margin="0,12,0,0" /></StackPanel></ScrollViewer></TabItem>
                         </TabControl>
-                        <Border Grid.Row="2" Height="0" />
                     </Grid>
                 </TabItem>
                 <TabItem x:Name="ParametersTab" Header="兼容参数" ToolTip="旧 Inspector 兼容层" Visibility="Collapsed">
@@ -5152,6 +5246,13 @@
             </Grid>
 
             <Border x:Name="ProductionRunPanel" Grid.Column="4" Grid.Row="0" Grid.RowSpan="3" Visibility="Collapsed" Background="#101827" BorderBrush="#2563EB" BorderThickness="1" CornerRadius="5" Padding="10" Panel.ZIndex="30">
+                <Border.Resources>
+                    <Style TargetType="GroupBox">
+                        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="GroupBox">
+                            <StackPanel><ContentPresenter ContentSource="Header" Margin="1,0,0,5" RecognizesAccessKey="True" /><ContentPresenter ContentSource="Content" /></StackPanel>
+                        </ControlTemplate></Setter.Value></Setter>
+                    </Style>
+                </Border.Resources>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                   <StackPanel x:Name="ProductionWidgetStack">
                     <Border x:Name="ProductionSchemeWidget" Background="#1E3A5F" BorderBrush="#3B82F6" BorderThickness="1" CornerRadius="5" Padding="11">
@@ -5208,11 +5309,9 @@
                     </GroupBox>
                     <GroupBox x:Name="ProductionRunControlWidget" Header="运行控制" Foreground="#E2E8F0" Margin="0,8,0,0">
                         <StackPanel>
-                            <UniformGrid Columns="4">
-                                <Button Content="▶ 当前流程一次" Foreground="#0F766E" FontWeight="Bold" Click="RunOnceButton_Click" ToolTip="{Binding ToolTip, ElementName=ProductionRunOnceButtonUI08}" />
+                            <UniformGrid Columns="2">
                                 <Button Content="连续运行" Click="RunContinuousButton_Click" ToolTip="连续重复当前流程；不会自动切换到其他流程。" />
                                 <Button Content="暂停/继续" Click="PauseRunButton_Click" />
-                                <Button Content="■ 停止" Foreground="#B91C1C" Click="StopRunButton_Click" />
                             </UniformGrid>
                             <Grid Margin="2,4,2,0">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="88" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>

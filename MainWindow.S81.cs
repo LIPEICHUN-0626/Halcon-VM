@@ -41,6 +41,18 @@ namespace HalconWinFormsDemo
         private void MainWorkspaceGrid_SizeChangedS81(object sender, SizeChangedEventArgs e)
         {
             ResizeCentralConfigurationLayoutS81();
+            ClampRightPanelWidthUI04();
+        }
+
+        private void ClampRightPanelWidthUI04()
+        {
+            if (MainWorkspaceGrid == null || RightPanelColumn == null || ToolCatalogColumn == null ||
+                productionRunMode || centralConfigurationColumnsS81 != null || !RightPanelColumn.Width.IsAbsolute || MainWorkspaceGrid.ActualWidth <= 0) return;
+            double available = MainWorkspaceGrid.ActualWidth - ToolCatalogColumn.ActualWidth -
+                MainWorkspaceGrid.ColumnDefinitions[2].MinWidth -
+                MainWorkspaceGrid.ColumnDefinitions[1].ActualWidth - MainWorkspaceGrid.ColumnDefinitions[3].ActualWidth;
+            double maximum = Math.Max(RightPanelColumn.MinWidth, available);
+            if (RightPanelColumn.Width.Value > maximum + 0.5) RightPanelColumn.Width = new GridLength(maximum);
         }
 
         private void ResizeCentralConfigurationLayoutS81()

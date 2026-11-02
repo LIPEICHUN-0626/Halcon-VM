@@ -556,8 +556,8 @@ namespace HalconWinFormsDemo
             DockTrialRunButton.IsEnabled = pausedCall || hasTool && !running && !otherBusy;
             DockSubflowStepButtonS102.Visibility = pausedCall ? Visibility.Visible : Visibility.Collapsed;
             DockConfigurationTabs.IsEnabled = !running && !subflowTrialActiveS102;
-            DockApplyButton.IsEnabled = hasTool && !running && !subflowTrialActiveS102;
-            DockRevertButton.IsEnabled = hasTool && !running && !subflowTrialActiveS102;
+            DockApplyButton.IsEnabled = hasTool && dockDraftDirty && !running && !subflowTrialActiveS102;
+            DockRevertButton.IsEnabled = hasTool && dockDraftDirty && !running && !subflowTrialActiveS102;
             DockCurrentToolTrialIntervalComboBoxS87.IsEnabled = !running && !otherBusy;
             DockCurrentToolTrialStatusTextS87.Text = running
                 ? BuildCurrentToolTrialStatusTextS87(currentToolTrialSessionS87, stopping ? "正在停止" : isPauseRequested && subflowTrialActiveS102 ? "内部已暂停" : "运行中")

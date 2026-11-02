@@ -325,6 +325,7 @@ namespace HalconWinFormsDemo
             RefreshFlowPortVisualization();
             SelectCentralConfigurationTaskS77(DockParametersTaskTab, "Parameters");
             UpdateCentralModuleConfigurationTitleS77(tool);
+            DockBasicParametersScrollViewer.ScrollToTop();
             SynchronizeMeasurementDomainContext(tool);
             SynchronizeProjectiveGeometryContext(tool);
             RefreshDualImageInputOptions(tool);
@@ -412,11 +413,13 @@ namespace HalconWinFormsDemo
             CentralModuleConfigurationTitleS77.Text = tool == null
                 ? "选择模块"
                 : "#" + tool.SequenceText + "  " + tool.InstanceName;
+            CentralModuleConfigurationTitleS77.ToolTip = tool == null ? "双击流程模块打开参数" : tool.InstanceName + " · " + tool.DisplayType;
             if (CentralModuleConfigurationContextS82 != null)
             {
                 CentralModuleConfigurationContextS82.Text = tool == null
                     ? "双击流程模块打开参数"
                     : tool.DisplayType + "  ·  " + tool.ConfigurationStatus + "  ·  " + tool.ResultCode + "  ·  " + tool.ElapsedText;
+                CentralModuleConfigurationContextS82.ToolTip = CentralModuleConfigurationContextS82.Text;
             }
         }
 

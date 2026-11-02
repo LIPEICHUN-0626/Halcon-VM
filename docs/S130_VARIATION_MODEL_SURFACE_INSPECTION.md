@@ -1,10 +1,10 @@
 # S130 良品学习与表面缺陷检测
 
-状态：2026-10-02 代码已接入，部分实现（待集中验证）。S111–S130 代码待集中验证；未进行编译、启动、回归、渲染或鼠标验收。
+状态：2026-10-28 第四批01已验证实现（限定原四工具合成图闭环），见 `UI_BATCH04_BLOCK01_EVIDENCE.md`。修复学习成功后检测8545、默认File模式保存重开签名变化、取消状态和F5模型状态误报。原S111–S130全部广度不由本块证明，实体操作/现场泛化仍未验证。下文旧连续开发位置为历史。
 
 A 线已接入：原检测分类新增“良品变化缺陷检测”。统一参数小窗常用仅最小灰差、波动倍数、最小缺陷面积三项；良品样本/训练默认折叠。可保存模块实际输入良品和有效域，或确认同坐标对齐后多选外部良品复制到受管目录；队列显示可读名称、缩略图、逐张状态/失败原因，后台训练可取消。沿用输入/ROI/结果、草稿/F5/应用和原图/掩膜视口，不增加永久顶部按钮、不压窄流程。全窗口不冻结，修改样本/切换/停止会取消并拒绝旧结果。
 
-B 线已接入：真实 HALCON create_variation_model(standard)/train_variation_model/prepare_variation_model/compare_variation_model；全部样本重建一份独立版本，学习位置相关的良品灰度均值/波动。保存前清理增量训练数据，原统计图和阈值仍用于检测时按当前容差重新准备。连接 Image，可选 ROI/屏蔽复用原运行域；共同有效域随 `.reg` 保存，检测域须完全被所有样本覆盖，拒绝静默缩小 ROI。输出托管 Region、筛选后 Area/AreaRatio(%)/RegionCount、筛选前 RawArea、学习 SampleCount、EffectivePixels、HasDefect、ModelVersion/Parameters/ResultCode；缺陷图层与下游区域筛选/轮廓/数值判定沿用原合同。空缺陷为有效执行 OK，不等于产品判定合格。
+B 线已接入：真实 HALCON create_variation_model(standard)/train_variation_model/prepare_variation_model/compare_variation_model；全部样本重建一份独立版本，学习位置相关的良品灰度均值/波动。2026-10-28纠正：保存时必须保留训练统计，以便检测时按当前容差重新准备；旧“清理后仍可重新准备”描述错误，实际触发HALCON8545。旧清理版模型明确提示重新学习并应用，不自动迁移或忽略当前容差。连接 Image，可选 ROI/屏蔽复用原运行域；共同有效域随 `.reg` 保存，检测域须完全被所有样本覆盖，拒绝静默缩小 ROI。输出托管 Region、筛选后 Area/AreaRatio(%)/RegionCount、筛选前 RawArea、学习 SampleCount、EffectivePixels、HasDefect、ModelVersion/Parameters/ResultCode；缺陷图层与下游区域筛选/轮廓/数值判定沿用原合同。空缺陷为有效执行 OK，不等于产品判定合格。
 
 资源/草稿：模型 `.vam`、覆盖域 `.reg` 和样本写入原方案目录下 VariationModels，使用随机不可变版本与 SHA-256。新模型只进入同一草稿，应用/保存/撤销依靠原 DTO；失败不修改已应用模型。每次检测独立读取/准备/清理句柄，不与草稿或其他实例共享可变模型。读资源持有只读文件锁并核对哈希；加载支持相对路径，打包导出自动复制所有模型/覆盖域/样本。路径变化不改变数据集键；来源、相机接口/标识、上游参数与 ROI 几何变化有签名守卫。明确复制了来源的根流程/流程块只在原数据集仍有效时重映射身份；未解析的嵌套来源不自动重绑定。旧文件保留供撤销、备份与恢复引用，尚无引用感知清理。
 

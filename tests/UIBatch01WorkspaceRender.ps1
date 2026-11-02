@@ -38,7 +38,11 @@ function M([string]$name, [object[]]$arguments = @()) {
         else { $actual[$index] = $arguments[$index].PSObject.BaseObject }
     }
     try { Write-Output -NoEnumerate ($method.Invoke($window, $actual)) }
-    catch [Reflection.TargetInvocationException] { throw $_.Exception.InnerException }
+    catch [Reflection.TargetInvocationException] {
+        if ($Phase -eq 'ui04block02') { Write-Warning ($_.Exception.InnerException.ToString()) }
+        throw $_.Exception.InnerException
+    }
+    catch { if ($Phase -eq 'ui04block02') { Write-Warning ($_.Exception.ToString()) }; throw }
 }
 function Pump([int]$milliseconds) {
     $frame = New-Object Windows.Threading.DispatcherFrame
@@ -48,12 +52,12 @@ function Pump([int]$milliseconds) {
     $timer.Start(); [Windows.Threading.Dispatcher]::PushFrame($frame)
 }
 function Shot([string]$name, $surface = $window) {
-    $directory = Join-Path $ProjectRoot $(if ($Phase -like 'ui03*') { 'artifacts\ui-batch-03' } elseif ($Phase -like 'ui02*') { 'artifacts\ui-batch-02' } else { 'artifacts\ui-batch-01' })
+    $directory = Join-Path $ProjectRoot $(if ($Phase -like 'ui04*') { 'artifacts\ui-batch-04' } elseif ($Phase -like 'ui03*') { 'artifacts\ui-batch-03' } elseif ($Phase -like 'ui02*') { 'artifacts\ui-batch-02' } else { 'artifacts\ui-batch-01' })
     [IO.Directory]::CreateDirectory($directory) | Out-Null
     $path = Join-Path $directory ($Phase + '-' + $name + '.png')
     $surface.UpdateLayout()
     $renderSurface=$surface
-    if (($Phase -eq 'ui02block02' -or $Phase -like 'ui03*') -and $surface -is [Windows.Window]) {
+    if (($Phase -eq 'ui02block02' -or $Phase -like 'ui03*' -or $Phase -like 'ui04*') -and $surface -is [Windows.Window]) {
         if (-not $surface.IsVisible -or $null -eq $surface.Content) { throw 'Template window must remain visible with actual content.' }
         # Rendering the real content avoids transparent HWND snapshots when the
         # off-screen window compositor skips an inactive window after async work.
@@ -426,6 +430,16 @@ try {
     if ($Phase -eq 'ui03block08') { . (Join-Path $PSScriptRoot 'UIBatch03ScriptTasks.ps1') }
     if ($Phase -eq 'ui03block09') { . (Join-Path $PSScriptRoot 'UIBatch03CommunicationTasks.ps1') }
     if ($Phase -eq 'ui03block10') { . (Join-Path $PSScriptRoot 'UIBatch03MoreTasks.ps1') }
+    if ($Phase -eq 'ui04block01') { . (Join-Path $PSScriptRoot 'UIBatch04VariationTasks.ps1') }
+    if ($Phase -eq 'ui04block02') { . (Join-Path $PSScriptRoot 'UIBatch04OcrTasks.ps1') }
+    if ($Phase -eq 'ui04visual') { . (Join-Path $PSScriptRoot 'UIBatch04WorkspaceChrome.ps1') }
+    if ($Phase -eq 'ui04display') { . (Join-Path $PSScriptRoot 'UIBatch04ImageResults.ps1') }
+    if ($Phase -eq 'ui04tools') { . (Join-Path $PSScriptRoot 'UIBatch04DisplayTools.ps1') }
+    if ($Phase -eq 'ui04parameters') { . (Join-Path $PSScriptRoot 'UIBatch04ParameterChrome.ps1') }
+    if ($Phase -eq 'ui04catalog') { . (Join-Path $PSScriptRoot 'UIBatch04CatalogChrome.ps1') }
+    if ($Phase -eq 'ui04pages') { . (Join-Path $PSScriptRoot 'UIBatch04PageModeChrome.ps1') }
+    if ($Phase -eq 'ui04help') { . (Join-Path $PSScriptRoot 'UIBatch04HelpChrome.ps1') }
+    if ($Phase -eq 'ui04summary') { . (Join-Path $PSScriptRoot 'UIBatch04WorkspaceActions.ps1') }
     if ($Phase -eq 'ui02block10') {
         $beforeIds=@((F 'flowTools')|ForEach-Object ToolId) -join ','
         $threshold=(F 'flowTools')[1]
@@ -1625,7 +1639,7 @@ try {
         $guide.Close()
         Write-Output 'UI_BLOCK10_HELP_CORE=PASS; OriginalCatalogAdd=True; OriginalImageBinding=True; RealThresholdDraft1664=True; ApplySave=True; CompactSixStepHelp=True; ActualPortSearch=True; SelectedTopicPreserved=True; EmptySearchNoStaleContent=True; SingleHelpWindow=True; LearningNavigationNoRun=True; NoForegroundActivation=True; NoMouse=True'
     }
-    if ($Phase -notlike 'ui03*' -and $Phase -notin @('block04','block05','block06','block07','block08','block09','block10','ui02block01','ui02block02','ui02block03','ui02block04','ui02block05','ui02block06','ui02block07','ui02block08','ui02block09','ui02block10')) { Write-Output 'UI_BASELINE_STARTUP=PASS; Blank=True; ExplicitGraphOnly=True; NoFlowExecution=True; NoMouse=True; NoDeviceConnection=True' }
+    if ($Phase -notlike 'ui04*' -and $Phase -notlike 'ui03*' -and $Phase -notin @('block04','block05','block06','block07','block08','block09','block10','ui02block01','ui02block02','ui02block03','ui02block04','ui02block05','ui02block06','ui02block07','ui02block08','ui02block09','ui02block10')) { Write-Output 'UI_BASELINE_STARTUP=PASS; Blank=True; ExplicitGraphOnly=True; NoFlowExecution=True; NoMouse=True; NoDeviceConnection=True' }
 } finally {
     if ($null -ne $window) {
         if ((F 'flowStepActivityWindowS71') -ne $null) { M 'CloseFlowStepActivityButton_Click' @($null,$null) | Out-Null }
