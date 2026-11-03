@@ -52,12 +52,12 @@ function Pump([int]$milliseconds) {
     $timer.Start(); [Windows.Threading.Dispatcher]::PushFrame($frame)
 }
 function Shot([string]$name, $surface = $window) {
-    $directory = Join-Path $ProjectRoot $(if ($Phase -like 'ui04*') { 'artifacts\ui-batch-04' } elseif ($Phase -like 'ui03*') { 'artifacts\ui-batch-03' } elseif ($Phase -like 'ui02*') { 'artifacts\ui-batch-02' } else { 'artifacts\ui-batch-01' })
+    $directory = Join-Path $ProjectRoot $(if ($Phase -like 'ui05*') { 'artifacts\ui-batch-05' } elseif ($Phase -like 'ui04*') { 'artifacts\ui-batch-04' } elseif ($Phase -like 'ui03*') { 'artifacts\ui-batch-03' } elseif ($Phase -like 'ui02*') { 'artifacts\ui-batch-02' } else { 'artifacts\ui-batch-01' })
     [IO.Directory]::CreateDirectory($directory) | Out-Null
     $path = Join-Path $directory ($Phase + '-' + $name + '.png')
     $surface.UpdateLayout()
     $renderSurface=$surface
-    if (($Phase -eq 'ui02block02' -or $Phase -like 'ui03*' -or $Phase -like 'ui04*') -and $surface -is [Windows.Window]) {
+    if (($Phase -eq 'ui02block02' -or $Phase -like 'ui03*' -or $Phase -like 'ui04*' -or $Phase -like 'ui05*') -and $surface -is [Windows.Window]) {
         if (-not $surface.IsVisible -or $null -eq $surface.Content) { throw 'Template window must remain visible with actual content.' }
         # Rendering the real content avoids transparent HWND snapshots when the
         # off-screen window compositor skips an inactive window after async work.
@@ -440,6 +440,16 @@ try {
     if ($Phase -eq 'ui04pages') { . (Join-Path $PSScriptRoot 'UIBatch04PageModeChrome.ps1') }
     if ($Phase -eq 'ui04help') { . (Join-Path $PSScriptRoot 'UIBatch04HelpChrome.ps1') }
     if ($Phase -eq 'ui04summary') { . (Join-Path $PSScriptRoot 'UIBatch04WorkspaceActions.ps1') }
+    if ($Phase -eq 'ui05run') { . (Join-Path $PSScriptRoot 'UIBatch05RunCommandChrome.ps1') }
+    if ($Phase -eq 'ui05catalog') { . (Join-Path $PSScriptRoot 'UIBatch05CatalogRecovery.ps1') }
+    if ($Phase -eq 'ui05cards') { . (Join-Path $PSScriptRoot 'UIBatch05FlowCardHierarchy.ps1') }
+    if ($Phase -eq 'ui05lean') { . (Join-Path $PSScriptRoot 'UIBatch05LeanWorkspace.ps1') }
+    if ($Phase -eq 'ui05image') { . (Join-Path $PSScriptRoot 'UIBatch05ImageResultReduction.ps1') }
+    if ($Phase -eq 'ui05views') { . (Join-Path $PSScriptRoot 'UIBatch05DualViewChrome.ps1') }
+    if ($Phase -eq 'ui05template') { . (Join-Path $PSScriptRoot 'UIBatch05TemplateTaskChrome.ps1') }
+    if ($Phase -eq 'ui05logs') { . (Join-Path $PSScriptRoot 'UIBatch05StepViewChrome.ps1') }
+    if ($Phase -eq 'ui05learning') { . (Join-Path $PSScriptRoot 'UIBatch05LearningGuideChrome.ps1') }
+    if ($Phase -eq 'ui05compact') { . (Join-Path $PSScriptRoot 'UIBatch05WorkspaceCompact.ps1') }
     if ($Phase -eq 'ui02block10') {
         $beforeIds=@((F 'flowTools')|ForEach-Object ToolId) -join ','
         $threshold=(F 'flowTools')[1]
@@ -494,7 +504,7 @@ try {
         $help.Close();M 'CloseCentralModuleConfigurationS77'|Out-Null
         Write-Output ('UI02_BLOCK10_HELP=PASS; ActualModulePages='+$toolTopics.Count+'; CurrentEditedTool=True; ActualAnchorScroll=True; OverviewAndTopicReset=True; EmptySearchClearsAnchors=True; RoiBindingF5InstructionsCorrected=True; NoProjectMutation=True; NoMouse=True')
     }
-    if ($Phase -eq 'ui02block09') {
+    if ($Phase -in @('ui02block09','ui05learning')) {
         $window.Width=1366;$window.Height=768
         $menu=F 'ExampleProgramsMenuS78'
         foreach($prefix in @('检测入门','定位应用','测量应用')) {
@@ -508,6 +518,7 @@ try {
             $guide=F 'learningGuideWindowS146'
             if($null -eq $guide -or $guide.ShowActivated -or $guide.IsActive -or $guide.Left -gt -10000){throw ('Learning window isolation failed: key='+$key+' Exists='+($null -ne $guide)+' ShowActivated='+$guide.ShowActivated+' IsActive='+$guide.IsActive+' Left='+$guide.Left+' OwnerActive='+$window.IsActive+' OwnerLeft='+$window.Left)}
             if((F 'learningStepDetailsS148').IsExpanded -or -not (F 'learningStepsListS146').IsVisible -or (F 'learningStepsListS146') -isnot [Windows.Controls.ComboBox]){throw 'Step selection still needs expanded technical detail.'}
+            if ($Phase -eq 'ui05learning') { AssertLearningChromeUI09 $key }
         }
         Load09 'project-object-production'
         $flow=F 'flowTools';$source=$flow[0];$threshold=$flow[1];$objects=$flow[2];$stats=$flow[3];$judge=$flow[4];$gray=$flow[5]
@@ -529,6 +540,7 @@ try {
         M 'SelectSourceFileDraftUI03' @($path,$lease)|Out-Null
         M 'RefreshLearningGuideS146'|Out-Null
         if((F 'learningStepGapS148').Text -notlike '当前有未应用参数*'){throw 'Source draft was reported as applied.'}
+        if ($Phase -eq 'ui05learning') { AssertLearningChromeUI09 'source-draft' }
         (F 'learningStepsListS146').SelectedIndex=1;Pump 20
         if((F 'dockEditingTool') -ne $source -or -not (F 'dockDraftDirty') -or (F 'DockLocalImagePathTextBox').Text -ne $path){throw 'Step choice replaced the active source draft.'}
         (F 'learningStepsListS146').SelectedIndex=0
@@ -553,6 +565,11 @@ try {
         if(-not $objects.TryGetNumericOutput('Count',[ref]$value) -or $value -ne 1){throw 'Actual object count is not 1.'}
         if(-not $stats.TryGetNumericOutput('Sum',[ref]$value) -or $value -ne 1024){throw 'Actual area-array downstream sum is not 1024.'}
         if(-not $gray.TryGetNumericOutput('Mean',[ref]$value) -or $value -ne 64){throw 'Actual conditional gray downstream is not 64.'}
+        if ($Phase -eq 'ui05learning') {
+            M 'RefreshLearningGuideS146'|Out-Null
+            if ((F 'learningStepGapS148').Visibility -ne [Windows.Visibility]::Collapsed) { throw 'Successful applied source still shows its repetitive run reminder.' }
+            AssertLearningChromeUI09 'actual-object-output'
+        }
         $saved=Join-Path $temp 'ui09-object.json';$service.SaveRecipe($saved,(M 'CaptureRecipe'));$loaded=$service.LoadRecipe($saved)
         $active=@($loaded.Flows|Where-Object FlowId -eq $loaded.ActiveFlowId)[0]
         if($active.Tools.Count -ne 6 -or $loaded.ProductionRunLayout.ResultItemsS141.Count -ne 4){throw 'Learning save lost tools or production cards.'}
@@ -565,6 +582,7 @@ try {
             $expected=if($step -eq 1){'配置模板'}else{'配置标定'}
             Write-Output ('UI09_PREREQUISITE='+[string](F 'learningStepActionS146').Content)
             if((F 'learningStepGapS148').Text -notlike '先处理*' -or (F 'learningStepActionS146').Content -ne $expected){throw 'Missing model/calibration lacks its precise prerequisite action.'}
+            if ($Phase -eq 'ui05learning') { AssertLearningChromeUI09 ($key+'-prerequisite') }
             if($step -eq 1 -and $nodes[1].Parameters.NccMatchingS131.HasModel){throw 'Loading example fabricated a model.'}
             if($step -eq 3 -and $nodes[3].Parameters.PlanarCalibrationSamplesS124.Count -ne 0){throw 'Loading example fabricated calibration samples.'}
             M 'InvokeLearningStepS146'|Out-Null;Pump 80
@@ -586,6 +604,7 @@ try {
             M 'ApplyRecipe' @($reopened)|Out-Null;M 'RefreshLearningGuideS146'|Out-Null
             if((M 'IsLearningSessionCurrentS146') -or @((F 'flowTools')|Where-Object {$null -ne $_.LastOutputUtc}).Count -ne 0){throw 'Reopened learning example retained stale navigation or outputs.'}
         }
+        if ($Phase -eq 'ui05learning') { CompleteLearningChromeUI09 }
         Write-Output 'UI02_BLOCK09_LEARNING=PASS; DirectTaskMenus=True; CompactStepChoice=True; ExplicitNavigationOnly=True; SourceDraftApplyRerun=True; ActualObjectCount1AreaSum1024ConditionalGray64=True; Schema3SaveReopen=True; MissingModelCalibrationNoAutoExecution=True; NoMouse=True'
     }
     if ($Phase -eq 'ui02block08') {
@@ -1185,7 +1204,7 @@ try {
         Pump 100; Shot 'binding-1366x768'
         Write-Output 'UI_BLOCK03_BINDING=PASS; AutoImagePair=True; SummaryShowsBinding=True; Reselect=True; InvalidPreserves=True; UndoRedo=True; LayoutOrderAndSave=True; CommandPriority=True; NoMouse=True; NoFlowExecution=True'
     }
-    if ($Phase -eq 'block08') {
+    if ($Phase -in @('block08','ui05logs')) {
         $window.Width = 1366; $window.Height = 768; Pump 50
         $tool = $flow[1]
         $recordType = $assembly.GetType('HalconWinFormsDemo.Models.InspectionRecord',$true)
@@ -1209,6 +1228,7 @@ try {
         if ($null -eq $viewer -or $viewer.IsActive -or $viewer.ShowActivated -or $viewer.Left -gt -10000) { throw 'Step viewer must stay non-activating and off-screen.' }
         if ((F 'FlowToolList').SelectedItem -ne $selectedBefore -or (F 'ToolCatalogColumn').Width -ne $widthBefore -or (F 'FlowGraphScaleTransform').ScaleX -ne $zoomBefore) { throw 'Opening records changed project selection or layout.' }
         if ((F 'FlowStepLogTextBox').Text -notlike '*EXACT_RECORD_A*' -or (F 'FlowStepLogTextBox').Text -notlike '*Original module name*' -or (F 'FlowStepLogTextBox').Text -like '*WRONG_FLOW_RECORD*' -or (F 'FlowStepLogTextBox').Text -like '*NAME_ONLY_FALSE_ASSOCIATION*') { throw 'Step records did not isolate exact execution identity.' }
+        if ($Phase -eq 'ui05logs') { AssertStepChromeUI08 }
         (F 'FlowStepFollowS71').IsChecked = $false
         $frozen = (F 'FlowStepLogTextBox').Text
         $later = $recordType.GetConstructor([Type[]]@()).Invoke(@())
@@ -1217,6 +1237,7 @@ try {
         $store.Add($later) | Out-Null
         Pump 550
         if ((F 'FlowStepLogTextBox').Text -ne $frozen -or $store.Records.Count -ne 3) { throw 'Pause view stopped collecting or changed frozen text.' }
+        if ($Phase -eq 'ui05logs') { AssertStepSearchUI08 }
         (F 'FlowStepSearchS71').Text = 'EXACT_RECORD_A'
         if ((F 'FlowStepLogTextBox').Text -notlike '*EXACT_RECORD_A*' -or (F 'FlowStepLogTextBox').Text -like '*[输入]*') { throw 'Frozen snapshot search failed.' }
         if ((M 'GetFlowStepViewCopyTextS71') -ne (F 'FlowStepLogTextBox').Text) { throw 'Copy payload differs from visible filtered page.' }
@@ -1238,12 +1259,14 @@ try {
         (F 'FlowStepActivityTabsS71').SelectedIndex = 1
         Write-Output ('COMM_VIEW=' + (F 'FlowStepCommunicationTextBox').Text)
         if ((F 'FlowStepCommunicationTextBox').Text -notlike '*离线模拟*' -or (F 'FlowStepCommunicationTextBox').Text -notlike '*REPLY_RECORD_C*') { throw 'Communication view omitted actual sample output or simulation distinction.' }
+        if ($Phase -eq 'ui05logs') { AssertStepChromeUI08 'communication' }
         Shot 'step-communication' $viewer
         $flow.Remove($comm) | Out-Null; $comm.Dispose()
         M 'RefreshFlowStepActivityS71' | Out-Null
         if ((F 'FlowStepActivityTitleText').Text -notlike '*失效*' -or (F 'FlowStepLogTextBox').Text -ne '--') { throw 'Deleted instance reused another step or old records.' }
         M 'CloseFlowStepActivityButton_Click' @($null,$null) | Out-Null
         if ((F 'flowStepActivityWindowS71') -ne $null -or (F 'FlowStepActivityPanel').Parent -eq $null) { throw 'Closing records did not return original surface.' }
+        if ($Phase -eq 'ui05logs') { CompleteStepChromeUI08 }
         Write-Output 'UI_BLOCK08_STEP_VIEW=PASS; DetachedNoLayoutChange=True; ExactFlowToolSession=True; NoNameGuessing=True; FrozenViewStillCollects=True; SearchCopyExportSnapshot=True; ResumeFollow=True; RealOfflineCommunication=True; DeletedInstanceRejected=True; NoMouse=True; NoDeviceConnection=True'
     }
     if ($Phase -eq 'block09') {
@@ -1385,7 +1408,7 @@ try {
         if (-not $failed -or $source.TryGetOutputValue('Image',[ref]$image) -or (F 'DockSourceCurrentFrameUI03').Text -notlike '*无有效帧*') { throw 'Missing folder reused old image/current-frame text.' }
         Write-Output 'UI02_BLOCK03_IMAGE_SOURCE=PASS; ShortPathAndActualFrame=True; ExplicitFileChoiceNoReadApply=True; AutomaticSnFollowsFilename=True; DraftFrameProvenance=True; ApplyClearsFrame=True; ReplayListNoDecode=True; SelectNextNoReadOrRecipeChange=True; SelectedSecondAndWrapFirst=True; ActualDownstreamArea256=True; CameraChoiceNoConnection=True; InvalidFolderSafe=True; SaveReopenNoOldFrameCursor=True; ExplicitReopenFrame1=True; MissingSourceClearsImage=True; NoMouse=True; NoDeviceConnection=True'
     }
-    if ($Phase -eq 'ui02block02') {
+    if ($Phase -in @('ui02block02','ui05template')) {
         $window.Width = 1366; $window.Height = 768
         $targetPath = Join-Path $temp 'template-target.png'
         [HalconDotNet.HObject]$baseImage=$null; [HalconDotNet.HObject]$vertical=$null; [HalconDotNet.HObject]$horizontal=$null; [HalconDotNet.HObject]$targetRegion=$null; [HalconDotNet.HObject]$painted=$null
@@ -1404,10 +1427,12 @@ try {
         M 'OpenCentralModuleConfigurationS77' @($shape,$false) | Out-Null
         $editor=F 'moduleParameterWindowS89'
         if (-not [string]::IsNullOrWhiteSpace([string](F 'DockShapeTrainingRoiComboBox').SelectedValue)) { throw 'Shape silently selected a training ROI.' }
+        if ($Phase -eq 'ui05template') { AssertTemplateChromeUI07 'Shape' 'empty' }
         (F 'DockShapeMinScoreTextBox').Text='0.75'
         $originalScore=$shape.Parameters.ShapeMinScore
         M 'ShapeReadInputButton_ClickS89' @($null,$null) | Out-Null
         if ($shape.Parameters.ShapeMinScore -ne $originalScore -or -not (F 'dockDraftDirty') -or (F 'ShapeTrainingImageS89').Source -eq $null) { throw 'Reading Shape image applied unrelated draft or omitted actual image.' }
+        if ($Phase -eq 'ui05template') { AssertTemplateChromeUI07 'Shape' 'loaded' }
         $inputRow=@((F 'dockInputPortRows') | Where-Object PortName -eq 'Image')[0]
         $savedKey=$inputRow.SelectedSourceKey; $version=$source.RuntimeOutputVersion
         $inputRow.SelectedSourceKey=@($inputRow.SourceOptions | Where-Object IsDefault)[0].Key
@@ -1416,9 +1441,11 @@ try {
         $inputRow.SelectedSourceKey=$savedKey
         M 'ShapeReadInputButton_ClickS89' @($null,$null) | Out-Null
         $main.GetField('shapeTrainingDraftS89',$all).SetValue($window,[Windows.Rect]::new(35,30,60,60))
-        M 'TrainShapeFromPreviewS89' | Out-Null
+        if ($Phase -eq 'ui05template') { (F 'ShapeMakeTemplateButtonUI07').RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Primitives.ButtonBase]::ClickEvent)) }
+        else { M 'TrainShapeFromPreviewS89' | Out-Null }
         $path1=F 'shapeDraftModelPathUI02'
         if (-not (Test-Path -LiteralPath $path1) -or -not [string]::IsNullOrWhiteSpace($shape.Parameters.ShapeModelPath) -or $shape.Parameters.ShapeMinScore -ne $originalScore -or -not (F 'dockDraftDirty') -or (M 'HasShapeModelResource' @($shape))) { throw 'Shape training replaced formal parameters/model instead of drafting.' }
+        if ($Phase -eq 'ui05template') { AssertTemplateChromeUI07 'Shape' 'trained' }
         Pump 75; Shot 'shape-model-draft' $editor
         M 'DockTrialRunButton_Click' @($null,$null) | Out-Null
         [double]$score=0
@@ -1430,6 +1457,7 @@ try {
         M 'RunStandaloneTool' @($shape,'Applied Shape matching') | Out-Null
         if (-not $shape.TryGetNumericOutput('Score',[ref]$score) -or $score -lt 0.95) { throw 'Applied Shape result failed.' }
         M 'RequireAppliedTemplateTargetS145' @($shape) | Out-Null
+        if ($Phase -eq 'ui05template') { AssertShapeRoiTaskNavigationUI07 $shape }
         $hash1=(Get-FileHash -LiteralPath $path1).Hash
         M 'ShapeReadInputButton_ClickS89' @($null,$null) | Out-Null
         $main.GetField('shapeTrainingDraftS89',$all).SetValue($window,[Windows.Rect]::new(35,30,60,60))
@@ -1455,13 +1483,20 @@ try {
         $flow.Add($ncc); $ncc.SetInputBinding('Image',$source.ToolId,'Image')
         M 'RefreshUiState' | Out-Null; (F 'FlowToolList').SelectedItem=$ncc
         M 'OpenCentralModuleConfigurationS77' @($ncc,$false) | Out-Null
+        if ($Phase -eq 'ui05template') { AssertTemplateChromeUI07 'Ncc' 'empty' }
         M 'DockNccReadS131_Click' @($null,$null) | Out-Null
+        if ($Phase -eq 'ui05template') { AssertTemplateChromeUI07 'Ncc' 'loaded' }
         $main.GetField('nccTrainingBoxS131',$all).SetValue($window,[Windows.Rect]::new(35,30,60,60))
         M 'DrawNccTrainingBoxS131' | Out-Null
-        M 'DockNccTrainS131_Click' @($null,$null) | Out-Null
+        if ($Phase -eq 'ui05template') {
+            M 'RefreshNccTaskS131' | Out-Null
+            if (-not (F 'DockNccTrainS131').IsEnabled -or -not (F 'DockNccTrainS131').IsVisible) { throw 'Real NCC box cannot reach the original make action.' }
+            (F 'DockNccTrainS131').RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+        } else { M 'DockNccTrainS131_Click' @($null,$null) | Out-Null }
         for($i=0;$i -lt 200 -and (F 'nccTrainingCancellationS131') -ne $null;$i++){Pump 50}
         $nccDraft=F 'nccDraftS131'
         if (-not $nccDraft.HasModel -or $ncc.Parameters.NccMatchingS131.HasModel -or (F 'DockNccModelStateS131').Text -notlike '*草稿*' -or (F 'DockNccTrainingS131').IsExpanded) { throw 'NCC template failed, applied early, or obscured match settings with preview.' }
+        if ($Phase -eq 'ui05template') { AssertTemplateChromeUI07 'Ncc' 'trained' }
         Pump 75; Shot 'ncc-model-draft' (F 'moduleParameterWindowS89')
         M 'DockTrialRunButton_Click' @($null,$null) | Out-Null
         if (-not $ncc.TryGetNumericOutput('Score',[ref]$score) -or $score -lt 0.95 -or $ncc.Parameters.NccMatchingS131.HasModel) { throw 'NCC trial failed matching or applied early.' }
@@ -1499,6 +1534,7 @@ try {
         $loaded=$service.LoadRecipe($modelRecipe); $active=@($loaded.Flows | Where-Object FlowId -eq $loaded.ActiveFlowId)[0]
         $savedShape=@($active.Tools | Where-Object ToolId -eq $shape.ToolId)[0]; $savedNcc=@($active.Tools | Where-Object ToolId -eq $ncc.ToolId)[0]
         if ($savedShape.Parameters.ShapeModelPath -ne $path1 -or $savedNcc.Parameters.NccMatchingS131.ModelPath -ne $nccDraft.ModelPath) { throw 'Saved project omitted applied model versions.' }
+        if ($Phase -eq 'ui05template') { CompleteTemplateChromeUI07 }
         Write-Output 'UI02_BLOCK02_TEMPLATE_DRAFT=PASS; ShapeReadNoAutoApply=True; InputDraftNotCommitted=True; ShapeTrainingDraftOnly=True; GenuineShapeScoreAbove095=True; NoDraftCacheAsFormalModel=True; ShapeApply=True; StalePreviewRejected=True; VersionPreserved=True; RevertAndImportDraft=True; ExportIdentityPreserved=True; NccDraftAndApply=True; GenuineNccScoreAbove095=True; Actual179DegreeMatch=True; LimitedAngleRejectedInline=True; DraftPoseQualificationRejected=True; AppliedQualificationAccepted=True; ModelVersionsSaved=True; NoMouse=True'
     }
     if ($Phase -eq 'ui02block01') {
@@ -1639,7 +1675,7 @@ try {
         $guide.Close()
         Write-Output 'UI_BLOCK10_HELP_CORE=PASS; OriginalCatalogAdd=True; OriginalImageBinding=True; RealThresholdDraft1664=True; ApplySave=True; CompactSixStepHelp=True; ActualPortSearch=True; SelectedTopicPreserved=True; EmptySearchNoStaleContent=True; SingleHelpWindow=True; LearningNavigationNoRun=True; NoForegroundActivation=True; NoMouse=True'
     }
-    if ($Phase -notlike 'ui04*' -and $Phase -notlike 'ui03*' -and $Phase -notin @('block04','block05','block06','block07','block08','block09','block10','ui02block01','ui02block02','ui02block03','ui02block04','ui02block05','ui02block06','ui02block07','ui02block08','ui02block09','ui02block10')) { Write-Output 'UI_BASELINE_STARTUP=PASS; Blank=True; ExplicitGraphOnly=True; NoFlowExecution=True; NoMouse=True; NoDeviceConnection=True' }
+    if ($Phase -notlike 'ui05*' -and $Phase -notlike 'ui04*' -and $Phase -notlike 'ui03*' -and $Phase -notin @('block04','block05','block06','block07','block08','block09','block10','ui02block01','ui02block02','ui02block03','ui02block04','ui02block05','ui02block06','ui02block07','ui02block08','ui02block09','ui02block10')) { Write-Output 'UI_BASELINE_STARTUP=PASS; Blank=True; ExplicitGraphOnly=True; NoFlowExecution=True; NoMouse=True; NoDeviceConnection=True' }
 } finally {
     if ($null -ne $window) {
         if ((F 'flowStepActivityWindowS71') -ne $null) { M 'CloseFlowStepActivityButton_Click' @($null,$null) | Out-Null }

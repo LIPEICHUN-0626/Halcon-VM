@@ -24,7 +24,7 @@ foreach($size in @(@(1120,700),@(1366,768),@(1600,900))){
 $window.Width=1366;$window.Height=768
 $expanded=@(CategoryExpanders|Where-Object {-not $_.IsExpanded})[0];$category=$expanded.DataContext.Name;$expanded.IsExpanded=$true;Pump 30
 (F 'ToolSearchTextBox').Text='NCC';Pump 60
-if($list.Items.Count -ne 1 -or -not (F 'ClearToolSearchUI07').IsVisible -or (F 'ToolCatalogStatusText').Text -ne '搜索结果 · 1 项'){throw 'Actual search / short status / clear entry failed.'}
+if($list.Items.Count -ne 1 -or -not (F 'ClearToolSearchUI07').IsVisible -or (F 'ToolCatalogStatusText').Text -ne '搜索全部工具 · 1 项'){throw 'Actual search / explicit global-search status / clear entry failed.'}
 Shot 'catalog-search'
 ClickCatalog07 'ClearToolSearchUI07'
 if((F 'ToolSearchTextBox').Text -ne '' -or (F 'ClearToolSearchUI07').IsVisible -or -not (@(CategoryExpanders)|Where-Object {$_.DataContext.Name -eq $category}).IsExpanded){throw 'Clear did not restore original category expansion.'}

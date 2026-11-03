@@ -130,6 +130,8 @@ namespace HalconWinFormsDemo
             ToolCatalogCapabilityText.Text = flowSnippetLibraryS70.Snippets.Count.ToString(CultureInfo.InvariantCulture) + " 个片段 · 本机";
             ToolCatalogStatusText.Text = "片段 · " + toolboxSnippetItemsS71.Count.ToString(CultureInfo.InvariantCulture) + " 项";
             ToolCatalogStatusText.ToolTip = "本机流程片段；双击/Enter插在锚点后，拖拽或右键选择位置。不自动运行。";
+            RefreshCatalogEmptyActionsUI05(true, toolboxSnippetItemsS71.Count);
+            UpdateToolCatalogModeButtons();
             RefreshToolboxSnippetPreviewS71();
         }
 
@@ -357,7 +359,7 @@ namespace HalconWinFormsDemo
             try
             {
                 flowStepNavigationDefinitionUI07 = recipeService.GetRecipeFingerprint(CaptureRecipe());
-                FlowStepNavigationStatusUI07.Text = "定位保留草稿；打开参数需确认。历史记录仅供查看。";
+                FlowStepNavigationStatusUI07.Text = string.Empty;
             }
             catch (Exception)
             {
@@ -470,14 +472,17 @@ namespace HalconWinFormsDemo
                 FlowStepLocateUI07.IsEnabled = FlowStepParametersUI07.IsEnabled = false;
                 FlowStepLogTextBox.Text = "--";
                 FlowStepCommunicationTextBox.Text = "--";
+                FlowStepLogEmptyUI08.Visibility = FlowStepCommunicationEmptyUI08.Visibility = Visibility.Collapsed;
                 flowStepLogSnapshotS71 = flowStepCommunicationSnapshotS71 = string.Empty;
+                RefreshFlowStepTextActionsUI08();
                 return;
             }
             FlowStepActivityTitleText.Text = tool.SequenceText + "  " + tool.InstanceName + " · " + tool.DisplayType;
             FlowStepLocateUI07.IsEnabled = FlowStepParametersUI07.IsEnabled = true;
-            FlowStepActivitySummaryText.Text = "状态 " + tool.RunStatus + " · 结果 " + tool.ResultCode + " · 耗时 " + tool.ElapsedText +
-                (string.IsNullOrWhiteSpace(tool.ErrorMessage) ? string.Empty : " · 异常 " + tool.ErrorMessage.Replace('\r', ' ').Replace('\n', ' '));
-            FlowStepActivitySummaryText.ToolTip = string.IsNullOrWhiteSpace(tool.ErrorMessage) ? null : tool.ErrorMessage;
+            string stateSummary = tool.RunStatus + " · " + tool.ResultCode + " · " + tool.ElapsedText;
+            bool hasError = !string.IsNullOrWhiteSpace(tool.ErrorMessage);
+            FlowStepActivitySummaryText.Text = hasError ? "异常 · " + tool.ErrorMessage.Replace('\r', ' ').Replace('\n', ' ') : stateSummary;
+            FlowStepActivitySummaryText.ToolTip = stateSummary + (hasError ? Environment.NewLine + tool.ErrorMessage : string.Empty);
             List<string> logs = new List<string>();
             if (!string.IsNullOrWhiteSpace(tool.OutputSummary)) logs.Add("[本步骤结果] " + tool.OutputSummary);
             if (!string.IsNullOrWhiteSpace(tool.InputSummary)) logs.Add("[输入] " + tool.InputSummary);
@@ -556,7 +561,30 @@ namespace HalconWinFormsDemo
                 text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None).Where(line => line.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0));
             FlowStepLogTextBox.Text = filter(flowStepLogSnapshotS71);
             FlowStepCommunicationTextBox.Text = filter(flowStepCommunicationSnapshotS71);
+            if (FlowStepLogEmptyUI08 != null)
+                FlowStepLogEmptyUI08.Visibility = query.Length > 0 && FlowStepLogTextBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (FlowStepCommunicationEmptyUI08 != null)
+                FlowStepCommunicationEmptyUI08.Visibility = query.Length > 0 && FlowStepCommunicationTextBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            RefreshFlowStepTextActionsUI08();
             if (FlowStepFollowS71.IsChecked == true) { FlowStepLogTextBox.ScrollToEnd(); FlowStepCommunicationTextBox.ScrollToEnd(); }
+        }
+
+        private void ClearFlowStepSearchUI08_Click(object sender, RoutedEventArgs e)
+        {
+            FlowStepSearchS71.Clear();
+        }
+
+        private void FlowStepTextTabChangedUI08(object sender, SelectionChangedEventArgs e)
+        {
+            if (ReferenceEquals(e.OriginalSource, FlowStepActivityTabsS71)) RefreshFlowStepTextActionsUI08();
+        }
+
+        private void RefreshFlowStepTextActionsUI08()
+        {
+            if (FlowStepActivityTabsS71 == null || FlowStepCopyUI08 == null || FlowStepExportUI08 == null ||
+                FlowStepLogTextBox == null || FlowStepCommunicationTextBox == null) return;
+            TextBox box = FlowStepActivityTabsS71.SelectedIndex == 1 ? FlowStepCommunicationTextBox : FlowStepLogTextBox;
+            FlowStepCopyUI08.IsEnabled = FlowStepExportUI08.IsEnabled = box.Text.Length > 0;
         }
 
         private string GetFlowStepViewCopyTextS71()

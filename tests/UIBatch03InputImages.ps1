@@ -4,7 +4,7 @@ function OpenInput05($tool) {
     M 'OpenCentralModuleConfigurationS77' @($tool,$false)|Out-Null
     M 'SelectCentralConfigurationTaskS77' @((F 'DockIoTaskTab'),'Io')|Out-Null;Pump 60
     $editor=F 'moduleParameterWindowS89'
-    if($editor.IsActive -or $editor.ShowActivated -or $window.IsActive -or $editor.Left -gt -10000){throw 'Input test activated desktop.'}
+    if($editor.IsActive -or $editor.ShowActivated -or $window.IsActive -or $editor.Left -gt -10000){throw ('Input test isolation failed: EditorActive='+$editor.IsActive+'; ShowActivated='+$editor.ShowActivated+'; MainActive='+$window.IsActive+'; EditorLeft='+$editor.Left+'; MainLeft='+$window.Left)}
 }
 function ViewInput05($row) {
     $button=[Windows.Controls.Button]::new();$button.DataContext=$row

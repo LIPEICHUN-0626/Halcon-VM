@@ -71,7 +71,7 @@ namespace HalconWinFormsDemo
             DockNccPolarityS131.IsChecked = nccDraftS131.UsePolarity;
             DockNccSubpixelS131.IsChecked = nccDraftS131.Subpixel;
             DockNccTrainingS131.IsExpanded = !nccDraftS131.HasModel;
-            DockNccTrainingStatusS131.Text = "读取输入→框选→制作模板→应用；训练框不等于搜索 ROI";
+            DockNccTrainingStatusS131.Text = "先读取图像，再框选目标";
             RefreshNccTaskS131();
         }
 

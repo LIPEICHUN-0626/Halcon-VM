@@ -47,6 +47,8 @@ namespace HalconWinFormsDemo
         {
             // Toggle/radio/expander selections stay open; original action buttons
             // retain their handlers and close only this lightweight command panel.
+            // This button opens its original native menu; keep its placement target visible.
+            if (ReferenceEquals(e.OriginalSource, ProjectFlowManageUI10)) return;
             if (e.OriginalSource is System.Windows.Controls.Button) CloseFlowMoreUI10();
         }
 
@@ -187,9 +189,30 @@ namespace HalconWinFormsDemo
         private void RefreshRunShortcutHintS89()
         {
             if (FlowRunShortcutHintS89 == null) return;
-            FlowRunShortcutHintS89.Text = centralModuleConfigurationOpenS77 && dockEditingTool != null
-                ? "F5 试运行：" + dockEditingTool.InstanceName
-                : isFlowExecutionActive && isPauseRequested ? "F5 继续当前流程" : "F5 运行当前流程";
+            bool editor = centralModuleConfigurationOpenS77 && dockEditingTool != null;
+            bool pausedDraft = subflowTrialActiveS102 && isPauseRequested && !isStopRequested;
+            bool busy = isContinuousRunning || isImageQueueBatchRunning ||
+                System.Threading.Volatile.Read(ref tcpTriggerPendingS104) != 0 || IsCurrentToolContinuousTrialRunningS87 ||
+                isFlowExecutionActive && !isPauseRequested;
+            bool editorBusy = isContinuousRunning || isImageQueueBatchRunning ||
+                System.Threading.Volatile.Read(ref tcpTriggerPendingS104) != 0 || IsCurrentToolContinuousTrialRunningS87 ||
+                isFlowExecutionActive && !pausedDraft;
+            string action = historicalImageMode ? "历史只读 · 返回实时后运行"
+                : isStopRequested && (isFlowExecutionActive || subflowTrialActiveS102) ? "正在停止 · 等待安全边界"
+                : editor ? (editorBusy ? (isFlowExecutionActive && isPauseRequested ? "流程暂停 · F5不试草稿" : "执行中 · Shift+F5 停止") : pausedDraft ? "F5 · 继续草稿" : "F5 · 试运行草稿")
+                : isFlowExecutionActive && isPauseRequested ? "F5 · 继续流程"
+                : busy ? "执行中 · Shift+F5 停止" : "F5 · 当前流程";
+            int breakpoints = flowTools.Count(tool => tool.IsBreakpoint);
+            FlowRunShortcutHintS89.Text = action + (breakpoints > 0 ? " · 断点 " + breakpoints : string.Empty);
+            FlowRunShortcutHintS89.ToolTip = action + "\n" + (editor
+                ? "参数窗F5只控制正在编辑的“" + dockEditingTool.InstanceName + "”草稿，不自动应用或运行其他模块。"
+                : "无参数窗时，F5运行当前流程全部启用步骤；流程暂停时继续原执行。") +
+                "\n顶部“运行流程”始终是完整当前流程；“运行所选”仅运行所选模块的已应用参数。" +
+                "\nShift+F5请求停止并等待安全边界，不强中断HALCON。\n" + FlowDebugStateText.Text;
+            FlowRunShortcutHintS89.Visibility = Visibility.Visible;
+            bool continueFlow = isFlowExecutionActive && isPauseRequested && !isStopRequested && !subflowTrialActiveS102;
+            DebugContinueButton.Visibility = continueFlow ? Visibility.Visible : Visibility.Collapsed;
+            FlowRunSelectedButtonS89.Visibility = continueFlow ? Visibility.Collapsed : Visibility.Visible;
             RefreshRunRangeActionsUI06();
         }
 
@@ -223,7 +246,7 @@ namespace HalconWinFormsDemo
                 !IsCurrentToolContinuousTrialRunningS87 && System.Threading.Volatile.Read(ref tcpTriggerPendingS104) == 0;
             string description;
             bool current = DescribeRunRangeUI06(VmFlowRunRequestMode.Current, out description);
-            FlowRunSelectedButtonS89.Content = "▶ " + (current ? "选中 #" + selected.SequenceText : "选中模块");
+            FlowRunSelectedButtonS89.Content = "▶ " + (current ? "运行所选 #" + selected.SequenceText : "运行所选");
             FlowRunSelectedButtonS89.ToolTip = description + "。使用已应用参数；参数窗F5另行试运行正在编辑模块的草稿，不自动运行上游。";
             FlowRunSelectedButtonS89.IsEnabled = current && available;
             FlowRunToHereButtonUI06.Content = "运行到" + suffix;

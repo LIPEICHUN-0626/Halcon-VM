@@ -113,7 +113,13 @@ namespace HalconWinFormsDemo
                     string.Equals(item.ToolId, key.Substring(VmImageContextOption.SourcePrefix.Length), StringComparison.OrdinalIgnoreCase))
                 : null;
             ImageAcquisitionBarS115.Visibility = source == null ? Visibility.Collapsed : Visibility.Visible;
-            if (source == null) return;
+            if (source == null)
+            {
+                ImageAcquisitionSummaryS115.Text = string.Empty;
+                ImageAcquisitionSummaryS115.ToolTip = null;
+                ImageAcquisitionRepairS115.Visibility = Visibility.Collapsed;
+                return;
+            }
             AcquisitionDiagnosticS115 diagnostic;
             acquisitionDiagnosticsS115.TryGetValue(source.ToolId, out diagnostic);
             VmToolParameterData parameters = source.Parameters ?? new VmToolParameterData();
@@ -132,6 +138,7 @@ namespace HalconWinFormsDemo
                 VmImageSourceModeS114.Normalize(parameters.ImageSourceModeS114) == VmImageSourceModeS114.Camera &&
                 !cameraSessionsS114.ContainsKey(source.ToolId);
             ImageAcquisitionRepairS115.Visibility = needsRepair ? Visibility.Visible : Visibility.Collapsed;
+            ImageAcquisitionBarS115.Visibility = needsRepair ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void OpenImageAcquisitionSourceS115_Click(object sender, RoutedEventArgs e)

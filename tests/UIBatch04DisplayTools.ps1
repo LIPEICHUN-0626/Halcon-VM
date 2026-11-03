@@ -25,7 +25,7 @@ try {
         (F 'HeaderStatusText').Text='当前操作未完成：请先选择正确来源，再执行操作。' * 8
         (F 'ImagePixelStatusText').Text='像素：R 12345, C 67890, G RGB(255, 128, 64)';Pump 30
         $status=F 'ImageStatusBarUI05';$feedback=DisplayBounds05 (F 'HeaderStatusText') $status;$pixel=DisplayBounds05 (F 'ImagePixelStatusText') $status
-        if($feedback.Width -lt $status.ActualWidth-18 -or $feedback.Bottom -gt $pixel.Top+1 -or $pixel.Right -gt $status.ActualWidth+1 -or $pixel.Width -lt 100){throw 'Feedback / pixel status compete or overflow.'}
+        if($feedback.Width -lt 150 -or $feedback.Right -gt $pixel.Left+1 -or $pixel.Right -gt $status.ActualWidth+1 -or $pixel.Width -lt 100 -or $status.ActualHeight -gt 28 -or (F 'HeaderStatusText').ToolTip -ne (F 'HeaderStatusText').Text){throw 'Single-line feedback / pixel status overlap, lose full detail or overflow.'}
         Shot ('display-tools-'+$size[0]+'x'+$size[1])
         M 'CloseImageDisplayUI05'|Out-Null
     }

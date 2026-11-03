@@ -241,6 +241,12 @@ namespace HalconWinFormsDemo
         private readonly List<DockAdvancedParameterRowState> dockAdvancedParameterRows = new List<DockAdvancedParameterRowState>();
         private bool dockAdvancedParameterLayoutUpdating;
         private string rightWorkspaceLayoutTask;
+        private bool rightWorkspaceUserSizedUI10;
+        private bool rightWorkspaceResizingUI10;
+        private bool rightWorkspaceWasUserSizedUI10;
+        private GridLength rightWorkspaceImageBeforeResizeUI10;
+        private GridLength rightWorkspaceResultBeforeResizeUI10;
+        private double rightWorkspaceMaxBeforeResizeUI10;
         private VmRoiLayer roiEditingLayer;
         private RoiEditHandle roiEditHandle;
         private int roiEditVertexIndex = -1;
@@ -808,6 +814,7 @@ namespace HalconWinFormsDemo
 
         private void InitializeVmWorkspace()
         {
+            InitializeLeanWorkspaceUI06();
             flowTools.CollectionChanged += delegate { RefreshFlowSequence(); RefreshGlobalVariableSubscriptions(); RefreshExternalResourceReferences(); ScheduleRecipeStateCheck(); };
             roiLayers.CollectionChanged += delegate { ScheduleRecipeStateCheck(); RefreshUnifiedLayers(); };
             toolCatalog.AddRange(new[]
@@ -3010,6 +3017,11 @@ namespace HalconWinFormsDemo
                 RightParametersTaskButton.IsEnabled = hasSelection && SupportsDockConfiguration(selected.Kind);
                 RightIoTaskButton.IsEnabled = hasSelection && SupportsDockConfiguration(selected.Kind);
                 SelectedResultDetailsUI04.IsEnabled = hasSelection && SupportsDockConfiguration(selected.Kind);
+                SelectedResultDetailsUI04.Visibility = hasSelection ? Visibility.Visible : Visibility.Collapsed;
+                bool hasResultUI05 = hasSelection && !string.IsNullOrWhiteSpace(selected.ResultCode) && selected.ResultCode != "--";
+                SelectedResultOutputText.Visibility = hasResultUI05 ? Visibility.Visible : Visibility.Collapsed;
+                SelectedResultOriginTextS88.Visibility = hasResultUI05 ? Visibility.Visible : Visibility.Collapsed;
+                SelectedResultStatusText.Visibility = hasSelection ? Visibility.Visible : Visibility.Collapsed;
                 SelectedResultErrorLabel.Visibility = Visibility.Collapsed;
                 SelectedResultErrorText.Visibility = hasSelection && !string.IsNullOrWhiteSpace(selected.ErrorMessage)
                     ? Visibility.Visible : Visibility.Collapsed;
@@ -3027,7 +3039,7 @@ namespace HalconWinFormsDemo
                     InspectorInputSummaryText.Text = "--";
                     InspectorOutputSummaryText.Text = "--";
                     InspectorErrorText.Text = "--";
-                    SelectedResultToolText.Text = "请选择流程模块；双击配置";
+                    SelectedResultToolText.Text = "选择模块查看结果";
                     SelectedResultToolText.ToolTip = "单击选择模块；双击打开参数小窗。";
                     SelectedResultStatusText.Text = "--";
                     SelectedResultStatusText.ToolTip = "尚未运行";
@@ -8134,6 +8146,51 @@ namespace HalconWinFormsDemo
             RunStartupDiagnostics(true);
         }
 
+        private void InitializeLeanWorkspaceUI06()
+        {
+            if (ReferenceEquals(FlowSecondaryHeaderUI06.Parent, FlowMoreContentUI06)) return;
+            var headerParent = FlowSecondaryHeaderUI06.Parent as Panel;
+            var footerParent = FlowSecondaryFooterUI06.Parent as Panel;
+            var moreParent = FlowMoreToggleButton.Parent as Panel;
+            var continueParent = DebugContinueButton.Parent as Panel;
+            if (headerParent == null || footerParent == null || moreParent == null || continueParent == null) return;
+            moreParent.Children.Remove(FlowMoreToggleButton);
+            continueParent.Children.Remove(DebugContinueButton);
+            DockPanel.SetDock(FlowMoreToggleButton, Dock.Right);
+            DockPanel.SetDock(DebugContinueButton, Dock.Right);
+            FlowMoreToggleButton.Content = "流程操作 ▾";
+            DebugContinueButton.Content = "▶ 继续";
+            DebugContinueButton.MinWidth = 54;
+            FlowHeadingCommandsUI06.Children.Insert(0, FlowMoreToggleButton);
+            FlowHeadingCommandsUI06.Children.Insert(1, DebugContinueButton);
+            headerParent.Children.Remove(FlowSecondaryHeaderUI06);
+            footerParent.Children.Remove(FlowSecondaryFooterUI06);
+            FlowMoreContentUI06.Children.Insert(0, FlowSecondaryHeaderUI06);
+            FlowMoreContentUI06.Children.Add(FlowSecondaryFooterUI06);
+            var flowMenuParent = ProjectFlowManageUI10.Parent as Panel;
+            if (flowMenuParent != null)
+            {
+                flowMenuParent.Children.Remove(ProjectFlowManageUI10);
+                FlowMoreManagementRowUI10.Children.Insert(0, ProjectFlowManageUI10);
+            }
+            var selectionRow = FlowSelectionStatusText.Parent as Border;
+            var metadata = selectionRow == null ? null : selectionRow.Parent as StackPanel;
+            if (metadata != null) metadata.Orientation = Orientation.Vertical;
+            FlowClipboardStatusText.ToolTip = "剪贴板和多选说明；复制/粘贴仍在编辑菜单和快捷键中。";
+            var details = new StackPanel();
+            foreach (TextBlock text in new[] { RoiStatusBarText, TemplateStatusBarText, TcpStatusBarText })
+            {
+                var item = text.Parent as StatusBarItem;
+                if (item == null) continue;
+                var status = ItemsControl.ItemsControlFromItemContainer(item) as StatusBar;
+                int index = status == null ? -1 : status.Items.IndexOf(item);
+                if (index > 0 && status.Items[index - 1] is Separator) ((Separator)status.Items[index - 1]).Visibility = Visibility.Collapsed;
+                item.Content = null; item.Visibility = Visibility.Collapsed;
+                details.Children.Add(text);
+            }
+            ModeStatusText.ToolTip = details;
+        }
+
         private void ToolSearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (IsToolboxSnippetModeActiveS71)
@@ -8148,6 +8205,53 @@ namespace HalconWinFormsDemo
         {
             ToolSearchTextBox.Clear();
             if (ShowActivated) ToolSearchTextBox.Focus();
+        }
+
+        private string CatalogFilterNameUI05()
+        {
+            return string.Equals(toolCatalogMode, "Favorite", StringComparison.OrdinalIgnoreCase) ? "收藏"
+                : string.Equals(toolCatalogMode, "Recent", StringComparison.OrdinalIgnoreCase) ? "最近"
+                : string.Equals(toolCatalogMode, "Common", StringComparison.OrdinalIgnoreCase) ? "常用" : "分类";
+        }
+
+        private void ToolCatalogEmptyBrowseUI05_Click(object sender, RoutedEventArgs e)
+        {
+            if (IsInputSourceContextActiveS68 || IsToolRecommendationContextActiveS67) return;
+            if (IsToolboxSnippetModeActiveS71) ExitToolboxSnippetModeS71(true);
+            else ToolCatalogModeButton_Click(ToolCatalogAllButton, e);
+        }
+
+        private void RefreshCatalogEmptyActionsUI05(bool snippet, int count)
+        {
+            if (ToolCatalogEmptyStateUI05 == null) return;
+            bool searching = !string.IsNullOrWhiteSpace(ToolSearchTextBox.Text);
+            bool context = IsInputSourceContextActiveS68 || IsToolRecommendationContextActiveS67;
+            string filter = CatalogFilterNameUI05();
+            string returnTo = snippet ? "片段" : context ? "当前来源任务" : filter;
+            ClearToolSearchUI07.ToolTip = "清空搜索，返回“" + returnTo + "”；不添加或运行。";
+            ToolCatalogEmptyClearUI05.ToolTip = ClearToolSearchUI07.ToolTip;
+            ToolCatalogEmptyClearUI05.Visibility = searching && count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            ToolCatalogEmptyBrowseUI05.Visibility = !context && count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            ToolCatalogEmptyBrowseUI05.Content = snippet ? "返回工具" : "浏览分类";
+            ToolCatalogEmptyBrowseUI05.ToolTip = snippet ? "返回进入片段前的工具筛选，不添加或运行。" : "退出搜索并查看全部分类，不改变方案。";
+            ToolCatalogEmptyTitleUI05.Text = searching ? (snippet ? "未找到片段" : "未找到模块")
+                : snippet ? "暂无流程片段" : context ? (IsInputSourceContextActiveS68 && HasValidInputSourceSuggestionsS68 ? "先选择已有来源" : "暂无兼容模块")
+                : filter == "收藏" ? "还没有收藏" : filter == "最近" ? "暂无最近使用" : "当前筛选暂无模块";
+            if (!snippet && !context)
+                ToolCatalogEmptyText.Text = searching ? "搜索覆盖全部工具。清空后返回“" + returnTo + "”，也可直接浏览分类。"
+                    : filter == "收藏" ? "在工具行点击星标即可收藏。先浏览分类，找到常用模块。"
+                    : filter == "最近" ? "添加过的工具会显示在这里。先浏览分类选择模块。"
+                    : "当前没有可显示模块，可返回分类浏览。";
+            if (IsInputSourceContextActiveS68)
+                ToolInputSourceCreateHintText.Text = searching ? "搜索覆盖全部工具；插入时仍按原规则检查来源兼容。"
+                    : "下方目录用于创建来源；双击或Enter插在目标前并连接。";
+            if (searching)
+            {
+                ToolCatalogStatusText.Text = (snippet ? "搜索片段" : "搜索全部工具") + " · " + count.ToString(CultureInfo.InvariantCulture) + " 项";
+                ToolCatalogStatusText.ToolTip = "清空搜索回到“" + returnTo + "”。" +
+                    (context ? "来源任务仍保留；添加时按原规则检查端口兼容，不保证每个搜索项都可绑定。" : "搜索跨分类，不限收藏或最近。") +
+                    "\n" + ToolCatalogStatusText.ToolTip;
+            }
         }
 
         private void ToolSearchTextBox_PreviewKeyDownS94(object sender, KeyEventArgs e)
@@ -8243,6 +8347,7 @@ namespace HalconWinFormsDemo
             ExitToolboxSnippetModeS71(false);
             Button button = sender as Button;
             toolCatalogMode = button == null || button.Tag == null ? "All" : button.Tag.ToString();
+            if (!string.IsNullOrEmpty(ToolSearchTextBox.Text)) ToolSearchTextBox.Clear();
             RefreshToolCatalogView();
         }
 
@@ -8252,6 +8357,8 @@ namespace HalconWinFormsDemo
             {
                 return;
             }
+            if (IsToolboxSnippetModeActiveS71)
+            { RefreshToolboxSnippetItemsS71(); return; }
 
             for (int index = 0; index < toolCatalog.Count; index++)
             {
@@ -8271,7 +8378,7 @@ namespace HalconWinFormsDemo
                 ? "已有可直接绑定的前序来源，请先在上方复用；新工具目录暂不展开。"
                 : (IsInputSourceContextActiveS68
                     ? "当前没有能产生所需类型的真实工具。"
-                    : "当前筛选没有工具。可切换“全部”或清空搜索。");
+                    : "当前筛选没有工具，可浏览分类或清空搜索。");
             int totalCategoryCount = toolCatalog.Select(item => item.Category).Distinct(StringComparer.Ordinal).Count();
             if (ToolCatalogCapabilityText != null)
             {
@@ -8304,6 +8411,7 @@ namespace HalconWinFormsDemo
             ToolCatalogStatusText.ToolTip = ToolCatalogStatusText.Text + "\n双击、Enter或拖入流程；Ctrl+Enter / Ctrl+Shift+Enter 按锚点插入。";
             if (!IsInputSourceContextActiveS68 && !IsToolRecommendationContextActiveS67)
                 ToolCatalogStatusText.Text = modeText + " · " + visibleCount.ToString(CultureInfo.InvariantCulture) + " 项";
+            RefreshCatalogEmptyActionsUI05(false, visibleCount);
             UpdateToolCatalogModeButtons();
             RefreshToolRecommendationBannerS67();
             RefreshInputSourceContextBannerS68();
@@ -8325,7 +8433,9 @@ namespace HalconWinFormsDemo
                 return;
             }
 
-            bool selected = string.Equals(toolCatalogMode, mode, StringComparison.OrdinalIgnoreCase);
+            bool selected = string.Equals(toolCatalogMode, mode, StringComparison.OrdinalIgnoreCase) &&
+                string.IsNullOrWhiteSpace(ToolSearchTextBox.Text) && !IsToolboxSnippetModeActiveS71 &&
+                !IsInputSourceContextActiveS68 && !IsToolRecommendationContextActiveS67;
             button.Background = selected
                 ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(15, 118, 110))
                 : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 41, 59));
@@ -8377,7 +8487,7 @@ namespace HalconWinFormsDemo
                 e.Handled = true;
                 return;
             }
-            if (e.Key != Key.Enter)
+            if (e.Key != Key.Enter || IsToolCatalogActionUI05(e.OriginalSource as DependencyObject))
             {
                 return;
             }
@@ -8413,6 +8523,8 @@ namespace HalconWinFormsDemo
 
         private void ToolCatalogList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (IsToolCatalogActionUI05(e.OriginalSource as DependencyObject))
+            { toolCatalogDragItem = null; return; }
             toolCatalogDragStartPoint = e.GetPosition(null);
             ListBoxItem container = ItemsControl.ContainerFromElement(ToolCatalogList, e.OriginalSource as DependencyObject) as ListBoxItem;
             toolCatalogDragItem = container == null ? null : container.DataContext as VmToolCatalogItem;
@@ -9238,6 +9350,8 @@ namespace HalconWinFormsDemo
 
         private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            // A splitter drag owns Escape until the original control cancels the resize.
+            if (e.Key == Key.Escape && rightWorkspaceResizingUI10) return;
             if (e.Key == Key.Escape && CloseImageDisplayUI05()) { e.Handled = true; return; }
             if (e.Key == Key.Escape && CloseFlowMoreUI10()) { e.Handled = true; return; }
             if (e.Key == Key.Escape && colorPickingToolS129 != null)
@@ -10588,6 +10702,8 @@ namespace HalconWinFormsDemo
 
         private void ToolCatalogList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
+            if (e != null && IsToolCatalogActionUI05(e.OriginalSource as DependencyObject))
+            { e.Handled = true; return; }
             if (IsInputSourceContextActiveS68) InsertSelectedInputSourceToolS68();
             else if (IsToolRecommendationContextActiveS67) InsertSelectedRecommendedToolS67();
             else AddSelectedCatalogTool();
@@ -10596,6 +10712,16 @@ namespace HalconWinFormsDemo
         private void AddToolButton_Click(object sender, RoutedEventArgs e)
         {
             AddSelectedCatalogTool();
+        }
+
+        private bool IsToolCatalogActionUI05(DependencyObject source)
+        {
+            while (source != null && !ReferenceEquals(source, ToolCatalogList))
+            {
+                if (source is System.Windows.Controls.Primitives.ButtonBase) return true;
+                source = GetFlowVisualParent(source);
+            }
+            return false;
         }
 
         private void AddSelectedCatalogTool()
@@ -11117,6 +11243,7 @@ namespace HalconWinFormsDemo
             UpdateComparisonImageViewport(true);
             RefreshFlowPortVisualization();
             RefreshFlowSelectionFlags();
+            RefreshRunShortcutHintS89();
             if (FlowSnippetLibraryPanel != null && FlowSnippetLibraryPanel.Visibility == Visibility.Visible) RefreshFlowSnippetAnchorS70();
             ScheduleRefreshDisplay();
         }
@@ -12177,6 +12304,9 @@ namespace HalconWinFormsDemo
             DockValidationText.Text = string.Empty;
             DockAdvancedParameterValidationText.Text = string.Empty;
             DockAdvancedParameterValidationText.Visibility = Visibility.Collapsed;
+            if (ReferenceEquals(sender, DockShapeTrainingRoiComboBox) &&
+                !string.IsNullOrWhiteSpace((DockShapeTrainingRoiComboBox.SelectedItem as VmToolValueOption)?.Key))
+                ShapeTrainingExpanderS89.IsExpanded = true;
             if (ReferenceEquals(sender, DockRoiExecutionModeComboBox))
             {
                 UpdateDockRoiSummary();
@@ -14930,6 +15060,40 @@ namespace HalconWinFormsDemo
             ScheduleRefreshDisplay();
         }
 
+        private void DualViewMenuUI06_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            if (button == null || button.ContextMenu == null) return;
+            button.ContextMenu.PlacementTarget = button;
+            button.ContextMenu.Placement = PlacementMode.Bottom;
+            button.ContextMenu.IsOpen = true;
+        }
+
+        private void UpdateImageSourcePlacementUI06()
+        {
+            if (ImageSourceBarUI04 == null || ImageWorkspaceHeaderContentUI06 == null || DualRightHeaderContentUI06 == null) return;
+            Panel destination = dualImageMode ? DualRightHeaderContentUI06 : ImageWorkspaceHeaderContentUI06;
+            var parent = ImageSourceBarUI04.Parent as Panel;
+            if (parent != null && !ReferenceEquals(parent, destination))
+            {
+                parent.Children.Remove(ImageSourceBarUI04);
+                if (dualImageMode) destination.Children.Add(ImageSourceBarUI04);
+                else destination.Children.Insert(ImageWorkspaceHeaderContentUI06.Children.IndexOf(ImageWorkspaceToolbarPanel) + 1, ImageSourceBarUI04);
+            }
+            ImageSourceBarUI04.Margin = dualImageMode ? new Thickness(0, 4, 0, 0) : new Thickness(2, 4, 2, 0);
+            ImageSourceBarUI04.Padding = dualImageMode ? new Thickness(0) : new Thickness(7, 4, 7, 4);
+            ImageSourceBarUI04.BorderThickness = dualImageMode ? new Thickness(0) : new Thickness(1);
+            ImageContextPickerColumnUI06.Width = dualImageMode
+                ? (historicalImageMode ? new GridLength(0) : new GridLength(1, GridUnitType.Star)) : new GridLength(170);
+            ImageContextSummaryColumnUI06.Width = dualImageMode && !historicalImageMode
+                ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+            ImageContextSourceText.Visibility = dualImageMode && !historicalImageMode ? Visibility.Collapsed : Visibility.Visible;
+            ImageContextComboBox.Visibility = dualImageMode && historicalImageMode ? Visibility.Collapsed : Visibility.Visible;
+            ImageFitButton.Visibility = dualImageMode ? Visibility.Collapsed : Visibility.Visible;
+            ImageOneToOneButton.Visibility = dualImageMode ? Visibility.Collapsed : Visibility.Visible;
+            ImagePixelStatusText.Visibility = dualImageMode ? Visibility.Collapsed : Visibility.Visible;
+        }
+
         private void UpdateDualImageViewLayout()
         {
             if (DualLeftImageColumn == null)
@@ -14938,10 +15102,11 @@ namespace HalconWinFormsDemo
             }
 
             ImageLayoutToggleButton.Content = dualImageMode ? "▣ 单画面" : "◫ 双画面";
+            UpdateImageSourcePlacementUI06();
             LinkDualImageViewsCheckBox.Visibility = dualImageMode ? Visibility.Visible : Visibility.Collapsed;
             ImageContextLabelText.Text = historicalImageMode ? (dualImageMode ? "历史结果画面" : "历史图像上下文") : (dualImageMode ? "右画面来源" : "画面来源");
-            DualLeftRoleText.Text = historicalImageMode ? "历史原图" : "左画面";
-            DualRightRoleText.Text = historicalImageMode ? "历史结果图" : "右画面";
+            DualLeftRoleText.Text = historicalImageMode ? "历史原图 ▾" : "左图 ▾";
+            DualRightRoleText.Text = historicalImageMode ? "历史结果图 ▾" : "右图 ▾";
             DualInputPortComboBox.Visibility = historicalImageMode ? Visibility.Collapsed : Visibility.Visible;
             CrosshairTargetComboBox.IsEnabled = dualImageMode;
             DualRightHeaderBorder.Visibility = dualImageMode ? Visibility.Visible : Visibility.Collapsed;
@@ -14984,8 +15149,8 @@ namespace HalconWinFormsDemo
                 DualRightImagePanel.Visibility = Visibility.Visible;
             }
 
-            DualLeftMaximizeButton.Content = string.Equals(maximizedDualImageView, "Left", StringComparison.OrdinalIgnoreCase) ? "恢复" : "最大化";
-            DualRightMaximizeButton.Content = string.Equals(maximizedDualImageView, "Right", StringComparison.OrdinalIgnoreCase) ? "恢复" : "最大化";
+            DualLeftMaximizeButton.Content = string.Equals(maximizedDualImageView, "Left", StringComparison.OrdinalIgnoreCase) ? "恢复" : "放大";
+            DualRightMaximizeButton.Content = string.Equals(maximizedDualImageView, "Right", StringComparison.OrdinalIgnoreCase) ? "恢复" : "放大";
             LoadCrosshairEditor();
         }
 
@@ -14994,7 +15159,7 @@ namespace HalconWinFormsDemo
             if (!comparisonViewport.HasImage) return;
             comparisonViewport.Fit();
             if (AreDualImageViewsLinked() && viewport.HasImage) viewport.SynchronizeNormalizedViewFrom(comparisonViewport);
-            HeaderStatusText.Text = "输入画面已适应窗口" + (AreDualImageViewsLinked() ? "，右画面同步。" : "。 ");
+            HeaderStatusText.Text = "左画面已适应窗口" + (AreDualImageViewsLinked() ? "，右画面同步。" : "。 ");
             ScheduleRefreshDisplay();
             RefreshUiState();
         }
@@ -15004,7 +15169,7 @@ namespace HalconWinFormsDemo
             if (!viewport.HasImage) return;
             viewport.Fit();
             if (AreDualImageViewsLinked() && comparisonViewport.HasImage) comparisonViewport.SynchronizeNormalizedViewFrom(viewport);
-            HeaderStatusText.Text = "输出/预览画面已适应窗口" + (AreDualImageViewsLinked() ? "，输入画面同步。" : "。 ");
+            HeaderStatusText.Text = "右画面已适应窗口" + (AreDualImageViewsLinked() ? "，左画面同步。" : "。 ");
             ScheduleRefreshDisplay();
             RefreshUiState();
         }
@@ -15014,7 +15179,7 @@ namespace HalconWinFormsDemo
             if (!comparisonViewport.HasImage || comparisonImageWindow == null) return;
             comparisonViewport.OriginalSize(comparisonImageWindow);
             if (AreDualImageViewsLinked() && viewport.HasImage) viewport.SynchronizeNormalizedViewFrom(comparisonViewport);
-            HeaderStatusText.Text = "输入画面已切换到 1:1" + (AreDualImageViewsLinked() ? "，右画面按归一化视野同步。" : "。 ");
+            HeaderStatusText.Text = "左画面已切换到 1:1" + (AreDualImageViewsLinked() ? "，右画面按归一化视野同步。" : "。 ");
             ScheduleRefreshDisplay();
             RefreshUiState();
         }
@@ -15024,7 +15189,7 @@ namespace HalconWinFormsDemo
             if (!viewport.HasImage || imageWindow == null) return;
             viewport.OriginalSize(imageWindow);
             if (AreDualImageViewsLinked() && comparisonViewport.HasImage) comparisonViewport.SynchronizeNormalizedViewFrom(viewport);
-            HeaderStatusText.Text = "输出/预览画面已切换到 1:1" + (AreDualImageViewsLinked() ? "，输入画面按归一化视野同步。" : "。 ");
+            HeaderStatusText.Text = "右画面已切换到 1:1" + (AreDualImageViewsLinked() ? "，左画面按归一化视野同步。" : "。 ");
             ScheduleRefreshDisplay();
             RefreshUiState();
         }
@@ -15033,7 +15198,7 @@ namespace HalconWinFormsDemo
         {
             maximizedDualImageView = string.Equals(maximizedDualImageView, "Left", StringComparison.OrdinalIgnoreCase) ? null : "Left";
             UpdateDualImageViewLayout();
-            HeaderStatusText.Text = maximizedDualImageView == null ? "双画面已恢复并排显示。" : "输入画面已在图像工作区内最大化。";
+            HeaderStatusText.Text = maximizedDualImageView == null ? "双画面已恢复并排显示。" : "左画面已放大。";
             ScheduleRefreshDisplay();
         }
 
@@ -15041,7 +15206,7 @@ namespace HalconWinFormsDemo
         {
             maximizedDualImageView = string.Equals(maximizedDualImageView, "Right", StringComparison.OrdinalIgnoreCase) ? null : "Right";
             UpdateDualImageViewLayout();
-            HeaderStatusText.Text = maximizedDualImageView == null ? "双画面已恢复并排显示。" : "输出/预览画面已在图像工作区内最大化。";
+            HeaderStatusText.Text = maximizedDualImageView == null ? "双画面已恢复并排显示。" : "右画面已放大。";
             ScheduleRefreshDisplay();
         }
 
@@ -15984,13 +16149,13 @@ namespace HalconWinFormsDemo
         private void RightResultTaskButton_Click(object sender, RoutedEventArgs e)
         {
             RightTabs.SelectedItem = ModuleResultTab;
-            HeaderStatusText.Text = "已显示最近运行结果；详细端口可在模块参数小窗的“结果”页查看。";
+            HeaderStatusText.Text = "已显示所选结果";
             UpdateRightTaskNavigationState("Result");
         }
 
         private void SelectedResultDetailsUI04_Click(object sender, RoutedEventArgs e)
         {
-            ShowRightModuleTask(DockResultTaskTab, "已打开所选模块结果详情；不会运行或应用参数。", "Result");
+            ShowRightModuleTask(DockResultTaskTab, "已打开所选模块结果详情", "Result");
         }
 
         private void RightMoreTaskButton_Click(object sender, RoutedEventArgs e)
@@ -16111,15 +16276,76 @@ namespace HalconWinFormsDemo
         private void ApplyRightWorkspaceTaskLayout(string activeTask)
         {
             if (ImageWorkspaceRow == null || RightConfigurationRow == null) return;
-            // Parameters live in the movable editor; task navigation must not squeeze the workspace.
-            string layoutTask = "Other";
+            // Follow the actual workspace, not the floating parameter task. Once the user
+            // resizes the splitter, navigation and result updates must retain that split.
+            if (rightWorkspaceUserSizedUI10) return;
+            bool compact = RightTabs != null && ReferenceEquals(RightTabs.SelectedItem, ModuleResultTab)
+                && WorkspaceRunDetailsExpander != null && !WorkspaceRunDetailsExpander.IsExpanded;
+            string layoutTask = compact ? "CompactResult" : "DetailWorkspace";
             if (string.Equals(rightWorkspaceLayoutTask, layoutTask, StringComparison.Ordinal)) return;
             rightWorkspaceLayoutTask = layoutTask;
 
             ImageWorkspaceRow.MinHeight = 280;
-            RightConfigurationRow.MinHeight = 180;
+            RightConfigurationRow.MinHeight = compact ? 100 : 180;
+            RightConfigurationRow.MaxHeight = compact ? 240 : double.PositiveInfinity;
             ImageWorkspaceRow.Height = new GridLength(5, GridUnitType.Star);
-            RightConfigurationRow.Height = new GridLength(2, GridUnitType.Star);
+            RightConfigurationRow.Height = compact ? GridLength.Auto : new GridLength(2, GridUnitType.Star);
+        }
+
+        private void WorkspaceRunDetailsChangedUI10(object sender, RoutedEventArgs e)
+        {
+            if (ReferenceEquals(e.OriginalSource, WorkspaceRunDetailsExpander))
+                ApplyRightWorkspaceTaskLayout(null);
+        }
+
+        private void RightWorkspaceResizeStartedUI10(object sender, DragStartedEventArgs e)
+        {
+            if (RightConfigurationRow == null || ImageWorkspaceRow == null || productionRunMode || imageWorkspaceExpanded) return;
+            rightWorkspaceResizingUI10 = true;
+            rightWorkspaceWasUserSizedUI10 = rightWorkspaceUserSizedUI10;
+            rightWorkspaceImageBeforeResizeUI10 = ImageWorkspaceRow.Height;
+            rightWorkspaceResultBeforeResizeUI10 = RightConfigurationRow.Height;
+            rightWorkspaceMaxBeforeResizeUI10 = RightConfigurationRow.MaxHeight;
+            double height = RightConfigurationRow.ActualHeight;
+            rightWorkspaceUserSizedUI10 = true;
+            RightConfigurationRow.MaxHeight = double.PositiveInfinity;
+            // GridSplitter has already captured its resize mode in its class handler.
+            // Freeze only Auto; changing an existing Star row here breaks two-Star resizing.
+            if (RightConfigurationRow.Height.IsAuto)
+                RightConfigurationRow.Height = new GridLength(Math.Max(RightConfigurationRow.MinHeight, height));
+        }
+
+        private void RightWorkspaceResizeCompletedUI10(object sender, DragCompletedEventArgs e)
+        {
+            if (!rightWorkspaceResizingUI10) return;
+            if (!e.Canceled && (Math.Abs(e.HorizontalChange) > 0.01 || Math.Abs(e.VerticalChange) > 0.01))
+            {
+                rightWorkspaceResizingUI10 = false;
+                return;
+            }
+            RestoreRightWorkspaceResizeUI10();
+        }
+
+        private void RightWorkspaceResizeKeyDownUI10(object sender, KeyEventArgs e)
+        {
+            // Let GridSplitter also run its original Escape cancellation; do not handle the key.
+            if (e.Key == Key.Escape) RestoreRightWorkspaceResizeUI10();
+        }
+
+        private void RightWorkspaceResizeLostFocusUI10(object sender, KeyboardFocusChangedEventArgs e)
+        {
+            RestoreRightWorkspaceResizeUI10();
+        }
+
+        private void RestoreRightWorkspaceResizeUI10()
+        {
+            if (!rightWorkspaceResizingUI10) return;
+            rightWorkspaceResizingUI10 = false;
+            // Escape, capture loss and a click without movement must not disable automatic sizing.
+            rightWorkspaceUserSizedUI10 = rightWorkspaceWasUserSizedUI10;
+            RightConfigurationRow.MaxHeight = rightWorkspaceMaxBeforeResizeUI10;
+            ImageWorkspaceRow.Height = rightWorkspaceImageBeforeResizeUI10;
+            RightConfigurationRow.Height = rightWorkspaceResultBeforeResizeUI10;
         }
 
         private static void StyleRightTaskButton(Button button, bool active)
@@ -29354,7 +29580,6 @@ namespace HalconWinFormsDemo
             RunOnceButton.IsEnabled = hasEnabledTools && !flowBusy;
             FlowRunSelectedButtonS89.IsEnabled = hasSelectedFlowTools && primarySelectedTool != null && primarySelectedTool.IsEnabled && !flowBusy && !historyReadOnly;
             FlowRunFullButtonS89.IsEnabled = hasEnabledTools && !flowBusy && !historyReadOnly;
-            RefreshRunShortcutHintS89();
             RunContinuousButton.IsEnabled = hasEnabledTools && !flowBusy;
             PauseRunButton.IsEnabled = isContinuousRunning || isFlowExecutionActive;
             PauseRunButton.Content = isPauseRequested ? "▶ 继续" : "Ⅱ 暂停";
@@ -29369,9 +29594,9 @@ namespace HalconWinFormsDemo
                 VmToolInstance pointer = flowTools.FirstOrDefault(item => item.IsExecutionPointer);
                 FlowDebugStateText.Text = "断点 " + breakpointCount.ToString(CultureInfo.InvariantCulture) +
                     (pointer == null ? " · 指针 --" : " · 下一执行 #" + pointer.SequenceText + " " + pointer.InstanceName);
-                FlowDebugStateText.Visibility = breakpointCount > 0 || pointer != null || isPauseRequested ? Visibility.Visible : Visibility.Collapsed;
-                FlowRunShortcutHintS89.Visibility = FlowDebugStateText.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+                FlowDebugStateText.Visibility = Visibility.Collapsed;
             }
+            RefreshRunShortcutHintS89();
             RefreshFlowDebugMonitor();
             ContinuousIntervalTextBox.IsEnabled = !flowBusy;
             FlowTimeoutTextBox.IsEnabled = !flowBusy;
@@ -29443,6 +29668,11 @@ namespace HalconWinFormsDemo
             ImageContextDetailText.Text = historyReadOnly && historicalBatchItem != null
                 ? historicalBatchItem.FileName + " · " + historicalBatchItem.ResultCode
                 : imageContext.SourceText + "\n" + imageContext.DetailText + "\n" + imageContext.StateText;
+            if (!historyReadOnly && (imageContext.RequestedKey ?? string.Empty).StartsWith(VmImageContextOption.SourcePrefix, StringComparison.Ordinal) &&
+                ImageAcquisitionSummaryS115.ToolTip is string)
+                ImageContextDetailText.Text += "\n采集：" + (string)ImageAcquisitionSummaryS115.ToolTip;
+            ImageContextPickerDetailUI06.Text = (dualImageMode ? "右画面来源；" : "画面来源；") +
+                "选择只查看，不运行或修改绑定。\n" + ImageContextDetailText.Text;
             VmToolInstance imageOwnerUI04 = GetImageTaskToolS89();
             bool imageFallbackUI04 = !historyReadOnly && (imageContext.StateText ?? string.Empty).IndexOf("回退", StringComparison.Ordinal) >= 0;
             bool imageNoticeUI04 = imageFallbackUI04 || !historyReadOnly &&
@@ -29467,6 +29697,10 @@ namespace HalconWinFormsDemo
                     ? "\n点击顶部“打开图像”，或配置并运行图像源模块。" : string.Empty);
             ResolvedImageContext dualInputContext = ResolveDualInputImageContext();
             bool hasDualInputImage = dualImageMode && (historicalToolComparisonMode ? historicalComparisonImage != null : dualInputContext.HasImage);
+            DualLeftFitMenuUI06.IsEnabled = hasDualInputImage;
+            DualLeftOriginalMenuUI06.IsEnabled = hasDualInputImage;
+            DualRightFitMenuUI06.IsEnabled = hasImage;
+            DualRightOriginalMenuUI06.IsEnabled = hasImage;
             ImageSelectButton.IsEnabled = hasImage;
             ImagePanButton.IsEnabled = hasImage;
             ImageFitButton.IsEnabled = hasImage;

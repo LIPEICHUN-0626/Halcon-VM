@@ -667,6 +667,7 @@ namespace HalconWinFormsDemo.Models
                 runStatus = value;
                 OnPropertyChanged("RunStatus");
                 OnPropertyChanged("TaskLensStatusTextS76");
+                OnPropertyChanged("FlowHasErrorUI05");
             }
         }
 
@@ -736,7 +737,15 @@ namespace HalconWinFormsDemo.Models
             {
                 errorMessage = value;
                 OnPropertyChanged("ErrorMessage");
+                OnPropertyChanged("FlowHasErrorUI05");
             }
+        }
+
+        // Display-only: the legacy success boundary calls ordinary business NG
+        // "异常" too. Do not classify it as an execution error from that text alone.
+        public bool FlowHasErrorUI05
+        {
+            get { return !string.IsNullOrWhiteSpace(ErrorMessage) || string.Equals(RunStatus, "失败", StringComparison.OrdinalIgnoreCase); }
         }
 
         public string InputToolId

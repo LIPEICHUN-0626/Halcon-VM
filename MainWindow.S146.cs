@@ -35,6 +35,10 @@ namespace HalconWinFormsDemo
         private Expander learningStepDetailsS148;
         private string learningGuideStepKeyS148;
         private Button learningStepActionS146, learningPreviousS146, learningNextS146;
+        private Button learningStepHelpUI09;
+        private DockPanel learningGuideHeaderUI09;
+        private Grid learningGuideStepSelectorUI09, learningGuideActionRowUI09;
+        private ScrollViewer learningGuideContentUI09;
         private ComboBox learningStepsListS146;
         private bool learningGuideUpdatingS146;
         private ModulePrerequisiteFactS147 learningPrerequisiteS147;
@@ -93,7 +97,7 @@ namespace HalconWinFormsDemo
                 case VmToolKind.NumberArrayStatistics:
                     return "输入已连接真实对象面积数组。查看统计量并确认输入来源；空数组按原契约处理，不从日志或旧值补数。统计成功不是质量通过。";
                 case VmToolKind.NccTemplateMatch:
-                    return "先运行图像源，在本模块读取输入并框选/制作模板，应用后重新运行。更多参数里明确排序和选取；选中目标来自本次真实候选，查看不改旧最佳输出。缺模型、无匹配或编号越界时不造位姿。";
+                    return "在本模块明确读取已应用的图像来源，框选并制作草稿模板，F5确认后应用并重新运行。可直接读取所连本地图像源；若上游是处理模块，先运行该上游。更多参数里明确排序和选取；选中目标来自本次真实候选，查看不改旧最佳输出。缺模型、无匹配或编号越界时不造位姿。";
                 case VmToolKind.PoseImageAlignment:
                     return "先应用NCC并重新运行，再显式采当前SelectedPose作固定参考，F5确认后应用。点击下一步不会采参考。对齐输出是独立坐标的真实Image；NCC尺度1，原图ROI不能偷偷沿用到对齐链。";
                 case VmToolKind.ImageEdgeLineFindingS143:
@@ -151,36 +155,52 @@ namespace HalconWinFormsDemo
         private void ShowLearningGuideS146()
         {
             if (learningGuideWindowS146 != null) { RefreshLearningGuideS146(); if (ShowActivated) learningGuideWindowS146.Activate(); return; }
-            var root = new StackPanel { Margin = new Thickness(12) };
+            var root = new Grid();
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             learningStepTitleS146 = new TextBlock { FontSize = 15, FontWeight = FontWeights.SemiBold,
-                TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 0, 0, 6) };
+                TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
             learningStepInstructionS146 = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 7), Foreground = Brushes.DimGray };
             learningStepGapS148 = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 5), Visibility = Visibility.Collapsed };
             learningStepStateS146 = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, FontSize = 11,
                 Foreground = Brushes.SlateGray, Margin = new Thickness(0, 0, 0, 10) };
-            var actions = new DockPanel { LastChildFill = true };
+            learningGuideActionRowUI09 = new Grid { Margin = new Thickness(0, 8, 0, 0) };
             learningStepActionS146 = new Button { Padding = new Thickness(9, 4, 9, 4), Margin = new Thickness(0, 0, 8, 0) };
-            var help = new Button { Content = "模块帮助", Padding = new Thickness(6, 3, 6, 3), Margin = new Thickness(0, 0, 6, 0),
+            learningStepHelpUI09 = new Button { Content = "模块帮助", Padding = new Thickness(6, 3, 6, 3), Margin = new Thickness(0),
                 ToolTip = LearningHoverS148("查看原当前模块帮助，不运行、不改变学习进度或工程定义。") };
-            learningStepsListS146 = new ComboBox { MaxDropDownHeight = 260, Margin = new Thickness(0, 0, 0, 9),
+            learningGuideHeaderUI09 = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+            DockPanel.SetDock(learningStepHelpUI09, Dock.Right);
+            learningGuideHeaderUI09.Children.Add(learningStepHelpUI09); learningGuideHeaderUI09.Children.Add(learningStepTitleS146);
+            learningStepsListS146 = new ComboBox { MaxDropDownHeight = 260, MinWidth = 120, Margin = new Thickness(5, 0, 5, 0),
                 ToolTip = LearningHoverS148("直接选择学习步骤；只换提示，不切换正在编辑的模块。点击下方任务按钮才打开模块，不自动运行。") };
             learningStepDetailS148 = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.SlateGray, FontSize = 11 };
             var detailContent = new StackPanel { Margin = new Thickness(4, 5, 4, 2) };
+            detailContent.Children.Add(learningStepStateS146);
             detailContent.Children.Add(learningStepDetailS148);
-            learningStepDetailsS148 = new Expander { Header = "说明", IsExpanded = false, Content = detailContent, Margin = new Thickness(0, 9, 0, 0),
+            learningStepDetailsS148 = new Expander { Header = "说明与状态", IsExpanded = false, Content = detailContent, Margin = new Thickness(0, 3, 0, 0),
                 ToolTip = LearningHoverS148("完整技术说明、实际状态和其他步骤按需展开；临时步号不是准备完成或验收。") };
-            var navigation = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            learningPreviousS146 = new Button { Content = "上一步", Margin = new Thickness(0, 0, 5, 0), Padding = new Thickness(6, 3, 6, 3) };
-            learningNextS146 = new Button { Content = "下一步", Padding = new Thickness(6, 3, 6, 3),
+            learningGuideStepSelectorUI09 = new Grid { Margin = new Thickness(0, 0, 0, 9) };
+            learningGuideStepSelectorUI09.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            learningGuideStepSelectorUI09.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            learningGuideStepSelectorUI09.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            learningPreviousS146 = new Button { Content = "上一步", Margin = new Thickness(0), Padding = new Thickness(6, 3, 6, 3),
+                ToolTip = LearningHoverS148("只返回前一个学习步骤，不改变正在编辑的模块或参数草稿。") };
+            learningNextS146 = new Button { Content = "下一步", Margin = new Thickness(0), Padding = new Thickness(6, 3, 6, 3),
                 ToolTip = LearningHoverS148("只切换当前任务，不读取、训练、采参考/标定、应用、运行或标记完成。") };
-            navigation.Children.Add(help); navigation.Children.Add(learningPreviousS146); navigation.Children.Add(learningNextS146);
-            DockPanel.SetDock(navigation, Dock.Right); actions.Children.Add(navigation);
-            learningStepActionS146.HorizontalAlignment = HorizontalAlignment.Left; actions.Children.Add(learningStepActionS146);
-            root.Children.Add(learningStepTitleS146); root.Children.Add(learningStepsListS146);
-            root.Children.Add(learningStepInstructionS146); root.Children.Add(learningStepGapS148);
-            root.Children.Add(learningStepStateS146); root.Children.Add(actions); root.Children.Add(learningStepDetailsS148);
+            Grid.SetColumn(learningStepsListS146, 1); Grid.SetColumn(learningNextS146, 2);
+            learningGuideStepSelectorUI09.Children.Add(learningPreviousS146); learningGuideStepSelectorUI09.Children.Add(learningStepsListS146); learningGuideStepSelectorUI09.Children.Add(learningNextS146);
+            learningStepActionS146.HorizontalAlignment = HorizontalAlignment.Left; learningGuideActionRowUI09.Children.Add(learningStepActionS146);
+            var content = new StackPanel();
+            content.Children.Add(learningStepInstructionS146); content.Children.Add(learningStepGapS148); content.Children.Add(learningStepDetailsS148);
+            learningGuideContentUI09 = new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+            Grid.SetRow(learningGuideStepSelectorUI09, 1); Grid.SetRow(learningGuideContentUI09, 2); Grid.SetRow(learningGuideActionRowUI09, 3);
+            root.Children.Add(learningGuideHeaderUI09); root.Children.Add(learningGuideStepSelectorUI09); root.Children.Add(learningGuideContentUI09); root.Children.Add(learningGuideActionRowUI09);
             var window = new Window { Owner = this, Title = "学习 · 当前任务", Width = 430, MinWidth = 360, MinHeight = 210, MaxHeight = 530, SizeToContent = SizeToContent.Height,
-                Content = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+                Content = new Border { Background = Brushes.White, Padding = new Thickness(12), Child = root },
+                WindowStartupLocation = WindowStartupLocation.CenterOwner };
+            window.Resources.MergedDictionaries.Add(Resources);
             window.ShowActivated = ShowActivated;
             if (!ShowActivated) { window.WindowStartupLocation = WindowStartupLocation.Manual; window.Left = Left; window.Top = Top; }
             learningGuideWindowS146 = window;
@@ -188,7 +208,7 @@ namespace HalconWinFormsDemo
             learningPreviousS146.Click += delegate { MoveLearningStepS146(-1); };
             learningNextS146.Click += delegate { MoveLearningStepS146(1); };
             learningStepActionS146.Click += delegate { InvokeLearningStepS146(); };
-            help.Click += delegate
+            learningStepHelpUI09.Click += delegate
             {
                 if (!IsLearningSessionCurrentS146()) { RefreshLearningGuideS146(); return; }
                 var step = learningSessionS146.Steps[learningSessionS146.Index];
@@ -222,10 +242,12 @@ namespace HalconWinFormsDemo
             bool current = IsLearningSessionCurrentS146();
             learningStepActionS146.IsEnabled = current; learningPreviousS146.IsEnabled = current; learningNextS146.IsEnabled = current;
             learningStepsListS146.IsEnabled = current;
+            learningStepHelpUI09.IsEnabled = current;
             if (!current)
             {
                 learningPrerequisiteS147 = null;
                 learningStepTitleS146.Text = "学习导航已失效"; learningStepInstructionS146.Text = "原工程或模块实例已改变，请重新选择学习项目。";
+                learningStepTitleS146.ToolTip = LearningHoverS148(learningStepInstructionS146.Text);
                 learningStepGapS148.Visibility = Visibility.Visible; learningStepGapS148.Text = "不按同名、同编号或位置替代原模块。";
                 learningStepGapS148.Foreground = Brushes.DarkGoldenrod;
                 learningStepStateS146.Text = "旧步骤不代表当前工程状态。"; learningStepActionS146.Content = "项目已改变";
@@ -235,10 +257,20 @@ namespace HalconWinFormsDemo
             }
             var session = learningSessionS146; var step = session.Steps[session.Index];
             string stepKey = session.SessionId + "|" + session.FlowId + "|" + session.Index.ToString(CultureInfo.InvariantCulture);
-            if (learningGuideStepKeyS148 != stepKey) { learningStepDetailsS148.IsExpanded = false; learningGuideStepKeyS148 = stepKey; }
+            if (learningGuideStepKeyS148 != stepKey)
+            {
+                learningStepDetailsS148.IsExpanded = false;
+                learningGuideContentUI09.ScrollToTop();
+                learningGuideStepKeyS148 = stepKey;
+            }
             learningStepTitleS146.Text = "学习步骤 " + (session.Index + 1).ToString(CultureInfo.InvariantCulture) + " / " + session.Steps.Count;
             learningStepTitleS146.ToolTip = LearningHoverS148(session.Title + "\n" + step.Title);
             var tool = flowTools.FirstOrDefault(item => item.ToolId == step.ToolId);
+            learningStepHelpUI09.Content = tool == null ? "使用帮助" : "模块帮助";
+            learningStepHelpUI09.ToolTip = LearningHoverS148(tool == null
+                ? "打开中文版使用帮助，不执行本任务或修改工程。"
+                : "查看当前学习模块的原帮助，不运行、不切换参数草稿或改变学习进度。");
+            learningStepsListS146.ToolTip = LearningHoverS148(step.Title + "\n直接选择步骤只换提示，保留当前编辑模块和草稿；下方任务按钮才打开对应页面。");
             learningStepInstructionS146.Text = LearningBriefInstructionS148(step, tool);
             learningStepInstructionS146.ToolTip = LearningHoverS148(step.Instruction);
             string actual = tool == null ? "当前是页面/保存任务，步骤导航不会执行流程。"
@@ -276,16 +308,22 @@ namespace HalconWinFormsDemo
                 {
                     learningStepGapS148.Text = !tool.IsEnabled ? "模块已停用，不会执行"
                         : ReferenceEquals(dockEditingTool, tool) && dockDraftDirty ? "当前有未应用参数；试运行后确认，再应用"
+                        : !string.IsNullOrWhiteSpace(tool.ErrorMessage) ? "当前异常：" + LearningProseS146(tool.ErrorMessage.Replace('\r', ' ').Replace('\n', ' '), 80)
+                        : string.Equals(tool.ResultCode, "NG", StringComparison.OrdinalIgnoreCase) ? "本次结果 NG；请打开模块核对结果与参数"
                         : tool.Kind == VmToolKind.ImageSource && tool.Parameters != null &&
                             VmImageSourceModeS114.Normalize(tool.Parameters.ImageSourceModeS114) == VmImageSourceModeS114.File && string.IsNullOrWhiteSpace(tool.Parameters.LocalImagePath)
                             ? "先选择图片，再明确读取；不会自动取图"
                         : !tool.LastOutputUtc.HasValue ? "尚无当前输出；应用后重新运行，再继续下游"
                         : "已有运行记录；修改参数后需应用并重新运行";
                     learningStepGapS148.Foreground = Brushes.SlateGray;
+                    if (tool.IsEnabled && tool.LastOutputUtc.HasValue && string.IsNullOrWhiteSpace(tool.ErrorMessage) &&
+                        string.Equals(tool.ResultCode, "OK", StringComparison.OrdinalIgnoreCase) && !(ReferenceEquals(dockEditingTool, tool) && dockDraftDirty))
+                        learningStepGapS148.Visibility = Visibility.Collapsed;
                 }
             }
             learningStepGapS148.ToolTip = LearningHoverS148(fullDefinitionHint);
             learningStepDetailS148.Text = step.Instruction + "\n\n定义提示：" + fullDefinitionHint + "\n\n已有实际状态：\n" + actual +
+                (tool != null ? "\n\n当前提示：" + learningStepGapS148.Text : string.Empty) +
                 "\n\n修改参数后的顺序：F5试草稿 → 应用 → 重新运行，再继续下游。应用会清除旧输出；只试草稿不能代替已应用定义的正式结果。" +
                 "\n\n选择步骤或上一步/下一步只导航；训练、参考、标定、F5、应用、运行与保存仍须明确操作。临时步号不是准备通过、产品合格或现场验收。";
             learningPreviousS146.IsEnabled = session.Index > 0; learningNextS146.IsEnabled = session.Index < session.Steps.Count - 1;
@@ -345,7 +383,7 @@ namespace HalconWinFormsDemo
                 case VmToolKind.ImageThreshold: return "调整灰度范围 → F5看区域 → 应用 → 重跑后继续下游。";
                 case VmToolKind.ConnectedObjectAnalysisS144: return "查看对象面积；需要选取时明确排序与0起编号。";
                 case VmToolKind.NumberArrayStatistics: return "核对本次真实面积数组，主动试运行查看统计。";
-                case VmToolKind.NccTemplateMatch: return "先运行图像源，再在本模块读取、制作并应用模板。";
+                case VmToolKind.NccTemplateMatch: return "读取图像 → 框选制作 → F5确认 → 应用并重跑。";
                 case VmToolKind.PoseImageAlignment: return "先运行已应用的定位，再明确采固定参考并应用。";
                 case VmToolKind.ImageEdgeLineFindingS143: return "把搜索带放在真实直边，主动F5查看有效点与覆盖。";
                 case VmToolKind.TypedPointSetLineFittingMeasurement: return "核对本次保留边缘点，主动F5查看拟合端点。";

@@ -20,7 +20,9 @@ foreach($width in @(1366,1600)) {
     (F 'FlowMoreToggleButton').IsChecked=$true;Pump 80
     if(-not $panel.IsVisible -or $panel.ActualWidth -gt 330.1 -or $viewport.RenderSize -ne $size -or (F 'FlowZoomSlider').Value -ne $zoom){throw 'More changed flow size / zoom.'}
     BoundsMore10 $panel $surface
-    foreach($name in @('DebugStepButton','DebugContinueButton','ToggleBreakpointButton','FlowRunToHereButtonUI06','FlowRunFromHereButtonUI06','ClearBreakpointsButton','OpenConnectionIssuesButton','OpenFlowSnippetLibraryButton')){BoundsMore10 (F $name) $panel}
+    # Batch05 moves the same Continue command to the paused flow toolbar;
+    # the duplicate Full command now lives here instead. Keep checking actual current children.
+    foreach($name in @('DebugStepButton','FlowRunFullButtonS89','ToggleBreakpointButton','FlowRunToHereButtonUI06','FlowRunFromHereButtonUI06','ClearBreakpointsButton','OpenConnectionIssuesButton','OpenFlowSnippetLibraryButton')){BoundsMore10 (F $name) $panel}
     Shot ('more-'+$width)
     (F 'FlowMoreDisplayUI10').IsExpanded=$true;Pump 80
     BoundsMore10 $panel $surface

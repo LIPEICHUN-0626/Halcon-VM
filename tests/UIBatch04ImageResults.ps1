@@ -13,7 +13,7 @@ foreach($size in @(@(1120,700),@(1366,768),@(1600,900))){
     Write-Output ('UI04_DISPLAY_LAYOUT='+$size[0]+'x'+$size[1]+'; SourceBarHeight='+$bar.ActualHeight+'; SourceRight='+$sourceBounds.Right+'/'+$bar.ActualWidth+'; DetailsRight='+$detailsBounds.Right+'/'+$card.ActualWidth)
     Shot ('image-results-empty-'+$size[0]+'x'+$size[1])
     if($bar.ActualHeight -gt 37 -or $sourceBounds.Right -gt $bar.ActualWidth+1 -or $detailsBounds.Right -gt $card.ActualWidth+1){throw 'Compact source/result header clipped or unexpectedly expanded.'}
-    if((F 'SelectedResultOutputText').ActualWidth -lt 200 -or -not (F 'SelectedResultDetailsUI04').IsVisible){throw 'Key output or result detail entry not visible.'}
+    if((F 'SelectedResultOutputText').IsVisible -or -not (F 'SelectedResultDetailsUI04').IsVisible){throw 'Pending result repeats an empty output row or detail entry disappeared.'}
 }
 $window.Width=1366;$window.Height=768
 # Real image source and scalar result; validate presentation against typed outputs, not fake summary strings.
@@ -25,7 +25,7 @@ M 'RunStandaloneToolCoreUI02' @($source,'UI04 display source',$false)|Out-Null
 M 'RunStandaloneToolCoreUI02' @($threshold,'UI04 display scalar',$false)|Out-Null
 ViewDisplay04 'ModuleInput'
 [double]$area=0
-if(-not $threshold.TryGetNumericOutput('Area',[ref]$area) -or $area -ne 3072 -or (F 'SelectedResultOutputText').Text -notlike '*3072*'){throw 'Overview no longer shows genuine typed result.'}
+if(-not $threshold.TryGetNumericOutput('Area',[ref]$area) -or $area -ne 3072 -or (F 'SelectedResultOutputText').Text -notlike '*3072*' -or -not (F 'SelectedResultOutputText').IsVisible){throw 'Overview no longer shows genuine typed result.'}
 if((F 'SelectedResultOriginTextS88').Text -notlike '*非流程判定*' -or (F 'ImageContextDetailText').Text -notlike '*64×48*'){throw 'Execution qualification or image metadata lost.'}
 Shot 'image-results-actual'
 $version=$threshold.RuntimeOutputVersion;$applied=$threshold.Parameters.ImageThresholdMinGray
